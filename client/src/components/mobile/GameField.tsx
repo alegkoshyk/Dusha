@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { GameCard, GameLevel, PlayerProgress } from '@shared/schema';
 import { brandGameField, mobileGameCards, getUnlockedCards, calculateTotalXP, getEarnedBadges } from '@/lib/mobileGameData';
+import { LevelProgress } from '@/components/progress/LevelProgress';
 
 interface GameFieldProps {
   playerProgress: PlayerProgress;
@@ -130,6 +131,14 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Level Progress */}
+      <div className="container mx-auto px-4 py-4">
+        <LevelProgress 
+          levelProgress={playerProgress.levelProgress}
+          totalProgress={Math.round((playerProgress.completedCards.length / mobileGameCards.length) * 100)}
+        />
       </div>
 
       {/* Level Selection Tabs */}

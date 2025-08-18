@@ -57,13 +57,12 @@ export default function MobileGame() {
   // Update progress when session data changes
   useEffect(() => {
     if (session) {
-      const completedCards = Object.keys(session.responses || {});
+      const completedCards = session.completedCards || [];
       const unlockedCards = getUnlockedCards(completedCards, session.responses || {});
       
       setPlayerProgress({
         sessionId: session.id,
-        currentCard: session.currentLevel === 'soul' && completedCards.length === 0 ? 'soul-start' : 
-                   completedCards.length > 0 ? completedCards[completedCards.length - 1] : 'soul-start',
+        currentCard: session.currentCard || 'soul-start',
         completedCards,
         unlockedCards,
         responses: session.responses || {},

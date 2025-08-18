@@ -228,7 +228,21 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(gameSessionsTable)
       .where(eq(gameSessionsTable.id, id));
-    return session || undefined;
+
+    if (!session) return undefined;
+
+    // Fetch responses for this session
+    const responses = await this.getCardResponses(id);
+    const responseMap: Record<string, any> = {};
+    
+    responses.forEach(response => {
+      responseMap[response.cardId] = response.response;
+    });
+
+    return {
+      ...session,
+      responses: responseMap
+    };
   }
 
   async getUserGameSessions(userId: string): Promise<GameSession[]> {
@@ -395,6 +409,14 @@ export class DatabaseStorage implements IStorage {
 
   async getGameLevels(): Promise<GameLevel[]> {
     return await db.select().from(gameLevelsTable);
+  }
+
+  async getGameCard(cardId: string): Promise<GameCard | undefined> {
+    const [card] = await db
+      .select()
+      .from(gameCardsTable)
+      .where(eq(gameCardsTable.id, cardId));
+    return card || undefined;
   }
 
   // User brand methods

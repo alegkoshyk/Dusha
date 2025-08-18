@@ -282,9 +282,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:id/responses", async (req, res) => {
     try {
       const { id } = req.params;
-      const { cardId, response } = saveCardResponseSchema.parse(req.body);
+      const { cardId, response, responseType = "text" } = req.body;
       
-      const session = await storage.saveCardResponse(id, cardId, response, "text");
+      // Verify card exists before saving response
+      const cardExists = await storage.getGameCard(cardId);
+      if (!cardExists) {
+        return res.status(400).json({ error: `Card ${cardId} does not exist` });
+      }
+      
+      const session = await storage.saveCardResponse(id, cardId, response, responseType);
       
       if (!session) {
         return res.status(404).json({ error: "Game session not found" });
