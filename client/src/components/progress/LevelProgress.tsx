@@ -70,45 +70,67 @@ export function LevelProgress({ levelProgress, totalProgress }: LevelProgressPro
     }
   };
 
-  return (
-    <div className="grid gap-3">
-      {levels.map((level) => {
-        const colors = getColorClasses(level.color, level.progress);
-        const IconComponent = level.icon;
-        const isCompleted = level.progress >= 100;
+  const totalCardsCount = 15; // Всього карток в грі
+  const completedCardsCount = Math.round((totalProgress / 100) * totalCardsCount);
 
-        return (
-          <div
-            key={level.id}
-            className={`${colors.bg} rounded-lg p-4 border transition-colors`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`${colors.icon} relative`}>
-                  <IconComponent className="w-5 h-5" />
-                  {isCompleted && (
-                    <CheckCircle className="w-4 h-4 text-green-600 absolute -top-1 -right-1 bg-white rounded-full" />
-                  )}
-                </div>
-                <span className={`font-medium ${colors.text}`}>
-                  {level.name}
-                </span>
-              </div>
-              <Badge 
-                variant={isCompleted ? "default" : "secondary"}
-                className={isCompleted ? "bg-green-600" : ""}
-              >
-                {level.progress}%
-              </Badge>
-            </div>
-            {isCompleted && (
-              <p className="text-sm text-green-700 mt-2 font-medium">
-                ✓ Рівень завершено
-              </p>
-            )}
+  return (
+    <div className="space-y-4">
+      {/* Overall Progress with Triple Gradient */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold text-gray-900 dark:text-white">Загальний прогрес</h3>
+          <Badge variant="outline">{completedCardsCount}/{totalCardsCount} карток</Badge>
+        </div>
+        <div className="relative">
+          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-green-500 transition-all duration-500"
+              style={{ width: `${totalProgress}%` }}
+            />
           </div>
-        );
-      })}
+        </div>
+      </div>
+
+      {/* Level Progress */}
+      <div className="grid gap-3">
+        {levels.map((level) => {
+          const colors = getColorClasses(level.color, level.progress);
+          const IconComponent = level.icon;
+          const isCompleted = level.progress >= 100;
+
+          return (
+            <div
+              key={level.id}
+              className={`${colors.bg} rounded-lg p-4 border transition-colors`}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`${colors.icon} relative`}>
+                    <IconComponent className="w-5 h-5" />
+                    {isCompleted && (
+                      <CheckCircle className="w-4 h-4 text-green-600 absolute -top-1 -right-1 bg-white rounded-full" />
+                    )}
+                  </div>
+                  <span className={`font-medium ${colors.text}`}>
+                    {level.name}
+                  </span>
+                </div>
+                <Badge 
+                  variant={isCompleted ? "default" : "secondary"}
+                  className={isCompleted ? "bg-green-600" : ""}
+                >
+                  {level.progress}%
+                </Badge>
+              </div>
+              {isCompleted && (
+                <p className="text-sm text-green-700 mt-2 font-medium">
+                  ✓ Рівень завершено
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

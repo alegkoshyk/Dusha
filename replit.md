@@ -46,6 +46,14 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (August 18, 2025)
 
+### UI/UX Improvements
+- Added UserDropdown component with logout and dashboard navigation
+- Removed progress bars from individual game cards for cleaner interface
+- Modified "Про Гру" card to be purely informational without interactive elements
+- Restored overall progress bar with triple gradient (purple-blue-green) and card count display
+- Enhanced level selection tabs with progress bars and percentage indicators
+- Removed redundant "soul-intro" card to streamline game flow
+
 ### Authentication System Implementation
 - Created complete PostgreSQL user management system with bcrypt password hashing
 - Added users, user_profiles, user_settings, user_brands, and sessions tables
@@ -61,11 +69,12 @@ Preferred communication style: Simple, everyday language.
 - Added brandId column to game_sessions table with proper UUID foreign key
 - Created test user: aleg@redcats.agency / Donttmenoww87
 
-### Database Implementation
+### Database Implementation & Bug Fixes
 - Created comprehensive PostgreSQL schema with 6 main game tables
 - Implemented DatabaseStorage class replacing in-memory storage
-- Added game levels (Душа/Soul, Розум/Mind, Тіло/Body) with 15 total cards
-- Populated database with game content: values, archetypes, communication channels
+- Added missing game cards: soul-impact, soul-archetype, mind-target to database
+- Fixed card response saving failures by ensuring all referenced cards exist
+- Populated database with archetype options and card properties
 - Established card relationships for proper game progression logic
 - Added API endpoints for levels, cards, and card properties
 

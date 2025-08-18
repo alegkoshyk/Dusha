@@ -71,28 +71,7 @@ export const mobileGameCards: GameCard[] = [
     }
   },
   
-  {
-    id: "soul-intro",
-    level: "soul",
-    position: { x: 2, y: 0 },
-    title: "Про Гру",
-    description: "Ця гра допоможе вам пройти через три рівні розвитку бренду: Душа (цінності), Розум (стратегія) та Тіло (втілення). Кожен рівень розкриває нові аспекти вашого бренду.",
-    shortDescription: "Інформація про гру",
-    type: "reflection",
-    difficulty: "easy",
-    estimatedTime: 3,
-    required: false,
-    nextCards: [
-      {
-        cardId: "soul-values",
-        label: "Розпочати з цінностей"
-      }
-    ],
-    rewards: {
-      xp: 5,
-      unlocks: ["soul-values"]
-    }
-  },
+
 
   {
     id: "soul-values",

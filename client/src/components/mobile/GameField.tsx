@@ -161,7 +161,7 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
                 onClick={() => handleLevelSelect(level.id as GameLevel)}
                 disabled={!isUnlocked}
                 className={`
-                  relative p-4 rounded-xl transition-all duration-200
+                  relative p-4 rounded-xl transition-all duration-200 overflow-hidden
                   ${isSelected 
                     ? `bg-gradient-to-br ${levelColors[level.id as GameLevel]} text-white shadow-lg scale-105` 
                     : isUnlocked 
@@ -177,10 +177,15 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
                     {level.name}
                   </span>
                   {isUnlocked && (
-                    <Progress 
-                      value={progress} 
-                      className={`w-full h-1 ${isSelected ? 'bg-white/20' : 'bg-gray-200 dark:bg-gray-700'}`}
-                    />
+                    <div className="w-full space-y-1">
+                      <Progress 
+                        value={progress} 
+                        className={`w-full h-2 ${isSelected ? 'bg-white/20' : 'bg-gray-200 dark:bg-gray-700'}`}
+                      />
+                      <span className={`text-xs ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
+                        {progress}%
+                      </span>
+                    </div>
                   )}
                   {!isUnlocked && (
                     <Lock className="w-4 h-4 text-gray-400" />
