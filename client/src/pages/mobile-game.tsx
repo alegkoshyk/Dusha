@@ -346,6 +346,11 @@ export default function MobileGame() {
   if (viewMode === 'card' && currentCard) {
     const cardIndex = mobileGameCards.findIndex(card => card.id === currentCardId);
     const cardProgress = ((cardIndex + 1) / mobileGameCards.length) * 100;
+    
+    // Підрахунок прогресу конкретного рівня
+    const levelCards = mobileGameCards.filter(card => card.level === currentCard.level);
+    const completedLevelCards = levelCards.filter(card => playerProgress.completedCards.includes(card.id));
+    const levelProgress = Math.round((completedLevelCards.length / levelCards.length) * 100);
 
     return (
       <GameCard
@@ -358,6 +363,9 @@ export default function MobileGame() {
         canGoPrevious={true}
         progress={cardProgress}
         totalCards={mobileGameCards.length}
+        levelProgress={levelProgress}
+        completedCardsInLevel={completedLevelCards.length}
+        totalCardsInLevel={levelCards.length}
       />
     );
   }

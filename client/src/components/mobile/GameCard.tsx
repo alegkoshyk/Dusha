@@ -32,6 +32,9 @@ interface GameCardProps {
   canGoPrevious: boolean;
   progress: number;
   totalCards: number;
+  levelProgress?: number;
+  completedCardsInLevel?: number;
+  totalCardsInLevel?: number;
 }
 
 export function GameCard({ 
@@ -43,7 +46,10 @@ export function GameCard({
   canGoNext,
   canGoPrevious,
   progress,
-  totalCards 
+  totalCards,
+  levelProgress = 0,
+  completedCardsInLevel = 0,
+  totalCardsInLevel = 1
 }: GameCardProps) {
   const [currentResponse, setCurrentResponse] = useState('');
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
@@ -163,6 +169,31 @@ export function GameCard({
     }
   };
 
+  // Отримуємо кольори для прогрес-бару рівня
+  const getLevelColors = (level: string) => {
+    switch (level) {
+      case 'soul': return {
+        bg: 'from-purple-500 to-pink-500',
+        text: 'text-purple-600'
+      };
+      case 'mind': return {
+        bg: 'from-blue-500 to-cyan-500',
+        text: 'text-blue-600'
+      };
+      case 'body': return {
+        bg: 'from-green-500 to-emerald-500',
+        text: 'text-green-600'
+      };
+      default: return {
+        bg: 'from-gray-500 to-gray-600',
+        text: 'text-gray-600'
+      };
+    }
+  };
+
+  const levelColors = getLevelColors(card.level);
+  const levelName = card.level === 'soul' ? 'Душа' : card.level === 'mind' ? 'Розум' : 'Тіло';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900">
       {/* Header */}
@@ -199,6 +230,25 @@ export function GameCard({
             </div>
           </div>
           
+          {/* Level Progress Bar */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className={`text-sm font-medium ${levelColors.text}`}>
+                {levelName}
+              </span>
+              <Badge variant="outline" className="text-xs">
+                {completedCardsInLevel}/{totalCardsInLevel} карток
+              </Badge>
+            </div>
+            <div className="relative">
+              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full bg-gradient-to-r ${levelColors.bg} transition-all duration-500`}
+                  style={{ width: `${levelProgress}%` }}
+                />
+              </div>
+            </div>
+          </div>
 
         </div>
       </div>
