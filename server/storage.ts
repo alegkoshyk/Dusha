@@ -396,6 +396,22 @@ export class DatabaseStorage implements IStorage {
   async getGameLevels(): Promise<GameLevel[]> {
     return await db.select().from(gameLevelsTable);
   }
+
+  // User brand methods
+  async getUserBrand(id: string): Promise<UserBrand | undefined> {
+    const [brand] = await db
+      .select()
+      .from(userBrandsTable)
+      .where(eq(userBrandsTable.id, id));
+    return brand || undefined;
+  }
+
+  async deleteUserBrand(id: string): Promise<boolean> {
+    const result = await db
+      .delete(userBrandsTable)
+      .where(eq(userBrandsTable.id, id));
+    return result.rowCount > 0;
+  }
 }
 
 export const storage = new DatabaseStorage();

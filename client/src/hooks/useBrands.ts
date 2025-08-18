@@ -32,11 +32,33 @@ export function useBrands() {
     },
   });
 
+  const deleteBrandMutation = useMutation({
+    mutationFn: async (brandId: string) => {
+      const response = await fetch(`/api/user/brands/${brandId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to delete brand");
+      }
+
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/brands"] });
+    },
+  });
+
   return {
     brands,
     isLoading,
     createBrand: createBrandMutation.mutate,
+    deleteBrand: deleteBrandMutation.mutate,
     isCreatingBrand: createBrandMutation.isPending,
+    isDeletingBrand: deleteBrandMutation.isPending,
     createBrandError: createBrandMutation.error,
+    deleteBrandError: deleteBrandMutation.error,
   };
 }

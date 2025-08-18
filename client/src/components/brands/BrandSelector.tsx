@@ -14,11 +14,25 @@ interface BrandSelectorProps {
 
 export function BrandSelector({ onSelectBrand, onCreateNew }: BrandSelectorProps) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const { brands, isLoading } = useBrands();
+  const [brandToDelete, setBrandToDelete] = useState<string | null>(null);
+  const { brands, isLoading, createBrand, deleteBrand, createBrandError, isCreatingBrand, isDeletingBrand } = useBrands();
 
   const handleCreateBrand = (brand: UserBrand) => {
     setShowCreateDialog(false);
     onCreateNew(brand.id);
+  };
+
+  const handleDeleteBrand = (brandId: string) => {
+    setBrandToDelete(brandId);
+    deleteBrand(brandId, {
+      onSuccess: () => {
+        setBrandToDelete(null);
+      },
+      onError: (error) => {
+        console.error("Error deleting brand:", error);
+        setBrandToDelete(null);
+      }
+    });
   };
 
   if (isLoading) {
@@ -148,11 +162,16 @@ export function BrandSelector({ onSelectBrand, onCreateNew }: BrandSelectorProps
                       size="icon"
                       onClick={(e) => {
                         e.stopPropagation();
-                        // TODO: Implement delete functionality
+                        handleDeleteBrand(brand.id);
                       }}
                       data-testid={`button-delete-${brand.id}`}
+                      disabled={brandToDelete === brand.id || isDeletingBrand}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {brandToDelete === brand.id ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
                     </Button>
                   )}
                 </div>

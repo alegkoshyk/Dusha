@@ -177,6 +177,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user brand
+  app.delete("/api/user/brands/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUser(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      
+      // Verify brand belongs to user
+      const brand = await storage.getUserBrand(id);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      const deleted = await storage.deleteUserBrand(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      res.json({ message: "Бренд успішно видалено" });
+    } catch (error) {
+      console.error("Delete user brand error:", error);
+      res.status(500).json({ error: "Помилка видалення бренду" });
+    }
+  });
+
   // Game sessions with user auth
   app.get("/api/user/game-sessions", requireAuth, async (req, res) => {
     try {
