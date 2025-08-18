@@ -37,30 +37,31 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-background">
       {/* Hero Section */}
-      <div className="bg-gradient-to-br from-soul-500 to-mind-500 text-white">
-        <div className="max-w-6xl mx-auto px-4 py-16">
+      <div className="bg-gradient-to-br from-soul-700 to-mind-700 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/30"></div>
+        <div className="relative max-w-6xl mx-auto px-4 py-20">
           <div className="text-center">
-            <div className="w-20 h-20 bg-white bg-opacity-20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <Heart className="w-10 h-10 text-white" />
+            <div className="w-24 h-24 bg-white/30 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-xl">
+              <Heart className="w-12 h-12 text-white drop-shadow-lg" />
             </div>
-            <h1 className="text-5xl font-bold mb-4" data-testid="title-main">
+            <h1 className="text-6xl font-bold mb-6 text-white drop-shadow-2xl" data-testid="title-main">
               Душа Бренду
             </h1>
-            <p className="text-xl text-soul-200 mb-8 max-w-2xl mx-auto font-medium">
+            <p className="text-2xl mb-10 max-w-3xl mx-auto font-medium text-white drop-shadow-lg">
               Мобільна трансформаційна гра з полем рівнів та розгалуженими картками для створення унікального бренду
             </p>
-            <div className="space-y-4">
+            <div className="space-y-6">
               <Button 
                 size="lg" 
-                className="bg-white text-soul-600 hover:bg-soul-50 px-8 py-4 text-lg shadow-lg"
+                className="bg-white text-soul-800 hover:bg-gray-100 hover:text-soul-900 px-12 py-6 text-xl font-bold shadow-2xl border-4 border-white/50 transform hover:scale-105 transition-all duration-200"
                 onClick={() => createSessionMutation.mutate()}
                 disabled={createSessionMutation.isPending}
                 data-testid="button-start-game"
               >
-                <Play className="w-5 h-5 mr-2" />
+                <Play className="w-6 h-6 mr-3" />
                 {createSessionMutation.isPending ? "Завантаження..." : "🎮 Почати мобільну гру"}
               </Button>
-              <p className="text-sm text-soul-100 font-medium">
+              <p className="text-lg font-semibold text-white drop-shadow-lg">
                 Нова версія з інтерактивним полем та унікальними переходами між картками
               </p>
             </div>
@@ -83,7 +84,7 @@ export default function Home() {
         {/* Game Levels */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
           {/* Soul Level */}
-          <Card className="border-2 border-soul-200 hover:shadow-lg transition-all duration-300">
+          <Card className="border-2 border-soul-300 hover:shadow-xl transition-all duration-300 bg-white dark:bg-card shadow-md">
             <CardHeader className="text-center">
               <div className="w-16 h-16 bg-soul-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Heart className="w-8 h-8 text-white" />
@@ -104,7 +105,7 @@ export default function Home() {
           </Card>
 
           {/* Mind Level */}
-          <Card className="border-2 border-mind-200 hover:shadow-lg transition-all duration-300">
+          <Card className="border-2 border-mind-300 hover:shadow-xl transition-all duration-300 bg-white dark:bg-card shadow-md">
             <CardHeader className="text-center">
               <div className="w-16 h-16 bg-mind-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Brain className="w-8 h-8 text-white" />
@@ -125,7 +126,7 @@ export default function Home() {
           </Card>
 
           {/* Body Level */}
-          <Card className="border-2 border-body-200 hover:shadow-lg transition-all duration-300">
+          <Card className="border-2 border-body-300 hover:shadow-xl transition-all duration-300 bg-white dark:bg-card shadow-md">
             <CardHeader className="text-center">
               <div className="w-16 h-16 bg-body-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <ServerCog className="w-8 h-8 text-white" />
@@ -147,15 +148,15 @@ export default function Home() {
         </div>
 
         {/* Benefits Section */}
-        <div className="bg-white dark:bg-card rounded-2xl p-8 shadow-sm">
+        <div className="bg-white dark:bg-card rounded-2xl p-10 shadow-lg border border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-8">
             Що ви отримаєте
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="w-12 h-12 bg-soul-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <BookOpen className="w-6 h-6 text-soul-600" />
+              <div className="w-16 h-16 bg-soul-100 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-md">
+                <BookOpen className="w-8 h-8 text-soul-700" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                 Цілісна стратегія
@@ -166,8 +167,8 @@ export default function Home() {
             </div>
             
             <div className="text-center">
-              <div className="w-12 h-12 bg-mind-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Users className="w-6 h-6 text-mind-600" />
+              <div className="w-16 h-16 bg-mind-100 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-md">
+                <Users className="w-8 h-8 text-mind-700" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                 Розуміння аудиторії
@@ -178,8 +179,8 @@ export default function Home() {
             </div>
             
             <div className="text-center">
-              <div className="w-12 h-12 bg-body-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Trophy className="w-6 h-6 text-body-600" />
+              <div className="w-16 h-16 bg-body-100 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-md">
+                <Trophy className="w-8 h-8 text-body-700" />
               </div>
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                 План дій
@@ -192,23 +193,23 @@ export default function Home() {
         </div>
 
         {/* Game Stats */}
-        <div className="text-center mt-16">
+        <div className="text-center mt-20">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div>
-              <div className="text-3xl font-bold text-soul-600">3</div>
-              <div className="text-sm text-gray-700 dark:text-gray-200">Рівня гри</div>
+            <div className="bg-soul-50 dark:bg-soul-900/20 rounded-xl p-6 shadow-md">
+              <div className="text-4xl font-bold text-soul-700">3</div>
+              <div className="text-base font-medium text-gray-800 dark:text-gray-200 mt-2">Рівня гри</div>
             </div>
-            <div>
-              <div className="text-3xl font-bold text-mind-600">~20</div>
-              <div className="text-sm text-gray-700 dark:text-gray-200">Карток на рівень</div>
+            <div className="bg-mind-50 dark:bg-mind-900/20 rounded-xl p-6 shadow-md">
+              <div className="text-4xl font-bold text-mind-700">~20</div>
+              <div className="text-base font-medium text-gray-800 dark:text-gray-200 mt-2">Карток на рівень</div>
             </div>
-            <div>
-              <div className="text-3xl font-bold text-body-600">2-3</div>
-              <div className="text-sm text-gray-700 dark:text-gray-200">Години гри</div>
+            <div className="bg-body-50 dark:bg-body-900/20 rounded-xl p-6 shadow-md">
+              <div className="text-4xl font-bold text-body-700">2-3</div>
+              <div className="text-base font-medium text-gray-800 dark:text-gray-200 mt-2">Години гри</div>
             </div>
-            <div>
-              <div className="text-3xl font-bold text-gray-900 dark:text-white">PDF</div>
-              <div className="text-sm text-gray-700 dark:text-gray-200">Експорт результатів</div>
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 shadow-md">
+              <div className="text-4xl font-bold text-gray-900 dark:text-white">PDF</div>
+              <div className="text-base font-medium text-gray-800 dark:text-gray-200 mt-2">Експорт результатів</div>
             </div>
           </div>
         </div>
