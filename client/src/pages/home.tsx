@@ -46,7 +46,7 @@ export default function Home() {
             <h1 className="text-5xl font-bold mb-4" data-testid="title-main">
               Душа Бренду
             </h1>
-            <p className="text-xl text-soul-100 mb-8 max-w-2xl mx-auto">
+            <p className="text-xl text-soul-200 mb-8 max-w-2xl mx-auto font-medium">
               Мобільна трансформаційна гра з полем рівнів та розгалуженими картками для створення унікального бренду
             </p>
             <div className="space-y-4">
@@ -60,7 +60,7 @@ export default function Home() {
                 <Play className="w-5 h-5 mr-2" />
                 {createSessionMutation.isPending ? "Завантаження..." : "🎮 Почати мобільну гру"}
               </Button>
-              <p className="text-sm text-soul-200">
+              <p className="text-sm text-soul-100 font-medium">
                 Нова версія з інтерактивним полем та унікальними переходами між картками
               </p>
             </div>
@@ -74,7 +74,7 @@ export default function Home() {
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
             Як працює гра
           </h2>
-          <p className="text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+          <p className="text-gray-700 dark:text-gray-200 max-w-3xl mx-auto">
             Мобільна гра з полем рівнів, де кожна картка має унікальні параметри та можливості переходів. 
             Розгалужена система з досягненнями, XP та персоналізованими шляхами розвитку бренду.
           </p>
@@ -88,13 +88,13 @@ export default function Home() {
               <div className="w-16 h-16 bg-soul-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Heart className="w-8 h-8 text-white" />
               </div>
-              <CardTitle className="text-soul-700">Душа Бренду</CardTitle>
+              <CardTitle className="text-soul-800 dark:text-soul-300">Душа Бренду</CardTitle>
               <CardDescription>
                 Місія, цінності та історія вашого бренду
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+              <ul className="text-sm text-gray-800 dark:text-gray-200 space-y-2">
                 <li>• Визначення ключових цінностей</li>
                 <li>• Формулювання місії</li>
                 <li>• Створення історії бренду</li>
@@ -109,13 +109,13 @@ export default function Home() {
               <div className="w-16 h-16 bg-mind-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Brain className="w-8 h-8 text-white" />
               </div>
-              <CardTitle className="text-mind-700">Розум Бренду</CardTitle>
+              <CardTitle className="text-mind-800 dark:text-mind-300">Розум Бренду</CardTitle>
               <CardDescription>
                 Стратегія, позиціонування та унікальна пропозиція
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+              <ul className="text-sm text-gray-800 dark:text-gray-200 space-y-2">
                 <li>• Визначення цільової аудиторії</li>
                 <li>• Формування бренд-ідеї</li>
                 <li>• Вибір архетипу бренду</li>
@@ -130,13 +130,13 @@ export default function Home() {
               <div className="w-16 h-16 bg-body-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <ServerCog className="w-8 h-8 text-white" />
               </div>
-              <CardTitle className="text-body-700">Тіло Бренду</CardTitle>
+              <CardTitle className="text-body-800 dark:text-body-300">Тіло Бренду</CardTitle>
               <CardDescription>
                 Практична реалізація та конкретні дії
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+              <ul className="text-sm text-gray-800 dark:text-gray-200 space-y-2">
                 <li>• Планування продуктів/послуг</li>
                 <li>• Вибір каналів комунікації</li>
                 <li>• Розробка візуального стилю</li>
@@ -160,7 +160,7 @@ export default function Home() {
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                 Цілісна стратегія
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-sm text-gray-700 dark:text-gray-200">
                 Повна карта бренду з усіма ключовими елементами для розвитку бізнесу
               </p>
             </div>
@@ -172,7 +172,7 @@ export default function Home() {
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                 Розуміння аудиторії
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-sm text-gray-700 dark:text-gray-200">
                 Чіткий портрет вашого ідеального клієнта та способи з ним взаємодії
               </p>
             </div>
@@ -184,7 +184,7 @@ export default function Home() {
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                 План дій
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300">
+              <p className="text-sm text-gray-700 dark:text-gray-200">
                 Конкретні кроки для втілення вашої бренд-стратегії в життя
               </p>
             </div>
@@ -196,19 +196,19 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
               <div className="text-3xl font-bold text-soul-600">3</div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">Рівня гри</div>
+              <div className="text-sm text-gray-700 dark:text-gray-200">Рівня гри</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-mind-600">~20</div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">Карток на рівень</div>
+              <div className="text-sm text-gray-700 dark:text-gray-200">Карток на рівень</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-body-600">2-3</div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">Години гри</div>
+              <div className="text-sm text-gray-700 dark:text-gray-200">Години гри</div>
             </div>
             <div>
               <div className="text-3xl font-bold text-gray-900 dark:text-white">PDF</div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">Експорт результатів</div>
+              <div className="text-sm text-gray-700 dark:text-gray-200">Експорт результатів</div>
             </div>
           </div>
         </div>
