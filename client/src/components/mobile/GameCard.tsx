@@ -263,6 +263,26 @@ export function GameCard({
 
           <CardContent>
             <div className="space-y-6">
+              {/* Intro card - just description, no input */}
+              {card.id === 'soul-start' && (
+                <div className="text-center py-8">
+                  <div className="mb-6 p-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-500 text-white rounded-full mb-4">
+                      <Star className="w-8 h-8" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                      Готові до подорожі?
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                      {card.description}
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Натисніть "Далі", щоб розпочати створення карти вашого бренду
+                  </p>
+                </div>
+              )}
+
               {/* Text Input */}
               {(card.type === 'text' || card.type === 'reflection') && (
                 <div className="space-y-2">
@@ -411,12 +431,17 @@ export function GameCard({
                 </div>
                 
                 <Button
-                  onClick={handleSubmit}
-                  disabled={!validation.isValid || (!currentResponse && selectedOptions.length === 0)}
+                  onClick={card.id === 'soul-start' ? onNext : handleSubmit}
+                  disabled={card.id === 'soul-start' ? false : (!validation.isValid || (!currentResponse && selectedOptions.length === 0))}
                   className="flex items-center gap-2 min-w-[120px]"
                   data-testid="button-next"
                 >
-                  {validation.isValid ? (
+                  {card.id === 'soul-start' ? (
+                    <>
+                      Почати гру
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  ) : validation.isValid ? (
                     <>
                       Далі
                       <ArrowRight className="w-4 h-4" />
