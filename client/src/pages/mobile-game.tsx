@@ -143,6 +143,12 @@ export default function MobileGame() {
     setLocation(`/game/${sessionId}?card=${cardId}`);
   };
 
+  const handleGoBack = () => {
+    setViewMode('field');
+    setCurrentCardId(null);
+    setLocation(`/game/${sessionId}`);
+  };
+
   const handleCardResponse = async (response: any) => {
     if (!currentCardId) return;
 
@@ -152,22 +158,21 @@ export default function MobileGame() {
         response 
       });
 
-      // Update local progress
-      const newCompletedCards = [...playerProgress.completedCards];
-      if (!newCompletedCards.includes(currentCardId)) {
-        newCompletedCards.push(currentCardId);
-      }
-
-      const newProgress = Math.round((newCompletedCards.length / mobileGameCards.length) * 100);
-      await updateProgressMutation.mutateAsync(newProgress);
-
       toast({
         title: "Відповідь збережена!",
         description: "Ваша відповідь успішно збережена.",
       });
 
+      // Автоматично переходимо до наступної карти або повертаємося на поле
+      handleNextCard();
+
     } catch (error) {
       console.error('Error submitting response:', error);
+      toast({
+        title: "Помилка",
+        description: "Не вдалося зберегти відповідь. Спробуйте ще раз.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -345,9 +350,9 @@ export default function MobileGame() {
         response={playerProgress.responses[currentCardId]}
         onResponse={handleCardResponse}
         onNext={handleNextCard}
-        onPrevious={playerProgress.completedCards.length > 0 ? handlePreviousCard : undefined}
+        onPrevious={handleGoBack}
         canGoNext={true}
-        canGoPrevious={playerProgress.completedCards.length > 0}
+        canGoPrevious={true}
         progress={cardProgress}
         totalCards={mobileGameCards.length}
       />

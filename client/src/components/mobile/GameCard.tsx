@@ -45,17 +45,30 @@ export function GameCard({
   progress,
   totalCards 
 }: GameCardProps) {
-  const [currentResponse, setCurrentResponse] = useState(response || '');
-  const [selectedOptions, setSelectedOptions] = useState<string[]>(
-    Array.isArray(response) ? response : response ? [response] : []
-  );
+  const [currentResponse, setCurrentResponse] = useState('');
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [showHint, setShowHint] = useState(false);
   const [validation, setValidation] = useState<{ isValid: boolean; message?: string }>({ isValid: true });
 
+  // Ініціалізація та оновлення відповіді при зміні карти або збереженої відповіді
   useEffect(() => {
-    setCurrentResponse(response || '');
-    setSelectedOptions(Array.isArray(response) ? response : response ? [response] : []);
-  }, [response]);
+    if (response !== undefined && response !== null) {
+      if (typeof response === 'string') {
+        setCurrentResponse(response);
+        setSelectedOptions(response ? [response] : []);
+      } else if (Array.isArray(response)) {
+        setCurrentResponse('');
+        setSelectedOptions(response);
+      } else {
+        setCurrentResponse('');
+        setSelectedOptions([]);
+      }
+    } else {
+      // Очищаємо форму для нової карти без збереженої відповіді
+      setCurrentResponse('');
+      setSelectedOptions([]);
+    }
+  }, [card.id, response]);
 
   useEffect(() => {
     validateResponse();
@@ -115,10 +128,9 @@ export function GameCard({
       ? selectedOptions 
       : card.type === 'choice' 
         ? selectedOptions[0] 
-        : currentResponse;
+        : currentResponse.trim();
 
     onResponse(responseData);
-    onNext();
   };
 
   const handleOptionToggle = (optionId: string) => {
