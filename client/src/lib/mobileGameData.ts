@@ -674,66 +674,141 @@ export const mobileGameCards: GameCard[] = [
     estimatedTime: 10,
     required: true,
     validation: {
-      minLength: 60,
-      maxLength: 400
+      minLength: 40,
+      maxLength: 300
     },
     nextCards: [
       {
-        cardId: "body-action-plan",
-        label: "План дій"
+        cardId: "body-pricing",
+        label: "Ціноутворення"
       }
     ],
     rewards: {
-      xp: 30,
-      unlocks: ["body-action-plan"]
+      xp: 25,
+      unlocks: ["body-pricing"]
     }
   },
 
   {
-    id: "body-action-plan",
+    id: "body-pricing",
     level: "body",
     position: { x: 1, y: 5 },
-    title: "План Дій",
-    description: "Три конкретні кроки для реалізації бренду в найближчий місяць",
-    shortDescription: "Перші кроки",
+    title: "Стратегія Цін",
+    description: "Як ви будете ціноутворювати свої продукти?",
+    shortDescription: "Ціноутворення",
+    type: "choice",
+    difficulty: "medium",
+    estimatedTime: 7,
+    required: true,
+    options: [
+      { id: "value-based", label: "За цінністю", icon: "💎", description: "Ціна відповідає користі" },
+      { id: "competition-based", label: "За ринком", icon: "📊", description: "Орієнтир на конкурентів" },
+      { id: "cost-plus", label: "Витрати + прибуток", icon: "📈", description: "Фіксований розмір прибутку" },
+      { id: "penetration", label: "Проникнення", icon: "🎯", description: "Низькі ціни для захоплення ринку" },
+      { id: "premium", label: "Преміум", icon: "👑", description: "Високі ціни за статус" },
+      { id: "freemium", label: "Freemium", icon: "🆓", description: "Безкоштовна база + платні функції" }
+    ],
+    nextCards: [
+      {
+        cardId: "body-metrics",
+        label: "Показники успіху"
+      }
+    ],
+    rewards: {
+      xp: 25,
+      unlocks: ["body-metrics"]
+    }
+  },
+
+  {
+    id: "body-metrics",
+    level: "body",
+    position: { x: 1, y: 6 },
+    title: "Показники Успіху",
+    description: "Якими показниками ви будете вимірювати успіх бренду?",
+    shortDescription: "KPI та метрики",
+    type: "values",
+    difficulty: "medium",
+    estimatedTime: 8,
+    required: true,
+    validation: {
+      minSelections: 3,
+      maxSelections: 6
+    },
+    options: [
+      { id: "revenue", label: "Дохід", icon: "💰", description: "Загальний обіг" },
+      { id: "profit", label: "Прибуток", icon: "📈", description: "Чистий прибуток" },
+      { id: "customers", label: "Клієнти", icon: "👥", description: "Кількість клієнтів" },
+      { id: "retention", label: "Утримання", icon: "🔄", description: "Відсоток повернень" },
+      { id: "satisfaction", label: "Задоволеність", icon: "😊", description: "NPS, відгуки" },
+      { id: "awareness", label: "Впізнаваність", icon: "👁️", description: "Brand awareness" },
+      { id: "market-share", label: "Частка ринку", icon: "🏆", description: "Позиція на ринку" },
+      { id: "social-impact", label: "Соціальний вплив", icon: "🌍", description: "Користь для суспільства" }
+    ],
+    nextCards: [
+      {
+        cardId: "body-launch",
+        label: "План запуску"
+      }
+    ],
+    rewards: {
+      xp: 30,
+      unlocks: ["body-launch"]
+    }
+  },
+
+  {
+    id: "body-launch",
+    level: "body",
+    position: { x: 1, y: 7 },
+    title: "План Запуску",
+    description: "Опишіть перші кроки для запуску вашого бренду",
+    shortDescription: "Перші дії",
+    hint: "Що зробите в перші 30-90 днів?",
     type: "text",
     difficulty: "hard",
     estimatedTime: 15,
     required: true,
     validation: {
-      minLength: 80,
+      minLength: 100,
       maxLength: 500
     },
     nextCards: [
       {
-        cardId: "body-resources",
-        label: "Необхідні ресурси"
+        cardId: "body-complete",
+        label: "Завершити гру"
       }
     ],
     rewards: {
-      xp: 40,
-      unlocks: ["body-resources"]
+      xp: 50,
+      unlocks: ["body-complete"]
     }
   },
 
   {
-    id: "body-resources",
+    id: "body-complete",
     level: "body",
-    position: { x: 1, y: 6 },
-    title: "Необхідні Ресурси",
-    description: "Які ресурси знадобляться для втілення бренду?",
-    shortDescription: "Ресурси для реалізації",
-    type: "reflection",
-    difficulty: "medium",
-    estimatedTime: 8,
-    required: false,
-    validation: {
-      minLength: 30,
-      maxLength: 400
-    },
+    position: { x: 1, y: 8 },
+    title: "Ваш Бренд Готовий!",
+    description: "Вітаємо! Ви створили повну стратегію свого бренду",
+    shortDescription: "Завершення гри",
+    type: "completion",
+    difficulty: "easy",
+    estimatedTime: 3,
+    required: true,
+    options: [
+      {
+        id: "celebrate",
+        label: "Святкувати успіх!",
+        icon: "🎉",
+        description: "Ваш бренд готовий до запуску",
+        nextCard: null
+      }
+    ],
     rewards: {
-      xp: 50,
-      badges: ["body-complete", "brand-master"]
+      xp: 100,
+      badges: ["brand-master", "game-complete"],
+      completesGame: true
     }
   }
 ];
