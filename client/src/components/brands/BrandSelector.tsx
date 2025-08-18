@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Plus, Play, Trash2, Calendar, BarChart3 } from "lucide-react";
 import { useBrands } from "@/hooks/useBrands";
-import { CreateBrandDialog } from "./CreateBrandDialog";
+import { CreateBrandDialog } from "@/components/brands/CreateBrandDialog";
 import type { UserBrand } from "@shared/schema";
 
 interface BrandSelectorProps {
@@ -139,7 +139,7 @@ export function BrandSelector({ onSelectBrand, onCreateNew }: BrandSelectorProps
                     data-testid={`button-continue-${brand.id}`}
                   >
                     <Play className="h-4 w-4 mr-2" />
-                    {brand.totalProgress > 0 ? "Продовжити" : "Почати"}
+                    {brand.status === "completed" ? "Переглянути" : (brand.totalProgress > 0 ? "Продовжити" : "Почати")}
                   </Button>
                   
                   {brand.status !== "completed" && (

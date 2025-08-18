@@ -46,8 +46,23 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (August 18, 2025)
 
+### Authentication System Implementation
+- Created complete PostgreSQL user management system with bcrypt password hashing
+- Added users, user_profiles, user_settings, user_brands, and sessions tables
+- Implemented full authentication API with login, register, logout endpoints
+- Created session management with PostgreSQL store (connect-pg-simple)
+- Added frontend authentication components (LoginForm, RegisterForm) with validation
+- Integrated authentication into main App component with protected routes
+
+### Multi-Brand Management System
+- Created brand management interface with BrandSelector and CreateBrandDialog components
+- Added brand CRUD operations with progress tracking
+- Implemented game session creation linked to specific brands
+- Added brandId column to game_sessions table with proper UUID foreign key
+- Created test user: aleg@redcats.agency / Donttmenoww87
+
 ### Database Implementation
-- Created comprehensive PostgreSQL schema with 6 main tables
+- Created comprehensive PostgreSQL schema with 6 main game tables
 - Implemented DatabaseStorage class replacing in-memory storage
 - Added game levels (Душа/Soul, Розум/Mind, Тіло/Body) with 15 total cards
 - Populated database with game content: values, archetypes, communication channels
@@ -55,11 +70,16 @@ Preferred communication style: Simple, everyday language.
 - Added API endpoints for levels, cards, and card properties
 
 ### Database Schema
+- `users`: User accounts with authentication data
+- `user_profiles`: Extended user profile information
+- `user_settings`: User preferences and settings
+- `user_brands`: Brand projects owned by users
+- `sessions`: Express session storage
 - `game_levels`: Game level definitions (Soul, Mind, Body)
 - `game_cards`: Individual game cards with position, difficulty, and validation rules
 - `card_properties`: Options for choice-based cards (values, archetypes, channels)
 - `card_relations`: Progression relationships between cards
-- `game_sessions`: User game sessions with progress tracking
+- `game_sessions`: User game sessions with brand linking and progress tracking
 - `card_responses`: Individual responses to cards with timestamps
 
 ## External Dependencies
