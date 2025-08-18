@@ -152,11 +152,21 @@ export default function MobileGame() {
   const handleCardResponse = async (response: any) => {
     if (!currentCardId) return;
 
+    console.log("=== FRONTEND SUBMIT DEBUG ===");
+    console.log("Current Card ID:", currentCardId);
+    console.log("Response:", response);
+    console.log("Response type:", typeof response);
+    console.log("Session ID:", session?.id);
+
     try {
-      await submitResponseMutation.mutateAsync({ 
+      const requestData = { 
         cardId: currentCardId, 
         response 
-      });
+      };
+      
+      console.log("Request data being sent:", requestData);
+      
+      await submitResponseMutation.mutateAsync(requestData);
 
       toast({
         title: "Відповідь збережена!",
