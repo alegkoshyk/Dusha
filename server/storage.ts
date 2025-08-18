@@ -211,11 +211,36 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(userBrandsTable)
       .where(eq(userBrandsTable.id, id));
-    return result.count > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   // Game session CRUD operations
   async createGameSession(insertSession: InsertGameSession): Promise<GameSession> {
+    // Перевіряємо чи є активна гра для цього бренду
+    if (insertSession.brandId) {
+      const existingActiveSessions = await db
+        .select()
+        .from(gameSessionsTable)
+        .where(eq(gameSessionsTable.brandId, insertSession.brandId))
+        .where(sql`${gameSessionsTable.completed} IS NULL`);
+      
+      if (existingActiveSessions.length > 0) {
+        // Повертаємо існуючу активну сесію з відповідями
+        const existingSession = existingActiveSessions[0];
+        const responses = await this.getCardResponses(existingSession.id);
+        const responseMap: Record<string, any> = {};
+        
+        responses.forEach(response => {
+          responseMap[response.cardId] = response.response;
+        });
+
+        return {
+          ...existingSession,
+          responses: responseMap
+        } as GameSession;
+      }
+    }
+
     const [session] = await db
       .insert(gameSessionsTable)
       .values(insertSession)
@@ -242,7 +267,7 @@ export class DatabaseStorage implements IStorage {
     return {
       ...session,
       responses: responseMap
-    };
+    } as GameSession;
   }
 
   async getUserGameSessions(userId: string): Promise<GameSession[]> {
@@ -266,7 +291,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(gameSessionsTable)
       .where(eq(gameSessionsTable.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   async saveCardResponse(sessionId: string, cardId: string, response: any, responseType: string): Promise<GameSession | undefined> {
@@ -293,8 +318,9 @@ export class DatabaseStorage implements IStorage {
     const completedCards = completedResponses.map(r => r.cardId);
     
     // Calculate progress based on total available cards
-    const [totalCardsResult] = await db.select({ count: count() }).from(gameCardsTable);
-    const progress = Math.round((completedCards.length / totalCardsResult.count) * 100);
+    const totalCardsResult = await db.select({ count: count() }).from(gameCardsTable);
+    const totalCards = totalCardsResult[0]?.count || 0;
+    const progress = Math.round((completedCards.length / totalCards) * 100);
 
     const [session] = await db
       .update(gameSessionsTable)
@@ -419,21 +445,7 @@ export class DatabaseStorage implements IStorage {
     return card || undefined;
   }
 
-  // User brand methods
-  async getUserBrand(id: string): Promise<UserBrand | undefined> {
-    const [brand] = await db
-      .select()
-      .from(userBrandsTable)
-      .where(eq(userBrandsTable.id, id));
-    return brand || undefined;
-  }
 
-  async deleteUserBrand(id: string): Promise<boolean> {
-    const result = await db
-      .delete(userBrandsTable)
-      .where(eq(userBrandsTable.id, id));
-    return result.rowCount > 0;
-  }
 }
 
 export const storage = new DatabaseStorage();
