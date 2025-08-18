@@ -284,39 +284,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { cardId, response, responseType = "text" } = req.body;
       
-      console.log("=== SAVE RESPONSE DEBUG ===");
-      console.log("Session ID:", id);
-      console.log("Card ID:", cardId);
-      console.log("Response:", response);
-      console.log("Response Type:", responseType);
-      console.log("Request body:", req.body);
-      
       // Check if required fields are present
       if (!cardId) {
-        console.log("ERROR: Missing cardId");
         return res.status(400).json({ error: "Card ID is required" });
       }
       
       if (!response && response !== "") {
-        console.log("ERROR: Missing response");
         return res.status(400).json({ error: "Response is required" });
       }
       
       // Verify card exists before saving response
       const cardExists = await storage.getGameCard(cardId);
       if (!cardExists) {
-        console.log("ERROR: Card does not exist:", cardId);
         return res.status(400).json({ error: `Card ${cardId} does not exist` });
       }
       
       const session = await storage.saveCardResponse(id, cardId, response, responseType);
       
       if (!session) {
-        console.log("ERROR: Game session not found:", id);
         return res.status(404).json({ error: "Game session not found" });
       }
-      
-      console.log("SUCCESS: Response saved successfully");
       res.json(session);
     } catch (error) {
       console.error("Error saving card response:", error);
@@ -324,7 +311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error("Error details:", error.message);
         console.error("Error stack:", error.stack);
       }
-      res.status(400).json({ error: "Invalid request data", details: error instanceof Error ? error.message : String(error) });
+      res.status(400).json({ error: "Invalid request data" });
     }
   });
 
