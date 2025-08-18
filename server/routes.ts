@@ -6,12 +6,12 @@ import { z } from "zod";
 
 const saveCardResponseSchema = z.object({
   cardId: z.string(),
-  responses: z.record(z.any()),
+  response: z.any(),
 });
 
 const updateProgressSchema = z.object({
-  currentLevel: z.enum(["soul", "mind", "body"]),
-  currentCard: z.number(),
+  currentLevel: z.enum(["soul", "mind", "body"]).optional(),
+  currentCard: z.number().optional(),
   progress: z.number().min(0).max(100),
 });
 
@@ -67,9 +67,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:id/responses", async (req, res) => {
     try {
       const { id } = req.params;
-      const { cardId, responses } = saveCardResponseSchema.parse(req.body);
+      const { cardId, response } = saveCardResponseSchema.parse(req.body);
       
-      const session = await storage.saveCardResponse(id, cardId, responses);
+      const session = await storage.saveCardResponse(id, cardId, response);
       
       if (!session) {
         return res.status(404).json({ error: "Game session not found" });

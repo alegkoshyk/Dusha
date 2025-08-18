@@ -99,10 +99,11 @@ export default function MobileGame() {
   // Submit response mutation
   const submitResponseMutation = useMutation({
     mutationFn: async ({ cardId, response }: { cardId: string; response: any }) => {
-      return apiRequest(`/api/game-sessions/${sessionId}/responses`, {
-        method: 'POST',
-        body: JSON.stringify({ cardId, response })
-      });
+      return apiRequest(
+        'POST',
+        `/api/game-sessions/${sessionId}/responses`,
+        { cardId, response }
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", sessionId] });
@@ -120,10 +121,11 @@ export default function MobileGame() {
   // Update progress mutation
   const updateProgressMutation = useMutation({
     mutationFn: async (progress: number) => {
-      return apiRequest(`/api/game-sessions/${sessionId}/progress`, {
-        method: 'POST',
-        body: JSON.stringify({ progress })
-      });
+      return apiRequest(
+        'POST',
+        `/api/game-sessions/${sessionId}/progress`,
+        { progress }
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", sessionId] });
@@ -233,10 +235,11 @@ export default function MobileGame() {
   const handleLevelChange = (level: GameLevel) => {
     // Update session current level if needed
     if (session && session.currentLevel !== level) {
-      apiRequest(`/api/game-sessions/${sessionId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ currentLevel: level })
-      });
+      apiRequest(
+        'PATCH',
+        `/api/game-sessions/${sessionId}`,
+        { currentLevel: level }
+      );
     }
   };
 

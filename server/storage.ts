@@ -9,7 +9,7 @@ export interface IStorage {
   deleteGameSession(id: string): Promise<boolean>;
   
   // Game progress operations
-  saveCardResponse(sessionId: string, cardId: string, responses: Record<string, any>): Promise<GameSession | undefined>;
+  saveCardResponse(sessionId: string, cardId: string, response: any): Promise<GameSession | undefined>;
   getGameProgress(sessionId: string): Promise<{ progress: number; currentLevel: string; currentCard: number } | undefined>;
   generateBrandMap(sessionId: string): Promise<BrandMap | undefined>;
 }
@@ -61,7 +61,7 @@ export class MemStorage implements IStorage {
     return this.gameSessions.delete(id);
   }
 
-  async saveCardResponse(sessionId: string, cardId: string, responses: Record<string, any>): Promise<GameSession | undefined> {
+  async saveCardResponse(sessionId: string, cardId: string, response: any): Promise<GameSession | undefined> {
     const session = this.gameSessions.get(sessionId);
     if (!session) return undefined;
 
@@ -69,7 +69,7 @@ export class MemStorage implements IStorage {
     const updatedResponses = {
       ...currentResponses,
       [cardId]: {
-        ...responses,
+        response,
         timestamp: new Date().toISOString(),
       }
     };
