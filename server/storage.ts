@@ -25,8 +25,13 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const now = new Date();
     const session: GameSession = {
-      ...insertSession,
       id,
+      userId: insertSession.userId || null,
+      currentLevel: insertSession.currentLevel || "soul",
+      currentCard: insertSession.currentCard || 1,
+      responses: insertSession.responses || {},
+      progress: insertSession.progress || 0,
+      completed: insertSession.completed || null,
       createdAt: now,
       updatedAt: now,
     };

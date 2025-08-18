@@ -329,7 +329,9 @@ export const exportToPDF = async (brandMap: BrandMap, session: GameSession): Pro
     
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10);
-    yPosition = addText(brandMap.body.resources, margin, yPosition, pageWidth - 2 * margin);
+    yPosition = addText(Array.isArray(brandMap.body.resources) 
+      ? brandMap.body.resources.join(', ')
+      : brandMap.body.resources, margin, yPosition, pageWidth - 2 * margin);
     yPosition += 15;
   }
 

@@ -19,7 +19,7 @@ export default function Game() {
   const [helpModalOpen, setHelpModalOpen] = useState(false);
 
   // Get or create game session
-  const { data: session, isLoading, error } = useQuery({
+  const { data: session, isLoading, error } = useQuery<GameSession>({
     queryKey: ["/api/game-sessions", sessionId],
     enabled: !!sessionId,
   });
@@ -68,7 +68,7 @@ export default function Game() {
   });
 
   // Get brand map
-  const { data: brandMap } = useQuery({
+  const { data: brandMap } = useQuery<BrandMap>({
     queryKey: ["/api/game-sessions", sessionId, "brand-map"],
     enabled: !!sessionId,
   });

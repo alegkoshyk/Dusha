@@ -13,12 +13,12 @@ export default function Results() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const { toast } = useToast();
 
-  const { data: session, isLoading: sessionLoading } = useQuery({
+  const { data: session, isLoading: sessionLoading } = useQuery<GameSession>({
     queryKey: ["/api/game-sessions", sessionId],
     enabled: !!sessionId,
   });
 
-  const { data: brandMap, isLoading: brandMapLoading } = useQuery({
+  const { data: brandMap, isLoading: brandMapLoading } = useQuery<BrandMap>({
     queryKey: ["/api/game-sessions", sessionId, "brand-map"],
     enabled: !!sessionId,
   });
