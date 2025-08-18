@@ -825,38 +825,47 @@ export const getCardsForLevel = (level: GameLevel): GameCard[] => {
 export const getUnlockedCards = (completedCards: string[], responses: Record<string, any>): string[] => {
   const unlocked = new Set<string>(['soul-start']); // Start with first card
   
+  // Add cards unlocked by rewards from completed cards
+  for (const completedCardId of completedCards) {
+    const completedCard = getGameCard(completedCardId);
+    if (completedCard?.rewards?.unlocks) {
+      completedCard.rewards.unlocks.forEach(cardId => unlocked.add(cardId));
+    }
+  }
+  
+  // Check each card for unlock requirements
   for (const card of mobileGameCards) {
+    // Skip if already unlocked
+    if (unlocked.has(card.id)) continue;
+    
     // Check if card requirements are met
     if (card.unlockRequirements) {
       const { previousCards, responses: requiredResponses } = card.unlockRequirements;
       
+      let canUnlock = true;
+      
       // Check previous cards requirement
       if (previousCards && !previousCards.every(cardId => completedCards.includes(cardId))) {
-        continue;
+        canUnlock = false;
       }
       
       // Check response requirements
-      if (requiredResponses) {
-        let requirementsMet = true;
+      if (canUnlock && requiredResponses) {
         for (const [cardId, requirement] of Object.entries(requiredResponses)) {
           if (!responses[cardId] || !checkResponseRequirement(responses[cardId], requirement)) {
-            requirementsMet = false;
+            canUnlock = false;
             break;
           }
         }
-        if (!requirementsMet) continue;
       }
-    }
-    
-    // Add cards unlocked by rewards
-    for (const completedCardId of completedCards) {
-      const completedCard = getGameCard(completedCardId);
-      if (completedCard?.rewards?.unlocks?.includes(card.id)) {
+      
+      if (canUnlock) {
         unlocked.add(card.id);
       }
+    } else {
+      // If no requirements, unlock it (for basic progression)
+      unlocked.add(card.id);
     }
-    
-    unlocked.add(card.id);
   }
   
   return Array.from(unlocked);
