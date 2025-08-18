@@ -193,13 +193,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create new game session (with optional auth)
-  app.post("/api/game-sessions", optionalAuth, async (req, res) => {
+  // Create new game session (requires auth)
+  app.post("/api/game-sessions", requireAuth, async (req, res) => {
     try {
       const currentUser = getCurrentUser(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
       const validatedData = insertGameSessionSchema.parse({
         ...req.body,
-        userId: currentUser?.id || null,
+        userId: currentUser.id,
+        currentCard: req.body.currentCard?.toString() || "1",
       });
       
       const session = await storage.createGameSession(validatedData);

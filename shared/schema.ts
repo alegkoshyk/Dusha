@@ -322,6 +322,8 @@ export const insertGameSessionSchema = createInsertSchema(gameSessionsTable).omi
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  currentCard: z.string().optional(),
 });
 
 export const updateGameSessionSchema = insertGameSessionSchema.partial();
