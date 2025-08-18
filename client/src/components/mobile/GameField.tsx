@@ -21,6 +21,7 @@ import {
 import type { GameCard, GameLevel, PlayerProgress } from '@shared/schema';
 import { brandGameField, mobileGameCards, getUnlockedCards, calculateTotalXP, getEarnedBadges } from '@/lib/mobileGameData';
 import { LevelProgress } from '@/components/progress/LevelProgress';
+import UserDropdown from '@/components/UserDropdown';
 
 interface GameFieldProps {
   playerProgress: PlayerProgress;
@@ -114,6 +115,8 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
               </p>
             </div>
             
+            <UserDropdown />
+            
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-yellow-500" />
@@ -128,6 +131,8 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
                   <Badge variant="secondary">{earnedBadges.length}</Badge>
                 </div>
               )}
+              
+              <UserDropdown />
             </div>
           </div>
         </div>

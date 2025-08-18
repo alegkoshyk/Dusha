@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Trophy, Home, Download, Eye } from 'lucide-react';
+import UserDropdown from '@/components/UserDropdown';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import type { GameSession, GameLevel, PlayerProgress } from '@shared/schema';

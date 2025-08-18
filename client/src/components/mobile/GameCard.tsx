@@ -199,10 +199,7 @@ export function GameCard({
             </div>
           </div>
           
-          <Progress value={progress} className="h-2" />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Прогрес: {Math.round(progress)}% • Картка {totalCards - Math.floor((100 - progress) / 100 * totalCards)} з {totalCards}
-          </p>
+
         </div>
       </div>
 
