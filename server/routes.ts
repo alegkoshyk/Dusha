@@ -1,7 +1,21 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertGameSessionSchema, updateGameSessionSchema } from "@shared/schema";
+import { 
+  insertGameSessionSchema, 
+  updateGameSessionSchema,
+  registerUserSchema,
+  loginUserSchema,
+  insertUserBrandSchema,
+} from "@shared/schema";
+import { 
+  sessionMiddleware, 
+  requireAuth, 
+  getCurrentUser, 
+  setUserInSession, 
+  clearUserFromSession,
+  optionalAuth
+} from "./auth";
 import { z } from "zod";
 
 const saveCardResponseSchema = z.object({
@@ -16,10 +30,178 @@ const updateProgressSchema = z.object({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Create new game session
-  app.post("/api/game-sessions", async (req, res) => {
+  // Apply session middleware
+  app.use(sessionMiddleware);
+
+  // Authentication routes
+  app.post("/api/auth/register", async (req, res) => {
     try {
-      const validatedData = insertGameSessionSchema.parse(req.body);
+      const validatedData = registerUserSchema.parse(req.body);
+      const existingUser = await storage.getUserByEmail(validatedData.email);
+      
+      if (existingUser) {
+        return res.status(400).json({ 
+          error: "Користувач з такою email адресою вже існує" 
+        });
+      }
+
+      const user = await storage.createUser({
+        email: validatedData.email,
+        firstName: validatedData.firstName,
+        lastName: validatedData.lastName,
+        password: validatedData.password,
+      });
+
+      setUserInSession(req, user);
+      
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.status(201).json({ 
+        message: "Користувач успішно зареєстрований",
+        user: userWithoutPassword 
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(400).json({ 
+        error: "Помилка реєстрації користувача" 
+      });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const validatedData = loginUserSchema.parse(req.body);
+      const user = await storage.getUserByEmail(validatedData.email);
+      
+      if (!user) {
+        return res.status(401).json({ 
+          error: "Неправильний email або пароль" 
+        });
+      }
+
+      const isPasswordValid = await storage.verifyPassword(validatedData.password, user.passwordHash);
+      
+      if (!isPasswordValid) {
+        return res.status(401).json({ 
+          error: "Неправильний email або пароль" 
+        });
+      }
+
+      await storage.updateUserLoginTime(user.id);
+      setUserInSession(req, user);
+      
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.json({ 
+        message: "Успішний вхід в систему",
+        user: userWithoutPassword 
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(400).json({ 
+        error: "Помилка входу в систему" 
+      });
+    }
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    clearUserFromSession(req);
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Session destroy error:", err);
+        return res.status(500).json({ error: "Помилка виходу з системи" });
+      }
+      res.clearCookie("connect.sid");
+      res.json({ message: "Успішний вихід з системи" });
+    });
+  });
+
+  app.get("/api/auth/me", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUser(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const user = await storage.getUserById(currentUser.id);
+      const profile = await storage.getUserProfile(currentUser.id);
+      const settings = await storage.getUserSettings(currentUser.id);
+
+      if (!user) {
+        return res.status(404).json({ error: "Користувач не знайдений" });
+      }
+
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.json({ 
+        user: userWithoutPassword,
+        profile,
+        settings
+      });
+    } catch (error) {
+      console.error("Get user error:", error);
+      res.status(500).json({ error: "Помилка отримання даних користувача" });
+    }
+  });
+
+  // User brands routes
+  app.get("/api/user/brands", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUser(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const brands = await storage.getUserBrands(currentUser.id);
+      res.json(brands);
+    } catch (error) {
+      console.error("Get user brands error:", error);
+      res.status(500).json({ error: "Помилка отримання брендів" });
+    }
+  });
+
+  app.post("/api/user/brands", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUser(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const validatedData = insertUserBrandSchema.parse({
+        ...req.body,
+        userId: currentUser.id,
+      });
+      
+      const brand = await storage.createUserBrand(validatedData);
+      res.status(201).json(brand);
+    } catch (error) {
+      console.error("Create user brand error:", error);
+      res.status(400).json({ error: "Помилка створення бренду" });
+    }
+  });
+
+  // Game sessions with user auth
+  app.get("/api/user/game-sessions", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUser(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const sessions = await storage.getUserGameSessions(currentUser.id);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Get user game sessions error:", error);
+      res.status(500).json({ error: "Помилка отримання ігрових сесій" });
+    }
+  });
+
+  // Create new game session (with optional auth)
+  app.post("/api/game-sessions", optionalAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUser(req);
+      const validatedData = insertGameSessionSchema.parse({
+        ...req.body,
+        userId: currentUser?.id || null,
+      });
+      
       const session = await storage.createGameSession(validatedData);
       res.json(session);
     } catch (error) {

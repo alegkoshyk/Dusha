@@ -1,8 +1,79 @@
 import { sql } from "drizzle-orm";
-import { pgTable, serial, text, json, timestamp, integer, boolean, varchar, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, json, timestamp, integer, boolean, varchar, primaryKey, uuid, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+
+// Таблиця користувачів
+export const usersTable = pgTable("users", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  firstName: varchar("first_name", { length: 100}),
+  lastName: varchar("last_name", { length: 100}),
+  avatar: text("avatar"),
+  isActive: boolean("is_active").notNull().default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  emailIdx: index("users_email_idx").on(table.email),
+}));
+
+// Таблиця налаштувань користувача
+export const userSettingsTable = pgTable("user_settings", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  language: varchar("language", { length: 10 }).notNull().default("uk"),
+  theme: varchar("theme", { length: 20 }).notNull().default("light"),
+  notifications: json("notifications").notNull().default(sql`'{"email": true, "push": true}'`),
+  gamePreferences: json("game_preferences").notNull().default(sql`'{}'`),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+// Таблиця брендів користувача (окремі ігри)
+export const userBrandsTable = pgTable("user_brands", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  logo: text("logo"),
+  status: varchar("status", { length: 20 }).notNull().default("active"), // active, archived, completed
+  totalProgress: integer("total_progress").notNull().default(0),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+// Таблиця персональної картки користувача
+export const userProfilesTable = pgTable("user_profiles", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  bio: text("bio"),
+  company: varchar("company", { length: 200 }),
+  position: varchar("position", { length: 200 }),
+  website: text("website"),
+  socialLinks: json("social_links").default(sql`'{}'`),
+  skills: json("skills").default(sql`'[]'`),
+  interests: json("interests").default(sql`'[]'`),
+  achievements: json("achievements").default(sql`'[]'`),
+  totalXp: integer("total_xp").notNull().default(0),
+  level: integer("level").notNull().default(1),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+// Сесії аутентифікації
+export const sessionsTable = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: json("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)]
+);
 
 // Таблиця рівнів гри
 export const gameLevelsTable = pgTable("game_levels", {
@@ -62,8 +133,9 @@ export const cardRelationsTable = pgTable("card_relations", {
 
 // Таблиця ігрових сесій
 export const gameSessionsTable = pgTable("game_sessions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: text("user_id"), // Optional for anonymous sessions
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
+  brandId: uuid("brand_id").references(() => userBrandsTable.id, { onDelete: "cascade" }),
   currentLevel: text("current_level", { enum: ["soul", "mind", "body"] }).notNull().default("soul"),
   currentCard: text("current_card").notNull().default("soul-start"),
   completedCards: json("completed_cards").notNull().default(sql`'[]'`),
@@ -78,12 +150,14 @@ export const gameSessionsTable = pgTable("game_sessions", {
 // Таблиця відповідей на картки
 export const cardResponsesTable = pgTable("card_responses", {
   id: serial("id").primaryKey(),
-  sessionId: varchar("session_id").notNull().references(() => gameSessionsTable.id),
+  sessionId: uuid("session_id").notNull().references(() => gameSessionsTable.id, { onDelete: "cascade" }),
   cardId: text("card_id").notNull().references(() => gameCardsTable.id),
   response: json("response").notNull(), // Текст, вибір або масив значень
   responseType: text("response_type", { enum: ["text", "choice", "values"] }).notNull(),
   submittedAt: timestamp("submitted_at").default(sql`now()`).notNull(),
-});
+}, (table) => ({
+  uniqueResponse: index("unique_card_response").on(table.sessionId, table.cardId),
+}));
 
 // Унікальний індекс для відповідей (одна відповідь на картку в сесії)
 export const uniqueCardResponseIndex = pgTable("unique_card_response_idx", {
@@ -94,6 +168,35 @@ export const uniqueCardResponseIndex = pgTable("unique_card_response_idx", {
 }));
 
 // Відношення між таблицями
+export const usersRelations = relations(usersTable, ({ one, many }) => ({
+  settings: one(userSettingsTable),
+  profile: one(userProfilesTable),
+  brands: many(userBrandsTable),
+  gameSessions: many(gameSessionsTable),
+}));
+
+export const userSettingsRelations = relations(userSettingsTable, ({ one }) => ({
+  user: one(usersTable, {
+    fields: [userSettingsTable.userId],
+    references: [usersTable.id],
+  }),
+}));
+
+export const userBrandsRelations = relations(userBrandsTable, ({ one, many }) => ({
+  user: one(usersTable, {
+    fields: [userBrandsTable.userId],
+    references: [usersTable.id],
+  }),
+  sessions: many(gameSessionsTable),
+}));
+
+export const userProfilesRelations = relations(userProfilesTable, ({ one }) => ({
+  user: one(usersTable, {
+    fields: [userProfilesTable.userId],
+    references: [usersTable.id],
+  }),
+}));
+
 export const gameLevelsRelations = relations(gameLevelsTable, ({ many }) => ({
   cards: many(gameCardsTable),
 }));
@@ -129,7 +232,15 @@ export const cardRelationsRelations = relations(cardRelationsTable, ({ one }) =>
   }),
 }));
 
-export const gameSessionsRelations = relations(gameSessionsTable, ({ many }) => ({
+export const gameSessionsRelations = relations(gameSessionsTable, ({ one, many }) => ({
+  user: one(usersTable, {
+    fields: [gameSessionsTable.userId],
+    references: [usersTable.id],
+  }),
+  brand: one(userBrandsTable, {
+    fields: [gameSessionsTable.brandId],
+    references: [userBrandsTable.id],
+  }),
   responses: many(cardResponsesTable),
 }));
 
@@ -144,7 +255,49 @@ export const cardResponsesRelations = relations(cardResponsesTable, ({ one }) =>
   }),
 }));
 
-// Zod схеми для валідації
+// Zod схеми для валідації користувачів
+export const insertUserSchema = createInsertSchema(usersTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const registerUserSchema = insertUserSchema.omit({
+  passwordHash: true,
+  isActive: true,
+  lastLoginAt: true,
+}).extend({
+  password: z.string().min(8, "Пароль повинен містити мінімум 8 символів"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Паролі не співпадають",
+  path: ["confirmPassword"],
+});
+
+export const loginUserSchema = z.object({
+  email: z.string().email("Некоректна email адреса"),
+  password: z.string().min(1, "Пароль обов'язковий"),
+});
+
+export const insertUserSettingsSchema = createInsertSchema(userSettingsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserBrandSchema = createInsertSchema(userBrandsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserProfileSchema = createInsertSchema(userProfilesTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Zod схеми для гри
 export const insertGameLevelSchema = createInsertSchema(gameLevelsTable).omit({
   createdAt: true,
   updatedAt: true,
@@ -178,7 +331,20 @@ export const insertCardResponseSchema = createInsertSchema(cardResponsesTable).o
   submittedAt: true,
 });
 
-// Типи для TypeScript
+// Типи для користувачів
+export type User = typeof usersTable.$inferSelect;
+export type UserSettings = typeof userSettingsTable.$inferSelect;
+export type UserBrand = typeof userBrandsTable.$inferSelect;
+export type UserProfile = typeof userProfilesTable.$inferSelect;
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type RegisterUser = z.infer<typeof registerUserSchema>;
+export type LoginUser = z.infer<typeof loginUserSchema>;
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
+export type InsertUserBrand = z.infer<typeof insertUserBrandSchema>;
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
+
+// Типи для гри
 export type GameLevel = typeof gameLevelsTable.$inferSelect;
 export type GameCard = typeof gameCardsTable.$inferSelect;
 export type CardProperty = typeof cardPropertiesTable.$inferSelect;
