@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import Dashboard from "@/pages/dashboard";
 import Game from "@/pages/game";
 import MobileGame from "@/pages/mobile-game";
 import Results from "@/pages/results";
@@ -32,6 +33,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/game/:sessionId" component={MobileGame} />
       <Route path="/game/:sessionId/results" component={Results} />
       <Route path="/classic/:sessionId?" component={Game} />
