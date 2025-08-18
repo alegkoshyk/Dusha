@@ -11,7 +11,7 @@ const saveCardResponseSchema = z.object({
 
 const updateProgressSchema = z.object({
   currentLevel: z.enum(["soul", "mind", "body"]).optional(),
-  currentCard: z.number().optional(),
+  currentCard: z.string().optional(),
   progress: z.number().min(0).max(100),
 });
 
@@ -50,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const validatedData = updateGameSessionSchema.parse(req.body);
-      const session = await storage.updateGameSession(id, validatedData);
+      const session = await storage.updateGameSession(id, id, validatedData);
       
       if (!session) {
         return res.status(404).json({ error: "Game session not found" });
@@ -69,7 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { cardId, response } = saveCardResponseSchema.parse(req.body);
       
-      const session = await storage.saveCardResponse(id, cardId, response);
+      const session = await storage.saveCardResponse(id, cardId, response, "text");
       
       if (!session) {
         return res.status(404).json({ error: "Game session not found" });
@@ -88,7 +88,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const progressData = updateProgressSchema.parse(req.body);
       
-      const session = await storage.updateGameSession(id, progressData);
+      const session = await storage.updateGameSession(id, id, progressData);
       
       if (!session) {
         return res.status(404).json({ error: "Game session not found" });
@@ -139,7 +139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:id/complete", async (req, res) => {
     try {
       const { id } = req.params;
-      const session = await storage.updateGameSession(id, {
+      const session = await storage.updateGameSession(id, id, {
         completed: new Date(),
         progress: 100,
       });
@@ -151,6 +151,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(session);
     } catch (error) {
       console.error("Error completing game session:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Get game levels
+  app.get("/api/game-levels", async (req, res) => {
+    try {
+      const levels = await storage.getGameLevels();
+      res.json(levels);
+    } catch (error) {
+      console.error("Error fetching game levels:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Get game cards (all or by level)
+  app.get("/api/game-cards", async (req, res) => {
+    try {
+      const { level } = req.query;
+      const cards = await storage.getGameCards(level as string);
+      res.json(cards);
+    } catch (error) {
+      console.error("Error fetching game cards:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Get card responses for session
+  app.get("/api/game-sessions/:id/responses", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const responses = await storage.getCardResponses(id);
+      res.json(responses);
+    } catch (error) {
+      console.error("Error fetching card responses:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });

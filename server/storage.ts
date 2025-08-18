@@ -1,86 +1,123 @@
-import { type GameSession, type InsertGameSession, type UpdateGameSession, type BrandMap } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { 
+  type GameSession, 
+  type InsertGameSession, 
+  type BrandMap,
+  type GameCard,
+  type GameLevel,
+  type CardResponse,
+  type InsertCardResponse,
+  gameSessionsTable,
+  cardResponsesTable,
+  gameCardsTable,
+  gameLevelsTable,
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, count, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Game session CRUD operations
   createGameSession(session: InsertGameSession): Promise<GameSession>;
   getGameSession(id: string): Promise<GameSession | undefined>;
-  updateGameSession(id: string, updates: UpdateGameSession): Promise<GameSession | undefined>;
+  updateGameSession(id: string, sessionId: string, updates: Partial<GameSession>): Promise<GameSession | undefined>;
   deleteGameSession(id: string): Promise<boolean>;
   
   // Game progress operations
-  saveCardResponse(sessionId: string, cardId: string, response: any): Promise<GameSession | undefined>;
-  getGameProgress(sessionId: string): Promise<{ progress: number; currentLevel: string; currentCard: number } | undefined>;
+  saveCardResponse(sessionId: string, cardId: string, response: any, responseType: string): Promise<GameSession | undefined>;
+  getCardResponses(sessionId: string): Promise<CardResponse[]>;
+  getGameProgress(sessionId: string): Promise<{ progress: number; currentLevel: string; currentCard: string } | undefined>;
   generateBrandMap(sessionId: string): Promise<BrandMap | undefined>;
+  
+  // Game data operations
+  getGameCards(levelId?: string): Promise<GameCard[]>;
+  getGameLevels(): Promise<GameLevel[]>;
 }
 
-export class MemStorage implements IStorage {
-  private gameSessions: Map<string, GameSession>;
-
-  constructor() {
-    this.gameSessions = new Map();
-  }
-
+export class DatabaseStorage implements IStorage {
   async createGameSession(insertSession: InsertGameSession): Promise<GameSession> {
-    const id = randomUUID();
-    const now = new Date();
-    const session: GameSession = {
-      id,
-      userId: insertSession.userId || null,
-      currentLevel: insertSession.currentLevel || "soul",
-      currentCard: insertSession.currentCard || 1,
-      responses: insertSession.responses || {},
-      progress: insertSession.progress || 0,
-      completed: insertSession.completed || null,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.gameSessions.set(id, session);
+    const [session] = await db
+      .insert(gameSessionsTable)
+      .values(insertSession)
+      .returning();
     return session;
   }
 
   async getGameSession(id: string): Promise<GameSession | undefined> {
-    return this.gameSessions.get(id);
+    const [session] = await db
+      .select()
+      .from(gameSessionsTable)
+      .where(eq(gameSessionsTable.id, id));
+    return session || undefined;
   }
 
-  async updateGameSession(id: string, updates: UpdateGameSession): Promise<GameSession | undefined> {
-    const session = this.gameSessions.get(id);
-    if (!session) return undefined;
-
-    const updatedSession: GameSession = {
-      ...session,
-      ...updates,
-      updatedAt: new Date(),
-    };
-    
-    this.gameSessions.set(id, updatedSession);
-    return updatedSession;
+  async updateGameSession(id: string, sessionId: string, updates: Partial<GameSession>): Promise<GameSession | undefined> {
+    const [session] = await db
+      .update(gameSessionsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(gameSessionsTable.id, sessionId))
+      .returning();
+    return session || undefined;
   }
 
   async deleteGameSession(id: string): Promise<boolean> {
-    return this.gameSessions.delete(id);
+    const result = await db
+      .delete(gameSessionsTable)
+      .where(eq(gameSessionsTable.id, id));
+    return result.rowCount > 0;
   }
 
-  async saveCardResponse(sessionId: string, cardId: string, response: any): Promise<GameSession | undefined> {
-    const session = this.gameSessions.get(sessionId);
-    if (!session) return undefined;
-
-    const currentResponses = session.responses as Record<string, any> || {};
-    const updatedResponses = {
-      ...currentResponses,
-      [cardId]: {
+  async saveCardResponse(sessionId: string, cardId: string, response: any, responseType: string): Promise<GameSession | undefined> {
+    // Save individual card response with upsert logic
+    await db
+      .insert(cardResponsesTable)
+      .values({
+        sessionId,
+        cardId,
         response,
-        timestamp: new Date().toISOString(),
-      }
-    };
+        responseType: responseType as "text" | "choice" | "values",
+      })
+      .onConflictDoUpdate({
+        target: [cardResponsesTable.sessionId, cardResponsesTable.cardId],
+        set: {
+          response,
+          responseType: responseType as "text" | "choice" | "values",
+          submittedAt: sql`now()`,
+        }
+      });
 
-    return this.updateGameSession(sessionId, {
-      responses: updatedResponses,
-    });
+    // Update session with completed cards
+    const completedResponses = await this.getCardResponses(sessionId);
+    const completedCards = completedResponses.map(r => r.cardId);
+    
+    // Calculate progress based on total available cards
+    const [totalCardsResult] = await db.select({ count: count() }).from(gameCardsTable);
+    const progress = Math.round((completedCards.length / totalCardsResult.count) * 100);
+
+    const [session] = await db
+      .update(gameSessionsTable)
+      .set({
+        completedCards,
+        progress,
+        updatedAt: sql`now()`,
+      })
+      .where(eq(gameSessionsTable.id, sessionId))
+      .returning();
+
+    return session || undefined;
   }
 
-  async getGameProgress(sessionId: string): Promise<{ progress: number; currentLevel: string; currentCard: number } | undefined> {
-    const session = this.gameSessions.get(sessionId);
+  async getCardResponses(sessionId: string): Promise<CardResponse[]> {
+    return await db
+      .select()
+      .from(cardResponsesTable)
+      .where(eq(cardResponsesTable.sessionId, sessionId));
+  }
+
+  async getGameProgress(sessionId: string): Promise<{ progress: number; currentLevel: string; currentCard: string } | undefined> {
+    const [session] = await db
+      .select()
+      .from(gameSessionsTable)
+      .where(eq(gameSessionsTable.id, sessionId));
+    
     if (!session) return undefined;
 
     return {
@@ -91,12 +128,10 @@ export class MemStorage implements IStorage {
   }
 
   async generateBrandMap(sessionId: string): Promise<BrandMap | undefined> {
-    const session = this.gameSessions.get(sessionId);
-    if (!session) return undefined;
+    const responses = await this.getCardResponses(sessionId);
+    if (responses.length === 0) return undefined;
 
-    const responses = session.responses as Record<string, any> || {};
-    
-    // Extract responses and build brand map
+    // Build brand map from responses
     const brandMap: BrandMap = {
       soul: {
         values: [],
@@ -109,51 +144,68 @@ export class MemStorage implements IStorage {
       },
     };
 
-    // Process soul responses
-    Object.entries(responses).forEach(([cardId, response]) => {
+    // Process responses and build brand map
+    responses.forEach((response) => {
+      const cardId = response.cardId;
+      const responseData = response.response as any;
+      
       if (cardId.startsWith('soul-')) {
-        if (cardId === 'soul-values' && response.selectedValues) {
-          brandMap.soul.values = response.selectedValues;
-        } else if (cardId === 'soul-mission' && response.mission) {
-          brandMap.soul.mission = response.mission;
-        } else if (cardId === 'soul-story' && response.story) {
-          brandMap.soul.story = response.story;
-        } else if (cardId === 'soul-purpose' && response.purpose) {
-          brandMap.soul.purpose = response.purpose;
+        if (cardId === 'soul-values' && responseData.selectedValues) {
+          brandMap.soul.values = responseData.selectedValues;
+        } else if (cardId === 'soul-mission' && responseData.mission) {
+          brandMap.soul.mission = responseData.mission;
+        } else if (cardId === 'soul-story' && responseData.story) {
+          brandMap.soul.story = responseData.story;
+        } else if (cardId === 'soul-purpose' && responseData.purpose) {
+          brandMap.soul.purpose = responseData.purpose;
         }
       } else if (cardId.startsWith('mind-')) {
-        if (cardId === 'mind-audience' && response.audience) {
-          brandMap.mind.targetAudience = response.audience;
-        } else if (cardId === 'mind-idea' && response.idea) {
-          brandMap.mind.brandIdea = response.idea;
-        } else if (cardId === 'mind-promise' && response.promise) {
-          brandMap.mind.promise = response.promise;
-        } else if (cardId === 'mind-archetype' && response.archetype) {
-          brandMap.mind.archetype = response.archetype;
-        } else if (cardId === 'mind-positioning' && response.positioning) {
-          brandMap.mind.positioning = response.positioning;
-        } else if (cardId === 'mind-unique-value' && response.uniqueValue) {
-          brandMap.mind.uniqueValue = response.uniqueValue;
+        if (cardId === 'mind-audience' && responseData.audience) {
+          brandMap.mind.targetAudience = responseData.audience;
+        } else if (cardId === 'mind-idea' && responseData.idea) {
+          brandMap.mind.brandIdea = responseData.idea;
+        } else if (cardId === 'mind-promise' && responseData.promise) {
+          brandMap.mind.promise = responseData.promise;
+        } else if (cardId === 'mind-archetype' && responseData.archetype) {
+          brandMap.mind.archetype = responseData.archetype;
+        } else if (cardId === 'mind-positioning' && responseData.positioning) {
+          brandMap.mind.positioning = responseData.positioning;
+        } else if (cardId === 'mind-unique-value' && responseData.uniqueValue) {
+          brandMap.mind.uniqueValue = responseData.uniqueValue;
         }
       } else if (cardId.startsWith('body-')) {
-        if (cardId === 'body-products' && response.products) {
-          brandMap.body.products = Array.isArray(response.products) ? response.products : [response.products];
-        } else if (cardId === 'body-channels' && response.channels) {
-          brandMap.body.channels = Array.isArray(response.channels) ? response.channels : [response.channels];
-        } else if (cardId === 'body-visual-style' && response.visualStyle) {
-          brandMap.body.visualStyle = response.visualStyle;
-        } else if (cardId === 'body-tone' && response.toneOfVoice) {
-          brandMap.body.toneOfVoice = response.toneOfVoice;
-        } else if (cardId === 'body-actions' && response.actions) {
-          brandMap.body.actions = Array.isArray(response.actions) ? response.actions : [response.actions];
-        } else if (cardId === 'body-resources' && response.resources) {
-          brandMap.body.resources = response.resources;
+        if (cardId === 'body-products' && responseData.products) {
+          brandMap.body.products = Array.isArray(responseData.products) ? responseData.products : [responseData.products];
+        } else if (cardId === 'body-channels' && responseData.channels) {
+          brandMap.body.channels = Array.isArray(responseData.channels) ? responseData.channels : [responseData.channels];
+        } else if (cardId === 'body-visual-style' && responseData.visualStyle) {
+          brandMap.body.visualStyle = responseData.visualStyle;
+        } else if (cardId === 'body-tone' && responseData.toneOfVoice) {
+          brandMap.body.toneOfVoice = responseData.toneOfVoice;
+        } else if (cardId === 'body-actions' && responseData.actions) {
+          brandMap.body.actions = Array.isArray(responseData.actions) ? responseData.actions : [responseData.actions];
+        } else if (cardId === 'body-resources' && responseData.resources) {
+          brandMap.body.resources = responseData.resources;
         }
       }
     });
 
     return brandMap;
   }
+
+  async getGameCards(levelId?: string): Promise<GameCard[]> {
+    if (levelId) {
+      return await db
+        .select()
+        .from(gameCardsTable)
+        .where(eq(gameCardsTable.levelId, levelId));
+    }
+    return await db.select().from(gameCardsTable);
+  }
+
+  async getGameLevels(): Promise<GameLevel[]> {
+    return await db.select().from(gameLevelsTable);
+  }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

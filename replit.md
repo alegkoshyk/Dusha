@@ -26,10 +26,11 @@ Preferred communication style: Simple, everyday language.
 - **Development**: Hot module replacement with Vite integration in development mode
 
 ### Data Storage Solutions
-- **Current**: In-memory storage using Maps for game sessions and responses
-- **Future-Ready**: Database abstraction layer with IStorage interface for easy migration to PostgreSQL
-- **Schema**: Drizzle ORM configured for PostgreSQL with defined table schemas
-- **Session Data**: JSON storage for flexible response data and progress tracking
+- **Current**: PostgreSQL database with comprehensive normalized schema
+- **Architecture**: Database-first approach with Drizzle ORM and relationship management
+- **Schema**: Full relational database with tables for levels, cards, properties, relations, sessions, and responses
+- **Session Data**: Structured relational storage with foreign key constraints and proper normalization
+- **Migration**: Successfully migrated from in-memory to PostgreSQL with DatabaseStorage implementation
 
 ### Game Logic Architecture
 - **Three-Level Structure**: Progressive unlocking from Soul → Mind → Body levels
@@ -42,6 +43,24 @@ Preferred communication style: Simple, everyday language.
 - **PDF Export**: jsPDF integration for generating branded PDF reports
 - **Brand Map Visualization**: Dynamic preview of completed brand strategy
 - **Progress Persistence**: Automatic saving of responses and session state
+
+## Recent Changes (August 18, 2025)
+
+### Database Implementation
+- Created comprehensive PostgreSQL schema with 6 main tables
+- Implemented DatabaseStorage class replacing in-memory storage
+- Added game levels (Душа/Soul, Розум/Mind, Тіло/Body) with 15 total cards
+- Populated database with game content: values, archetypes, communication channels
+- Established card relationships for proper game progression logic
+- Added API endpoints for levels, cards, and card properties
+
+### Database Schema
+- `game_levels`: Game level definitions (Soul, Mind, Body)
+- `game_cards`: Individual game cards with position, difficulty, and validation rules
+- `card_properties`: Options for choice-based cards (values, archetypes, channels)
+- `card_relations`: Progression relationships between cards
+- `game_sessions`: User game sessions with progress tracking
+- `card_responses`: Individual responses to cards with timestamps
 
 ## External Dependencies
 
