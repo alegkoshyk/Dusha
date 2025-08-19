@@ -352,7 +352,7 @@ export function GameCard({
               )}
 
               {/* Text Input */}
-              {(card.type === 'text' || card.type === 'reflection') && !(card.id === 'soul-start' || card.id === 'mind-start') && (
+              {(card.type === 'text' || card.type === 'reflection') && !(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') && (
                 <div className="space-y-2">
                   {/* Для карт цільової аудиторії - коротший інпут */}
                   {(card.id === 'mind-audience' || card.id === 'mind-target') ? (
@@ -510,12 +510,12 @@ export function GameCard({
                 </div>
                 
                 <Button
-                  onClick={(card.id === 'soul-start' || card.id === 'mind-start') ? onNext : handleSubmit}
-                  disabled={(card.id === 'soul-start' || card.id === 'mind-start') ? false : (!validation.isValid || (!currentResponse && selectedOptions.length === 0))}
+                  onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? onNext : handleSubmit}
+                  disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? false : (!validation.isValid || (!currentResponse && selectedOptions.length === 0))}
                   className="flex items-center gap-2 min-w-[120px]"
                   data-testid="button-next"
                 >
-                  {(card.id === 'soul-start' || card.id === 'mind-start') ? (
+                  {(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? (
                     <>
                       {card.id === 'soul-start' ? 'Почати гру' : 'Почати рівень'}
                       <ArrowRight className="w-4 h-4" />
