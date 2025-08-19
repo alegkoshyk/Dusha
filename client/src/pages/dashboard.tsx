@@ -275,11 +275,9 @@ export default function Dashboard() {
                   
                   // Обчислення прогресу
                   const totalCards = 15; // загальна кількість карток в грі
-                  const progress = activeBrandGame 
-                    ? Math.round((activeBrandGame.progress || 0) * 100) 
-                    : completedBrandGames > 0 
-                      ? 100 
-                      : 0;
+                  const rawProgress = activeBrandGame?.progress || 0;
+                  // Обмежуємо прогрес до максимум 100%
+                  const progress = Math.min(Math.round(rawProgress), 100);
                   
                   const hasActiveGame = !!activeBrandGame;
                   const isCompleted = !hasActiveGame && completedBrandGames > 0;
@@ -425,7 +423,9 @@ export default function Dashboard() {
                 {sessions.filter(s => !s.completed).map((session) => {
                   const brand = brands.find(b => b.id === session.brandId);
                   const LevelIcon = getLevelIcon(session.currentLevel);
-                  const progressPercentage = Math.round((session.progress || 0) * 100);
+                  const rawSessionProgress = session.progress || 0;
+                  // Обмежуємо прогрес до максимум 100%
+                  const progressPercentage = Math.min(Math.round(rawSessionProgress), 100);
                   
                   return (
                     <Card key={session.id} className="hover:shadow-lg transition-shadow">
