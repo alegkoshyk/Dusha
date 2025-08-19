@@ -354,18 +354,7 @@ export function GameCard({
               )}
 
               {/* Text Input */}
-              {(() => {
-                const shouldShow = (card.type === 'text' || card.type === 'reflection') && !(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start');
-                console.log('GameCard Debug:', {
-                  cardId: card.id,
-                  cardType: card.type,
-                  shouldShow,
-                  isTextType: card.type === 'text',
-                  isReflectionType: card.type === 'reflection',
-                  isExcluded: (card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start')
-                });
-                return shouldShow;
-              })() && (
+              {(card.type === 'text' || card.type === 'reflection' || card.type === 'audience') && !(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') && (
                 <div className="space-y-2">
                   {/* Для карт цільової аудиторії - коротший інпут */}
                   {(card.id === 'mind-audience' || card.id === 'mind-target') ? (
@@ -524,7 +513,7 @@ export function GameCard({
                 
                 <Button
                   onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? onNext : handleSubmit}
-                  disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? false : (!validation.isValid || (!currentResponse && selectedOptions.length === 0))}
+                  disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? false : (!currentResponse || currentResponse.trim().length === 0)}
                   className="flex items-center gap-2 min-w-[120px]"
                   data-testid="button-next"
                 >
@@ -533,9 +522,9 @@ export function GameCard({
                       {card.id === 'soul-start' ? 'Почати гру' : 'Почати рівень'}
                       <ArrowRight className="w-4 h-4" />
                     </>
-                  ) : validation.isValid ? (
+                  ) : (currentResponse && currentResponse.trim().length > 0) ? (
                     <>
-                      Далі
+                      Зберегти відповідь
                       <ArrowRight className="w-4 h-4" />
                     </>
                   ) : (

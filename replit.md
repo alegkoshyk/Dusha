@@ -46,6 +46,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (August 19, 2025)
 
+### Card Response System Fixes
+- Fixed critical bug where card responses were not saving due to missing database entries
+- Added missing game cards to database: mind-solution, mind-benefit, mind-problem
+- Fixed type mismatch for mind-audience card (changed from 'audience' to 'text' type)
+- Improved validation logic to allow empty responses as drafts
+- Added comprehensive logging for debugging card saving issues
+- Successfully tested card response saving with API - returning 200 status
+
+### Input Field Implementation for Target Audience
+- Added specialized Input component for target audience cards (mind-audience, mind-target)
+- Fixed display conditions to show input fields for all text/reflection cards
+- Updated button logic to properly handle different card types
+- Fixed exclusion logic for intro cards (soul-start, mind-start, body-start)
+- Simplified button text and validation for better user experience
+
 ### Dashboard and Navigation Improvements
 - Added Header component with persistent navigation for authenticated users
 - Redesigned Dashboard to match provided design mockup with brand cards
