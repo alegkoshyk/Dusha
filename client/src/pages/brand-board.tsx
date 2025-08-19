@@ -65,20 +65,34 @@ export default function BrandBoard() {
   // Auto-complete game session when visiting brand board
   const completeGameMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest(`/api/game-sessions/${sessionId}/complete`, {
-        method: 'POST'
+      const response = await fetch(`/api/game-sessions/${sessionId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to complete session: ${response.status}`);
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
+      console.log('Game session completed successfully');
       // Invalidate session cache to update completion status
       queryClient.invalidateQueries({ queryKey: [`/api/game-sessions/${sessionId}`] });
       queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
+    },
+    onError: (error) => {
+      console.error('Failed to complete game session:', error);
     }
   });
 
   // Auto-complete on mount if not already completed
   React.useEffect(() => {
     if (sessionId && brandMap && !completeGameMutation.isPending) {
+      console.log('Attempting to complete game session:', sessionId);
       completeGameMutation.mutate();
     }
   }, [sessionId, brandMap]);
