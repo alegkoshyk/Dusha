@@ -292,8 +292,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Card ID is required" });
       }
       
-      if (response === undefined || response === null) {
-        console.log("Missing response");
+      if (response === undefined || response === null || response === "") {
+        console.log("Missing response:", response);
         return res.status(400).json({ error: "Response is required" });
       }
       

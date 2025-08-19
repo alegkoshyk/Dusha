@@ -354,13 +354,24 @@ export function GameCard({
               {/* Text Input */}
               {(card.type === 'text' || card.type === 'reflection') && !(card.id === 'soul-start' || card.id === 'mind-start') && (
                 <div className="space-y-2">
-                  <Textarea
-                    placeholder="Введіть вашу відповідь..."
-                    value={currentResponse}
-                    onChange={(e) => setCurrentResponse(e.target.value)}
-                    className="min-h-[120px] resize-none"
-                    data-testid="input-response"
-                  />
+                  {/* Для карт цільової аудиторії - коротший інпут */}
+                  {(card.id === 'mind-audience' || card.id === 'mind-target') ? (
+                    <Input
+                      value={currentResponse}
+                      onChange={(e) => setCurrentResponse(e.target.value)}
+                      placeholder="Наприклад: Молоді професіонали 25-35 років, які цінують якість..."
+                      className="w-full"
+                      data-testid="input-audience"
+                    />
+                  ) : (
+                    <Textarea
+                      placeholder="Введіть вашу відповідь..."
+                      value={currentResponse}
+                      onChange={(e) => setCurrentResponse(e.target.value)}
+                      className="min-h-[120px] resize-none"
+                      data-testid="input-response"
+                    />
+                  )}
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>
                       {card.validation && 'minLength' in card.validation && `Мінімум ${(card.validation as any).minLength} символів`}
