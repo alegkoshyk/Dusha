@@ -44,7 +44,25 @@ Preferred communication style: Simple, everyday language.
 - **Brand Map Visualization**: Dynamic preview of completed brand strategy
 - **Progress Persistence**: Automatic saving of responses and session state
 
-## Recent Changes (August 18, 2025)
+## Recent Changes (August 19, 2025)
+
+### Dashboard and Navigation Improvements
+- Added Header component with persistent navigation for authenticated users
+- Redesigned Dashboard to match provided design mockup with brand cards
+- Changed default route "/" to Dashboard instead of Home for better UX
+- Added "Create New Brand" card with dashed border styling
+- Implemented brand cards with progress indicators and status badges (Active/Completed)
+- Styled action buttons: "Continue" (blue fill) and "New Game" (blue outline) matching design
+- Added clickable brand cards that navigate directly to game sessions
+- Fixed React import issues in Dashboard component
+
+### Mobile Game Route Fixes
+- Added /mobile-game route to App.tsx for direct access
+- Fixed sessionId handling to work with or without URL parameters
+- Updated all API calls to use activeSessionId instead of sessionId
+- Improved error handling for missing sessions
+
+## Previous Changes (August 18, 2025)
 
 ### UI/UX Improvements
 - Added UserDropdown component with logout and dashboard navigation
