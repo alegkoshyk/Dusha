@@ -929,25 +929,43 @@ export const getEarnedBadges = (completedCards: string[]): string[] => {
   return Array.from(badges);
 };
 
-// Utility functions
-function checkResponseRequirement(response: any, requirement: any): boolean {
-  if (typeof requirement === 'object' && requirement.length) {
-    return Array.isArray(response) && response.length >= parseInt(requirement.length.replace('>= ', ''));
+// Helper function to check response requirements
+const checkResponseRequirement = (response: any, requirement: any): boolean => {
+  if (!response || !requirement) return false;
+  
+  if (requirement.type === 'includes') {
+    return Array.isArray(response) && requirement.values.some((val: string) => response.includes(val));
   }
-  if (typeof requirement === 'object' && requirement.pattern) {
-    return typeof response === 'string' && new RegExp(requirement.pattern).test(response);
+  
+  if (requirement.type === 'equals') {
+    return response === requirement.value;
   }
+  
+  if (requirement.type === 'exists') {
+    return response !== null && response !== undefined && response !== '';
+  }
+  
   return true;
-}
+};
 
-function evaluateCondition(condition: string, responses: Record<string, any>): boolean {
-  try {
-    // Simple condition evaluation for demo
-    // In production, use a proper expression evaluator
-    return eval(condition.replace(/(\w+)/g, (match) => {
-      return responses[match] ? JSON.stringify(responses[match]) : 'null';
-    }));
-  } catch {
-    return false;
+// Helper function to evaluate conditions
+const evaluateCondition = (condition: any, responses: Record<string, any>): boolean => {
+  if (!condition || !responses) return true;
+  
+  const { cardId, type, value } = condition;
+  const response = responses[cardId];
+  
+  if (type === 'equals') {
+    return response === value;
   }
-}
+  
+  if (type === 'includes') {
+    return Array.isArray(response) && response.includes(value);
+  }
+  
+  if (type === 'exists') {
+    return response !== null && response !== undefined && response !== '';
+  }
+  
+  return true;
+};

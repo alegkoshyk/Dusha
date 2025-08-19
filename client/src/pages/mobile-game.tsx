@@ -83,7 +83,7 @@ export default function MobileGame() {
   useEffect(() => {
     if (session) {
       const completedCards = Array.isArray(session.completedCards) ? session.completedCards : [];
-      const unlockedCards = getUnlockedCards(completedCards);
+      const unlockedCards = getUnlockedCards(completedCards, {});
       
       setPlayerProgress({
         sessionId: session.id,
