@@ -386,16 +386,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:id/complete", async (req, res) => {
     try {
       const { id } = req.params;
-      const session = await storage.updateGameSession(id, id, {
-        completed: new Date(),
-        progress: 100,
-      });
       
-      if (!session) {
+      // Check if session exists first
+      const existingSession = await storage.getGameSession(id);
+      if (!existingSession) {
         return res.status(404).json({ error: "Game session not found" });
       }
       
-      res.json(session);
+      // Only update if not already completed
+      if (!existingSession.completed) {
+        const session = await storage.updateGameSession(id, id, {
+          completed: new Date(),
+          progress: 100,
+        });
+        
+        console.log(`Game session ${id} marked as completed`);
+        res.json(session);
+      } else {
+        console.log(`Game session ${id} already completed`);
+        res.json(existingSession);
+      }
     } catch (error) {
       console.error("Error completing game session:", error);
       res.status(500).json({ error: "Internal server error" });

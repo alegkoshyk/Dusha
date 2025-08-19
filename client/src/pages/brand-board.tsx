@@ -1,11 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
+import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowLeft, Download, Share, MapPin, Heart, Brain, Dumbbell } from 'lucide-react';
 import { Header } from '@/components/Header';
+import React from 'react';
 
 interface CardResponse {
   cardId: string;
@@ -48,6 +50,7 @@ interface BrandMapResponse {
 export default function BrandBoard() {
   const { sessionId } = useParams();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   const { data: brandMap, isLoading, error } = useQuery<BrandMapResponse>({
     queryKey: [`/api/game-sessions/${sessionId}/brand-map`],
@@ -58,6 +61,27 @@ export default function BrandBoard() {
     queryKey: [`/api/game-sessions/${sessionId}/responses`],
     enabled: !!sessionId
   });
+
+  // Auto-complete game session when visiting brand board
+  const completeGameMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest(`/api/game-sessions/${sessionId}/complete`, {
+        method: 'POST'
+      });
+    },
+    onSuccess: () => {
+      // Invalidate session cache to update completion status
+      queryClient.invalidateQueries({ queryKey: [`/api/game-sessions/${sessionId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
+    }
+  });
+
+  // Auto-complete on mount if not already completed
+  React.useEffect(() => {
+    if (sessionId && brandMap && !completeGameMutation.isPending) {
+      completeGameMutation.mutate();
+    }
+  }, [sessionId, brandMap]);
 
   const handleBack = () => {
     setLocation('/dashboard');
