@@ -18,8 +18,12 @@ import {
   CheckCircle,
   AlertCircle,
   Star,
-  Zap
+  Zap,
+  Trophy,
+  Eye,
+  Plus
 } from 'lucide-react';
+import { useLocation } from 'wouter';
 import type { GameCard as GameCardType } from '@shared/schema';
 
 interface GameCardProps {
@@ -51,6 +55,8 @@ export function GameCard({
   completedCardsInLevel = 0,
   totalCardsInLevel = 1
 }: GameCardProps) {
+  const [, setLocation] = useLocation();
+  const activeSessionId = new URLSearchParams(window.location.search).get('sessionId') || window.location.pathname.split('/').pop();
   const [currentResponse, setCurrentResponse] = useState('');
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [showHint, setShowHint] = useState(false);
@@ -325,36 +331,66 @@ export function GameCard({
 
           <CardContent>
             <div className="space-y-6">
-              {/* Intro cards - just description, no input */}
-              {(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') && (
+              {/* Intro and completion cards - just description, no input */}
+              {(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.id === 'body-complete') && (
                 <div className="text-center py-8">
                   <div className={`mb-6 p-6 bg-gradient-to-br rounded-xl border ${
                     card.id === 'soul-start' 
                       ? 'from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-purple-200 dark:border-purple-800'
+                      : card.id === 'body-complete'
+                      ? 'from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800'
                       : 'from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-blue-200 dark:border-blue-800'
                   }`}>
                     <div className={`inline-flex items-center justify-center w-16 h-16 text-white rounded-full mb-4 ${
-                      card.id === 'soul-start' ? 'bg-purple-500' : 'bg-blue-500'
+                      card.id === 'soul-start' ? 'bg-purple-500' : 
+                      card.id === 'body-complete' ? 'bg-green-500' : 'bg-blue-500'
                     }`}>
-                      <Star className="w-8 h-8" />
+                      {card.id === 'body-complete' ? <Trophy className="w-8 h-8" /> : <Star className="w-8 h-8" />}
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                       {card.id === 'soul-start' ? 'Готові до подорожі?' : 
                        card.id === 'mind-start' ? 'Розум Бренду' :
-                       card.id === 'body-start' ? 'Тіло Бренду' : levelName}
+                       card.id === 'body-start' ? 'Тіло Бренду' :
+                       card.id === 'body-complete' ? '🎉 Вітаємо! Гра завершена!' : levelName}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                       {card.description}
                     </p>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Натисніть "Далі", щоб розпочати створення карти вашого бренду
+                    {card.id === 'body-complete' 
+                      ? 'Оберіть дію для продовження:'
+                      : 'Натисніть "Далі", щоб розпочати створення карти вашого бренду'
+                    }
                   </p>
+                  
+                  {/* Completion actions */}
+                  {card.id === 'body-complete' && (
+                    <div className="flex flex-col gap-3 mt-6">
+                      <Button 
+                        onClick={() => setLocation(`/brand-board/${activeSessionId}`)}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white"
+                        data-testid="button-view-brand-board"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Переглянути Дошку Бренду
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => setLocation('/dashboard')}
+                        className="w-full border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
+                        data-testid="button-new-game"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Почати нову гру
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Text Input */}
-              {(card.type === 'text' || card.type === 'reflection' || card.type === 'audience') && !(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') && (
+              {(card.type === 'text' || card.type === 'reflection' || card.type === 'audience') && !(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.id === 'body-complete') && (
                 <div className="space-y-2">
                   {/* Для карт цільової аудиторії - коротший інпут */}
                   {(card.id === 'mind-audience' || card.id === 'mind-target') ? (
@@ -511,18 +547,19 @@ export function GameCard({
                   )}
                 </div>
                 
-                <Button
-                  onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? onNext : handleSubmit}
-                  disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? false : 
-                    (card.type === 'values' || card.type === 'choice') ? 
-                      (selectedOptions.length === 0 || 
-                       (card.validation && typeof card.validation === 'object' && 'minSelections' in card.validation && 
-                        selectedOptions.length < (card.validation as any).minSelections)) : 
-                      (!currentResponse || currentResponse.trim().length === 0)
-                  }
-                  className="flex items-center gap-2 min-w-[120px]"
-                  data-testid="button-next"
-                >
+                {card.id !== 'body-complete' && (
+                  <Button
+                    onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? onNext : handleSubmit}
+                    disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? false : 
+                      (card.type === 'values' || card.type === 'choice') ? 
+                        (selectedOptions.length === 0 || 
+                         (card.validation && typeof card.validation === 'object' && 'minSelections' in card.validation && 
+                          selectedOptions.length < (card.validation as any).minSelections)) : 
+                        (!currentResponse || currentResponse.trim().length === 0)
+                    }
+                    className="flex items-center gap-2 min-w-[120px]"
+                    data-testid="button-next"
+                  >
                   {(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? (
                     <>
                       {card.id === 'soul-start' ? 'Почати гру' : 'Почати рівень'}
@@ -557,7 +594,8 @@ export function GameCard({
                         </>
                       )
                   )}
-                </Button>
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
