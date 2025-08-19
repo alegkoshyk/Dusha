@@ -24,7 +24,7 @@ import {
   userProfilesTable,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, count, sql } from "drizzle-orm";
+import { eq, count, sql, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export interface IStorage {
@@ -221,8 +221,10 @@ export class DatabaseStorage implements IStorage {
       const existingActiveSessions = await db
         .select()
         .from(gameSessionsTable)
-        .where(eq(gameSessionsTable.brandId, insertSession.brandId))
-        .where(sql`${gameSessionsTable.completed} IS NULL`);
+        .where(and(
+          eq(gameSessionsTable.brandId, insertSession.brandId),
+          sql`${gameSessionsTable.completed} IS NULL`
+        ));
       
       if (existingActiveSessions.length > 0) {
         // Повертаємо існуючу активну сесію з відповідями
@@ -454,6 +456,23 @@ export class DatabaseStorage implements IStorage {
     return card || undefined;
   }
 
+  async getSessionCardResponses(sessionId: string): Promise<any[]> {
+    const responses = await db
+      .select({
+        cardId: cardResponsesTable.cardId,
+        cardTitle: gameCardsTable.title,
+        response: cardResponsesTable.response,
+        responseType: cardResponsesTable.responseType,
+        createdAt: cardResponsesTable.createdAt,
+        level: gameCardsTable.levelId
+      })
+      .from(cardResponsesTable)
+      .innerJoin(gameCardsTable, eq(cardResponsesTable.cardId, gameCardsTable.id))
+      .where(eq(cardResponsesTable.sessionId, sessionId))
+      .orderBy(gameCardsTable.positionX, gameCardsTable.positionY);
+    
+    return responses;
+  }
 
 }
 

@@ -2,8 +2,19 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams, useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Share } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ArrowLeft, Download, Share, MapPin, Heart, Brain, Dumbbell } from 'lucide-react';
 import { Header } from '@/components/Header';
+
+interface CardResponse {
+  cardId: string;
+  cardTitle: string;
+  response: any;
+  responseType: string;
+  createdAt: string;
+  level: string;
+}
 
 interface BrandMapResponse {
   soul: {
@@ -43,6 +54,11 @@ export default function BrandBoard() {
     enabled: !!sessionId
   });
 
+  const { data: cardResponses, isLoading: responsesLoading } = useQuery<CardResponse[]>({
+    queryKey: [`/api/game-sessions/${sessionId}/responses`],
+    enabled: !!sessionId
+  });
+
   const handleBack = () => {
     setLocation('/dashboard');
   };
@@ -57,7 +73,7 @@ export default function BrandBoard() {
     console.log('Share brand board');
   };
 
-  if (isLoading) {
+  if (isLoading || responsesLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Header />
@@ -128,6 +144,107 @@ export default function BrandBoard() {
             </Button>
           </div>
         </div>
+
+        {/* All Responses Map */}
+        {cardResponses && cardResponses.length > 0 && (
+          <Card className="mb-8 border-orange-200 dark:border-orange-800">
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20">
+              <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
+                <MapPin className="w-6 h-6" />
+                Карта всіх відповідей
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {['soul', 'mind', 'body'].map((level) => {
+                  const levelResponses = cardResponses.filter(r => r.level === level);
+                  const levelIcon = level === 'soul' ? Heart : level === 'mind' ? Brain : Dumbbell;
+                  const levelColor = level === 'soul' ? 'purple' : level === 'mind' ? 'blue' : 'green';
+                  const LevelIcon = levelIcon;
+                  
+                  return (
+                    <div key={level} 
+                         className={`border-2 rounded-lg p-4 ${
+                           level === 'soul' 
+                             ? 'border-purple-200 dark:border-purple-800' 
+                             : level === 'mind' 
+                             ? 'border-blue-200 dark:border-blue-800'
+                             : 'border-green-200 dark:border-green-800'
+                         }`}>
+                      <div className={`flex items-center gap-2 mb-4 ${
+                        level === 'soul' 
+                          ? 'text-purple-800 dark:text-purple-200' 
+                          : level === 'mind' 
+                          ? 'text-blue-800 dark:text-blue-200'
+                          : 'text-green-800 dark:text-green-200'
+                      }`}>
+                        <LevelIcon className="w-5 h-5" />
+                        <h3 className="font-semibold">
+                          {level === 'soul' ? 'Душа' : level === 'mind' ? 'Розум' : 'Тіло'} ({levelResponses.length})
+                        </h3>
+                      </div>
+                      
+                      <ScrollArea className="h-64">
+                        <div className="space-y-3">
+                          {levelResponses.map((response, index) => (
+                            <div key={response.cardId} 
+                                 className={`p-3 rounded-lg border ${
+                                   level === 'soul' 
+                                     ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800' 
+                                     : level === 'mind' 
+                                     ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                                     : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                                 }`}>
+                              <div className="flex items-start justify-between mb-2">
+                                <h4 className={`font-medium text-sm ${
+                                  level === 'soul' 
+                                    ? 'text-purple-900 dark:text-purple-100' 
+                                    : level === 'mind' 
+                                    ? 'text-blue-900 dark:text-blue-100'
+                                    : 'text-green-900 dark:text-green-100'
+                                }`}>
+                                  {response.cardTitle}
+                                </h4>
+                                <Badge variant="secondary" className="text-xs">
+                                  {index + 1}
+                                </Badge>
+                              </div>
+                              <div className={`text-sm ${
+                                level === 'soul' 
+                                  ? 'text-purple-700 dark:text-purple-300' 
+                                  : level === 'mind' 
+                                  ? 'text-blue-700 dark:text-blue-300'
+                                  : 'text-green-700 dark:text-green-300'
+                              }`}>
+                                {Array.isArray(response.response) ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {response.response.map((item: string, i: number) => (
+                                      <span key={i} className={`px-2 py-1 rounded text-xs ${
+                                        level === 'soul' 
+                                          ? 'bg-purple-100 dark:bg-purple-800' 
+                                          : level === 'mind' 
+                                          ? 'bg-blue-100 dark:bg-blue-800'
+                                          : 'bg-green-100 dark:bg-green-800'
+                                      }`}>
+                                        {item}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="line-clamp-3">{response.response}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Brand Map Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

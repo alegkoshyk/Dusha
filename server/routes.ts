@@ -425,11 +425,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get card responses for session
+  // Get card responses for session with card details
   app.get("/api/game-sessions/:id/responses", async (req, res) => {
     try {
       const { id } = req.params;
-      const responses = await storage.getCardResponses(id);
+      const responses = await storage.getSessionCardResponses(id);
       res.json(responses);
     } catch (error) {
       console.error("Error fetching card responses:", error);
