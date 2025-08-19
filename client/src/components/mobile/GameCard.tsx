@@ -192,7 +192,7 @@ export function GameCard({
   };
 
   const levelColors = getLevelColors(card.levelId);
-  const levelName = card.levelId === 'soul' ? 'Душа' : card.levelId === 'mind' ? 'Розум' : 'Тіло';
+  const levelName = card.levelId === 'soul' ? 'Душа бренду' : card.levelId === 'mind' ? 'Розум бренду' : 'Тіло бренду';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900">
@@ -230,8 +230,8 @@ export function GameCard({
             </div>
           </div>
           
-          {/* Level Progress Bar */}
-          <div className="space-y-2">
+          {/* Посекційний прогрес зверху */}
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className={`text-sm font-medium ${levelColors.text}`}>
                 {levelName}
@@ -240,14 +240,29 @@ export function GameCard({
                 {completedCardsInLevel}/{totalCardsInLevel} карток
               </Badge>
             </div>
-            <div className="relative">
-              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full bg-gradient-to-r ${levelColors.bg} transition-all duration-500`}
-                  style={{ width: `${levelProgress}%` }}
+            
+            {/* Посекційний прогрес */}
+            <div className="grid grid-cols-5 gap-1.5">
+              {Array.from({ length: totalCardsInLevel }, (_, index) => (
+                <div
+                  key={index}
+                  className={`h-2.5 rounded-full transition-all duration-300 ${
+                    index < completedCardsInLevel
+                      ? 'bg-green-500 shadow-sm'
+                      : index === completedCardsInLevel
+                      ? `bg-gradient-to-r ${levelColors.bg} shadow-sm animate-pulse`
+                      : 'bg-gray-200 dark:bg-gray-600'
+                  }`}
                 />
-              </div>
+              ))}
             </div>
+            
+            {/* Загальний прогрес */}
+            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+              <span>Загальний прогрес</span>
+              <span>{progress + 1}/{totalCards}</span>
+            </div>
+            <Progress value={(progress / totalCards) * 100} className="h-1" />
           </div>
 
         </div>
@@ -324,7 +339,7 @@ export function GameCard({
                       <Star className="w-8 h-8" />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      {card.id === 'soul-start' ? 'Готові до подорожі?' : 'Розум бренду'}
+                      {card.id === 'soul-start' ? 'Готові до подорожі?' : levelName}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                       {card.description}

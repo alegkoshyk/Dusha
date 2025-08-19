@@ -11,7 +11,19 @@ import { Trophy, Home, Download, Eye } from 'lucide-react';
 import UserDropdown from '@/components/UserDropdown';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
-import type { GameSession, GameLevel, PlayerProgress } from '@shared/schema';
+import type { GameSession, GameLevel } from '@shared/schema';
+
+interface PlayerProgress {
+  sessionId: string;
+  currentCard: string;
+  completedCards: string[];
+  unlockedCards: string[];
+  responses: Record<string, any>;
+  achievements: string[];
+  totalXP: number;
+  levelProgress: { soul: number; mind: number; body: number };
+}
+
 import { 
   mobileGameCards, 
   getGameCard, 
@@ -37,7 +49,7 @@ export default function MobileGame() {
     enabled: !sessionId,
   });
 
-  const activeSessionId = sessionId || (userSessions && userSessions.length > 0 ? userSessions[0].id : null);
+  const activeSessionId = sessionId || (userSessions && Array.isArray(userSessions) && userSessions.length > 0 ? userSessions[0].id : null);
 
   // Get game session
   const { data: session, isLoading: sessionLoading } = useQuery<GameSession>({
@@ -66,15 +78,16 @@ export default function MobileGame() {
   // Update progress when session data changes
   useEffect(() => {
     if (session) {
-      const completedCards = session.completedCards || [];
-      const unlockedCards = getUnlockedCards(completedCards, session.responses || {});
+      const completedCards = Array.isArray(session.completedCards) ? session.completedCards : [];
+      const responses = session.responses && typeof session.responses === 'object' ? session.responses : {};
+      const unlockedCards = getUnlockedCards(completedCards, responses);
       
       setPlayerProgress({
         sessionId: session.id,
         currentCard: session.currentCard || 'soul-start',
         completedCards,
         unlockedCards,
-        responses: session.responses || {},
+        responses,
         achievements: getEarnedBadges(completedCards),
         totalXP: calculateTotalXP(completedCards),
         levelProgress: {
@@ -140,8 +153,8 @@ export default function MobileGame() {
     }
   });
 
-  const calculateLevelProgress = (level: GameLevel, completedCards: string[]): number => {
-    const levelCards = mobileGameCards.filter(card => card.level === level);
+  const calculateLevelProgress = (level: string, completedCards: string[]): number => {
+    const levelCards = mobileGameCards.filter(card => card.levelId === level);
     const completed = levelCards.filter(card => completedCards.includes(card.id)).length;
     return Math.round((completed / levelCards.length) * 100);
   };
@@ -154,7 +167,7 @@ export default function MobileGame() {
 
   const handleGoBack = () => {
     setViewMode('field');
-    setCurrentCardId(null);
+    setCurrentCardId('');
     setLocation(`/game/${sessionId}`);
   };
 
@@ -200,20 +213,20 @@ export default function MobileGame() {
       handleCardSelect(nextOptions[0]);
     } else {
       // No more cards, check if level is complete
-      const levelCards = mobileGameCards.filter(card => card.level === currentCard.level);
+      const levelCards = mobileGameCards.filter(card => card.levelId === currentCard.levelId);
       const levelCompleted = levelCards.every(card => 
         playerProgress.completedCards.includes(card.id) || !card.required
       );
 
       if (levelCompleted) {
         // Move to next level or complete game
-        if (currentCard.level === 'soul') {
-          const firstMindCard = mobileGameCards.find(card => card.level === 'mind');
+        if (currentCard.levelId === 'soul') {
+          const firstMindCard = mobileGameCards.find(card => card.levelId === 'mind');
           if (firstMindCard) {
             handleCardSelect(firstMindCard.id);
           }
-        } else if (currentCard.level === 'mind') {
-          const firstBodyCard = mobileGameCards.find(card => card.level === 'body');
+        } else if (currentCard.levelId === 'mind') {
+          const firstBodyCard = mobileGameCards.find(card => card.levelId === 'body');
           if (firstBodyCard) {
             handleCardSelect(firstBodyCard.id);
           }
@@ -249,7 +262,7 @@ export default function MobileGame() {
 
   const handleLevelChange = (level: GameLevel) => {
     // Update session current level if needed
-    if (session && session.currentLevel !== level) {
+    if (session && session.currentLevel !== level.id) {
       apiRequest(
         'PATCH',
         `/api/game-sessions/${activeSessionId}`,
@@ -356,7 +369,7 @@ export default function MobileGame() {
     const cardProgress = ((cardIndex + 1) / mobileGameCards.length) * 100;
     
     // Підрахунок прогресу конкретного рівня
-    const levelCards = mobileGameCards.filter(card => card.level === currentCard.level);
+    const levelCards = mobileGameCards.filter(card => card.levelId === currentCard.levelId);
     const completedLevelCards = levelCards.filter(card => playerProgress.completedCards.includes(card.id));
     const levelProgress = Math.round((completedLevelCards.length / levelCards.length) * 100);
 

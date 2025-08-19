@@ -284,12 +284,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { cardId, response, responseType = "text" } = req.body;
       
+      console.log("Saving response:", { sessionId: id, cardId, response, responseType });
+      
       // Check if required fields are present
       if (!cardId) {
+        console.log("Missing cardId");
         return res.status(400).json({ error: "Card ID is required" });
       }
       
-      if (!response && response !== "") {
+      if (response === undefined || response === null) {
+        console.log("Missing response");
         return res.status(400).json({ error: "Response is required" });
       }
       
