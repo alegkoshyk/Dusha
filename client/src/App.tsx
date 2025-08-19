@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { Header } from "@/components/Header";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
@@ -31,15 +32,20 @@ function Router() {
   }
 
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/mobile-game" component={MobileGame} />
-      <Route path="/game/:sessionId" component={MobileGame} />
-      <Route path="/game/:sessionId/results" component={Results} />
-      <Route path="/classic/:sessionId?" component={Game} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <Header />
+      <main className="pt-16">
+        <Switch>
+          <Route path="/" component={Dashboard} />
+          <Route path="/dashboard" component={Dashboard} />
+          <Route path="/mobile-game" component={MobileGame} />
+          <Route path="/game/:sessionId" component={MobileGame} />
+          <Route path="/game/:sessionId/results" component={Results} />
+          <Route path="/classic/:sessionId?" component={Game} />
+          <Route component={NotFound} />
+        </Switch>
+      </main>
+    </>
   );
 }
 

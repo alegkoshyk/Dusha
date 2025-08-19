@@ -246,78 +246,157 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {/* Карта створення нового бренду */}
+                <Card 
+                  className="border-dashed border-2 border-gray-300 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer group"
+                  onClick={() => setCreateBrandOpen(true)}
+                >
+                  <CardContent className="p-6 text-center">
+                    <div className="flex flex-col items-center justify-center h-48">
+                      <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
+                        <Plus className="w-8 h-8 text-blue-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        Створити новий бренд
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Почніть подорож створення нового бренду
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {brands.map((brand) => {
                   const brandSessions = sessions.filter(s => s.brandId === brand.id);
                   const completedBrandGames = brandSessions.filter(s => s.completed).length;
                   const activeBrandGame = brandSessions.find(s => !s.completed);
                   
+                  // Обчислення прогресу
+                  const totalCards = 15; // загальна кількість карток в грі
+                  const progress = activeBrandGame 
+                    ? Math.round((activeBrandGame.progress || 0) * 100) 
+                    : completedBrandGames > 0 
+                      ? 100 
+                      : 0;
+                  
+                  const hasActiveGame = !!activeBrandGame;
+                  const isCompleted = !hasActiveGame && completedBrandGames > 0;
+                  
                   return (
-                    <Card key={brand.id} className="hover:shadow-lg transition-shadow">
+                    <Card 
+                      key={brand.id} 
+                      className="hover:shadow-lg transition-shadow cursor-pointer group"
+                      onClick={() => hasActiveGame ? handleContinueGame(activeBrandGame.id) : handleStartGame(brand.id)}
+                    >
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <CardTitle className="text-lg mb-1">{brand.name}</CardTitle>
+                            <CardTitle className="text-lg mb-1 group-hover:text-blue-600 transition-colors">
+                              {brand.name}
+                            </CardTitle>
                             <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                              {brand.description || 'Опис відсутній'}
+                              {brand.description || 'Опис агентства йосього улюбленого шоку'}
                             </p>
+                            
+                            {/* Статус */}
+                            <div className="flex items-center gap-2 mt-2">
+                              {hasActiveGame && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Активний
+                                </Badge>
+                              )}
+                              {isCompleted && (
+                                <Badge variant="default" className="text-xs bg-green-100 text-green-700">
+                                  Завершено
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteBrand(brand.id, brand.name)}
-                            className="text-red-500 hover:text-red-700 p-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteBrand(brand.id, brand.name);
+                            }}
+                            className="text-red-500 hover:text-red-700 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                             data-testid={`delete-brand-${brand.id}`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">Ігор завершено:</span>
-                          <Badge variant="secondary">{completedBrandGames}</Badge>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          {activeBrandGame ? (
-                            <>
-                              <Button 
-                                size="sm" 
-                                className="flex-1"
-                                onClick={() => handleContinueGame(activeBrandGame.id)}
-                                data-testid={`continue-game-${brand.id}`}
-                              >
-                                <Play className="w-4 h-4 mr-1" />
-                                Продовжити
-                              </Button>
-                              {activeBrandGame.progress > 0 && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
+                      <CardContent className="pt-0 pb-4">
+                        <div className="space-y-4">
+                          {/* Progress Display */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600 dark:text-gray-400">Прогрес</span>
+                              <span className="font-medium">{progress}%</span>
+                            </div>
+                            <Progress value={progress} className="h-2" />
+                          </div>
+
+                          {/* Current Level Info */}
+                          {activeBrandGame && (
+                            <div className="flex items-center gap-2">
+                              {React.createElement(getLevelIcon(activeBrandGame.currentLevel || 'soul'), {
+                                className: "w-4 h-4"
+                              })}
+                              <Badge variant="outline" className={getLevelColor(activeBrandGame.currentLevel || 'soul')}>
+                                {getLevelName(activeBrandGame.currentLevel || 'soul')}
+                              </Badge>
+                            </div>
+                          )}
+
+                          {/* Metadata */}
+                          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(brand.createdAt).toLocaleDateString('uk-UA')}
+                            </div>
+                            {completedBrandGames > 0 && (
+                              <div className="flex items-center gap-1">
+                                <Trophy className="w-3 h-3" />
+                                {completedBrandGames} завершено
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Button - стилізований як на дизайні */}
+                          <div className="pt-2" onClick={(e) => e.stopPropagation()}>
+                            {hasActiveGame ? (
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => handleContinueGame(activeBrandGame.id)}
+                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                                  data-testid={`continue-game-${brand.id}`}
+                                >
+                                  <Play className="w-4 h-4 mr-2" />
+                                  Продовжити
+                                </Button>
+                                <Button
+                                  variant="outline"
                                   onClick={() => handleViewResults(activeBrandGame.id)}
+                                  className="p-2"
                                   data-testid={`view-results-${brand.id}`}
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
-                              )}
-                            </>
-                          ) : (
-                            <Button 
-                              size="sm" 
-                              className="w-full"
-                              onClick={() => handleStartGame(brand.id)}
-                              data-testid={`start-game-${brand.id}`}
-                            >
-                              <Play className="w-4 h-4 mr-1" />
-                              Нова гра
-                            </Button>
-                          )}
-                        </div>
-                        
-                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          Створено {new Date(brand.createdAt).toLocaleDateString('uk-UA')}
+                              </div>
+                            ) : (
+                              <Button
+                                onClick={() => handleStartGame(brand.id)}
+                                variant="outline"
+                                className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50"
+                                data-testid={`start-game-${brand.id}`}
+                              >
+                                <Play className="w-4 h-4 mr-2" />
+                                Нова гра
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
