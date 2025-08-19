@@ -310,15 +310,21 @@ export function GameCard({
 
           <CardContent>
             <div className="space-y-6">
-              {/* Intro card - just description, no input */}
-              {card.id === 'soul-start' && (
+              {/* Intro cards - just description, no input */}
+              {(card.id === 'soul-start' || card.id === 'mind-start') && (
                 <div className="text-center py-8">
-                  <div className="mb-6 p-6 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-500 text-white rounded-full mb-4">
+                  <div className={`mb-6 p-6 bg-gradient-to-br rounded-xl border ${
+                    card.id === 'soul-start' 
+                      ? 'from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-purple-200 dark:border-purple-800'
+                      : 'from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-blue-200 dark:border-blue-800'
+                  }`}>
+                    <div className={`inline-flex items-center justify-center w-16 h-16 text-white rounded-full mb-4 ${
+                      card.id === 'soul-start' ? 'bg-purple-500' : 'bg-blue-500'
+                    }`}>
                       <Star className="w-8 h-8" />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      Готові до подорожі?
+                      {card.id === 'soul-start' ? 'Готові до подорожі?' : 'Розум бренду'}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                       {card.description}
@@ -478,14 +484,14 @@ export function GameCard({
                 </div>
                 
                 <Button
-                  onClick={card.id === 'soul-start' ? onNext : handleSubmit}
-                  disabled={card.id === 'soul-start' ? false : (!validation.isValid || (!currentResponse && selectedOptions.length === 0))}
+                  onClick={(card.id === 'soul-start' || card.id === 'mind-start') ? onNext : handleSubmit}
+                  disabled={(card.id === 'soul-start' || card.id === 'mind-start') ? false : (!validation.isValid || (!currentResponse && selectedOptions.length === 0))}
                   className="flex items-center gap-2 min-w-[120px]"
                   data-testid="button-next"
                 >
-                  {card.id === 'soul-start' ? (
+                  {(card.id === 'soul-start' || card.id === 'mind-start') ? (
                     <>
-                      Почати гру
+                      {card.id === 'soul-start' ? 'Почати гру' : 'Почати рівень'}
                       <ArrowRight className="w-4 h-4" />
                     </>
                   ) : validation.isValid ? (
