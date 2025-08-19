@@ -337,7 +337,7 @@ export function GameCard({
               )}
 
               {/* Text Input */}
-              {(card.type === 'text' || card.type === 'reflection') && (
+              {(card.type === 'text' || card.type === 'reflection') && !(card.id === 'soul-start' || card.id === 'mind-start') && (
                 <div className="space-y-2">
                   <Textarea
                     placeholder="Введіть вашу відповідь..."
