@@ -24,28 +24,36 @@ import {
 type ViewMode = 'field' | 'card' | 'complete';
 
 export default function MobileGame() {
-  const { sessionId } = useParams<{ sessionId: string }>();
+  const { sessionId } = useParams<{ sessionId?: string }>();
   const [location, setLocation] = useLocation();
   const [viewMode, setViewMode] = useState<ViewMode>('field');
-  const [currentCardId, setCurrentCardId] = useState<string>('');
+  const [currentCardId, setCurrentCardId] = useState<string>('soul-start');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Get active session if no sessionId provided
+  const { data: userSessions } = useQuery({
+    queryKey: ["/api/user/game-sessions"],
+    enabled: !sessionId,
+  });
+
+  const activeSessionId = sessionId || (userSessions && userSessions.length > 0 ? userSessions[0].id : null);
+
   // Get game session
   const { data: session, isLoading: sessionLoading } = useQuery<GameSession>({
-    queryKey: ["/api/game-sessions", sessionId],
-    enabled: !!sessionId,
+    queryKey: ["/api/game-sessions", activeSessionId],
+    enabled: !!activeSessionId,
   });
 
   // Get brand map for completion check
   const { data: brandMap, isLoading: brandMapLoading } = useQuery({
-    queryKey: ["/api/game-sessions", sessionId, "brand-map"],
-    enabled: !!sessionId,
+    queryKey: ["/api/game-sessions", activeSessionId, "brand-map"],
+    enabled: !!activeSessionId,
   });
 
   // Initialize player progress
   const [playerProgress, setPlayerProgress] = useState<PlayerProgress>({
-    sessionId: sessionId || '',
+    sessionId: activeSessionId || '',
     currentCard: 'soul-start',
     completedCards: [],
     unlockedCards: ['soul-start'],
@@ -101,13 +109,13 @@ export default function MobileGame() {
     mutationFn: async ({ cardId, response }: { cardId: string; response: any }) => {
       return apiRequest(
         'POST',
-        `/api/game-sessions/${sessionId}/responses`,
+        `/api/game-sessions/${activeSessionId}/responses`,
         { cardId, response }
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", sessionId, "brand-map"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", activeSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", activeSessionId, "brand-map"] });
     },
     onError: (error) => {
       toast({
@@ -123,12 +131,12 @@ export default function MobileGame() {
     mutationFn: async (progress: number) => {
       return apiRequest(
         'POST',
-        `/api/game-sessions/${sessionId}/progress`,
+        `/api/game-sessions/${activeSessionId}/progress`,
         { progress }
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", activeSessionId] });
     }
   });
 
@@ -212,12 +220,12 @@ export default function MobileGame() {
         } else {
           // Game complete
           setViewMode('complete');
-          setLocation(`/game/${sessionId}/results`);
+          setLocation(`/game/${activeSessionId}/results`);
         }
       } else {
         // Return to field view
         setViewMode('field');
-        setLocation(`/game/${sessionId}`);
+        setLocation(`/game/${activeSessionId}`);
       }
     }
   };
@@ -229,14 +237,14 @@ export default function MobileGame() {
       handleCardSelect(previousCardId);
     } else {
       setViewMode('field');
-      setLocation(`/game/${sessionId}`);
+      setLocation(`/game/${activeSessionId}`);
     }
   };
 
   const handleReturnToField = () => {
     setViewMode('field');
     setCurrentCardId('');
-    setLocation(`/game/${sessionId}`);
+    setLocation(`/game/${activeSessionId}`);
   };
 
   const handleLevelChange = (level: GameLevel) => {
@@ -244,7 +252,7 @@ export default function MobileGame() {
     if (session && session.currentLevel !== level) {
       apiRequest(
         'PATCH',
-        `/api/game-sessions/${sessionId}`,
+        `/api/game-sessions/${activeSessionId}`,
         { currentLevel: level }
       );
     }

@@ -34,6 +34,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/mobile-game" component={MobileGame} />
       <Route path="/game/:sessionId" component={MobileGame} />
       <Route path="/game/:sessionId/results" component={Results} />
       <Route path="/classic/:sessionId?" component={Game} />
