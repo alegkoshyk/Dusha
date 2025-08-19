@@ -295,23 +295,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async saveCardResponse(sessionId: string, cardId: string, response: any, responseType: string): Promise<GameSession | undefined> {
-    // Save individual card response with upsert logic
-    await db
-      .insert(cardResponsesTable)
-      .values({
-        sessionId,
-        cardId,
-        response,
-        responseType: responseType as "text" | "choice" | "values",
-      })
-      .onConflictDoUpdate({
-        target: [cardResponsesTable.sessionId, cardResponsesTable.cardId],
-        set: {
+    console.log("DatabaseStorage.saveCardResponse called with:", { sessionId, cardId, response, responseType });
+    
+    try {
+      // Save individual card response with upsert logic
+      await db
+        .insert(cardResponsesTable)
+        .values({
+          sessionId,
+          cardId,
           response,
           responseType: responseType as "text" | "choice" | "values",
-          submittedAt: sql`now()`,
-        }
-      });
+        })
+        .onConflictDoUpdate({
+          target: [cardResponsesTable.sessionId, cardResponsesTable.cardId],
+          set: {
+            response,
+            responseType: responseType as "text" | "choice" | "values",
+            submittedAt: sql`now()`,
+          }
+        });
+      
+      console.log("Card response saved successfully");
+    } catch (error) {
+      console.error("Error saving card response:", error);
+      throw error;
+    }
 
     // Update session with completed cards
     const completedResponses = await this.getCardResponses(sessionId);

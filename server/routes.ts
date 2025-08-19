@@ -285,6 +285,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { cardId, response, responseType = "text" } = req.body;
       
       console.log("Saving response:", { sessionId: id, cardId, response, responseType });
+      console.log("Response type:", typeof response);
+      console.log("Response length:", response?.length);
       
       // Check if required fields are present
       if (!cardId) {
@@ -292,15 +294,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Card ID is required" });
       }
       
-      if (response === undefined || response === null || response === "") {
-        console.log("Missing response:", response);
+      // Allow empty responses for text cards - they can be saved as draft
+      if (response === undefined || response === null) {
+        console.log("Response is null or undefined:", response);
         return res.status(400).json({ error: "Response is required" });
       }
       
-      // Verify card exists before saving response
-      const cardExists = await storage.getGameCard(cardId);
-      if (!cardExists) {
-        return res.status(400).json({ error: `Card ${cardId} does not exist` });
+      // Verify card exists before saving response  
+      try {
+        const cardExists = await storage.getGameCard(cardId);
+        if (!cardExists) {
+          console.log(`Card ${cardId} does not exist in database`);
+          return res.status(400).json({ error: `Card ${cardId} does not exist` });
+        }
+        console.log(`Card ${cardId} found in database:`, cardExists.title);
+      } catch (cardError) {
+        console.error("Error checking card existence:", cardError);
+        return res.status(400).json({ error: "Error validating card" });
       }
       
       const session = await storage.saveCardResponse(id, cardId, response, responseType);
