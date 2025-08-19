@@ -326,7 +326,7 @@ export function GameCard({
           <CardContent>
             <div className="space-y-6">
               {/* Intro cards - just description, no input */}
-              {(card.id === 'soul-start' || card.id === 'mind-start') && (
+              {(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') && (
                 <div className="text-center py-8">
                   <div className={`mb-6 p-6 bg-gradient-to-br rounded-xl border ${
                     card.id === 'soul-start' 
@@ -339,7 +339,9 @@ export function GameCard({
                       <Star className="w-8 h-8" />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      {card.id === 'soul-start' ? 'Готові до подорожі?' : levelName}
+                      {card.id === 'soul-start' ? 'Готові до подорожі?' : 
+                       card.id === 'mind-start' ? 'Розум Бренду' :
+                       card.id === 'body-start' ? 'Тіло Бренду' : levelName}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                       {card.description}
@@ -352,7 +354,18 @@ export function GameCard({
               )}
 
               {/* Text Input */}
-              {(card.type === 'text' || card.type === 'reflection') && !(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') && (
+              {(() => {
+                const shouldShow = (card.type === 'text' || card.type === 'reflection') && !(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start');
+                console.log('GameCard Debug:', {
+                  cardId: card.id,
+                  cardType: card.type,
+                  shouldShow,
+                  isTextType: card.type === 'text',
+                  isReflectionType: card.type === 'reflection',
+                  isExcluded: (card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start')
+                });
+                return shouldShow;
+              })() && (
                 <div className="space-y-2">
                   {/* Для карт цільової аудиторії - коротший інпут */}
                   {(card.id === 'mind-audience' || card.id === 'mind-target') ? (
