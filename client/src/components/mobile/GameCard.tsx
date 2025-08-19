@@ -86,7 +86,7 @@ export function GameCard({
       return;
     }
 
-    const { minLength, maxLength, minSelections, maxSelections } = card.validation;
+    const { minLength, maxLength, minSelections, maxSelections } = card.validation || {};
 
     // Text validation
     if (card.type === 'text' || card.type === 'reflection') {
@@ -130,7 +130,7 @@ export function GameCard({
   const handleSubmit = () => {
     if (!validation.isValid) return;
 
-    const responseData = card.type === 'values' || card.type === 'archetype' 
+    const responseData = card.type === 'values' 
       ? selectedOptions 
       : card.type === 'choice' 
         ? selectedOptions[0] 
@@ -140,7 +140,7 @@ export function GameCard({
   };
 
   const handleOptionToggle = (optionId: string) => {
-    if (card.type === 'choice' || card.type === 'archetype') {
+    if (card.type === 'choice') {
       setSelectedOptions([optionId]);
     } else if (card.type === 'values') {
       setSelectedOptions(prev => 
@@ -191,8 +191,8 @@ export function GameCard({
     }
   };
 
-  const levelColors = getLevelColors(card.level);
-  const levelName = card.level === 'soul' ? 'Душа' : card.level === 'mind' ? 'Розум' : 'Тіло';
+  const levelColors = getLevelColors(card.levelId);
+  const levelName = card.levelId === 'soul' ? 'Душа' : card.levelId === 'mind' ? 'Розум' : 'Тіло';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900">
@@ -221,10 +221,10 @@ export function GameCard({
               <Badge variant="outline" className={getDifficultyColor(card.difficulty)}>
                 {getDifficultyLabel(card.difficulty)}
               </Badge>
-              {card.rewards?.xp && (
+              {card.rewards && typeof card.rewards === 'object' && 'xp' in card.rewards && (
                 <Badge variant="secondary" className="flex items-center gap-1">
                   <Zap className="w-3 h-3" />
-                  {card.rewards.xp} XP
+                  {(card.rewards as any).xp} XP
                 </Badge>
               )}
             </div>
@@ -348,18 +348,18 @@ export function GameCard({
                   />
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>
-                      {card.validation?.minLength && `Мінімум ${card.validation.minLength} символів`}
+                      {card.validation && 'minLength' in card.validation && `Мінімум ${(card.validation as any).minLength} символів`}
                     </span>
-                    <span>{currentResponse.length}/{card.validation?.maxLength || '∞'}</span>
+                    <span>{currentResponse.length}/{(card.validation && 'maxLength' in card.validation) ? (card.validation as any).maxLength : '∞'}</span>
                   </div>
                 </div>
               )}
 
               {/* Choice Options */}
-              {(card.type === 'choice' || card.type === 'archetype') && card.options && (
+              {card.type === 'choice' && card.options && (
                 <RadioGroup value={selectedOptions[0]} onValueChange={(value) => handleOptionToggle(value)}>
                   <div className="grid gap-3">
-                    {card.options.map((option) => (
+                    {(card.options as any[]).map((option: any) => (
                       <motion.div
                         key={option.id}
                         whileHover={{ scale: 1.02 }}
@@ -402,7 +402,7 @@ export function GameCard({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Оберіть {card.validation?.minSelections} - {card.validation?.maxSelections} варіантів
+                      Оберіть {(card.validation as any)?.minSelections} - {(card.validation as any)?.maxSelections} варіантів
                     </p>
                     <span className="text-sm text-gray-500">
                       {selectedOptions.length} вибрано
@@ -410,7 +410,7 @@ export function GameCard({
                   </div>
                   
                   <div className="grid gap-3">
-                    {card.options.map((option) => (
+                    {(card.options as any[]).map((option: any) => (
                       <motion.div
                         key={option.id}
                         whileHover={{ scale: 1.02 }}
