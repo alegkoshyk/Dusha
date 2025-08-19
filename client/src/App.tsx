@@ -11,6 +11,7 @@ import Dashboard from "@/pages/dashboard";
 import Game from "@/pages/game";
 import MobileGame from "@/pages/mobile-game";
 import Results from "@/pages/results";
+import BrandBoard from "@/pages/brand-board";
 import { Auth } from "@/pages/auth";
 
 function Router() {
@@ -41,6 +42,7 @@ function Router() {
           <Route path="/mobile-game" component={MobileGame} />
           <Route path="/game/:sessionId" component={MobileGame} />
           <Route path="/game/:sessionId/results" component={Results} />
+          <Route path="/brand-board/:sessionId" component={BrandBoard} />
           <Route path="/classic/:sessionId?" component={Game} />
           <Route component={NotFound} />
         </Switch>

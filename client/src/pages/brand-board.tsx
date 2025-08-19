@@ -1,0 +1,305 @@
+import { useQuery } from '@tanstack/react-query';
+import { useParams, useLocation } from 'wouter';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Download, Share } from 'lucide-react';
+import { Header } from '@/components/Header';
+
+interface BrandMapResponse {
+  soul: {
+    values: string[];
+    mission: string;
+    story: string;
+    purpose: string;
+    emotion: string;
+    deepValues: string[];
+    impact: string;
+    archetype: string;
+  };
+  mind: {
+    archetype: string;
+    positioning: string;
+    promise: string;
+    solution: string;
+    problem: string;
+    audience: string;
+  };
+  body: {
+    channels: string[];
+    visual: string;
+    pricing: string;
+    tone: string[];
+    metrics: string[];
+    launch: string;
+  };
+}
+
+export default function BrandBoard() {
+  const { sessionId } = useParams();
+  const [, setLocation] = useLocation();
+
+  const { data: brandMap, isLoading, error } = useQuery<BrandMapResponse>({
+    queryKey: [`/api/game-sessions/${sessionId}/brand-map`],
+    enabled: !!sessionId
+  });
+
+  const handleBack = () => {
+    setLocation('/dashboard');
+  };
+
+  const handleDownloadPDF = () => {
+    // TODO: Implement PDF generation
+    console.log('Download PDF');
+  };
+
+  const handleShare = () => {
+    // TODO: Implement sharing functionality
+    console.log('Share brand board');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600 dark:text-gray-400">Завантаження дошки бренду...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !brandMap) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <Header />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Дошку бренду не знайдено
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Схоже, що гра ще не завершена або сталася помилка.
+            </p>
+            <Button onClick={handleBack}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Повернутися до Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Header />
+      
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={handleBack}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Назад
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Дошка Бренду
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Ваша повна карта бренду зібрана в одному місці
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={handleShare}>
+              <Share className="w-4 h-4 mr-2" />
+              Поділитися
+            </Button>
+            <Button onClick={handleDownloadPDF}>
+              <Download className="w-4 h-4 mr-2" />
+              Завантажити PDF
+            </Button>
+          </div>
+        </div>
+
+        {/* Brand Map Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Soul Section */}
+          <Card className="border-purple-200 dark:border-purple-800">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
+              <CardTitle className="flex items-center gap-2 text-purple-800 dark:text-purple-200">
+                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                  S
+                </div>
+                Душа Бренду
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 p-6">
+              {brandMap?.soul?.values?.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Цінності</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {brandMap?.soul?.values?.map((value: string, index: number) => (
+                      <span key={index} className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm">
+                        {value}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {brandMap?.soul?.mission && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Місія</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.soul.mission}</p>
+                </div>
+              )}
+              
+              {brandMap?.soul?.story && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Історія</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.soul.story}</p>
+                </div>
+              )}
+              
+              {brandMap?.soul?.archetype && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Архетип</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.soul.archetype}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Mind Section */}
+          <Card className="border-blue-200 dark:border-blue-800">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20">
+              <CardTitle className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                  M
+                </div>
+                Розум Бренду
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 p-6">
+              {brandMap?.mind?.positioning && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Позиціонування</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.mind.positioning}</p>
+                </div>
+              )}
+              
+              {brandMap?.mind?.promise && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Обіцянка</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.mind.promise}</p>
+                </div>
+              )}
+              
+              {brandMap?.mind?.audience && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Цільова аудиторія</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.mind.audience}</p>
+                </div>
+              )}
+              
+              {brandMap?.mind?.problem && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Проблема</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.mind.problem}</p>
+                </div>
+              )}
+              
+              {brandMap?.mind?.solution && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Рішення</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.mind.solution}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Body Section */}
+          <Card className="border-green-200 dark:border-green-800">
+            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+              <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200">
+                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                  B
+                </div>
+                Тіло Бренду
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6 p-6">
+              {brandMap?.body?.channels?.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Канали комунікації</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {brandMap?.body?.channels?.map((channel: string, index: number) => (
+                      <span key={index} className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm">
+                        {channel}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {brandMap?.body?.visual && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Візуальний стиль</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.body.visual}</p>
+                </div>
+              )}
+              
+              {brandMap?.body?.pricing && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Ціноутворення</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.body.pricing}</p>
+                </div>
+              )}
+              
+              {brandMap?.body?.tone?.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Тон голосу</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {brandMap?.body?.tone?.map((tone: string, index: number) => (
+                      <span key={index} className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm">
+                        {tone}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {brandMap?.body?.metrics?.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Метрики успіху</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {brandMap?.body?.metrics?.map((metric: string, index: number) => (
+                      <span key={index} className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm">
+                        {metric}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {brandMap?.body?.launch && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">План запуску</h4>
+                  <p className="text-gray-600 dark:text-gray-400">{brandMap.body.launch}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
