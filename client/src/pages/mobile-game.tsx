@@ -63,6 +63,10 @@ export default function MobileGame() {
     enabled: !!activeSessionId,
   });
 
+  // Get card parameter from URL
+  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const cardFromUrl = urlParams.get('card');
+
   // Initialize player progress
   const [playerProgress, setPlayerProgress] = useState<PlayerProgress>({
     sessionId: activeSessionId || '',
@@ -79,15 +83,14 @@ export default function MobileGame() {
   useEffect(() => {
     if (session) {
       const completedCards = Array.isArray(session.completedCards) ? session.completedCards : [];
-      const responses = session.responses && typeof session.responses === 'object' ? session.responses : {};
-      const unlockedCards = getUnlockedCards(completedCards, responses);
+      const unlockedCards = getUnlockedCards(completedCards);
       
       setPlayerProgress({
         sessionId: session.id,
         currentCard: session.currentCard || 'soul-start',
         completedCards,
         unlockedCards,
-        responses,
+        responses: {},
         achievements: getEarnedBadges(completedCards),
         totalXP: calculateTotalXP(completedCards),
         levelProgress: {
@@ -112,10 +115,11 @@ export default function MobileGame() {
     if (cardFromUrl && mobileGameCards.find(c => c.id === cardFromUrl)) {
       setCurrentCardId(cardFromUrl);
       setViewMode('card');
-    } else if (viewMode === 'card' && !currentCardId) {
+    } else if (!cardFromUrl) {
+      // No card in URL, show field view
       setViewMode('field');
     }
-  }, [location, viewMode, currentCardId]);
+  }, [location]);
 
   // Submit response mutation
   const submitResponseMutation = useMutation({
