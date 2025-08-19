@@ -145,13 +145,26 @@ export default function BrandBoard() {
           </div>
         </div>
 
+        {/* Debug: Show loading state and error */}
+        {responsesLoading && (
+          <div className="mb-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p>Завантажую відповіді...</p>
+          </div>
+        )}
+        
+        {!responsesLoading && !cardResponses && (
+          <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p>Помилка завантаження відповідей</p>
+          </div>
+        )}
+
         {/* All Responses Map */}
-        {cardResponses && cardResponses.length > 0 && (
+        {cardResponses && (
           <Card className="mb-8 border-orange-200 dark:border-orange-800">
             <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20">
               <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
                 <MapPin className="w-6 h-6" />
-                Карта всіх відповідей
+                Карта всіх відповідей ({cardResponses?.length || 0} відповідей)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">

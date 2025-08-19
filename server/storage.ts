@@ -457,21 +457,46 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSessionCardResponses(sessionId: string): Promise<any[]> {
-    const responses = await db
-      .select({
-        cardId: cardResponsesTable.cardId,
-        cardTitle: gameCardsTable.title,
-        response: cardResponsesTable.response,
-        responseType: cardResponsesTable.responseType,
-        createdAt: cardResponsesTable.createdAt,
-        level: gameCardsTable.levelId
-      })
-      .from(cardResponsesTable)
-      .innerJoin(gameCardsTable, eq(cardResponsesTable.cardId, gameCardsTable.id))
-      .where(eq(cardResponsesTable.sessionId, sessionId))
-      .orderBy(gameCardsTable.positionX, gameCardsTable.positionY);
-    
-    return responses;
+    try {
+      const responses = await db
+        .select({
+          cardId: cardResponsesTable.cardId,
+          cardTitle: gameCardsTable.title,
+          response: cardResponsesTable.response,
+          responseType: cardResponsesTable.responseType,
+          createdAt: cardResponsesTable.submittedAt,
+          level: gameCardsTable.levelId
+        })
+        .from(cardResponsesTable)
+        .innerJoin(gameCardsTable, eq(cardResponsesTable.cardId, gameCardsTable.id))
+        .where(eq(cardResponsesTable.sessionId, sessionId))
+        .orderBy(gameCardsTable.positionX);
+      
+      return responses;
+    } catch (error) {
+      console.error("Error in getSessionCardResponses:", error);
+      // Fallback to simple responses without join
+      const simpleResponses = await db
+        .select()
+        .from(cardResponsesTable)
+        .where(eq(cardResponsesTable.sessionId, sessionId));
+      
+      // Manually get card titles
+      const result = [];
+      for (const response of simpleResponses) {
+        const card = await this.getGameCard(response.cardId);
+        result.push({
+          cardId: response.cardId,
+          cardTitle: card?.title || response.cardId,
+          response: response.response,
+          responseType: response.responseType,
+          createdAt: response.submittedAt,
+          level: card?.levelId || 'unknown'
+        });
+      }
+      
+      return result;
+    }
   }
 
 }
