@@ -25,7 +25,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { CreateBrandDialog } from '@/components/brands/CreateBrandDialog';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import type { Brand, GameSession } from '@shared/schema';
+import type { UserBrand, GameSession } from '@shared/schema';
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -35,7 +35,7 @@ export default function Dashboard() {
   const [createBrandOpen, setCreateBrandOpen] = useState(false);
 
   // Завантаження брендів користувача
-  const { data: brands = [], isLoading: brandsLoading } = useQuery<Brand[]>({
+  const { data: brands = [], isLoading: brandsLoading } = useQuery<UserBrand[]>({
     queryKey: ['/api/user/brands'],
     enabled: !!user,
   });
@@ -71,7 +71,8 @@ export default function Dashboard() {
   // Мутація для створення нової гри
   const createGameMutation = useMutation({
     mutationFn: async (brandId: string) => {
-      return apiRequest('POST', '/api/game-sessions', { brandId });
+      const response = await apiRequest('POST', '/api/game-sessions', { brandId });
+      return response;
     },
     onSuccess: (session: GameSession) => {
       queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
@@ -424,6 +425,7 @@ export default function Dashboard() {
                 {sessions.filter(s => !s.completed).map((session) => {
                   const brand = brands.find(b => b.id === session.brandId);
                   const LevelIcon = getLevelIcon(session.currentLevel);
+                  const progressPercentage = Math.round((session.progress || 0) * 100);
                   
                   return (
                     <Card key={session.id} className="hover:shadow-lg transition-shadow">
@@ -444,7 +446,7 @@ export default function Dashboard() {
                                 </p>
                               </div>
                               <Badge variant="outline">
-                                {session.progress}% завершено
+                                {progressPercentage}% завершено
                               </Badge>
                             </div>
                             
@@ -456,7 +458,7 @@ export default function Dashboard() {
                                     {session.completedCards?.length || 0}/15 карток
                                   </span>
                                 </div>
-                                <Progress value={session.progress} className="h-2" />
+                                <Progress value={progressPercentage} className="h-2" />
                               </div>
                               
                               <div className="flex items-center justify-between">
@@ -480,7 +482,7 @@ export default function Dashboard() {
                                     <Play className="w-4 h-4 mr-1" />
                                     Продовжити
                                   </Button>
-                                  {session.progress > 0 && (
+                                  {progressPercentage > 0 && (
                                     <Button 
                                       variant="outline" 
                                       size="sm"
