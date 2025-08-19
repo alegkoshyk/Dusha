@@ -513,7 +513,13 @@ export function GameCard({
                 
                 <Button
                   onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? onNext : handleSubmit}
-                  disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? false : (!currentResponse || currentResponse.trim().length === 0)}
+                  disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? false : 
+                    (card.type === 'values' || card.type === 'choice') ? 
+                      (selectedOptions.length === 0 || 
+                       (card.validation && typeof card.validation === 'object' && 'minSelections' in card.validation && 
+                        selectedOptions.length < (card.validation as any).minSelections)) : 
+                      (!currentResponse || currentResponse.trim().length === 0)
+                  }
                   className="flex items-center gap-2 min-w-[120px]"
                   data-testid="button-next"
                 >
@@ -522,16 +528,34 @@ export function GameCard({
                       {card.id === 'soul-start' ? 'Почати гру' : 'Почати рівень'}
                       <ArrowRight className="w-4 h-4" />
                     </>
-                  ) : (currentResponse && currentResponse.trim().length > 0) ? (
-                    <>
-                      Зберегти відповідь
-                      <ArrowRight className="w-4 h-4" />
-                    </>
                   ) : (
-                    <>
-                      Заповніть поле
-                      <AlertCircle className="w-4 h-4" />
-                    </>
+                    // Логіка для різних типів карт
+                    (card.type === 'values' || card.type === 'choice') ? 
+                      (selectedOptions.length > 0 && 
+                       (!card.validation || !('minSelections' in card.validation) || 
+                        selectedOptions.length >= (card.validation as any).minSelections) ? (
+                        <>
+                          Зберегти відповідь
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      ) : (
+                        <>
+                          {selectedOptions.length === 0 ? 'Оберіть варіанти' : 
+                           `Оберіть ще ${(card.validation as any)?.minSelections - selectedOptions.length} варіант(и)`}
+                          <AlertCircle className="w-4 h-4" />
+                        </>
+                      )) :
+                      (currentResponse && currentResponse.trim().length > 0) ? (
+                        <>
+                          Зберегти відповідь
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      ) : (
+                        <>
+                          Заповніть поле
+                          <AlertCircle className="w-4 h-4" />
+                        </>
+                      )
                   )}
                 </Button>
               </div>
