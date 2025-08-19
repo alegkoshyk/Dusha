@@ -168,7 +168,7 @@ export default function BrandBoard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {['soul', 'mind', 'body'].map((level) => {
                   const levelResponses = cardResponses.filter(r => r.level === level);
                   const levelIcon = level === 'soul' ? Heart : level === 'mind' ? Brain : Dumbbell;
@@ -197,8 +197,7 @@ export default function BrandBoard() {
                         </h3>
                       </div>
                       
-                      <ScrollArea className="h-64">
-                        <div className="space-y-3">
+                      <div className="space-y-3">
                           {levelResponses.map((response, index) => (
                             <div key={response.cardId} 
                                  className={`p-3 rounded-lg border ${
@@ -244,13 +243,12 @@ export default function BrandBoard() {
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="line-clamp-3">{response.response}</p>
+                                  <p className="whitespace-pre-wrap break-words">{response.response}</p>
                                 )}
                               </div>
                             </div>
                           ))}
-                        </div>
-                      </ScrollArea>
+                      </div>
                     </div>
                   );
                 })}
