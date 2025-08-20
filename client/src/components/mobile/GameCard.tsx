@@ -420,27 +420,27 @@ export function GameCard({
               )}
 
               {/* Choice Options */}
-              {card.type === 'choice' && card.options && (
+              {card.type === 'choice' && (card.options || card.properties) && (
                 <RadioGroup value={selectedOptions[0]} onValueChange={(value) => handleOptionToggle(value)}>
                   <div className="grid gap-3">
-                    {(card.options as any[]).map((option: any) => (
+                    {((card.options as any[]) || (card.properties && card.properties.filter(prop => prop.type === 'option'))).map((option: any) => (
                       <motion.div
-                        key={option.id}
+                        key={option.id || option.key}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
                         <Label
-                          htmlFor={option.id}
+                          htmlFor={option.id || option.key}
                           className={`
                             flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all
-                            ${selectedOptions.includes(option.id)
+                            ${selectedOptions.includes(option.id || option.key)
                               ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                               : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                             }
                           `}
-                          data-testid={`option-${option.id}`}
+                          data-testid={`option-${option.id || option.key}`}
                         >
-                          <RadioGroupItem value={option.id} id={option.id} className="mt-1" />
+                          <RadioGroupItem value={option.id || option.key} id={option.id || option.key} className="mt-1" />
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               {option.icon && <span className="text-lg">{option.icon}</span>}
@@ -504,7 +504,7 @@ export function GameCard({
               )}
 
               {/* Multiple Selection Options */}
-              {card.type === 'values' && card.options && (
+              {card.type === 'values' && (card.options || card.properties) && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -516,27 +516,27 @@ export function GameCard({
                   </div>
                   
                   <div className="grid gap-3">
-                    {(card.options as any[]).map((option: any) => (
+                    {((card.options as any[]) || (card.properties && card.properties.filter(prop => prop.type === 'option'))).map((option: any) => (
                       <motion.div
-                        key={option.id}
+                        key={option.id || option.key}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
                       >
                         <Label
-                          htmlFor={option.id}
+                          htmlFor={option.id || option.key}
                           className={`
                             flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all
-                            ${selectedOptions.includes(option.id)
+                            ${selectedOptions.includes(option.id || option.key)
                               ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
                               : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                             }
                           `}
-                          data-testid={`option-${option.id}`}
+                          data-testid={`option-${option.id || option.key}`}
                         >
                           <Checkbox
-                            id={option.id}
-                            checked={selectedOptions.includes(option.id)}
-                            onCheckedChange={() => handleOptionToggle(option.id)}
+                            id={option.id || option.key}
+                            checked={selectedOptions.includes(option.id || option.key)}
+                            onCheckedChange={() => handleOptionToggle(option.id || option.key)}
                             className="mt-1"
                           />
                           <div className="flex-1">
