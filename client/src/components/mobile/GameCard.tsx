@@ -591,8 +591,8 @@ export function GameCard({
                 
                 {card.id !== 'body-complete' && (
                   <Button
-                    onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? onNext : handleSubmit}
-                    disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? false : 
+                    onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.type === 'info') ? onNext : handleSubmit}
+                    disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.type === 'info') ? false : 
                       (card.type === 'values' || card.type === 'choice' || card.type === 'archetype') ? 
                         (selectedOptions.length === 0 || 
                          (card.validation && typeof card.validation === 'object' && 'minSelections' in card.validation && 
@@ -602,9 +602,9 @@ export function GameCard({
                     className="flex items-center gap-2 min-w-[120px]"
                     data-testid="button-next"
                   >
-                  {(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? (
+                  {(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.type === 'info') ? (
                     <>
-                      {card.id === 'soul-start' ? 'Почати гру' : 'Почати рівень'}
+                      {card.id === 'soul-start' ? 'Почати гру' : card.type === 'info' ? 'Почати рівень' : 'Почати рівень'}
                       <ArrowRight className="w-4 h-4" />
                     </>
                   ) : (
