@@ -114,6 +114,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  app.get("/api/logout", (req, res) => {
+    clearUserFromSession(req);
+    req.session.destroy((err) => {
+      if (err) {
+        console.error("Session destroy error:", err);
+        return res.status(500).json({ error: "Помилка виходу з системи" });
+      }
+      res.clearCookie("connect.sid");
+      res.json({ message: "Успішний вихід з системи" });
+    });
+  });
+
   app.get("/api/auth/me", requireAuth, async (req, res) => {
     try {
       const currentUser = getCurrentUser(req);

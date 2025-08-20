@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -7,13 +6,13 @@ import { User, LogOut, Home } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function UserDropdown() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
 
   if (!user) return null;
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    logout();
   };
 
   const handleDashboard = () => {
