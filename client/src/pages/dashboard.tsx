@@ -219,9 +219,10 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <Tabs defaultValue="brands" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="brands">Мої бренди</TabsTrigger>
             <TabsTrigger value="games">Активні ігри</TabsTrigger>
+            <TabsTrigger value="completed">Завершені ігри</TabsTrigger>
           </TabsList>
           
           <TabsContent value="brands" className="space-y-4">
@@ -492,6 +493,105 @@ export default function Dashboard() {
                                       <Eye className="w-4 h-4" />
                                     </Button>
                                   )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="completed" className="space-y-4">
+            {sessions.filter(s => s.completed).length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Ще немає завершених ігор
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    Завершіть вашу першу гру, щоб побачити результати тут
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {sessions.filter(s => s.completed).map((session) => {
+                  const brand = brands.find(b => b.id === session.brandId);
+                  const completionDate = new Date(session.updatedAt);
+                  
+                  return (
+                    <Card key={session.id} className="hover:shadow-lg transition-shadow">
+                      <CardContent className="p-6">
+                        <div className="flex items-start gap-4">
+                          <div className="p-3 rounded-lg bg-green-100 text-green-600">
+                            <Trophy className="w-6 h-6" />
+                          </div>
+                          
+                          <div className="flex-1">
+                            <div className="flex items-start justify-between mb-2">
+                              <div>
+                                <h3 className="font-semibold text-gray-900 dark:text-white">
+                                  {brand?.name || 'Невідомий бренд'}
+                                </h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  Гра завершена • {completionDate.toLocaleDateString('uk-UA')}
+                                </p>
+                              </div>
+                              <Badge variant="default" className="bg-green-100 text-green-800">
+                                Завершено
+                              </Badge>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
+                                <div className="flex items-center gap-1">
+                                  <Heart className="w-4 h-4 text-purple-500" />
+                                  <span>{session.completedCards?.filter(c => c.startsWith('soul-')).length || 0} Душа</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Brain className="w-4 h-4 text-blue-500" />
+                                  <span>{session.completedCards?.filter(c => c.startsWith('mind-')).length || 0} Розум</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Dumbbell className="w-4 h-4 text-green-500" />
+                                  <span>{session.completedCards?.filter(c => c.startsWith('body-')).length || 0} Тіло</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Zap className="w-4 h-4 text-yellow-500" />
+                                  <span>{session.totalXp || 0} XP</span>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  Всього відповідей: {session.completedCards?.length || 0}
+                                </p>
+                                
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleViewResults(session.id)}
+                                    data-testid={`view-completed-results-${session.id}`}
+                                  >
+                                    <Eye className="w-4 h-4 mr-1" />
+                                    Карта бренду
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleStartGame(brand?.id || '')}
+                                    data-testid={`restart-game-${session.id}`}
+                                  >
+                                    <Play className="w-4 h-4 mr-1" />
+                                    Нова гра
+                                  </Button>
                                 </div>
                               </div>
                             </div>
