@@ -113,7 +113,7 @@ export function GameCard({
     }
 
     // Selection validation
-    if (card.type === 'values' || card.type === 'choice') {
+    if (card.type === 'values' || card.type === 'choice' || card.type === 'archetype') {
       if (minSelections && selectedOptions.length < minSelections) {
         setValidation({ 
           isValid: false, 
@@ -461,6 +461,48 @@ export function GameCard({
                 </RadioGroup>
               )}
 
+              {/* Archetype Selection Options */}
+              {card.type === 'archetype' && card.properties && (
+                <RadioGroup value={selectedOptions[0]} onValueChange={(value) => handleOptionToggle(value)}>
+                  <div className="grid gap-3">
+                    {card.properties.filter(prop => prop.type === 'option').map((option: any) => (
+                      <motion.div
+                        key={option.key}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Label
+                          htmlFor={option.key}
+                          className={`
+                            flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all
+                            ${selectedOptions.includes(option.key)
+                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                            }
+                          `}
+                          data-testid={`option-${option.key}`}
+                        >
+                          <RadioGroupItem value={option.key} id={option.key} className="mt-1" />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {option.icon && <span className="text-lg">{option.icon}</span>}
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {option.label}
+                              </span>
+                            </div>
+                            {option.description && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {option.description}
+                              </p>
+                            )}
+                          </div>
+                        </Label>
+                      </motion.div>
+                    ))}
+                  </div>
+                </RadioGroup>
+              )}
+
               {/* Multiple Selection Options */}
               {card.type === 'values' && card.options && (
                 <div className="space-y-3">
@@ -551,7 +593,7 @@ export function GameCard({
                   <Button
                     onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? onNext : handleSubmit}
                     disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') ? false : 
-                      (card.type === 'values' || card.type === 'choice') ? 
+                      (card.type === 'values' || card.type === 'choice' || card.type === 'archetype') ? 
                         (selectedOptions.length === 0 || 
                          (card.validation && typeof card.validation === 'object' && 'minSelections' in card.validation && 
                           selectedOptions.length < (card.validation as any).minSelections)) : 
@@ -567,7 +609,7 @@ export function GameCard({
                     </>
                   ) : (
                     // Логіка для різних типів карт
-                    (card.type === 'values' || card.type === 'choice') ? 
+                    (card.type === 'values' || card.type === 'choice' || card.type === 'archetype') ? 
                       (selectedOptions.length > 0 && 
                        (!card.validation || !('minSelections' in card.validation) || 
                         selectedOptions.length >= (card.validation as any).minSelections) ? (
