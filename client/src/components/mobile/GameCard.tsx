@@ -544,7 +544,7 @@ export function GameCard({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Оберіть {((card.validation as any)?.minSelections || 3)} - {((card.validation as any)?.maxSelections || 5)} цінностей
+                      Оберіть {((card.validation as any)?.minSelections || 3)} - {((card.validation as any)?.maxSelections || 5)} {card.id === 'body-products' ? 'варіантів' : 'цінностей'}
                     </p>
                     <span className="text-sm text-gray-500">
                       {selectedOptions.length} вибрано
