@@ -209,10 +209,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUserBrand(id: string): Promise<boolean> {
-    const result = await db
-      .delete(userBrandsTable)
-      .where(eq(userBrandsTable.id, id));
-    return (result.rowCount || 0) > 0;
+    try {
+      // Отримуємо всі сесії для цього бренду
+      const sessions = await db
+        .select({ id: gameSessionsTable.id })
+        .from(gameSessionsTable)
+        .where(eq(gameSessionsTable.brandId, id));
+      
+      console.log(`Found ${sessions.length} sessions for brand ${id}`);
+      
+      // Видаляємо всі відповіді для всіх сесій цього бренду
+      for (const session of sessions) {
+        await db
+          .delete(cardResponsesTable)
+          .where(eq(cardResponsesTable.sessionId, session.id));
+        console.log(`Deleted responses for session: ${session.id}`);
+      }
+      
+      // Видаляємо всі сесії для цього бренду
+      await db
+        .delete(gameSessionsTable)
+        .where(eq(gameSessionsTable.brandId, id));
+      console.log(`Deleted ${sessions.length} sessions for brand ${id}`);
+      
+      // Тепер видаляємо сам бренд
+      const result = await db
+        .delete(userBrandsTable)
+        .where(eq(userBrandsTable.id, id));
+      
+      console.log(`Deleted brand ${id}, rows affected: ${result.rowCount}`);
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error("Error in deleteUserBrand:", error);
+      throw error;
+    }
   }
 
   // Game session CRUD operations

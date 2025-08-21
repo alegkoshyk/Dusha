@@ -94,7 +94,7 @@ export default function Dashboard() {
     mutationFn: async (brandId: string) => {
       return apiRequest('POST', '/api/game-sessions', { brandId });
     },
-    onSuccess: (session: GameSession) => {
+    onSuccess: (session: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
       setLocation(`/game/${session.id}`);
     },
