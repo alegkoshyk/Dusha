@@ -44,6 +44,17 @@ Preferred communication style: Simple, everyday language.
 - **Brand Map Visualization**: Dynamic preview of completed brand strategy
 - **Progress Persistence**: Automatic saving of responses and session state
 
+## Recent Changes (August 21, 2025)
+
+### Complete Fix for Mobile Game Card Loading and Response Display
+- Successfully migrated mobile game from static data (mobileGameData.ts) to dynamic API loading (/api/game-cards)
+- Fixed soul-archetype card display with proper multiple selection UI (1-3 archetypes)
+- Resolved saved responses not loading by updating mobile game to use session.responses instead of empty playerProgress.responses
+- Added missing database entries for soul-values card properties: 'helping' (Допомога) and 'reliability' (Надійність)
+- Fixed GameCard component to properly initialize selectedOptions from saved response arrays
+- All card types now correctly display saved responses: values (multiple), archetype (multiple), text, choice
+- Verified working with test session: e1f3839f-da4f-4061-a683-bfbc2e6e38c2
+
 ## Recent Changes (August 20, 2025)
 
 ### Authentication System Complete Fix

@@ -78,6 +78,7 @@ export function GameCard({
       } else if (Array.isArray(response)) {
         setCurrentResponse('');
         setSelectedOptions(response);
+
       } else {
         setCurrentResponse('');
         setSelectedOptions([]);
