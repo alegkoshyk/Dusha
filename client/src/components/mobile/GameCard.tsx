@@ -479,7 +479,7 @@ export function GameCard({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Оберіть {validation?.minSelections || 1} - {validation?.maxSelections || 3} архетипів
+                      Оберіть {((card.validation as any)?.minSelections || 1)} - {((card.validation as any)?.maxSelections || 3)} архетипів
                     </p>
                     <span className="text-sm text-gray-500">
                       {selectedOptions.length} вибрано
