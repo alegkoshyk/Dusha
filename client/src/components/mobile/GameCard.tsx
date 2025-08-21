@@ -143,6 +143,12 @@ export function GameCard({
   };
 
   const handleSubmit = () => {
+    // For info cards, submit immediately to mark as completed
+    if (card.type === 'info' || card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') {
+      onResponse('completed');
+      return;
+    }
+
     if (!validation.isValid) return;
 
     const responseData = (card.type === 'values' || card.type === 'archetype')
@@ -621,7 +627,15 @@ export function GameCard({
                 
                 {card.id !== 'body-complete' && (
                   <Button
-                    onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.type === 'info') ? onNext : handleSubmit}
+                    onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.type === 'info') ? 
+                      () => { 
+                        // Mark info cards as completed
+                        if (card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.type === 'info') {
+                          handleSubmit();
+                        } else {
+                          onNext();
+                        }
+                      } : handleSubmit}
                     disabled={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.type === 'info') ? false : 
                       (card.type === 'values' || card.type === 'choice' || card.type === 'archetype') ? 
                         (selectedOptions.length === 0 || 
