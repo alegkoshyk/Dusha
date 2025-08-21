@@ -69,6 +69,8 @@ export function GameCard({
 
   // Ініціалізація та оновлення відповіді при зміні карти або збереженої відповіді
   useEffect(() => {
+
+    
     if (response !== undefined && response !== null) {
       if (typeof response === 'string') {
         setCurrentResponse(response);
