@@ -206,6 +206,9 @@ export default function MuiBrandBoard() {
         <Alert severity="error">
           <Typography variant="h6" gutterBottom>Карту бренду не знайдено</Typography>
           <Typography>Неможливо завантажити дані для сесії: {sessionId}</Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Спробуйте перейти на гру та заповнити більше карток.
+          </Typography>
           <Button onClick={() => setLocation('/')} sx={{ mt: 2 }}>
             Повернутися на головну
           </Button>
@@ -260,7 +263,7 @@ export default function MuiBrandBoard() {
         </Box>
 
         {/* Completion Banner */}
-        {session.completed && (
+        {session.completed && totalResponses > 1 && (
           <Alert 
             severity="success" 
             sx={{ mb: 4 }}
@@ -272,6 +275,25 @@ export default function MuiBrandBoard() {
             <Typography>
               Ви успішно пройшли всі {totalResponses} карток та створили повну карту свого бренду.
             </Typography>
+          </Alert>
+        )}
+
+        {/* Progress Banner for incomplete games */}
+        {!session.completed && (
+          <Alert severity="info" sx={{ mb: 4 }}>
+            <Typography variant="h6" gutterBottom>
+              Карта бренду в процесі
+            </Typography>
+            <Typography>
+              Заповнено {totalResponses} карток. Продовжте гру для створення повної карти бренду.
+            </Typography>
+            <Button 
+              variant="contained" 
+              onClick={() => setLocation(`/mobile-game/${sessionId}`)}
+              sx={{ mt: 2 }}
+            >
+              Продовжити гру
+            </Button>
           </Alert>
         )}
 
