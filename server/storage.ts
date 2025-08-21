@@ -22,6 +22,7 @@ import {
   userSettingsTable,
   userBrandsTable,
   userProfilesTable,
+  cardPropertiesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and } from "drizzle-orm";
@@ -435,13 +436,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGameCards(levelId?: string): Promise<GameCard[]> {
+    let cards: any[];
+    
     if (levelId) {
-      return await db
+      cards = await db
         .select()
         .from(gameCardsTable)
         .where(eq(gameCardsTable.levelId, levelId));
+    } else {
+      cards = await db.select().from(gameCardsTable);
     }
-    return await db.select().from(gameCardsTable);
+
+    // Load properties for each card
+    const cardsWithProperties = await Promise.all(
+      cards.map(async (card) => {
+        const properties = await db
+          .select()
+          .from(cardPropertiesTable)
+          .where(eq(cardPropertiesTable.cardId, card.id));
+        
+        return {
+          ...card,
+          properties: properties
+        };
+      })
+    );
+
+    return cardsWithProperties;
   }
 
   async getGameLevels(): Promise<GameLevel[]> {
