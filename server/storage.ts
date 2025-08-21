@@ -291,10 +291,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteGameSession(id: string): Promise<boolean> {
-    const result = await db
-      .delete(gameSessionsTable)
-      .where(eq(gameSessionsTable.id, id));
-    return (result.rowCount || 0) > 0;
+    try {
+      // Спочатку видаляємо всі відповіді для цієї сесії
+      await db
+        .delete(cardResponsesTable)
+        .where(eq(cardResponsesTable.sessionId, id));
+      
+      console.log(`Deleted card responses for session: ${id}`);
+      
+      // Тепер видаляємо саму сесію
+      const result = await db
+        .delete(gameSessionsTable)
+        .where(eq(gameSessionsTable.id, id));
+      
+      console.log(`Deleted game session: ${id}, rows affected: ${result.rowCount}`);
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error("Error in deleteGameSession:", error);
+      throw error;
+    }
   }
 
   async saveCardResponse(sessionId: string, cardId: string, response: any, responseType: string): Promise<GameSession | undefined> {
