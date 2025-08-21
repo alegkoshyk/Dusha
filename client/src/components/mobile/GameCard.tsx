@@ -126,14 +126,14 @@ export function GameCard({
       if (minSelections && selectedOptions.length < minSelections) {
         setValidation({ 
           isValid: false, 
-          message: `Оберіть мінімум ${minSelections} варіантів` 
+          message: `Оберіть мінімум ${minSelections} варіант${minSelections === 1 ? '' : minSelections < 5 ? 'и' : 'ів'}` 
         });
         return;
       }
       if (maxSelections && selectedOptions.length > maxSelections) {
         setValidation({ 
           isValid: false, 
-          message: `Максимум ${maxSelections} варіантів` 
+          message: `Максимум ${maxSelections} варіант${maxSelections === 1 ? '' : maxSelections < 5 ? 'и' : 'ів'}` 
         });
         return;
       }
