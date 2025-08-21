@@ -56,19 +56,26 @@ function TabPanel(props: TabPanelProps) {
 
 export default function MuiMobileGame() {
   const { sessionId } = useParams();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTabValue, setActiveTabValue] = useState(0);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
-  // Initialize activeSessionId
+  // Initialize activeSessionId from URL params or query string
   useEffect(() => {
     if (sessionId) {
       setActiveSessionId(sessionId);
+    } else {
+      // Check for sessionId in query string
+      const urlParams = new URLSearchParams(location.split('?')[1] || '');
+      const querySessionId = urlParams.get('sessionId');
+      if (querySessionId) {
+        setActiveSessionId(querySessionId);
+      }
     }
-  }, [sessionId]);
+  }, [sessionId, location]);
 
   // Fetch current session
   const { data: session, isLoading: sessionLoading } = useQuery<GameSession>({
