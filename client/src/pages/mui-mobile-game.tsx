@@ -30,6 +30,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { GameCardComponent } from '@/components/mui/GameCardComponent';
 import type { GameCard, GameSession } from '@shared/schema';
 
 interface TabPanelProps {
@@ -85,7 +86,7 @@ export default function MuiMobileGame() {
 
   // Fetch cards for current level
   const { data: cards = [], isLoading: cardsLoading } = useQuery<GameCard[]>({
-    queryKey: ['/api/cards', session?.currentLevel],
+    queryKey: ['/api/game-cards', session?.currentLevel],
     enabled: !!session?.currentLevel,
   });
 
@@ -120,6 +121,13 @@ export default function MuiMobileGame() {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTabValue(newValue);
+    // Switch to the selected level if different from current
+    const levels = ['soul', 'mind', 'body'];
+    const targetLevel = levels[newValue];
+    if (session && targetLevel !== session.currentLevel && newValue <= levels.indexOf(session.currentLevel)) {
+      // Allow switching to previously unlocked levels
+      // For now, just update the tab visual state
+    }
   };
 
   const getLevelIcon = (level: string) => {
@@ -297,74 +305,13 @@ export default function MuiMobileGame() {
               const isCompleted = progress === 'completed';
 
               return (
-                <Card 
+                <GameCardComponent
                   key={card.id}
-                  sx={{
-                    opacity: isUnlocked ? 1 : 0.6,
-                    border: isCompleted ? 2 : 1,
-                    borderColor: isCompleted ? 'success.main' : 'divider',
-                  }}
-                >
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                      <Avatar
-                        sx={{
-                          bgcolor: isCompleted ? 'success.main' : isUnlocked ? 'primary.main' : 'grey.400',
-                          mt: 1,
-                        }}
-                      >
-                        {isCompleted ? (
-                          <CheckIcon />
-                        ) : isUnlocked ? (
-                          <PlayArrowIcon />
-                        ) : (
-                          <LockIcon />
-                        )}
-                      </Avatar>
-
-                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                        <Typography variant="h6" gutterBottom>
-                          {card.title}
-                        </Typography>
-                        
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          {card.description}
-                        </Typography>
-
-                        {isUnlocked && !isCompleted && (
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={<PlayArrowIcon />}
-                            onClick={() => setLocation(`/game/${activeSessionId}?card=${card.id}`)}
-                            data-testid={`play-card-${card.id}`}
-                          >
-                            Відповісти
-                          </Button>
-                        )}
-
-                        {isCompleted && (
-                          <Stack direction="row" spacing={1}>
-                            <Chip
-                              label="Завершено"
-                              color="success"
-                              size="small"
-                              icon={<CheckIcon />}
-                            />
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              onClick={() => setLocation(`/game/${activeSessionId}?card=${card.id}`)}
-                              data-testid={`edit-card-${card.id}`}
-                            >
-                              Редагувати
-                            </Button>
-                          </Stack>
-                        )}
-                      </Box>
-                    </Box>
-                  </CardContent>
-                </Card>
+                  card={card}
+                  isUnlocked={isUnlocked}
+                  isCompleted={isCompleted}
+                  onResponse={handleCardResponse}
+                />
               );
             })}
         </Stack>
