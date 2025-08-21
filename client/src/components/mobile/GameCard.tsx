@@ -138,7 +138,7 @@ export function GameCard({
 
     const responseData = card.type === 'values' 
       ? selectedOptions 
-      : card.type === 'choice' 
+      : (card.type === 'choice' || card.type === 'archetype')
         ? selectedOptions[0] 
         : currentResponse.trim();
 
@@ -146,7 +146,7 @@ export function GameCard({
   };
 
   const handleOptionToggle = (optionId: string) => {
-    if (card.type === 'choice') {
+    if (card.type === 'choice' || card.type === 'archetype') {
       setSelectedOptions([optionId]);
     } else if (card.type === 'values') {
       setSelectedOptions(prev => 
