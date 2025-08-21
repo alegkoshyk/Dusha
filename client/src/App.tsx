@@ -41,7 +41,7 @@ function Router() {
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/mobile-game" component={MobileGame} />
           <Route path="/game/:sessionId" component={MobileGame} />
-          <Route path="/game/:sessionId/results" component={Results} />
+          <Route path="/game/:sessionId/results" component={BrandBoard} />
           <Route path="/brand-board/:sessionId" component={BrandBoard} />
           <Route path="/classic/:sessionId?" component={Game} />
           <Route component={NotFound} />
