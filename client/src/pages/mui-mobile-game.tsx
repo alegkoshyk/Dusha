@@ -86,7 +86,7 @@ export default function MuiMobileGame() {
 
   // Fetch cards for current level
   const { data: cards = [], isLoading: cardsLoading } = useQuery<GameCard[]>({
-    queryKey: ['/api/game-cards', session?.currentLevel],
+    queryKey: [`/api/game-cards?level=${session?.currentLevel}`],
     enabled: !!session?.currentLevel,
   });
 
