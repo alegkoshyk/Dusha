@@ -13,7 +13,7 @@ import Game from "@/pages/game";
 import MobileGame from "@/pages/mui-mobile-game";
 import Results from "@/pages/results";
 import BrandBoard from "@/pages/mui-brand-board";
-import { Auth } from "@/pages/auth";
+import { MuiAuth } from "@/pages/mui-auth";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -30,7 +30,7 @@ function Router() {
   }
 
   if (!isAuthenticated) {
-    return <Auth />;
+    return <MuiAuth />;
   }
 
   return (

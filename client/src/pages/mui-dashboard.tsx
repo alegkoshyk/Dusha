@@ -38,7 +38,7 @@ import {
 } from '@mui/icons-material';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
-import { CreateBrandDialog } from '@/components/brands/CreateBrandDialog';
+import { CreateBrandDialog } from '@/components/mui/CreateBrandDialog';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import type { UserBrand, GameSession } from '@shared/schema';
