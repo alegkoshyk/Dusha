@@ -192,7 +192,7 @@ export default function MuiDashboard() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth="lg" sx={{ py: 4, px: { xs: 2, sm: 3, md: 4 } }}>
         {/* Header */}
         <Box sx={{ mb: 4 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -313,14 +313,15 @@ export default function MuiDashboard() {
             ) : (
               <Grid container spacing={3}>
                 {/* Карта створення нового бренду */}
-                <Grid item xs={12} md={6} lg={4}>
+                <Grid item xs={12} sm={6} md={4}>
                   <Card 
                     sx={{ 
                       bgcolor: 'rgba(59, 130, 246, 0.08)',
                       border: '2px dashed',
                       borderColor: 'primary.main',
                       cursor: 'pointer',
-                      height: '100%',
+                      height: 340,
+                      minHeight: 340,
                       display: 'flex',
                       flexDirection: 'column',
                       transition: 'all 0.3s ease',
@@ -372,9 +373,10 @@ export default function MuiDashboard() {
                   const isCompleted = !hasActiveGame && completedBrandGames > 0;
                   
                   return (
-                    <Grid item xs={12} md={6} lg={4} key={brand.id}>
+                    <Grid item xs={12} sm={6} md={4} key={brand.id}>
                       <Card sx={{ 
-                        height: '100%', 
+                        height: 340,
+                        minHeight: 340,
                         display: 'flex', 
                         flexDirection: 'column',
                         bgcolor: hasActiveGame ? 'rgba(59, 130, 246, 0.05)' : isCompleted ? 'rgba(16, 185, 129, 0.05)' : 'background.paper',
@@ -387,13 +389,24 @@ export default function MuiDashboard() {
                           bgcolor: hasActiveGame ? 'rgba(59, 130, 246, 0.08)' : isCompleted ? 'rgba(16, 185, 129, 0.08)' : 'action.hover',
                         }
                       }}>
-                        <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                        <CardContent sx={{ flexGrow: 1, p: 3, display: 'flex', flexDirection: 'column' }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                               <Typography variant="h6" component="div" gutterBottom fontWeight={600} noWrap>
                                 {brand.name}
                               </Typography>
-                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, minHeight: 40 }}>
+                              <Typography 
+                                variant="body2" 
+                                color="text.secondary" 
+                                sx={{ 
+                                  mb: 2, 
+                                  minHeight: 40,
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden'
+                                }}
+                              >
                                 {brand.description || 'Опис бренду відсутній'}
                               </Typography>
                               
@@ -471,7 +484,13 @@ export default function MuiDashboard() {
                           )}
                           
                           {/* Дата оновлення */}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1, 
+                            color: 'text.secondary',
+                            mt: 'auto'
+                          }}>
                             <CalendarIcon sx={{ fontSize: 16 }} />
                             <Typography variant="caption">
                               Оновлено: {new Date(brand.updatedAt).toLocaleDateString('uk-UA')}
