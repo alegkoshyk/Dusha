@@ -255,6 +255,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete game session
+  app.delete("/api/game-sessions/:sessionId", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUser(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+
+      const { sessionId } = req.params;
+      
+      // Verify session belongs to user
+      const session = await storage.getGameSession(sessionId);
+      if (!session || session.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Game session not found" });
+      }
+
+      const deleted = await storage.deleteGameSession(sessionId);
+      if (!deleted) {
+        return res.status(404).json({ error: "Game session not found" });
+      }
+
+      res.json({ message: "Game session deleted successfully" });
+    } catch (error) {
+      console.error("Delete game session error:", error);
+      res.status(500).json({ error: "Failed to delete game session" });
+    }
+  });
+
   // Get game session
   app.get("/api/game-sessions/:id", async (req, res) => {
     try {

@@ -68,6 +68,27 @@ export default function Dashboard() {
     },
   });
 
+  // Мутація для видалення ігрової сесії
+  const deleteSessionMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      return apiRequest('DELETE', `/api/game-sessions/${sessionId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
+      toast({
+        title: "Гру видалено",
+        description: "Ігрова сесія успішно видалена",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Помилка",
+        description: "Не вдалося видалити гру",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Мутація для створення нової гри
   const createGameMutation = useMutation({
     mutationFn: async (brandId: string) => {
@@ -90,6 +111,12 @@ export default function Dashboard() {
   const handleDeleteBrand = (brandId: string, brandName: string) => {
     if (window.confirm(`Ви впевнені, що хочете видалити бренд "${brandName}"? Всі дані будуть втрачені.`)) {
       deleteBrandMutation.mutate(brandId);
+    }
+  };
+
+  const handleDeleteSession = (sessionId: string, brandName: string) => {
+    if (window.confirm(`Ви впевнені, що хочете видалити гру для бренду "${brandName}"? Це дію неможливо скасувати.`)) {
+      deleteSessionMutation.mutate(sessionId);
     }
   };
 
@@ -493,6 +520,18 @@ export default function Dashboard() {
                                       <Eye className="w-4 h-4" />
                                     </Button>
                                   )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteSession(session.id, brand?.name || 'Невідомий бренд');
+                                    }}
+                                    className="text-red-500 hover:text-red-700 p-2"
+                                    data-testid={`delete-session-${session.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
                                 </div>
                               </div>
                             </div>
@@ -582,6 +621,18 @@ export default function Dashboard() {
                                   >
                                     <Eye className="w-4 h-4 mr-1" />
                                     Карта бренду
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteSession(session.id, brand?.name || 'Невідомий бренд');
+                                    }}
+                                    className="text-red-500 hover:text-red-700 p-2"
+                                    data-testid={`delete-completed-session-${session.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
                                   </Button>
                                   <Button 
                                     variant="outline" 
