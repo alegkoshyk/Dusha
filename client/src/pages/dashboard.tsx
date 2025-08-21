@@ -92,8 +92,7 @@ export default function Dashboard() {
   // Мутація для створення нової гри
   const createGameMutation = useMutation({
     mutationFn: async (brandId: string) => {
-      const response = await apiRequest('POST', '/api/game-sessions', { brandId });
-      return response;
+      return apiRequest('POST', '/api/game-sessions', { brandId });
     },
     onSuccess: (session: GameSession) => {
       queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
@@ -483,7 +482,7 @@ export default function Dashboard() {
                                 <div className="flex items-center justify-between text-sm mb-1">
                                   <span className="text-gray-600 dark:text-gray-400">Прогрес</span>
                                   <span className="text-gray-900 dark:text-white font-medium">
-                                    {session.completedCards?.length || 0}/15 карток
+                                    {(session.completedCards as string[])?.length || 0}/15 карток
                                   </span>
                                 </div>
                                 <Progress value={progressPercentage} className="h-2" />
@@ -591,15 +590,15 @@ export default function Dashboard() {
                               <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
                                 <div className="flex items-center gap-1">
                                   <Heart className="w-4 h-4 text-purple-500" />
-                                  <span>{session.completedCards?.filter(c => c.startsWith('soul-')).length || 0} Душа</span>
+                                  <span>{(session.completedCards as string[])?.filter(c => c.startsWith('soul-')).length || 0} Душа</span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Brain className="w-4 h-4 text-blue-500" />
-                                  <span>{session.completedCards?.filter(c => c.startsWith('mind-')).length || 0} Розум</span>
+                                  <span>{(session.completedCards as string[])?.filter(c => c.startsWith('mind-')).length || 0} Розум</span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Dumbbell className="w-4 h-4 text-green-500" />
-                                  <span>{session.completedCards?.filter(c => c.startsWith('body-')).length || 0} Тіло</span>
+                                  <span>{(session.completedCards as string[])?.filter(c => c.startsWith('body-')).length || 0} Тіло</span>
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Zap className="w-4 h-4 text-yellow-500" />
@@ -609,7 +608,7 @@ export default function Dashboard() {
                               
                               <div className="flex items-center justify-between">
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  Всього відповідей: {session.completedCards?.length || 0}
+                                  Всього відповідей: {(session.completedCards as string[])?.length || 0}
                                 </p>
                                 
                                 <div className="flex gap-2">
