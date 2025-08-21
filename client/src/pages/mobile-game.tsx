@@ -96,7 +96,7 @@ export default function MobileGame() {
         currentCard: session.currentCard || 'soul-start',
         completedCards,
         unlockedCards,
-        responses: {},
+        responses: session.responses || {},
         achievements: getEarnedBadges(completedCards),
         totalXP: calculateTotalXP(completedCards),
         levelProgress: {
@@ -388,7 +388,7 @@ export default function MobileGame() {
     return (
       <GameCard
         card={currentCard}
-        response={playerProgress.responses[currentCardId]}
+        response={session?.responses ? session.responses[currentCardId] : undefined}
         onResponse={handleCardResponse}
         onNext={handleNextCard}
         onPrevious={handleGoBack}
