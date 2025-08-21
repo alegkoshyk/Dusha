@@ -114,12 +114,11 @@ export default function MuiDashboard() {
   // Мутація для створення нової гри
   const createGameMutation = useMutation({
     mutationFn: async (brandId: string) => {
-      const response = await apiRequest('POST', '/api/game-sessions', { brandId });
-      return response as GameSession;
+      return await apiRequest('POST', '/api/game-sessions', { brandId });
     },
     onSuccess: (session: GameSession) => {
       queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
-      setLocation(`/game/${session.id}`);
+      setLocation(`/mobile-game?sessionId=${session.id}`);
     },
     onError: () => {
       toast({
@@ -146,7 +145,7 @@ export default function MuiDashboard() {
   };
 
   const handleContinueGame = (sessionId: string) => {
-    setLocation(`/game/${sessionId}`);
+    setLocation(`/mobile-game?sessionId=${sessionId}`);
   };
 
   const handleViewResults = (sessionId: string) => {
@@ -216,7 +215,7 @@ export default function MuiDashboard() {
 
           {/* Statistics */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={6} md={3}>
+            <Grid xs={6} md={3}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
                   <Avatar sx={{ bgcolor: 'secondary.light', width: 48, height: 48, mx: 'auto', mb: 2 }}>
@@ -232,7 +231,7 @@ export default function MuiDashboard() {
               </Card>
             </Grid>
             
-            <Grid item xs={6} md={3}>
+            <Grid xs={6} md={3}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
                   <Avatar sx={{ bgcolor: 'success.light', width: 48, height: 48, mx: 'auto', mb: 2 }}>
@@ -248,7 +247,7 @@ export default function MuiDashboard() {
               </Card>
             </Grid>
             
-            <Grid item xs={6} md={3}>
+            <Grid xs={6} md={3}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
                   <Avatar sx={{ bgcolor: 'primary.light', width: 48, height: 48, mx: 'auto', mb: 2 }}>
@@ -264,7 +263,7 @@ export default function MuiDashboard() {
               </Card>
             </Grid>
             
-            <Grid item xs={6} md={3}>
+            <Grid xs={6} md={3}>
               <Card>
                 <CardContent sx={{ textAlign: 'center' }}>
                   <Avatar sx={{ bgcolor: 'warning.light', width: 48, height: 48, mx: 'auto', mb: 2 }}>
@@ -313,7 +312,7 @@ export default function MuiDashboard() {
             ) : (
               <Grid container spacing={3}>
                 {/* Карта створення нового бренду */}
-                <Grid item xs={12} sm={6} md={4}>
+                <Grid xs={12} sm={6} md={4}>
                   <Card 
                     sx={{ 
                       bgcolor: 'rgba(59, 130, 246, 0.08)',
@@ -373,7 +372,7 @@ export default function MuiDashboard() {
                   const isCompleted = !hasActiveGame && completedBrandGames > 0;
                   
                   return (
-                    <Grid item xs={12} sm={6} md={4} key={brand.id}>
+                    <Grid xs={12} sm={6} md={4} key={brand.id}>
                       <Card sx={{ 
                         height: 340,
                         minHeight: 340,
