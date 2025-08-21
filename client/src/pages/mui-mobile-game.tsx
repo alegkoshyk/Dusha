@@ -94,7 +94,7 @@ export default function MuiMobileGame() {
     mutationFn: async ({ cardId, responseValue }: { cardId: string; responseValue: any }) => {
       return apiRequest('POST', `/api/game-sessions/${activeSessionId}/responses`, {
         cardId,
-        responseValue,
+        response: responseValue,
       });
     },
     onSuccess: () => {

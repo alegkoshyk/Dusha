@@ -37,9 +37,27 @@ export function GameCardComponent({ card, isUnlocked, isCompleted, onResponse }:
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = () => {
-    if (!response || response.length === 0) return;
-    onResponse(card.id, response);
+    console.log('GameCard handleSubmit - cardId:', card.id, 'response:', response, 'type:', card.type);
+    
+    if (!response) {
+      console.log('No response provided');
+      return;
+    }
+    
+    // Handle different response types
+    let responseValue = response;
+    if (card.type === 'values' && Array.isArray(response)) {
+      responseValue = response;
+    } else if (card.type === 'choice' && typeof response === 'string') {
+      responseValue = response;
+    } else if ((card.type === 'text' || card.type === 'reflection') && typeof response === 'string' && response.trim().length === 0) {
+      console.log('Empty text response');
+      return;
+    }
+    
+    console.log('Sending response:', responseValue);
     setSubmitted(true);
+    onResponse(card.id, responseValue);
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -214,7 +232,7 @@ export function GameCardComponent({ card, isUnlocked, isCompleted, onResponse }:
                 variant={isCompleted ? "outlined" : "contained"}
                 startIcon={isCompleted ? <CheckIcon /> : <PlayArrowIcon />}
                 onClick={handleSubmit}
-                disabled={!response || response.length === 0 || submitted || isCompleted}
+                disabled={!response || submitted || isCompleted}
                 sx={{ minWidth: 120 }}
               >
                 {isCompleted ? 'Завершено' : submitted ? 'Збережено' : 'Відповісти'}
