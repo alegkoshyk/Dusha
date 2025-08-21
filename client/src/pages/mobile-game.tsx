@@ -217,7 +217,29 @@ export default function MobileGame() {
     const currentCard = getGameCard(currentCardId);
     if (!currentCard) return;
 
-    // Get next card options based on branching logic
+    // For API cards, find next card based on position or next available card
+    if (apiCards) {
+      if (currentCardId === 'soul-start') {
+        // After soul-start, go to soul-values
+        const valuesCard = apiCards.find(card => card.id === 'soul-values');
+        if (valuesCard) {
+          handleCardSelect('soul-values');
+          return;
+        }
+      }
+      
+      // Find next card in the same level
+      const currentIndex = apiCards.findIndex(card => card.id === currentCardId);
+      if (currentIndex >= 0 && currentIndex < apiCards.length - 1) {
+        const nextCard = apiCards[currentIndex + 1];
+        if (nextCard && nextCard.levelId === currentCard.levelId) {
+          handleCardSelect(nextCard.id);
+          return;
+        }
+      }
+    }
+    
+    // Fallback: Get next card options based on branching logic (for static data compatibility)
     const nextOptions = getNextCardOptions(currentCardId, playerProgress.responses);
     
     if (nextOptions.length > 0) {

@@ -406,7 +406,7 @@ export function GameCard({
               )}
 
               {/* Text Input */}
-              {(card.type === 'text' || card.type === 'reflection' || card.type === 'audience') && !(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.id === 'body-complete') && (
+              {(card.type === 'text' || card.type === 'reflection' || card.type === 'audience') && !(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.id === 'body-complete' || card.type === 'info') && (
                 <div className="space-y-2">
                   {/* Для карт цільової аудиторії - коротший інпут */}
                   {(card.id === 'mind-audience' || card.id === 'mind-target') ? (
