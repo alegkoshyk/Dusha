@@ -389,16 +389,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get all responses for this session
-      const responses = await storage.getCardResponsesBySession(id);
+      const responses = await storage.getSessionCardResponses(id);
       
       // Organize responses by level and card
       const brandMap = {
         session,
         responses: responses || [],
         levels: {
-          soul: responses?.filter(r => r.cardId?.startsWith('soul-')) || [],
-          mind: responses?.filter(r => r.cardId?.startsWith('mind-')) || [],
-          body: responses?.filter(r => r.cardId?.startsWith('body-')) || []
+          soul: responses?.filter((r: any) => r.cardId?.startsWith('soul-')) || [],
+          mind: responses?.filter((r: any) => r.cardId?.startsWith('mind-')) || [],
+          body: responses?.filter((r: any) => r.cardId?.startsWith('body-')) || []
         }
       };
       

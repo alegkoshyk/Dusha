@@ -69,7 +69,7 @@ export default function MuiMobileGame() {
       setActiveSessionId(sessionId);
     } else {
       // Check for sessionId in query string
-      const urlParams = new URLSearchParams(location.split('?')[1] || '');
+      const urlParams = new URLSearchParams(window.location.search);
       const querySessionId = urlParams.get('sessionId');
       if (querySessionId && querySessionId !== 'undefined' && querySessionId !== 'null') {
         setActiveSessionId(querySessionId);
@@ -178,12 +178,26 @@ export default function MuiMobileGame() {
     );
   }
 
-  if (!session) {
+  if (!session && activeSessionId) {
     return (
       <Container maxWidth="sm" sx={{ py: 4 }}>
         <Alert severity="error">
           <Typography variant="h6" gutterBottom>Сесію не знайдено</Typography>
           <Typography>Неможливо знайти гру з ID: {activeSessionId}</Typography>
+          <Button onClick={() => setLocation('/')} sx={{ mt: 2 }}>
+            Повернутися на головну
+          </Button>
+        </Alert>
+      </Container>
+    );
+  }
+
+  if (!activeSessionId) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 4 }}>
+        <Alert severity="warning">
+          <Typography variant="h6" gutterBottom>ID сесії відсутній</Typography>
+          <Typography>Неможливо завантажити гру без ID сесії</Typography>
           <Button onClick={() => setLocation('/')} sx={{ mt: 2 }}>
             Повернутися на головну
           </Button>
