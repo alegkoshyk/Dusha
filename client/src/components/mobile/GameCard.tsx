@@ -532,64 +532,6 @@ export function GameCard({
                 </div>
               )}
 
-
-
-              {/* Multiple Selection Options */}
-              {card.type === 'values' && (card.options || card.properties) && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Оберіть {(card.validation as any)?.minSelections} - {(card.validation as any)?.maxSelections} варіантів
-                    </p>
-                    <span className="text-sm text-gray-500">
-                      {selectedOptions.length} вибрано
-                    </span>
-                  </div>
-                  
-                  <div className="grid gap-3">
-                    {((card.options as any[]) || (card.properties && card.properties.filter(prop => prop.type === 'option'))).map((option: any) => (
-                      <motion.div
-                        key={option.id || option.key}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Label
-                          htmlFor={option.id || option.key}
-                          className={`
-                            flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all
-                            ${selectedOptions.includes(option.id || option.key)
-                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                            }
-                          `}
-                          data-testid={`option-${option.id || option.key}`}
-                        >
-                          <Checkbox
-                            id={option.id || option.key}
-                            checked={selectedOptions.includes(option.id || option.key)}
-                            onCheckedChange={() => handleOptionToggle(option.id || option.key)}
-                            className="mt-1"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              {option.icon && <span className="text-lg">{option.icon}</span>}
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {option.label}
-                              </span>
-                            </div>
-                            {option.description && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {option.description}
-                              </p>
-                            )}
-                          </div>
-                        </Label>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Validation Message */}
               {!validation.isValid && validation.message && (
                 <motion.div
