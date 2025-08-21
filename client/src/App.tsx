@@ -1,17 +1,18 @@
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "@/providers/ThemeProvider";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
-import { Header } from "@/components/Header";
+import { MuiHeader } from "@/components/mui/Header";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
-import Dashboard from "@/pages/dashboard";
+import Dashboard from "@/pages/mui-dashboard";
 import Game from "@/pages/game";
-import MobileGame from "@/pages/mobile-game";
+import MobileGame from "@/pages/mui-mobile-game";
 import Results from "@/pages/results";
-import BrandBoard from "@/pages/brand-board";
+import BrandBoard from "@/pages/mui-brand-board";
 import { Auth } from "@/pages/auth";
 
 function Router() {
@@ -34,8 +35,8 @@ function Router() {
 
   return (
     <>
-      <Header />
-      <main className="pt-16">
+      <MuiHeader />
+      <main style={{ paddingTop: 64 }}>
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
@@ -54,10 +55,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
