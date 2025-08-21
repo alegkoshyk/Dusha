@@ -65,13 +65,13 @@ export default function MuiMobileGame() {
 
   // Initialize activeSessionId from URL params or query string
   useEffect(() => {
-    if (sessionId) {
+    if (sessionId && sessionId !== 'undefined') {
       setActiveSessionId(sessionId);
     } else {
       // Check for sessionId in query string
       const urlParams = new URLSearchParams(location.split('?')[1] || '');
       const querySessionId = urlParams.get('sessionId');
-      if (querySessionId) {
+      if (querySessionId && querySessionId !== 'undefined' && querySessionId !== 'null') {
         setActiveSessionId(querySessionId);
       }
     }

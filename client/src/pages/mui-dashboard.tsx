@@ -117,13 +117,23 @@ export default function MuiDashboard() {
       return await apiRequest('POST', '/api/game-sessions', { brandId });
     },
     onSuccess: (session: GameSession) => {
+      console.log('New game session created:', session);
       queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
-      setLocation(`/mobile-game?sessionId=${session.id}`);
+      if (session?.id) {
+        setLocation(`/mobile-game?sessionId=${session.id}`);
+      } else {
+        toast({
+          title: "Помилка",
+          description: "Сесія створена, але ID відсутній",
+          variant: "destructive",
+        });
+      }
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Create game error:', error);
       toast({
         title: "Помилка",
-        description: "Не вдалося створити нову гру",
+        description: error.message || "Не вдалося створити нову гру",
         variant: "destructive",
       });
     },
@@ -145,7 +155,15 @@ export default function MuiDashboard() {
   };
 
   const handleContinueGame = (sessionId: string) => {
-    setLocation(`/mobile-game?sessionId=${sessionId}`);
+    if (sessionId && sessionId !== 'undefined') {
+      setLocation(`/mobile-game?sessionId=${sessionId}`);
+    } else {
+      toast({
+        title: "Помилка",
+        description: "Неможливо продовжити гру - невірний ID сесії",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleViewResults = (sessionId: string) => {

@@ -381,11 +381,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/game-sessions/:id/brand-map", async (req, res) => {
     try {
       const { id } = req.params;
-      const brandMap = await storage.generateBrandMap(id);
       
-      if (!brandMap) {
+      // Get session first to verify it exists
+      const session = await storage.getGameSession(id);
+      if (!session) {
         return res.status(404).json({ error: "Game session not found" });
       }
+      
+      // Get all responses for this session
+      const responses = await storage.getCardResponsesBySession(id);
+      
+      // Organize responses by level and card
+      const brandMap = {
+        session,
+        responses: responses || [],
+        levels: {
+          soul: responses?.filter(r => r.cardId?.startsWith('soul-')) || [],
+          mind: responses?.filter(r => r.cardId?.startsWith('mind-')) || [],
+          body: responses?.filter(r => r.cardId?.startsWith('body-')) || []
+        }
+      };
       
       res.json(brandMap);
     } catch (error) {
