@@ -63,6 +63,12 @@ export default function MobileGame() {
     enabled: !!activeSessionId,
   });
 
+  // Get cards from API
+  const { data: apiCards } = useQuery({
+    queryKey: ["/api/game-cards"],
+    enabled: true,
+  });
+
   // Get card parameter from URL
   const urlParams = new URLSearchParams(location.split('?')[1] || '');
   const cardFromUrl = urlParams.get('card');
@@ -112,7 +118,7 @@ export default function MobileGame() {
     const urlParams = new URLSearchParams(location.split('?')[1] || '');
     const cardFromUrl = urlParams.get('card');
     
-    if (cardFromUrl && mobileGameCards.find(c => c.id === cardFromUrl)) {
+    if (cardFromUrl && apiCards && apiCards.find(c => c.id === cardFromUrl)) {
       setCurrentCardId(cardFromUrl);
       setViewMode('card');
     } else if (!cardFromUrl) {
@@ -158,7 +164,8 @@ export default function MobileGame() {
   });
 
   const calculateLevelProgress = (level: string, completedCards: string[]): number => {
-    const levelCards = mobileGameCards.filter(card => card.levelId === level);
+    if (!apiCards) return 0;
+    const levelCards = apiCards.filter(card => card.levelId === level);
     const completed = levelCards.filter(card => completedCards.includes(card.id)).length;
     return Math.round((completed / levelCards.length) * 100);
   };
@@ -275,8 +282,9 @@ export default function MobileGame() {
     }
   };
 
-  const currentCard = currentCardId ? getGameCard(currentCardId) : null;
-  const gameProgress = Math.round((playerProgress.completedCards.length / mobileGameCards.length) * 100);
+  // Get current card from API cards
+  const currentCard = currentCardId && apiCards ? apiCards.find(c => c.id === currentCardId) : null;
+  const gameProgress = apiCards ? Math.round((playerProgress.completedCards.length / apiCards.length) * 100) : 0;
 
   if (sessionLoading) {
     return (
@@ -368,12 +376,12 @@ export default function MobileGame() {
   }
 
   // Card view
-  if (viewMode === 'card' && currentCard) {
-    const cardIndex = mobileGameCards.findIndex(card => card.id === currentCardId);
-    const cardProgress = ((cardIndex + 1) / mobileGameCards.length) * 100;
+  if (viewMode === 'card' && currentCard && apiCards) {
+    const cardIndex = apiCards.findIndex(card => card.id === currentCardId);
+    const cardProgress = ((cardIndex + 1) / apiCards.length) * 100;
     
     // Підрахунок прогресу конкретного рівня
-    const levelCards = mobileGameCards.filter(card => card.levelId === currentCard.levelId);
+    const levelCards = apiCards.filter(card => card.levelId === currentCard.levelId);
     const completedLevelCards = levelCards.filter(card => playerProgress.completedCards.includes(card.id));
     const levelProgress = Math.round((completedLevelCards.length / levelCards.length) * 100);
 
@@ -387,7 +395,7 @@ export default function MobileGame() {
         canGoNext={true}
         canGoPrevious={true}
         progress={cardProgress}
-        totalCards={mobileGameCards.length}
+        totalCards={apiCards.length}
         levelProgress={levelProgress}
         completedCardsInLevel={completedLevelCards.length}
         totalCardsInLevel={levelCards.length}
