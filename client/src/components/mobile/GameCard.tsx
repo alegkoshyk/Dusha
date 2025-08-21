@@ -24,10 +24,15 @@ import {
   Plus
 } from 'lucide-react';
 import { useLocation } from 'wouter';
-import type { GameCard as GameCardType } from '@shared/schema';
+import type { GameCard as GameCardType, CardProperty } from '@shared/schema';
+
+interface ExtendedGameCard extends GameCardType {
+  properties?: CardProperty[];
+  options?: any[];
+}
 
 interface GameCardProps {
-  card: GameCardType;
+  card: ExtendedGameCard;
   response?: any;
   onResponse: (response: any) => void;
   onNext: () => void;
@@ -92,7 +97,8 @@ export function GameCard({
       return;
     }
 
-    const { minLength, maxLength, minSelections, maxSelections } = card.validation || {};
+    const validation = card.validation as any || {};
+    const { minLength, maxLength, minSelections, maxSelections } = validation;
 
     // Text validation
     if (card.type === 'text' || card.type === 'reflection') {
@@ -473,7 +479,7 @@ export function GameCard({
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Оберіть {(card.validation as any)?.minSelections || 1} - {(card.validation as any)?.maxSelections || 3} архетипів
+                      Оберіть {validation?.minSelections || 1} - {validation?.maxSelections || 3} архетипів
                     </p>
                     <span className="text-sm text-gray-500">
                       {selectedOptions.length} вибрано

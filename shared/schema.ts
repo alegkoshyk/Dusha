@@ -95,7 +95,7 @@ export const gameCardsTable = pgTable("game_cards", {
   description: text("description").notNull(),
   shortDescription: text("short_description").notNull(),
   hint: text("hint"),
-  type: text("type", { enum: ["text", "choice", "values", "reflection", "completion"] }).notNull(),
+  type: text("type", { enum: ["text", "choice", "values", "reflection", "completion", "archetype"] }).notNull(),
   difficulty: text("difficulty", { enum: ["easy", "medium", "hard"] }).notNull(),
   estimatedTime: integer("estimated_time").notNull(),
   required: boolean("required").notNull().default(true),
