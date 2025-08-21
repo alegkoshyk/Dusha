@@ -57,8 +57,8 @@ export default function MuiBrandBoard() {
   });
 
   // Fetch brand map data
-  const { data: brandMapData, isLoading: brandMapLoading } = useQuery<BrandMapData>({
-    queryKey: ['/api/game-sessions', sessionId, 'brand-map'],
+  const { data: brandMapData, isLoading: brandMapLoading } = useQuery<any>({
+    queryKey: [`/api/game-sessions/${sessionId}/brand-map`],
     enabled: !!sessionId,
   });
 
@@ -215,7 +215,8 @@ export default function MuiBrandBoard() {
   }
 
   const levels = ['soul', 'mind', 'body'];
-  const totalResponses = Object.values(brandMapData).reduce((sum, level) => sum + Object.keys(level).length, 0);
+  const totalResponses = brandMapData?.responses?.length || 
+                       (brandMapData?.levels ? Object.values(brandMapData.levels).reduce((sum: number, level: any) => sum + (Array.isArray(level) ? level.length : 0), 0) : 0);
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -283,10 +284,10 @@ export default function MuiBrandBoard() {
             
             <Grid container spacing={3}>
               {levels.map((level) => {
-                const levelData = brandMapData[level];
+                const levelData = brandMapData?.levels?.[level] || [];
                 const LevelIcon = getLevelIcon(level);
                 const levelColor = getLevelColor(level);
-                const responseCount = levelData ? Object.keys(levelData).length : 0;
+                const responseCount = Array.isArray(levelData) ? levelData.length : 0;
                 
                 return (
                   <Grid item xs={12} md={4} key={level}>
@@ -315,8 +316,8 @@ export default function MuiBrandBoard() {
         {/* Detailed Brand Map */}
         <Stack spacing={4}>
           {levels.map((level) => {
-            const levelData = brandMapData[level];
-            if (!levelData || Object.keys(levelData).length === 0) return null;
+            const levelData = brandMapData?.levels?.[level] || [];
+            if (!Array.isArray(levelData) || levelData.length === 0) return null;
 
             const LevelIcon = getLevelIcon(level);
             const levelColor = getLevelColor(level);
@@ -332,7 +333,7 @@ export default function MuiBrandBoard() {
                       {getLevelName(level)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {Object.keys(levelData).length} відповідей
+                      {levelData.length} відповідей
                     </Typography>
                   </Box>
                 </Box>
@@ -340,12 +341,12 @@ export default function MuiBrandBoard() {
                 <Divider sx={{ mb: 3 }} />
 
                 <Grid container spacing={3}>
-                  {Object.entries(levelData).map(([cardId, cardData]) => (
-                    <Grid item xs={12} md={6} key={cardId}>
+                  {levelData.map((cardData: any, index: number) => (
+                    <Grid item xs={12} md={6} key={cardData.cardId || index}>
                       <Card variant="outlined" sx={{ height: '100%' }}>
                         <CardContent>
                           <Typography variant="h6" gutterBottom>
-                            {cardData.title}
+                            {cardData.cardTitle || cardData.cardId}
                           </Typography>
                           
                           <Box sx={{ mb: 2 }}>
@@ -362,7 +363,7 @@ export default function MuiBrandBoard() {
                           </Box>
                           
                           <Typography variant="caption" color="text.secondary">
-                            Відповідь від: {new Date(cardData.timestamp).toLocaleDateString('uk-UA')}
+                            Відповідь від: {cardData.createdAt ? new Date(cardData.createdAt).toLocaleDateString('uk-UA') : 'Невідомо'}
                           </Typography>
                         </CardContent>
                       </Card>
