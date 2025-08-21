@@ -316,21 +316,41 @@ export default function MuiDashboard() {
                 <Grid item xs={12} md={6} lg={4}>
                   <Card 
                     sx={{ 
+                      bgcolor: 'rgba(59, 130, 246, 0.08)',
                       border: '2px dashed',
-                      borderColor: 'grey.300',
+                      borderColor: 'primary.main',
                       cursor: 'pointer',
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      transition: 'all 0.3s ease',
                       '&:hover': {
-                        borderColor: 'primary.main',
-                        bgcolor: 'action.hover',
+                        bgcolor: 'rgba(59, 130, 246, 0.12)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: 3,
                       }
                     }}
                     onClick={() => setCreateBrandOpen(true)}
                   >
-                    <CardContent sx={{ textAlign: 'center', py: 6 }}>
-                      <Avatar sx={{ bgcolor: 'primary.light', width: 64, height: 64, mx: 'auto', mb: 2 }}>
-                        <AddIcon sx={{ fontSize: 32 }} />
+                    <CardContent sx={{ 
+                      textAlign: 'center', 
+                      py: 6, 
+                      flexGrow: 1, 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      justifyContent: 'center' 
+                    }}>
+                      <Avatar sx={{ 
+                        bgcolor: 'primary.main', 
+                        width: 64, 
+                        height: 64, 
+                        mx: 'auto', 
+                        mb: 3,
+                        boxShadow: 2
+                      }}>
+                        <AddIcon sx={{ fontSize: 32, color: 'white' }} />
                       </Avatar>
-                      <Typography variant="h6" gutterBottom>
+                      <Typography variant="h6" gutterBottom fontWeight={600}>
                         Створити новий бренд
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
@@ -353,27 +373,54 @@ export default function MuiDashboard() {
                   
                   return (
                     <Grid item xs={12} md={6} lg={4} key={brand.id}>
-                      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <CardContent sx={{ flexGrow: 1 }}>
+                      <Card sx={{ 
+                        height: '100%', 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        bgcolor: hasActiveGame ? 'rgba(59, 130, 246, 0.05)' : isCompleted ? 'rgba(16, 185, 129, 0.05)' : 'background.paper',
+                        border: hasActiveGame ? '1px solid rgba(59, 130, 246, 0.3)' : isCompleted ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid',
+                        borderColor: hasActiveGame ? 'primary.light' : isCompleted ? 'success.light' : 'divider',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: 3,
+                          bgcolor: hasActiveGame ? 'rgba(59, 130, 246, 0.08)' : isCompleted ? 'rgba(16, 185, 129, 0.08)' : 'action.hover',
+                        }
+                      }}>
+                        <CardContent sx={{ flexGrow: 1, p: 3 }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                            <Box sx={{ flexGrow: 1 }}>
-                              <Typography variant="h6" component="div" gutterBottom>
+                            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                              <Typography variant="h6" component="div" gutterBottom fontWeight={600} noWrap>
                                 {brand.name}
                               </Typography>
-                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                {brand.description || 'Опис бренду'}
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, minHeight: 40 }}>
+                                {brand.description || 'Опис бренду відсутній'}
                               </Typography>
                               
                               {/* Статус */}
-                              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                              <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 0.5 }}>
                                 {hasActiveGame && (
-                                  <Chip label="Активний" color="primary" size="small" />
+                                  <Chip 
+                                    label="Активний" 
+                                    color="primary" 
+                                    size="small"
+                                    sx={{ fontWeight: 500 }}
+                                  />
                                 )}
                                 {isCompleted && (
-                                  <Chip label="Завершений" color="success" size="small" />
+                                  <Chip 
+                                    label="Завершений" 
+                                    color="success" 
+                                    size="small"
+                                    sx={{ fontWeight: 500 }}
+                                  />
                                 )}
                                 {completedBrandGames > 0 && (
-                                  <Chip label={`${completedBrandGames} завершено`} variant="outlined" size="small" />
+                                  <Chip 
+                                    label={`${completedBrandGames} завершено`} 
+                                    variant="outlined" 
+                                    size="small" 
+                                  />
                                 )}
                               </Stack>
                             </Box>
@@ -384,6 +431,13 @@ export default function MuiDashboard() {
                                 e.stopPropagation();
                                 handleDeleteBrand(brand.id, brand.name);
                               }}
+                              sx={{ 
+                                ml: 1,
+                                '&:hover': { 
+                                  bgcolor: 'error.light',
+                                  color: 'error.main' 
+                                }
+                              }}
                               data-testid={`delete-brand-${brand.id}`}
                             >
                               <DeleteIcon fontSize="small" />
@@ -392,24 +446,35 @@ export default function MuiDashboard() {
                           
                           {/* Прогрес */}
                           {hasActiveGame && (
-                            <Box sx={{ mb: 2 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                <Typography variant="body2" color="text.secondary">
+                            <Box sx={{ mb: 3 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
                                   Прогрес
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography variant="body2" color="primary.main" fontWeight={600}>
                                   {progress}%
                                 </Typography>
                               </Box>
-                              <LinearProgress variant="determinate" value={progress} />
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={progress} 
+                                sx={{ 
+                                  height: 6, 
+                                  borderRadius: 3,
+                                  bgcolor: 'rgba(59, 130, 246, 0.1)',
+                                  '& .MuiLinearProgress-bar': {
+                                    borderRadius: 3,
+                                  }
+                                }}
+                              />
                             </Box>
                           )}
                           
                           {/* Дата оновлення */}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: 'text.secondary' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
                             <CalendarIcon sx={{ fontSize: 16 }} />
                             <Typography variant="caption">
-                              {new Date(brand.updatedAt).toLocaleDateString('uk-UA')}
+                              Оновлено: {new Date(brand.updatedAt).toLocaleDateString('uk-UA')}
                             </Typography>
                           </Box>
                         </CardContent>
@@ -424,7 +489,11 @@ export default function MuiDashboard() {
                                 size="small"
                                 startIcon={<PlayArrowIcon />}
                                 onClick={() => handleContinueGame(activeBrandGame.id)}
-                                sx={{ flexGrow: 1 }}
+                                sx={{ 
+                                  flexGrow: 1,
+                                  fontWeight: 500,
+                                  py: 1
+                                }}
                                 data-testid={`continue-game-${brand.id}`}
                               >
                                 Продовжити
@@ -432,9 +501,16 @@ export default function MuiDashboard() {
                               <IconButton
                                 size="small"
                                 onClick={() => handleViewResults(activeBrandGame.id)}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  '&:hover': {
+                                    bgcolor: 'action.hover'
+                                  }
+                                }}
                                 data-testid={`view-results-${brand.id}`}
                               >
-                                <VisibilityIcon />
+                                <VisibilityIcon fontSize="small" />
                               </IconButton>
                             </Stack>
                           ) : (
@@ -444,6 +520,10 @@ export default function MuiDashboard() {
                               startIcon={<PlayArrowIcon />}
                               onClick={() => handleStartGame(brand.id)}
                               fullWidth
+                              sx={{ 
+                                fontWeight: 500,
+                                py: 1
+                              }}
                               data-testid={`start-game-${brand.id}`}
                             >
                               Нова гра
@@ -480,43 +560,81 @@ export default function MuiDashboard() {
                   const progressPercentage = Math.min(Math.round(rawSessionProgress), 100);
                   
                   return (
-                    <Card key={session.id}>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                          <Avatar sx={{ bgcolor: `${getLevelColor(session.currentLevel)}.light` }}>
+                    <Card 
+                      key={session.id}
+                      sx={{
+                        bgcolor: 'rgba(59, 130, 246, 0.04)',
+                        border: '1px solid',
+                        borderColor: 'rgba(59, 130, 246, 0.2)',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          bgcolor: 'rgba(59, 130, 246, 0.08)',
+                          borderColor: 'rgba(59, 130, 246, 0.4)',
+                          transform: 'translateY(-1px)',
+                          boxShadow: 2,
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ p: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
+                          <Avatar sx={{ 
+                            bgcolor: `${getLevelColor(session.currentLevel)}.main`,
+                            width: 48,
+                            height: 48,
+                            boxShadow: 1
+                          }}>
                             <LevelIcon />
                           </Avatar>
                           
-                          <Box sx={{ flexGrow: 1 }}>
+                          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                              <Box>
-                                <Typography variant="h6" component="div">
+                              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                <Typography variant="h6" component="div" fontWeight={600} noWrap>
                                   {brand?.name || 'Невідомий бренд'}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
                                   Поточний рівень: {getLevelName(session.currentLevel)}
                                 </Typography>
                               </Box>
-                              <Chip label={`${progressPercentage}% завершено`} variant="outlined" />
+                              <Chip 
+                                label={`${progressPercentage}% завершено`} 
+                                color="primary"
+                                variant="outlined"
+                                size="small"
+                                sx={{ ml: 2, fontWeight: 500 }}
+                              />
                             </Box>
                             
-                            <Box sx={{ mb: 2 }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                <Typography variant="body2" color="text.secondary">
+                            <Box sx={{ mb: 3 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary" fontWeight={500}>
                                   Прогрес
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                  {session.completedCards?.length || 0}/15 карток
+                                  {Array.isArray(session.completedCards) ? session.completedCards.length : 0}/15 карток
                                 </Typography>
                               </Box>
-                              <LinearProgress variant="determinate" value={progressPercentage} />
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={progressPercentage}
+                                sx={{
+                                  height: 6,
+                                  borderRadius: 3,
+                                  bgcolor: 'rgba(59, 130, 246, 0.1)',
+                                  '& .MuiLinearProgress-bar': {
+                                    borderRadius: 3,
+                                  }
+                                }}
+                              />
                             </Box>
                             
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, color: 'text.secondary' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, color: 'text.secondary' }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <BoltIcon sx={{ fontSize: 16 }} />
-                                  <Typography variant="body2">{session.totalXp || 0} XP</Typography>
+                                  <BoltIcon sx={{ fontSize: 16, color: 'warning.main' }} />
+                                  <Typography variant="body2" fontWeight={500}>
+                                    {session.totalXp || 0} XP
+                                  </Typography>
                                 </Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                   <CalendarIcon sx={{ fontSize: 16 }} />
@@ -532,6 +650,7 @@ export default function MuiDashboard() {
                                   variant="contained"
                                   startIcon={<PlayArrowIcon />}
                                   onClick={() => handleContinueGame(session.id)}
+                                  sx={{ fontWeight: 500 }}
                                   data-testid={`continue-session-${session.id}`}
                                 >
                                   Продовжити
@@ -540,9 +659,16 @@ export default function MuiDashboard() {
                                   <IconButton 
                                     size="small"
                                     onClick={() => handleViewResults(session.id)}
+                                    sx={{
+                                      border: '1px solid',
+                                      borderColor: 'divider',
+                                      '&:hover': {
+                                        bgcolor: 'action.hover'
+                                      }
+                                    }}
                                     data-testid={`view-session-results-${session.id}`}
                                   >
-                                    <VisibilityIcon />
+                                    <VisibilityIcon fontSize="small" />
                                   </IconButton>
                                 )}
                               </Stack>
@@ -577,54 +703,86 @@ export default function MuiDashboard() {
                   const completionDate = new Date(session.updatedAt);
                   
                   return (
-                    <Card key={session.id}>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                          <Avatar sx={{ bgcolor: 'success.light' }}>
+                    <Card 
+                      key={session.id}
+                      sx={{
+                        bgcolor: 'rgba(16, 185, 129, 0.04)',
+                        border: '1px solid',
+                        borderColor: 'rgba(16, 185, 129, 0.2)',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          bgcolor: 'rgba(16, 185, 129, 0.08)',
+                          borderColor: 'rgba(16, 185, 129, 0.4)',
+                          transform: 'translateY(-1px)',
+                          boxShadow: 2,
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ p: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3 }}>
+                          <Avatar sx={{ 
+                            bgcolor: 'success.main',
+                            width: 48,
+                            height: 48,
+                            boxShadow: 1
+                          }}>
                             <TrophyIcon />
                           </Avatar>
                           
-                          <Box sx={{ flexGrow: 1 }}>
+                          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                              <Box>
-                                <Typography variant="h6" component="div">
+                              <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                <Typography variant="h6" component="div" fontWeight={600} noWrap>
                                   {brand?.name || 'Невідомий бренд'}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
                                   Гра завершена • {completionDate.toLocaleDateString('uk-UA')}
                                 </Typography>
                               </Box>
-                              <Chip label="Завершено" color="success" />
+                              <Chip 
+                                label="Завершено" 
+                                color="success"
+                                sx={{ ml: 2, fontWeight: 500 }}
+                              />
                             </Box>
                             
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2, color: 'text.secondary' }}>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 2, 
+                              mb: 3, 
+                              color: 'text.secondary',
+                              flexWrap: 'wrap'
+                            }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <FavoriteIcon sx={{ fontSize: 16, color: 'secondary.main' }} />
-                                <Typography variant="body2">
+                                <Typography variant="body2" fontWeight={500}>
                                   {Array.isArray(session.completedCards) ? session.completedCards.filter((c: any) => c.startsWith('soul-')).length : 0} Душа
                                 </Typography>
                               </Box>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <PsychologyIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                                <Typography variant="body2">
+                                <Typography variant="body2" fontWeight={500}>
                                   {Array.isArray(session.completedCards) ? session.completedCards.filter((c: any) => c.startsWith('mind-')).length : 0} Розум
                                 </Typography>
                               </Box>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <FitnessCenterIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                                <Typography variant="body2">
+                                <Typography variant="body2" fontWeight={500}>
                                   {Array.isArray(session.completedCards) ? session.completedCards.filter((c: any) => c.startsWith('body-')).length : 0} Тіло
                                 </Typography>
                               </Box>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <BoltIcon sx={{ fontSize: 16, color: 'warning.main' }} />
-                                <Typography variant="body2">{session.totalXp || 0} XP</Typography>
+                                <Typography variant="body2" fontWeight={500}>
+                                  {session.totalXp || 0} XP
+                                </Typography>
                               </Box>
                             </Box>
                             
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <Typography variant="body2" color="text.secondary">
-                                Всього відповідей: {Array.isArray(session.completedCards) ? session.completedCards.length : 0}
+                                Всього відповідей: <strong>{Array.isArray(session.completedCards) ? session.completedCards.length : 0}</strong>
                               </Typography>
                               
                               <Stack direction="row" spacing={1}>
@@ -633,6 +791,7 @@ export default function MuiDashboard() {
                                   size="small"
                                   startIcon={<VisibilityIcon />}
                                   onClick={() => handleViewResults(session.id)}
+                                  sx={{ fontWeight: 500 }}
                                   data-testid={`view-completed-results-${session.id}`}
                                 >
                                   Карта бренду
@@ -642,6 +801,7 @@ export default function MuiDashboard() {
                                   size="small"
                                   startIcon={<PlayArrowIcon />}
                                   onClick={() => handleStartGame(brand?.id || '')}
+                                  sx={{ fontWeight: 500 }}
                                   data-testid={`restart-game-${session.id}`}
                                 >
                                   Нова гра
