@@ -379,11 +379,15 @@ export class DatabaseStorage implements IStorage {
     const totalCards = totalCardsResult[0]?.count || 0;
     const progress = Math.round((completedCards.length / totalCards) * 100);
 
+    // Determine next card based on game flow
+    const nextCard = await this.getNextCard(completedCards);
+
     const [session] = await db
       .update(gameSessionsTable)
       .set({
         completedCards,
         progress,
+        currentCard: nextCard,
         updatedAt: sql`now()`,
       })
       .where(eq(gameSessionsTable.id, sessionId))
@@ -397,6 +401,28 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(cardResponsesTable)
       .where(eq(cardResponsesTable.sessionId, sessionId));
+  }
+
+  async getNextCard(completedCards: string[]): Promise<string> {
+    // Define the game flow order
+    const gameFlow = [
+      'soul-start', 'soul-values', 'soul-deep-values', 'soul-mission', 
+      'soul-story', 'soul-purpose', 'soul-emotion', 'soul-impact', 'soul-archetype',
+      'mind-start', 'mind-archetype', 'mind-positioning', 'mind-promise', 
+      'mind-solution', 'mind-problem', 'mind-audience', 'mind-target',
+      'body-start', 'body-products', 'body-channels', 'body-visual', 
+      'body-tone', 'body-pricing', 'body-metrics', 'body-launch', 'body-complete'
+    ];
+    
+    // Find the first card that's not completed
+    for (const cardId of gameFlow) {
+      if (!completedCards.includes(cardId)) {
+        return cardId;
+      }
+    }
+    
+    // If all cards are completed, return the last card
+    return 'body-complete';
   }
 
   async getGameProgress(sessionId: string): Promise<{ progress: number; currentLevel: string; currentCard: string } | undefined> {
