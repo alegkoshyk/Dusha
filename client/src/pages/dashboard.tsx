@@ -23,7 +23,7 @@ import {
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { CreateBrandDialog } from '@/components/brands/CreateBrandDialog';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequest, apiRequestJson, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import type { UserBrand, GameSession } from '@shared/schema';
 
@@ -31,7 +31,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const queryClientHook = useQueryClient();
   const [createBrandOpen, setCreateBrandOpen] = useState(false);
 
   // Завантаження брендів користувача
@@ -52,8 +52,8 @@ export default function Dashboard() {
       return apiRequest('DELETE', `/api/user/brands/${brandId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/user/brands'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
+      queryClientHook.invalidateQueries({ queryKey: ['/api/user/brands'] });
+      queryClientHook.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
       toast({
         title: "Бренд видалено",
         description: "Бренд та всі пов'язані дані успішно видалено",
@@ -74,7 +74,7 @@ export default function Dashboard() {
       return apiRequest('DELETE', `/api/game-sessions/${sessionId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
+      queryClientHook.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
       toast({
         title: "Гру видалено",
         description: "Ігрова сесія успішно видалена",
@@ -92,10 +92,10 @@ export default function Dashboard() {
   // Мутація для створення нової гри
   const createGameMutation = useMutation({
     mutationFn: async (brandId: string) => {
-      return apiRequest('POST', '/api/game-sessions', { brandId });
+      return apiRequestJson('POST', '/api/game-sessions', { brandId });
     },
     onSuccess: (session: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
+      queryClientHook.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
       setLocation(`/game/${session.id}`);
     },
     onError: () => {
@@ -663,7 +663,7 @@ export default function Dashboard() {
         onOpenChange={setCreateBrandOpen}
         onBrandCreated={(brand) => {
           setCreateBrandOpen(false);
-          queryClient.invalidateQueries({ queryKey: ['/api/user/brands'] });
+          queryClientHook.invalidateQueries({ queryKey: ['/api/user/brands'] });
           toast({
             title: "Бренд створено",
             description: `Бренд "${brand.name}" успішно створено`,
