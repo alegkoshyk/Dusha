@@ -13,6 +13,7 @@ import MobileGame from "@/pages/mobile-game";
 import Results from "@/pages/results";
 import BrandBoard from "@/pages/brand-board";
 import { Auth } from "@/pages/auth";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -54,10 +55,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <Router />
+          <Toaster />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

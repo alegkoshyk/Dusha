@@ -3,6 +3,7 @@ import { User, Home, Gamepad2 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import UserDropdown from './UserDropdown';
 import { useAuth } from '@/hooks/useAuth';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function Header() {
   const { user, isAuthenticated } = useAuth();
@@ -49,7 +50,8 @@ export function Header() {
           </nav>
 
           {/* User Menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <ThemeToggle />
             <UserDropdown />
           </div>
         </div>
