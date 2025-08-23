@@ -285,12 +285,12 @@ export function GameCard({
               ))}
             </div>
             
-            {/* Загальний прогрес */}
+            {/* Прогрес категорії */}
             <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>Загальний прогрес</span>
-              <span>{progress + 1}/{totalCards}</span>
+              <span>Прогрес категорії</span>
+              <span>{levelProgress}%</span>
             </div>
-            <Progress value={(progress / totalCards) * 100} className="h-1" />
+            <Progress value={levelProgress} className="h-1" />
           </div>
 
         </div>
