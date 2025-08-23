@@ -312,11 +312,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserStats(userId: string): Promise<{totalXp: number; totalGames: number; completedGames: number}> {
-    const sessions = await this.getUserGameSessions(userId);
+    // Get all user sessions with proper joins
+    const sessionsWithXp = await db
+      .select({
+        sessionId: gameSessionsTable.id,
+        totalXp: gameSessionsTable.totalXp,
+        completed: gameSessionsTable.completed,
+        earnedXp: cardResponsesTable.earnedXp
+      })
+      .from(gameSessionsTable)
+      .innerJoin(userBrandsTable, eq(gameSessionsTable.brandId, userBrandsTable.id))
+      .leftJoin(cardResponsesTable, eq(gameSessionsTable.id, cardResponsesTable.sessionId))
+      .where(eq(userBrandsTable.userId, userId));
+
+    // Group by session and calculate totals
+    const sessionMap = new Map<string, {totalXp: number; completed: boolean; calculatedXp: number}>();
     
+    sessionsWithXp.forEach(row => {
+      if (!sessionMap.has(row.sessionId)) {
+        sessionMap.set(row.sessionId, {
+          totalXp: row.totalXp || 0,
+          completed: !!row.completed,
+          calculatedXp: 0
+        });
+      }
+      if (row.earnedXp) {
+        sessionMap.get(row.sessionId)!.calculatedXp += row.earnedXp;
+      }
+    });
+
+    const sessions = Array.from(sessionMap.values());
     const totalGames = sessions.length;
     const completedGames = sessions.filter(s => s.completed).length;
-    const totalXp = sessions.reduce((sum, s) => sum + (s.totalXp || 0), 0);
+    const totalXp = sessions.reduce((sum, s) => sum + Math.max(s.totalXp, s.calculatedXp), 0);
     
     return {
       totalXp,
