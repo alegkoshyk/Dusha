@@ -817,6 +817,19 @@ export class DatabaseStorage implements IStorage {
     return updatedLevel;
   }
 
+  async reorderCards(cards: { id: string; positionX: number }[]): Promise<void> {
+    // Update all card positions in a transaction
+    for (const card of cards) {
+      await db
+        .update(gameCardsTable)
+        .set({ 
+          positionX: card.positionX,
+          updatedAt: new Date() 
+        })
+        .where(eq(gameCardsTable.id, card.id));
+    }
+  }
+
 }
 
 export const storage = new DatabaseStorage();

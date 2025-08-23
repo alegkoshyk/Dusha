@@ -635,6 +635,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reorder cards
+  app.post("/api/admin/cards/reorder", requireAdmin, async (req, res) => {
+    try {
+      const { cards } = req.body;
+      await storage.reorderCards(cards);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error reordering cards:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
