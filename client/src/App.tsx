@@ -14,6 +14,8 @@ import Results from "@/pages/results";
 import BrandBoard from "@/pages/brand-board";
 import { Auth } from "@/pages/auth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import CardsManagement from "@/pages/admin/CardsManagement";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -45,6 +47,8 @@ function Router() {
           <Route path="/game/:sessionId/results" component={BrandBoard} />
           <Route path="/brand-board/:sessionId" component={BrandBoard} />
           <Route path="/classic/:sessionId?" component={Game} />
+          <Route path="/rcadmin" component={AdminDashboard} />
+          <Route path="/rcadmin/cards" component={CardsManagement} />
           <Route component={NotFound} />
         </Switch>
       </main>

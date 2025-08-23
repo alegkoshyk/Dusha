@@ -18,6 +18,21 @@ import {
 } from "./auth";
 import { z } from "zod";
 
+// Admin middleware
+const requireAdmin = async (req: any, res: any, next: any) => {
+  if (!req.session?.user?.id) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+  
+  const user = await storage.getUserById(req.session.user.id);
+  if (!user || user.role !== 'admin') {
+    return res.status(403).json({ error: "Admin access required" });
+  }
+  
+  req.user = user;
+  next();
+};
+
 const saveCardResponseSchema = z.object({
   cardId: z.string(),
   response: z.any(),
@@ -504,6 +519,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(responses);
     } catch (error) {
       console.error("Error fetching card responses:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // =============================================================================
+  // ADMIN ROUTES - Access restricted to admin role only
+  // =============================================================================
+
+  // Admin dashboard data
+  app.get("/api/admin/dashboard", requireAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getAdminStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching admin dashboard:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Get all game cards for admin editing
+  app.get("/api/admin/cards", requireAdmin, async (req, res) => {
+    try {
+      const cards = await storage.getAllCardsWithProperties();
+      res.json(cards);
+    } catch (error) {
+      console.error("Error fetching admin cards:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Update game card
+  app.put("/api/admin/cards/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const cardData = req.body;
+      const updatedCard = await storage.updateGameCard(id, cardData);
+      res.json(updatedCard);
+    } catch (error) {
+      console.error("Error updating card:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Create new game card
+  app.post("/api/admin/cards", requireAdmin, async (req, res) => {
+    try {
+      const cardData = req.body;
+      const newCard = await storage.createGameCard(cardData);
+      res.json(newCard);
+    } catch (error) {
+      console.error("Error creating card:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Delete game card
+  app.delete("/api/admin/cards/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteGameCard(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting card:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Get card properties
+  app.get("/api/admin/cards/:id/properties", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const properties = await storage.getCardProperties(id);
+      res.json(properties);
+    } catch (error) {
+      console.error("Error fetching card properties:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Update card properties
+  app.put("/api/admin/cards/:id/properties", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const properties = req.body.properties;
+      const updatedProperties = await storage.updateCardProperties(id, properties);
+      res.json(updatedProperties);
+    } catch (error) {
+      console.error("Error updating card properties:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Get all levels for admin editing
+  app.get("/api/admin/levels", requireAdmin, async (req, res) => {
+    try {
+      const levels = await storage.getGameLevels();
+      res.json(levels);
+    } catch (error) {
+      console.error("Error fetching admin levels:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Update game level
+  app.put("/api/admin/levels/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const levelData = req.body;
+      const updatedLevel = await storage.updateGameLevel(id, levelData);
+      res.json(updatedLevel);
+    } catch (error) {
+      console.error("Error updating level:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });

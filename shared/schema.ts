@@ -12,6 +12,7 @@ export const usersTable = pgTable("users", {
   firstName: varchar("first_name", { length: 100}),
   lastName: varchar("last_name", { length: 100}),
   avatar: text("avatar"),
+  role: varchar("role", { length: 20 }).notNull().default("user"), // "user" or "admin"
   isActive: boolean("is_active").notNull().default(true),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),

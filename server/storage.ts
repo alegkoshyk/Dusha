@@ -23,9 +23,10 @@ import {
   userBrandsTable,
   userProfilesTable,
   cardPropertiesTable,
+  cardRelationsTable,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, count, sql, and } from "drizzle-orm";
+import { eq, count, sql, and, isNotNull, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export interface IStorage {
@@ -347,7 +348,7 @@ export class DatabaseStorage implements IStorage {
       // Отримуємо всі відповіді для цієї сесії
       const responses = await this.getCardResponses(session.id);
       const calculatedXp = responses.reduce((sum, response) => {
-        return sum + (response.earnedXp || 0);
+        return sum + (response.earnedXP || 0);
       }, 0);
       
       // Оновлюємо totalXp в сесії якщо він не співпадає з розрахованим
@@ -452,7 +453,7 @@ export class DatabaseStorage implements IStorage {
 
     // Calculate total earned XP
     const totalEarnedXP = completedResponses.reduce((sum, response) => {
-      return sum + (response.earnedXp || 0);
+      return sum + (response.earnedXP || 0);
     }, 0);
 
     // Determine next card based on game flow
@@ -666,6 +667,154 @@ export class DatabaseStorage implements IStorage {
       
       return result;
     }
+  }
+
+  // =============================================================================
+  // ADMIN METHODS - Only for admin users
+  // =============================================================================
+
+  async getAdminStats(): Promise<any> {
+    const totalUsers = await db.select({ count: count() }).from(usersTable);
+    const totalSessions = await db.select({ count: count() }).from(gameSessionsTable);
+    const totalCards = await db.select({ count: count() }).from(gameCardsTable);
+    const totalResponses = await db.select({ count: count() }).from(cardResponsesTable);
+    
+    const completedSessions = await db
+      .select({ count: count() })
+      .from(gameSessionsTable)
+      .where(isNotNull(gameSessionsTable.completed));
+    
+    return {
+      totalUsers: totalUsers[0]?.count || 0,
+      totalSessions: totalSessions[0]?.count || 0,
+      totalCards: totalCards[0]?.count || 0,
+      totalResponses: totalResponses[0]?.count || 0,
+      completedSessions: completedSessions[0]?.count || 0,
+    };
+  }
+
+  async getAllCardsWithProperties(): Promise<GameCard[]> {
+    const cards = await db
+      .select()
+      .from(gameCardsTable)
+      .leftJoin(gameLevelsTable, eq(gameCardsTable.levelId, gameLevelsTable.id))
+      .orderBy(gameCardsTable.levelId, gameCardsTable.positionX);
+
+    const cardsWithProperties = await Promise.all(
+      cards.map(async (cardRow) => {
+        const card = cardRow.game_cards;
+        const level = cardRow.game_levels;
+        
+        const properties = await db
+          .select()
+          .from(cardPropertiesTable)
+          .where(eq(cardPropertiesTable.cardId, card.id));
+
+        return {
+          ...card,
+          level,
+          properties,
+        };
+      })
+    );
+
+    return cardsWithProperties;
+  }
+
+  async updateGameCard(cardId: string, cardData: Partial<GameCard>): Promise<GameCard> {
+    const [updatedCard] = await db
+      .update(gameCardsTable)
+      .set({ ...cardData, updatedAt: new Date() })
+      .where(eq(gameCardsTable.id, cardId))
+      .returning();
+
+    if (!updatedCard) {
+      throw new Error(`Card with id ${cardId} not found`);
+    }
+
+    return updatedCard;
+  }
+
+  async createGameCard(cardData: any): Promise<GameCard> {
+    const [newCard] = await db
+      .insert(gameCardsTable)
+      .values({
+        ...cardData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return newCard;
+  }
+
+  async deleteGameCard(cardId: string): Promise<void> {
+    // First delete all related properties
+    await db
+      .delete(cardPropertiesTable)
+      .where(eq(cardPropertiesTable.cardId, cardId));
+
+    // Delete all responses for this card
+    await db
+      .delete(cardResponsesTable)
+      .where(eq(cardResponsesTable.cardId, cardId));
+
+    // Delete relations
+    await db
+      .delete(cardRelationsTable)
+      .where(or(
+        eq(cardRelationsTable.fromCardId, cardId),
+        eq(cardRelationsTable.toCardId, cardId)
+      ));
+
+    // Finally delete the card
+    await db
+      .delete(gameCardsTable)
+      .where(eq(gameCardsTable.id, cardId));
+  }
+
+  async getCardProperties(cardId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(cardPropertiesTable)
+      .where(eq(cardPropertiesTable.cardId, cardId));
+  }
+
+  async updateCardProperties(cardId: string, properties: any[]): Promise<any[]> {
+    // Delete existing properties
+    await db
+      .delete(cardPropertiesTable)
+      .where(eq(cardPropertiesTable.cardId, cardId));
+
+    // Insert new properties
+    if (properties.length > 0) {
+      const propertiesToInsert = properties.map(prop => ({
+        ...prop,
+        cardId,
+        createdAt: new Date(),
+      }));
+
+      await db
+        .insert(cardPropertiesTable)
+        .values(propertiesToInsert);
+    }
+
+    // Return updated properties
+    return this.getCardProperties(cardId);
+  }
+
+  async updateGameLevel(levelId: string, levelData: Partial<any>): Promise<any> {
+    const [updatedLevel] = await db
+      .update(gameLevelsTable)
+      .set({ ...levelData, updatedAt: new Date() })
+      .where(eq(gameLevelsTable.id, levelId))
+      .returning();
+
+    if (!updatedLevel) {
+      throw new Error(`Level with id ${levelId} not found`);
+    }
+
+    return updatedLevel;
   }
 
 }
