@@ -371,7 +371,7 @@ export class DatabaseStorage implements IStorage {
           ...(timeData && {
             timeSpent: timeData.timeSpent,
             isWithinTimeLimit: timeData.isWithinTimeLimit ?? true,
-            earnedXP: timeData.earnedXP ?? 0,
+            earnedXp: timeData.earnedXP ?? 0,
           })
         })
         .onConflictDoUpdate({
@@ -383,7 +383,7 @@ export class DatabaseStorage implements IStorage {
             ...(timeData && {
               timeSpent: timeData.timeSpent,
               isWithinTimeLimit: timeData.isWithinTimeLimit ?? true,
-              earnedXP: timeData.earnedXP ?? 0,
+              earnedXp: timeData.earnedXP ?? 0,
             })
           }
         });
@@ -405,7 +405,7 @@ export class DatabaseStorage implements IStorage {
 
     // Calculate total earned XP
     const totalEarnedXP = completedResponses.reduce((sum, response) => {
-      return sum + (response.earnedXP || 0);
+      return sum + (response.earnedXp || 0);
     }, 0);
 
     // Determine next card based on game flow
