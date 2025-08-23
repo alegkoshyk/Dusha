@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Database, FileText, BarChart3, Settings, ArrowLeft } from "lucide-react";
-import { Link } from "wouter";
+import { Users, Database, FileText, BarChart3, Settings, ArrowLeft, CreditCard, Eye } from "lucide-react";
+import { Link, useLocation } from "wouter";
 
 interface AdminStats {
   totalUsers: number;
@@ -14,6 +14,7 @@ interface AdminStats {
 }
 
 export default function AdminDashboard() {
+  const [, navigate] = useLocation();
   const { data: stats, isLoading } = useQuery<AdminStats>({
     queryKey: ["/api/admin/dashboard"],
   });
