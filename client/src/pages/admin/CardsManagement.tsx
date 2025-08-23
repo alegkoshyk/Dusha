@@ -101,52 +101,50 @@ function SortableCard({ card, onEdit, onDelete }: {
   };
 
   return (
-    <Card ref={setNodeRef} style={style} className="relative cursor-move">
-      <CardHeader className="pb-4">
+    <Card ref={setNodeRef} style={style} className="relative cursor-move h-fit">
+      <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex items-start gap-2 flex-1">
+          <div className="flex items-start gap-2 flex-1 min-w-0">
             <div 
-              className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing mt-1"
+              className="flex items-center justify-center w-5 h-5 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing mt-0.5 flex-shrink-0"
               {...attributes} 
               {...listeners}
             >
-              <GripVertical className="h-4 w-4" />
+              <GripVertical className="h-3 w-3" />
             </div>
-            <div className="space-y-2 flex-1">
-              <CardTitle className="text-sm font-medium leading-tight">
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <CardTitle className="text-xs font-medium leading-tight line-clamp-2">
                 {card.title}
               </CardTitle>
               <div className="flex flex-wrap gap-1">
-                <Badge className={getDifficultyColor(card.difficulty)}>
+                <Badge className={`${getDifficultyColor(card.difficulty)} text-xs px-1 py-0`}>
                   {card.difficulty}
                 </Badge>
-                <Badge className={getTypeColor(card.type)}>
+                <Badge className={`${getTypeColor(card.type)} text-xs px-1 py-0`}>
                   {card.type}
-                </Badge>
-                <Badge variant="outline">
-                  {card.estimatedTime}хв
                 </Badge>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 flex-shrink-0">
             <Button 
               size="sm" 
               variant="ghost"
               onClick={() => onEdit(card)}
               data-testid={`button-edit-${card.id}`}
+              className="h-6 w-6 p-0"
             >
-              <Edit className="h-4 w-4" />
+              <Edit className="h-3 w-3" />
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button 
                   size="sm" 
                   variant="ghost" 
-                  className="text-red-600 hover:text-red-700"
+                  className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
                   data-testid={`button-delete-${card.id}`}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3 w-3" />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
@@ -171,14 +169,13 @@ function SortableCard({ card, onEdit, onDelete }: {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+      <CardContent className="pt-0 pb-3">
+        <p className="text-xs text-gray-600 mb-2 line-clamp-2">
           {card.shortDescription}
         </p>
         <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>ID: {card.id}</span>
-          <span>Позиція: {card.positionX}</span>
-          <span>{card.properties?.length || 0} властивостей</span>
+          <span className="truncate">Поз: {card.positionX}</span>
+          <span>{card.estimatedTime}хв</span>
         </div>
       </CardContent>
     </Card>
@@ -424,7 +421,7 @@ export default function CardsManagement() {
                 onDragEnd={(event) => handleDragEnd(event, sortedCards)}
               >
                 <SortableContext items={sortedCards.map(card => card.id)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {sortedCards.map((card) => (
                       <SortableCard
                         key={card.id}
