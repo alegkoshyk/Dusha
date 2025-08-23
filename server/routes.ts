@@ -523,6 +523,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get options for specific card
+  app.get("/api/game-cards/:cardId/options", async (req, res) => {
+    try {
+      const { cardId } = req.params;
+      const options = await storage.getCardOptionsByCardId(cardId);
+      res.json(options);
+    } catch (error) {
+      console.error("Error fetching card options:", error);
+      res.status(500).json({ error: "Failed to fetch card options" });
+    }
+  });
+
   // Get card responses for session with card details
   app.get("/api/game-sessions/:id/responses", async (req, res) => {
     try {

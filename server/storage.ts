@@ -1038,6 +1038,26 @@ export class DatabaseStorage implements IStorage {
       .where(eq(cardOptionSetLinksTable.id, id));
     return result.rowCount > 0;
   }
+
+  // Get options for specific cards based on predefined mappings
+  async getCardOptionsByCardId(cardId: string): Promise<CardOption[]> {
+    // Mapping of card IDs to option set IDs
+    const cardToOptionSetMapping: { [key: string]: string } = {
+      'soul-values': 'brand-values',
+      'mind-archetype': 'brand-archetypes', 
+      'body-products': 'products-services',
+      'body-channels': 'communication-channels',
+      'body-tone': 'tone-voice',
+      'body-pricing': 'pricing-strategies'
+    };
+
+    const optionSetId = cardToOptionSetMapping[cardId];
+    if (!optionSetId) {
+      return [];
+    }
+
+    return await this.getCardOptions(optionSetId);
+  }
 }
 
 export const storage = new DatabaseStorage();
