@@ -274,11 +274,12 @@ export const cardTypesTable = pgTable("card_types", {
 
 // Попередньо заготовлені набори варіантів для карток (архетипи, цінності тощо)
 export const cardOptionSetsTable = pgTable("card_option_sets", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id").primaryKey(), // зберігаємо існуючий тип
   name: varchar("name", { length: 100 }).notNull(), // "Архетипи бренду", "Базові цінності" тощо
   description: text("description"),
+  minSelection: integer("min_selection").notNull().default(1),
+  maxSelection: integer("max_selection").notNull().default(1),
   cardTypeId: varchar("card_type_id", { length: 50 }), // може бути null для загальних наборів
-  isDefault: boolean("is_default").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
@@ -286,8 +287,8 @@ export const cardOptionSetsTable = pgTable("card_option_sets", {
 
 // Окремі варіанти в наборах
 export const cardOptionsTable = pgTable("card_options", {
-  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  optionSetId: uuid("option_set_id").notNull().references(() => cardOptionSetsTable.id, { onDelete: "cascade" }),
+  id: varchar("id").primaryKey(), // зберігаємо існуючий тип
+  optionSetId: varchar("option_set_id").notNull().references(() => cardOptionSetsTable.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 200 }).notNull(),
   description: text("description"),
   value: text("value").notNull(), // значення для зберігання в відповіді
