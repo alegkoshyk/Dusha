@@ -305,9 +305,22 @@ export class DatabaseStorage implements IStorage {
 
   async getUserGameSessions(userId: string): Promise<GameSession[]> {
     return await db
-      .select()
+      .select({
+        id: gameSessionsTable.id,
+        brandId: gameSessionsTable.brandId,
+        userId: gameSessionsTable.userId,
+        currentLevel: gameSessionsTable.currentLevel,
+        currentCard: gameSessionsTable.currentCard,
+        progress: gameSessionsTable.progress,
+        totalXp: gameSessionsTable.totalXp,
+        completedCards: gameSessionsTable.completedCards,
+        completed: gameSessionsTable.completed,
+        createdAt: gameSessionsTable.createdAt,
+        updatedAt: gameSessionsTable.updatedAt
+      })
       .from(gameSessionsTable)
-      .where(eq(gameSessionsTable.userId, userId))
+      .innerJoin(userBrandsTable, eq(gameSessionsTable.brandId, userBrandsTable.id))
+      .where(eq(userBrandsTable.userId, userId))
       .orderBy(gameSessionsTable.createdAt);
   }
 
