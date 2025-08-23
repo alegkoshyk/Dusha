@@ -209,6 +209,7 @@ export function GameCard({
         : currentResponse.trim();
 
     const timeData = calculateTimeData();
+    console.log("GameCard handleSubmit - timeData:", timeData); // Debug log
     onResponse(responseData, timeData);
   };
 

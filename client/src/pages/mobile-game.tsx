@@ -185,6 +185,8 @@ export default function MobileGame() {
   const handleCardResponse = async (response: any, timeData?: { timeSpent: number; isWithinTimeLimit: boolean; earnedXP: number }) => {
     if (!currentCardId) return;
 
+    console.log("Mobile-game handleCardResponse - timeData received:", timeData); // Debug log
+
     try {
       const requestData = { 
         cardId: currentCardId, 
@@ -195,6 +197,8 @@ export default function MobileGame() {
           earnedXP: timeData.earnedXP
         })
       };
+      
+      console.log("Mobile-game requestData to send:", requestData); // Debug log
       
       await submitResponseMutation.mutateAsync(requestData);
 
