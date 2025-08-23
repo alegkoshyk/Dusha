@@ -222,8 +222,7 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
         )}
 
         {/* Cards Grid */}
-        <ScrollArea className="h-[60vh]">
-          <div className="grid gap-4">
+        <div className="grid gap-4">
             <AnimatePresence>
               {currentLevelCards.map((card, index) => {
                 const StatusIcon = getCardStatusIcon(card);
@@ -324,8 +323,7 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
                 );
               })}
             </AnimatePresence>
-          </div>
-        </ScrollArea>
+        </div>
       </div>
     </div>
   );
