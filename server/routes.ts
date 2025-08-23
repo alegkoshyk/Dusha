@@ -233,6 +233,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User stats
+  app.get("/api/user/stats", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUser(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const stats = await storage.getUserStats(currentUser.id);
+      res.json(stats);
+    } catch (error) {
+      console.error("Get user stats error:", error);
+      res.status(500).json({ error: "Помилка отримання статистики" });
+    }
+  });
+
   // Create new game session (requires auth)
   app.post("/api/game-sessions", requireAuth, async (req, res) => {
     try {

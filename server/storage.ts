@@ -311,6 +311,20 @@ export class DatabaseStorage implements IStorage {
       .orderBy(gameSessionsTable.createdAt);
   }
 
+  async getUserStats(userId: string): Promise<{totalXp: number; totalGames: number; completedGames: number}> {
+    const sessions = await this.getUserGameSessions(userId);
+    
+    const totalGames = sessions.length;
+    const completedGames = sessions.filter(s => s.completed).length;
+    const totalXp = sessions.reduce((sum, s) => sum + (s.totalXp || 0), 0);
+    
+    return {
+      totalXp,
+      totalGames,
+      completedGames
+    };
+  }
+
   async updateGameSession(id: string, sessionId: string, updates: Partial<GameSession>): Promise<GameSession | undefined> {
     const [session] = await db
       .update(gameSessionsTable)

@@ -46,6 +46,12 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
+  // Завантаження статистики користувача
+  const { data: userStats } = useQuery<{totalXp: number; totalGames: number; completedGames: number}>({
+    queryKey: ['/api/user/stats'],
+    enabled: !!user,
+  });
+
   // Мутація для видалення бренду
   const deleteBrandMutation = useMutation({
     mutationFn: async (brandId: string) => {
@@ -133,9 +139,9 @@ export default function Dashboard() {
 
   // Статистика
   const totalBrands = brands.length;
-  const completedGames = sessions.filter(s => s.completed).length;
+  const completedGames = userStats?.completedGames || sessions.filter(s => s.completed).length;
   const activeGames = sessions.filter(s => !s.completed).length;
-  const totalXP = sessions.reduce((sum, s) => sum + (s.totalXp || 0), 0);
+  const totalXP = userStats?.totalXp || sessions.reduce((sum, s) => sum + (s.totalXp || 0), 0);
 
   const getLevelIcon = (level: string) => {
     switch (level) {
