@@ -12,6 +12,7 @@ import {
   sessionMiddleware, 
   requireAuth, 
   getCurrentUser, 
+  getCurrentUserUnified,
   setUserInSession, 
   clearUserFromSession,
   optionalAuth
@@ -152,7 +153,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/me", requireAuth, async (req, res) => {
     try {
-      const currentUser = getCurrentUser(req);
+      const currentUser = getCurrentUserUnified(req);
+      
       if (!currentUser) {
         return res.status(401).json({ error: "Не авторизовано" });
       }
@@ -180,7 +182,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User brands routes
   app.get("/api/user/brands", requireAuth, async (req, res) => {
     try {
-      const currentUser = getCurrentUser(req);
+      const currentUser = getCurrentUserUnified(req);
+      
       if (!currentUser) {
         return res.status(401).json({ error: "Не авторизовано" });
       }
@@ -195,7 +198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/user/brands", requireAuth, async (req, res) => {
     try {
-      const currentUser = getCurrentUser(req);
+      const currentUser = getCurrentUserUnified(req);
       if (!currentUser) {
         return res.status(401).json({ error: "Не авторизовано" });
       }
@@ -216,7 +219,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete user brand
   app.delete("/api/user/brands/:id", requireAuth, async (req, res) => {
     try {
-      const currentUser = getCurrentUser(req);
+      const currentUser = getCurrentUserUnified(req);
       if (!currentUser) {
         return res.status(401).json({ error: "Не авторизовано" });
       }
@@ -244,7 +247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Game sessions with user auth
   app.get("/api/user/game-sessions", requireAuth, async (req, res) => {
     try {
-      const currentUser = getCurrentUser(req);
+      const currentUser = getCurrentUserUnified(req);
       if (!currentUser) {
         return res.status(401).json({ error: "Не авторизовано" });
       }
@@ -260,7 +263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User stats
   app.get("/api/user/stats", requireAuth, async (req, res) => {
     try {
-      const currentUser = getCurrentUser(req);
+      const currentUser = getCurrentUserUnified(req);
       if (!currentUser) {
         return res.status(401).json({ error: "Не авторизовано" });
       }
@@ -276,7 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new game session (requires auth)
   app.post("/api/game-sessions", requireAuth, async (req, res) => {
     try {
-      const currentUser = getCurrentUser(req);
+      const currentUser = getCurrentUserUnified(req);
       if (!currentUser) {
         return res.status(401).json({ error: "Authentication required" });
       }
@@ -298,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete game session
   app.delete("/api/game-sessions/:sessionId", requireAuth, async (req, res) => {
     try {
-      const currentUser = getCurrentUser(req);
+      const currentUser = getCurrentUserUnified(req);
       if (!currentUser) {
         return res.status(401).json({ error: "Authentication required" });
       }

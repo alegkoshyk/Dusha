@@ -75,6 +75,16 @@ export const getCurrentUser = (req: Request): User | null => {
   return session?.user || null;
 };
 
+// Get current user from session or token (unified)
+export const getCurrentUserUnified = (req: Request): User | null => {
+  // Try session first
+  const sessionUser = getCurrentUser(req);
+  if (sessionUser) return sessionUser;
+  
+  // Try token auth user
+  return (req as any).user || null;
+};
+
 // Set user in session
 export const setUserInSession = (req: Request, user: User) => {
   const session = req.session as any;
