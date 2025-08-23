@@ -96,7 +96,7 @@ export default function Dashboard() {
     },
     onSuccess: (session: any) => {
       queryClientHook.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
-      setLocation(`/game`);
+      setLocation(`/game/${session.id}`);
     },
     onError: () => {
       toast({
@@ -124,11 +124,11 @@ export default function Dashboard() {
   };
 
   const handleContinueGame = (sessionId: string) => {
-    setLocation(`/game`);
+    setLocation(`/game/${sessionId}`);
   };
 
   const handleViewResults = (sessionId: string) => {
-    setLocation(`/results`);
+    setLocation(`/game/${sessionId}/results`);
   };
 
   // Статистика

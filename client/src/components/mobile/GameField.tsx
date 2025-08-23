@@ -138,13 +138,7 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
         </div>
       </div>
 
-      {/* Level Progress */}
-      <div className="container mx-auto px-4 py-4">
-        <LevelProgress 
-          levelProgress={playerProgress.levelProgress}
-          totalProgress={Math.round((playerProgress.completedCards.length / mobileGameCards.length) * 100)}
-        />
-      </div>
+
 
       {/* Level Selection Tabs */}
       <div className="container mx-auto px-4 py-6">
