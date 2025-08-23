@@ -453,6 +453,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get card option sets for specific card
+  app.get('/api/cards/:cardId/option-sets', async (req, res) => {
+    try {
+      const cardId = req.params.cardId;
+      const optionSetIds = await storage.getCardOptionSetsByCardId(cardId);
+      
+      // Get full option set data
+      const optionSets = [];
+      for (const setId of optionSetIds) {
+        const set = await storage.getCardOptionSet(setId);
+        if (set) {
+          const options = await storage.getCardOptionsBySetId(setId);
+          optionSets.push({ ...set, options });
+        }
+      }
+      
+      res.json(optionSets);
+    } catch (error) {
+      console.error('Error fetching card option sets:', error);
+      res.status(500).json({ error: 'Failed to fetch card option sets' });
+    }
+  });
+
   // Generate brand map
   app.get("/api/game-sessions/:id/brand-map", async (req, res) => {
     try {

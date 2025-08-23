@@ -695,6 +695,15 @@ export class DatabaseStorage implements IStorage {
     return card || undefined;
   }
 
+  async getCardOptionSetsByCardId(cardId: string): Promise<string[]> {
+    const links = await db
+      .select({ optionSetId: cardOptionSetLinksTable.optionSetId })
+      .from(cardOptionSetLinksTable)
+      .where(eq(cardOptionSetLinksTable.cardId, cardId));
+    
+    return links.map(link => link.optionSetId);
+  }
+
   async getSessionCardResponses(sessionId: string): Promise<any[]> {
     try {
       const responses = await db
