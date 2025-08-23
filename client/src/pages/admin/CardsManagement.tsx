@@ -13,7 +13,6 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import {
   useSortable,
@@ -174,7 +173,7 @@ function SortableCard({ card, onEdit, onDelete }: {
           {card.shortDescription}
         </p>
         <div className="flex items-center justify-between text-xs text-gray-500">
-          <span className="truncate">Поз: {card.positionX}</span>
+          <span className="truncate font-mono">#{card.positionX}</span>
           <span>{card.estimatedTime}хв</span>
         </div>
       </CardContent>
@@ -313,13 +312,13 @@ export default function CardsManagement() {
   const handleDragEnd = (event: DragEndEvent, levelCards: GameCard[]) => {
     const { active, over } = event;
 
-    if (active.id !== over?.id) {
+    if (active.id !== over?.id && over) {
       const oldIndex = levelCards.findIndex((card) => card.id === active.id);
-      const newIndex = levelCards.findIndex((card) => card.id === over?.id);
+      const newIndex = levelCards.findIndex((card) => card.id === over.id);
       
       const reorderedCards = arrayMove(levelCards, oldIndex, newIndex);
       
-      // Update positions based on new order - start from 1
+      // Update positions sequentially from 1 - horizontal then vertical ordering
       const cardsWithNewPositions = reorderedCards.map((card, index) => ({
         id: card.id,
         positionX: index + 1,
@@ -411,7 +410,7 @@ export default function CardsManagement() {
                 <Badge variant="secondary">{levelCards.length} карток</Badge>
               </CardTitle>
               <CardDescription>
-                Перетягніть картки за іконку ⋮⋮ щоб змінити порядок
+                Перетягніть картки за іконку ⋮⋮ щоб змінити порядок. Позиції йдуть зліва направо, зверху вниз.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -420,7 +419,7 @@ export default function CardsManagement() {
                 collisionDetection={closestCenter}
                 onDragEnd={(event) => handleDragEnd(event, sortedCards)}
               >
-                <SortableContext items={sortedCards.map(card => card.id)} strategy={verticalListSortingStrategy}>
+                <SortableContext items={sortedCards.map(card => card.id)}>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {sortedCards.map((card) => (
                       <SortableCard
