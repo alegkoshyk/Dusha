@@ -1,9 +1,16 @@
 import { Button } from '@/components/ui/button';
-import { User, Home, Gamepad2 } from 'lucide-react';
+import { User, Home, Gamepad2, LayoutDashboard, CreditCard, Settings, Users, Eye, ChevronDown } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import UserDropdown from './UserDropdown';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator 
+} from "@/components/ui/dropdown-menu";
 
 export function Header() {
   const { user, isAuthenticated } = useAuth();
@@ -47,6 +54,52 @@ export function Header() {
               <User className="w-4 h-4 inline mr-2" />
               Мої Бренди
             </Link>
+            
+            {/* Admin Menu */}
+            {user?.role === 'admin' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2 px-3 py-2 text-sm font-medium">
+                    <LayoutDashboard className="h-4 w-4" />
+                    Адміністрування
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <Link href="/rcadmin" className="flex items-center gap-2 w-full">
+                      <LayoutDashboard className="h-4 w-4" />
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/rcadmin/cards" className="flex items-center gap-2 w-full">
+                      <CreditCard className="h-4 w-4" />
+                      Картки
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/rcadmin/card-types" className="flex items-center gap-2 w-full">
+                      <Settings className="h-4 w-4" />
+                      Типи карток
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/rcadmin/users" className="flex items-center gap-2 w-full">
+                      <Users className="h-4 w-4" />
+                      Користувачі
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/" className="flex items-center gap-2 w-full">
+                      <Eye className="h-4 w-4" />
+                      Попередній перегляд
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </nav>
 
           {/* User Menu */}

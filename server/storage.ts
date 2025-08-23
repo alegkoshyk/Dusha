@@ -854,6 +854,29 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getAllUsers(): Promise<any[]> {
+    const users = await db.select().from(usersTable);
+    return users;
+  }
+
+  async updateUser(userId: string, userData: Partial<any>): Promise<any> {
+    const [updatedUser] = await db
+      .update(usersTable)
+      .set({ ...userData, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId))
+      .returning();
+
+    if (!updatedUser) {
+      throw new Error(`User with id ${userId} not found`);
+    }
+
+    return updatedUser;
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await db.delete(usersTable).where(eq(usersTable.id, userId));
+  }
+
 }
 
 export const storage = new DatabaseStorage();
