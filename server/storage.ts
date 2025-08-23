@@ -340,16 +340,33 @@ export class DatabaseStorage implements IStorage {
     // Отримуємо всі сесії користувача
     const sessions = await this.getUserGameSessions(userId);
     
-    // Рахуємо загальний XP простіше - беремо суму з усіх сесій
-    const totalXpFromSessions = sessions.reduce((sum, session) => {
-      return sum + (session.totalXp || 0);
-    }, 0);
+    // Для кожної сесії рахуємо XP і оновлюємо totalXp в базі
+    let totalXpFromAllGames = 0;
+    
+    for (const session of sessions) {
+      // Отримуємо всі відповіді для цієї сесії
+      const responses = await this.getCardResponses(session.id);
+      const calculatedXp = responses.reduce((sum, response) => {
+        return sum + (response.earnedXp || 0);
+      }, 0);
+      
+      // Оновлюємо totalXp в сесії якщо він не співпадає з розрахованим
+      if (calculatedXp !== (session.totalXp || 0)) {
+        await db
+          .update(gameSessionsTable)
+          .set({ totalXp: calculatedXp })
+          .where(eq(gameSessionsTable.id, session.id));
+      }
+      
+      // Додаємо до загальної суми
+      totalXpFromAllGames += calculatedXp;
+    }
     
     const totalGames = sessions.length;
     const completedGames = sessions.filter(s => s.completed).length;
     
     return {
-      totalXp: totalXpFromSessions,
+      totalXp: totalXpFromAllGames,
       totalGames,
       completedGames
     };
