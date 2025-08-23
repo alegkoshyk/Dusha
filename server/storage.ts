@@ -304,6 +304,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserGameSessions(userId: string): Promise<GameSession[]> {
+    // Спочатку спробуємо через user_id в game_sessions (пряме поле)
+    const directSessions = await db
+      .select()
+      .from(gameSessionsTable)
+      .where(eq(gameSessionsTable.userId, userId))
+      .orderBy(gameSessionsTable.createdAt);
+    
+    if (directSessions.length > 0) {
+      return directSessions;
+    }
+    
+    // Якщо немає прямих сесій, шукаємо через бренди
     return await db
       .select({
         id: gameSessionsTable.id,
