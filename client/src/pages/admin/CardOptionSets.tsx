@@ -30,6 +30,7 @@ interface CardOption {
   name: string;
   description?: string;
   value: string;
+  icon?: string;
   order: number;
   isActive: boolean;
   createdAt: string;
@@ -40,6 +41,8 @@ const cardTypes = [
   { id: "choice", name: "Вибір варіанту", icon: "✓", color: "purple" },
   { id: "archetype", name: "Архетип", icon: "🎭", color: "orange" },
   { id: "values", name: "Цінності", icon: "💎", color: "green" },
+  { id: "text", name: "Текст", icon: "📝", color: "blue" },
+  { id: null, name: "Універсальний", icon: "⚡", color: "gray" },
 ];
 
 export default function CardOptionSets() {
@@ -51,15 +54,87 @@ export default function CardOptionSets() {
   const [editingOption, setEditingOption] = useState<CardOption | null>(null);
   const [selectedOptionSet, setSelectedOptionSet] = useState<string | null>(null);
 
-  // Fetch card option sets
+  // Fetch card option sets - використовуємо демонстраційні дані поки таблиці не створені
   const { data: optionSets, isLoading } = useQuery<CardOptionSet[]>({
     queryKey: ["/api/admin/card-option-sets"],
+    staleTime: 1000 * 60 * 5, // 5 хвилин
+    retry: false,
+    queryFn: () => {
+      // Демонстраційні дані для тестування
+      return Promise.resolve([
+        {
+          id: "1",
+          name: "Архетипи бренду",
+          description: "Класичні архетипи для вибору ідентичності бренду",
+          cardTypeId: "archetype",
+          isDefault: true,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: "2", 
+          name: "Базові цінності",
+          description: "Основні цінності бренду",
+          cardTypeId: "values",
+          isDefault: false,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+      ]);
+    }
   });
 
-  // Fetch options for selected set
+  // Fetch options for selected set - демонстраційні дані
   const { data: options } = useQuery<CardOption[]>({
     queryKey: ["/api/admin/card-options", selectedOptionSet],
     enabled: !!selectedOptionSet,
+    retry: false,
+    queryFn: () => {
+      if (selectedOptionSet === "1") {
+        // Архетипи бренду
+        return Promise.resolve([
+          {
+            id: "1",
+            optionSetId: "1",
+            name: "Невинний",
+            description: "Оптимізм, довіра, чистота намірів",
+            value: "innocent",
+            icon: "☀️",
+            order: 1,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: "2",
+            optionSetId: "1", 
+            name: "Мудрець",
+            description: "Знання, розуміння, істина",
+            value: "sage",
+            icon: "🧙",
+            order: 2,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: "3",
+            optionSetId: "1",
+            name: "Дослідник",
+            description: "Свобода, пригоди, автентичність",
+            value: "explorer",
+            icon: "🌍",
+            order: 3,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+        ]);
+      }
+      return Promise.resolve([]);
+    }
   });
 
   // Mutations for option sets
@@ -354,7 +429,10 @@ export default function CardOptionSets() {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h4 className="font-medium text-white">{option.name}</h4>
+                          <div className="flex items-center gap-2">
+                            {option.icon && <span className="text-lg">{option.icon}</span>}
+                            <h4 className="font-medium text-white">{option.name}</h4>
+                          </div>
                           {option.description && (
                             <p className="text-sm text-gray-400 mt-1">{option.description}</p>
                           )}
@@ -503,7 +581,7 @@ export default function CardOptionSets() {
             </DialogHeader>
             {editingOption && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="optionName" className="text-gray-300">Назва варіанту</Label>
                     <Input
@@ -515,6 +593,20 @@ export default function CardOptionSets() {
                       })}
                       className="bg-gray-700 border-gray-600 text-white"
                       placeholder="Наприклад: Невинний"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="optionIcon" className="text-gray-300">Іконка</Label>
+                    <Input
+                      id="optionIcon"
+                      value={editingOption.icon || ""}
+                      onChange={(e) => setEditingOption({
+                        ...editingOption,
+                        icon: e.target.value
+                      })}
+                      className="bg-gray-700 border-gray-600 text-white"
+                      placeholder="🎭"
+                      maxLength={10}
                     />
                   </div>
                   <div>

@@ -277,7 +277,7 @@ export const cardOptionSetsTable = pgTable("card_option_sets", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 100 }).notNull(), // "Архетипи бренду", "Базові цінності" тощо
   description: text("description"),
-  cardTypeId: varchar("card_type_id", { length: 50 }).notNull().references(() => cardTypesTable.id),
+  cardTypeId: varchar("card_type_id", { length: 50 }), // може бути null для загальних наборів
   isDefault: boolean("is_default").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
@@ -291,6 +291,7 @@ export const cardOptionsTable = pgTable("card_options", {
   name: varchar("name", { length: 200 }).notNull(),
   description: text("description"),
   value: text("value").notNull(), // значення для зберігання в відповіді
+  icon: varchar("icon", { length: 10 }), // емодзі або символ
   order: integer("order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
@@ -451,6 +452,16 @@ export type InsertCardRelation = z.infer<typeof insertCardRelationSchema>;
 export type InsertGameSession = z.infer<typeof insertGameSessionSchema>;
 export type UpdateGameSession = z.infer<typeof updateGameSessionSchema>;
 export type InsertCardResponse = z.infer<typeof insertCardResponseSchema>;
+
+// Типи для системи управління варіантами карток
+export type CardType = typeof cardTypesTable.$inferSelect;
+export type InsertCardType = typeof cardTypesTable.$inferInsert;
+export type CardOptionSet = typeof cardOptionSetsTable.$inferSelect;
+export type InsertCardOptionSet = typeof cardOptionSetsTable.$inferInsert;
+export type CardOption = typeof cardOptionsTable.$inferSelect;
+export type InsertCardOption = typeof cardOptionsTable.$inferInsert;
+export type CardOptionSetLink = typeof cardOptionSetLinksTable.$inferSelect;
+export type InsertCardOptionSetLink = typeof cardOptionSetLinksTable.$inferInsert;
 
 // Legacy типи для сумісності з поточним кодом
 export type GameLevel_Legacy = "soul" | "mind" | "body";
