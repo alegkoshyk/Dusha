@@ -129,11 +129,17 @@ export default function MobileGame() {
 
   // Submit response mutation
   const submitResponseMutation = useMutation({
-    mutationFn: async ({ cardId, response }: { cardId: string; response: any }) => {
+    mutationFn: async ({ cardId, response, timeSpent, isWithinTimeLimit, earnedXP }: { 
+      cardId: string; 
+      response: any; 
+      timeSpent?: number; 
+      isWithinTimeLimit?: boolean; 
+      earnedXP?: number; 
+    }) => {
       return apiRequest(
         'POST',
         `/api/game-sessions/${activeSessionId}/responses`,
-        { cardId, response }
+        { cardId, response, timeSpent, isWithinTimeLimit, earnedXP }
       );
     },
     onSuccess: () => {
