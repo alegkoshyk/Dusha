@@ -245,7 +245,7 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
                         transition-all duration-200 cursor-pointer hover:shadow-lg
                         ${current ? 'ring-2 ring-blue-500 shadow-lg' : ''}
                         ${completed ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : ''}
-                        ${!unlocked ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}
+                        ${!unlocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:border-blue-700'}
                       `}
                       onClick={() => unlocked && onCardSelect(card.id)}
                       data-testid={`card-${card.id}`}
