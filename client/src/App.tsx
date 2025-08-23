@@ -18,6 +18,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import CardsManagement from "@/pages/admin/CardsManagement";
 import CardTypes from "@/pages/admin/CardTypes";
 import CardOptionSets from "@/pages/admin/CardOptionSets";
+import OptionsList from "@/pages/admin/OptionsList";
 import Users from "@/pages/admin/Users";
 
 function Router() {
@@ -54,6 +55,7 @@ function Router() {
           <Route path="/rcadmin/cards" component={CardsManagement} />
           <Route path="/rcadmin/card-types" component={CardTypes} />
           <Route path="/rcadmin/card-option-sets" component={CardOptionSets} />
+          <Route path="/rcadmin/options-list" component={OptionsList} />
           <Route path="/rcadmin/users" component={Users} />
           <Route component={NotFound} />
         </Switch>

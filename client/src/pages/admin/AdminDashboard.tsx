@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Database, FileText, BarChart3, Settings, ArrowLeft, CreditCard, Eye, List } from "lucide-react";
+import { Users, Database, FileText, BarChart3, Settings, ArrowLeft, CreditCard, Eye, List, Package } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 interface AdminStats {
@@ -95,7 +95,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Access Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <Card className="bg-gray-800 border-gray-700 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-blue-500" onClick={() => navigate('/rcadmin/cards')}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -138,6 +138,20 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
+          <Card className="bg-gray-800 border-gray-700 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-orange-500" onClick={() => navigate('/rcadmin/options-list')}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-900 rounded-lg">
+                  <Package className="h-5 w-5 text-orange-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white text-sm">Перелік Варіантів</h3>
+                  <p className="text-xs text-gray-400">Пошук по всіх варіантах</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="bg-gray-800 border-gray-700 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-green-500" onClick={() => navigate('/rcadmin/users')}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -147,20 +161,6 @@ export default function AdminDashboard() {
                 <div>
                   <h3 className="font-semibold text-white text-sm">Користувачі</h3>
                   <p className="text-xs text-gray-400">Управління користувачами</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gray-800 border-gray-700 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-orange-500" onClick={() => navigate('/')}>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-900 rounded-lg">
-                  <Eye className="h-5 w-5 text-orange-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white text-sm">Попередній перегляд</h3>
-                  <p className="text-xs text-gray-400">Переглянути сервіс</p>
                 </div>
               </div>
             </CardContent>

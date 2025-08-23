@@ -535,6 +535,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all card options (for admin options list)
+  app.get("/api/admin/card-options/all", requireAdmin, async (req, res) => {
+    try {
+      const allOptions = await storage.getAllCardOptions();
+      res.json(allOptions);
+    } catch (error) {
+      console.error("Error fetching all card options:", error);
+      res.status(500).json({ error: "Failed to fetch all card options" });
+    }
+  });
+
   // Get card responses for session with card details
   app.get("/api/game-sessions/:id/responses", async (req, res) => {
     try {

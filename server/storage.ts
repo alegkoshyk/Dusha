@@ -1059,6 +1059,13 @@ export class DatabaseStorage implements IStorage {
 
     return await this.getCardOptions(optionSetId);
   }
+
+  // Get all card options across all option sets
+  async getAllCardOptions(): Promise<CardOption[]> {
+    return await db.select().from(cardOptionsTable)
+      .where(eq(cardOptionsTable.isActive, true))
+      .orderBy(cardOptionsTable.optionSetId, cardOptionsTable.order);
+  }
 }
 
 export const storage = new DatabaseStorage();
