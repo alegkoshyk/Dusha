@@ -1048,7 +1048,8 @@ export class DatabaseStorage implements IStorage {
       'body-products': 'products-services',
       'body-channels': 'communication-channels',
       'body-tone': 'tone-voice',
-      'body-pricing': 'pricing-strategies'
+      'body-pricing': 'pricing-strategies',
+      'body-metrics': 'success-metrics'
     };
 
     const optionSetId = cardToOptionSetMapping[cardId];
