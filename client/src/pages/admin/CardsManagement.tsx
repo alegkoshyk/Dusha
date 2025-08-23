@@ -278,6 +278,28 @@ export default function CardsManagement() {
     },
   });
 
+  const normalizePositionsMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("/api/admin/cards/normalize-positions", {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
+      toast({
+        title: "Позиції виправлено",
+        description: "Нумерація карток починається з 1 для кожного рівня",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Помилка",
+        description: "Не вдалося виправити позиції карток",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSaveCard = () => {
     if (!editingCard) return;
     
@@ -300,7 +322,7 @@ export default function CardsManagement() {
       
       const reorderedCards = arrayMove(levelCards, oldIndex, newIndex);
       
-      // Update positions based on new order
+      // Update positions based on new order - start from 1
       const cardsWithNewPositions = reorderedCards.map((card, index) => ({
         id: card.id,
         positionX: index + 1,
@@ -355,6 +377,15 @@ export default function CardsManagement() {
           <p className="text-gray-500 mt-2">Редагування ігрових карток та їх властивостей</p>
         </div>
         <div className="flex items-center gap-4">
+          <Button 
+            variant="outline"
+            onClick={() => normalizePositionsMutation.mutate()}
+            disabled={normalizePositionsMutation.isPending}
+            data-testid="button-normalize-positions"
+            className="flex items-center gap-2"
+          >
+            {normalizePositionsMutation.isPending ? "Виправляємо..." : "Виправити позиції"}
+          </Button>
           <Link href="/rcadmin/cards/new">
             <Button className="flex items-center gap-2" data-testid="button-create-new-card">
               <Plus className="h-4 w-4" />

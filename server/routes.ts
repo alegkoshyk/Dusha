@@ -654,6 +654,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Normalize card positions
+  app.post("/api/admin/cards/normalize-positions", requireAdmin, async (req, res) => {
+    try {
+      await storage.normalizeCardPositions();
+      res.json({ success: true, message: "Card positions normalized" });
+    } catch (error) {
+      console.error("Error normalizing positions:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

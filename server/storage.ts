@@ -830,6 +830,30 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async normalizeCardPositions(): Promise<void> {
+    // Get all cards grouped by level
+    const levels = await this.getGameLevels();
+    
+    for (const level of levels) {
+      const cards = await db
+        .select()
+        .from(gameCardsTable)
+        .where(eq(gameCardsTable.levelId, level.id))
+        .orderBy(gameCardsTable.positionX);
+      
+      // Update positions to be sequential starting from 1
+      for (let i = 0; i < cards.length; i++) {
+        await db
+          .update(gameCardsTable)
+          .set({ 
+            positionX: i + 1,
+            updatedAt: new Date() 
+          })
+          .where(eq(gameCardsTable.id, cards[i].id));
+      }
+    }
+  }
+
 }
 
 export const storage = new DatabaseStorage();
