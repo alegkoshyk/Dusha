@@ -114,6 +114,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         console.log("Session saved successfully, sessionID:", req.sessionID);
+        console.log("Setting cookie manually for compatibility");
+        
+        // Set cookie manually for better iPad compatibility
+        res.cookie("sessionId", req.sessionID, {
+          maxAge: 30 * 24 * 60 * 60 * 1000,
+          httpOnly: false,
+          secure: false,
+          sameSite: "none"
+        });
+        
         const { passwordHash, ...userWithoutPassword } = user;
         res.json({ 
           message: "Успішний вхід в систему",

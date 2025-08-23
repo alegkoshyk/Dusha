@@ -15,13 +15,14 @@ export const sessionMiddleware = session({
   }),
   secret: process.env.SESSION_SECRET || "your-secret-key-change-in-production",
   resave: false,
-  saveUninitialized: false,
-  name: "sessionId", // Explicit session name
+  saveUninitialized: true, // Change to true for iPad compatibility
+  name: "connect.sid", // Standard session name
   cookie: {
-    secure: false, // Temporarily disable for development
-    httpOnly: true,
+    secure: false, // Disable for development
+    httpOnly: false, // Disable for iPad/Safari compatibility
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    sameSite: "lax", // Add sameSite for better compatibility
+    sameSite: "none", // Change to "none" for cross-origin compatibility
+    domain: undefined, // Let browser handle domain
   },
 });
 
