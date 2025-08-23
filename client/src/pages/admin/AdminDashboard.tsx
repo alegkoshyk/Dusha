@@ -90,85 +90,64 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Management Sections */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Управління Картками
-            </CardTitle>
-            <CardDescription>
-              Редагування ігрових карток, контенту та властивостей
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">Душа (Soul): 9 карток</Badge>
-              <Badge variant="secondary">Розум (Mind): 8 карток</Badge>
-              <Badge variant="secondary">Тіло (Body): 8 карток</Badge>
+      {/* Quick Access Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-blue-500" onClick={() => navigate('/rcadmin/cards')}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <CreditCard className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm">Управління Картками</h3>
+                <p className="text-xs text-gray-600">Редагувати картки гри</p>
+              </div>
             </div>
-            <Link href="/rcadmin/cards">
-              <Button className="w-full" data-testid="button-manage-cards">
-                Управляти Картками
-              </Button>
-            </Link>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Управління Рівнями
-            </CardTitle>
-            <CardDescription>
-              Налаштування рівнів гри та їх властивостей
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">Душа</Badge>
-              <Badge variant="outline">Розум</Badge>
-              <Badge variant="outline">Тіло</Badge>
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-purple-500" onClick={() => navigate('/rcadmin/card-types')}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Settings className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm">Типи Карток</h3>
+                <p className="text-xs text-gray-600">Налаштування типів</p>
+              </div>
             </div>
-            <Link href="/rcadmin/levels">
-              <Button variant="outline" className="w-full" data-testid="button-manage-levels">
-                Управляти Рівнями
-              </Button>
-            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-green-500" onClick={() => navigate('/rcadmin/users')}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Users className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm">Користувачі</h3>
+                <p className="text-xs text-gray-600">Управління користувачами</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-orange-500" onClick={() => navigate('/')}>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Eye className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 text-sm">Попередній перегляд</h3>
+                <p className="text-xs text-gray-600">Переглянути сервіс</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Швидкі Дії</CardTitle>
-          <CardDescription>
-            Часто використовувані функції адміністрування
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <Link href="/rcadmin/cards/new">
-              <Button variant="outline" data-testid="button-create-card">
-                Створити Нову Картку
-              </Button>
-            </Link>
-            <Link href="/rcadmin/users">
-              <Button variant="outline" data-testid="button-manage-users">
-                Управління Користувачами
-              </Button>
-            </Link>
-            <Link href="/rcadmin/analytics">
-              <Button variant="outline" data-testid="button-view-analytics">
-                Аналітика та Звіти
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
