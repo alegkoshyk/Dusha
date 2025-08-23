@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { User, Home, Gamepad2, LayoutDashboard, CreditCard, Settings, Users, Eye, ChevronDown } from 'lucide-react';
+import { User, Home, Gamepad2, LayoutDashboard, CreditCard, Settings, Users, Eye, ChevronDown, List } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import UserDropdown from './UserDropdown';
 import { useAuth } from '@/hooks/useAuth';
@@ -82,6 +82,12 @@ export function Header() {
                     <Link href="/rcadmin/card-types" className="flex items-center gap-2 w-full">
                       <Settings className="h-4 w-4" />
                       Типи карток
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/rcadmin/card-option-sets" className="flex items-center gap-2 w-full">
+                      <List className="h-4 w-4" />
+                      Набори Варіантів
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
