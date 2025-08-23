@@ -46,6 +46,16 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (August 23, 2025)
 
+### Admin Panel Drag & Drop Card Management System Complete
+- Implemented comprehensive drag & drop card reordering system using @dnd-kit library
+- Added SortableCard component with visual grip handle (⋮⋮) for intuitive card manipulation
+- Created API endpoint /api/admin/cards/reorder for saving new card positions
+- Cards automatically update positionX values based on drag order
+- Visual feedback during drag operations with opacity changes
+- Real-time position updates saved to PostgreSQL database
+- Admin panel now supports full card management: create, edit, delete, and reorder
+- Successfully tested API endpoint returning 200 status for position updates
+
 ### Timer System and XP Rewards Complete Implementation
 - Successfully implemented complete timer system with countdown functionality on all game cards
 - Added visual timer indicators with color-coded warnings (green → yellow → red)

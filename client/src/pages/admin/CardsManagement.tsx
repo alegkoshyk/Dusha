@@ -206,6 +206,9 @@ export default function CardsManagement() {
     mutationFn: async ({ cardId, cardData }: { cardId: string; cardData: Partial<GameCard> }) => {
       return await apiRequest(`/api/admin/cards/${cardId}`, {
         method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(cardData),
       });
     },
@@ -253,6 +256,9 @@ export default function CardsManagement() {
     mutationFn: async (cards: { id: string; positionX: number }[]) => {
       return await apiRequest("/api/admin/cards/reorder", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ cards }),
       });
     },

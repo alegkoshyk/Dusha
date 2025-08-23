@@ -638,9 +638,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Reorder cards
   app.post("/api/admin/cards/reorder", requireAdmin, async (req, res) => {
     try {
+      console.log("Reorder request body:", req.body);
       const { cards } = req.body;
+      console.log("Cards to reorder:", cards);
+      
+      if (!cards || !Array.isArray(cards)) {
+        return res.status(400).json({ error: "Invalid cards data" });
+      }
+      
       await storage.reorderCards(cards);
-      res.json({ success: true });
+      res.json({ success: true, message: "Cards reordered successfully" });
     } catch (error) {
       console.error("Error reordering cards:", error);
       res.status(500).json({ error: "Internal server error" });
