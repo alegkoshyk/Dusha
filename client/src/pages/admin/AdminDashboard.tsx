@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Database, FileText, BarChart3, Settings, ArrowLeft, CreditCard, Eye } from "lucide-react";
+import { Users, Database, FileText, BarChart3, Settings, ArrowLeft, CreditCard, Eye, List } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 interface AdminStats {
@@ -119,6 +119,20 @@ export default function AdminDashboard() {
                 <div>
                   <h3 className="font-semibold text-white text-sm">Типи Карток</h3>
                   <p className="text-xs text-gray-400">Налаштування типів</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gray-800 border-gray-700 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-yellow-500" onClick={() => navigate('/rcadmin/card-option-sets')}>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-yellow-900 rounded-lg">
+                  <List className="h-5 w-5 text-yellow-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white text-sm">Набори Варіантів</h3>
+                  <p className="text-xs text-gray-400">Управління варіантами</p>
                 </div>
               </div>
             </CardContent>

@@ -260,6 +260,86 @@ export const cardResponsesRelations = relations(cardResponsesTable, ({ one }) =>
   }),
 }));
 
+// Типи карток з налаштуваннями
+export const cardTypesTable = pgTable("card_types", {
+  id: varchar("id", { length: 50 }).primaryKey(), // text, choice, values, archetype, etc.
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  icon: varchar("icon", { length: 10 }),
+  color: varchar("color", { length: 20 }).notNull().default("blue"),
+  validationRules: json("validation_rules").default(sql`'{}'`),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+// Попередньо заготовлені набори варіантів для карток (архетипи, цінності тощо)
+export const cardOptionSetsTable = pgTable("card_option_sets", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull(), // "Архетипи бренду", "Базові цінності" тощо
+  description: text("description"),
+  cardTypeId: varchar("card_type_id", { length: 50 }).notNull().references(() => cardTypesTable.id),
+  isDefault: boolean("is_default").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+// Окремі варіанти в наборах
+export const cardOptionsTable = pgTable("card_options", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  optionSetId: uuid("option_set_id").notNull().references(() => cardOptionSetsTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  value: text("value").notNull(), // значення для зберігання в відповіді
+  order: integer("order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+// Зв'язок карток з наборами варіантів (яка картка використовує який набір)
+export const cardOptionSetLinksTable = pgTable("card_option_set_links", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  cardId: text("card_id").notNull().references(() => gameCardsTable.id, { onDelete: "cascade" }),
+  optionSetId: uuid("option_set_id").notNull().references(() => cardOptionSetsTable.id, { onDelete: "cascade" }),
+  minSelections: integer("min_selections").notNull().default(1),
+  maxSelections: integer("max_selections").notNull().default(1),
+  isRequired: boolean("is_required").notNull().default(true),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+// Відношення для нових таблиць
+export const cardTypesRelations = relations(cardTypesTable, ({ many }) => ({
+  optionSets: many(cardOptionSetsTable),
+}));
+
+export const cardOptionSetsRelations = relations(cardOptionSetsTable, ({ one, many }) => ({
+  cardType: one(cardTypesTable, {
+    fields: [cardOptionSetsTable.cardTypeId],
+    references: [cardTypesTable.id],
+  }),
+  options: many(cardOptionsTable),
+  cardLinks: many(cardOptionSetLinksTable),
+}));
+
+export const cardOptionsRelations = relations(cardOptionsTable, ({ one }) => ({
+  optionSet: one(cardOptionSetsTable, {
+    fields: [cardOptionsTable.optionSetId],
+    references: [cardOptionSetsTable.id],
+  }),
+}));
+
+export const cardOptionSetLinksRelations = relations(cardOptionSetLinksTable, ({ one }) => ({
+  card: one(gameCardsTable, {
+    fields: [cardOptionSetLinksTable.cardId],
+    references: [gameCardsTable.id],
+  }),
+  optionSet: one(cardOptionSetsTable, {
+    fields: [cardOptionSetLinksTable.optionSetId],
+    references: [cardOptionSetsTable.id],
+  }),
+}));
+
 // Zod схеми для валідації користувачів
 export const insertUserSchema = createInsertSchema(usersTable).omit({
   id: true,
@@ -399,3 +479,39 @@ export interface BrandMap {
     resources?: string[];
   };
 }
+
+// Схеми для нових таблиць
+export const insertCardTypeSchema = createInsertSchema(cardTypesTable).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCardOptionSetSchema = createInsertSchema(cardOptionSetsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCardOptionSchema = createInsertSchema(cardOptionsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCardOptionSetLinkSchema = createInsertSchema(cardOptionSetLinksTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Нові типи
+export type CardType = typeof cardTypesTable.$inferSelect;
+export type InsertCardType = z.infer<typeof insertCardTypeSchema>;
+
+export type CardOptionSet = typeof cardOptionSetsTable.$inferSelect;
+export type InsertCardOptionSet = z.infer<typeof insertCardOptionSetSchema>;
+
+export type CardOption = typeof cardOptionsTable.$inferSelect;
+export type InsertCardOption = z.infer<typeof insertCardOptionSchema>;
+
+export type CardOptionSetLink = typeof cardOptionSetLinksTable.$inferSelect;
+export type InsertCardOptionSetLink = z.infer<typeof insertCardOptionSetLinkSchema>;

@@ -24,6 +24,18 @@ import {
   userProfilesTable,
   cardPropertiesTable,
   cardRelationsTable,
+  cardTypesTable,
+  cardOptionSetsTable,
+  cardOptionsTable,
+  cardOptionSetLinksTable,
+  type CardType,
+  type InsertCardType,
+  type CardOptionSet,
+  type InsertCardOptionSet,
+  type CardOption,
+  type InsertCardOption,
+  type CardOptionSetLink,
+  type InsertCardOptionSetLink,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or } from "drizzle-orm";
@@ -69,6 +81,25 @@ export interface IStorage {
   // Game data operations
   getGameCards(levelId?: string): Promise<GameCard[]>;
   getGameLevels(): Promise<GameLevel[]>;
+  
+  // Card option sets operations
+  getCardOptionSets(cardTypeId?: string): Promise<CardOptionSet[]>;
+  getCardOptionSet(id: string): Promise<CardOptionSet | undefined>;
+  createCardOptionSet(optionSet: InsertCardOptionSet): Promise<CardOptionSet>;
+  updateCardOptionSet(id: string, updates: Partial<CardOptionSet>): Promise<CardOptionSet | undefined>;
+  deleteCardOptionSet(id: string): Promise<boolean>;
+  
+  // Card options operations
+  getCardOptions(optionSetId: string): Promise<CardOption[]>;
+  createCardOption(option: InsertCardOption): Promise<CardOption>;
+  updateCardOption(id: string, updates: Partial<CardOption>): Promise<CardOption | undefined>;
+  deleteCardOption(id: string): Promise<boolean>;
+  
+  // Card option set links operations
+  getCardOptionSetLinks(cardId: string): Promise<CardOptionSetLink[]>;
+  createCardOptionSetLink(link: InsertCardOptionSetLink): Promise<CardOptionSetLink>;
+  updateCardOptionSetLink(id: string, updates: Partial<CardOptionSetLink>): Promise<CardOptionSetLink | undefined>;
+  deleteCardOptionSetLink(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -877,6 +908,99 @@ export class DatabaseStorage implements IStorage {
     await db.delete(usersTable).where(eq(usersTable.id, userId));
   }
 
+  // Card option sets operations
+  async getCardOptionSets(cardTypeId?: string): Promise<CardOptionSet[]> {
+    if (cardTypeId) {
+      return await db.select().from(cardOptionSetsTable)
+        .where(and(eq(cardOptionSetsTable.cardTypeId, cardTypeId), eq(cardOptionSetsTable.isActive, true)));
+    }
+    return await db.select().from(cardOptionSetsTable)
+      .where(eq(cardOptionSetsTable.isActive, true));
+  }
+
+  async getCardOptionSet(id: string): Promise<CardOptionSet | undefined> {
+    const [optionSet] = await db.select().from(cardOptionSetsTable)
+      .where(eq(cardOptionSetsTable.id, id));
+    return optionSet;
+  }
+
+  async createCardOptionSet(optionSet: InsertCardOptionSet): Promise<CardOptionSet> {
+    const [created] = await db.insert(cardOptionSetsTable)
+      .values(optionSet)
+      .returning();
+    return created;
+  }
+
+  async updateCardOptionSet(id: string, updates: Partial<CardOptionSet>): Promise<CardOptionSet | undefined> {
+    const [updated] = await db.update(cardOptionSetsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(cardOptionSetsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCardOptionSet(id: string): Promise<boolean> {
+    const result = await db.update(cardOptionSetsTable)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(cardOptionSetsTable.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Card options operations
+  async getCardOptions(optionSetId: string): Promise<CardOption[]> {
+    return await db.select().from(cardOptionsTable)
+      .where(and(eq(cardOptionsTable.optionSetId, optionSetId), eq(cardOptionsTable.isActive, true)))
+      .orderBy(cardOptionsTable.order);
+  }
+
+  async createCardOption(option: InsertCardOption): Promise<CardOption> {
+    const [created] = await db.insert(cardOptionsTable)
+      .values(option)
+      .returning();
+    return created;
+  }
+
+  async updateCardOption(id: string, updates: Partial<CardOption>): Promise<CardOption | undefined> {
+    const [updated] = await db.update(cardOptionsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(cardOptionsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCardOption(id: string): Promise<boolean> {
+    const result = await db.update(cardOptionsTable)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(cardOptionsTable.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Card option set links operations
+  async getCardOptionSetLinks(cardId: string): Promise<CardOptionSetLink[]> {
+    return await db.select().from(cardOptionSetLinksTable)
+      .where(eq(cardOptionSetLinksTable.cardId, cardId));
+  }
+
+  async createCardOptionSetLink(link: InsertCardOptionSetLink): Promise<CardOptionSetLink> {
+    const [created] = await db.insert(cardOptionSetLinksTable)
+      .values(link)
+      .returning();
+    return created;
+  }
+
+  async updateCardOptionSetLink(id: string, updates: Partial<CardOptionSetLink>): Promise<CardOptionSetLink | undefined> {
+    const [updated] = await db.update(cardOptionSetLinksTable)
+      .set(updates)
+      .where(eq(cardOptionSetLinksTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCardOptionSetLink(id: string): Promise<boolean> {
+    const result = await db.delete(cardOptionSetLinksTable)
+      .where(eq(cardOptionSetLinksTable.id, id));
+    return result.rowCount > 0;
+  }
 }
 
 export const storage = new DatabaseStorage();

@@ -699,6 +699,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Card Option Sets Routes
+  app.get("/api/admin/card-option-sets", requireAdmin, async (req, res) => {
+    try {
+      const cardTypeId = req.query.cardTypeId as string | undefined;
+      const optionSets = await storage.getCardOptionSets(cardTypeId);
+      res.json(optionSets);
+    } catch (error) {
+      console.error("Error fetching card option sets:", error);
+      res.status(500).json({ error: "Failed to fetch card option sets" });
+    }
+  });
+
+  app.get("/api/admin/card-option-sets/:id", requireAdmin, async (req, res) => {
+    try {
+      const optionSet = await storage.getCardOptionSet(req.params.id);
+      if (!optionSet) {
+        return res.status(404).json({ error: "Card option set not found" });
+      }
+      res.json(optionSet);
+    } catch (error) {
+      console.error("Error fetching card option set:", error);
+      res.status(500).json({ error: "Failed to fetch card option set" });
+    }
+  });
+
+  app.post("/api/admin/card-option-sets", requireAdmin, async (req, res) => {
+    try {
+      const optionSet = await storage.createCardOptionSet(req.body);
+      res.json(optionSet);
+    } catch (error) {
+      console.error("Error creating card option set:", error);
+      res.status(500).json({ error: "Failed to create card option set" });
+    }
+  });
+
+  app.put("/api/admin/card-option-sets/:id", requireAdmin, async (req, res) => {
+    try {
+      const optionSet = await storage.updateCardOptionSet(req.params.id, req.body);
+      if (!optionSet) {
+        return res.status(404).json({ error: "Card option set not found" });
+      }
+      res.json(optionSet);
+    } catch (error) {
+      console.error("Error updating card option set:", error);
+      res.status(500).json({ error: "Failed to update card option set" });
+    }
+  });
+
+  app.delete("/api/admin/card-option-sets/:id", requireAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteCardOptionSet(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Card option set not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting card option set:", error);
+      res.status(500).json({ error: "Failed to delete card option set" });
+    }
+  });
+
+  // Card Options Routes
+  app.get("/api/admin/card-options/:optionSetId", requireAdmin, async (req, res) => {
+    try {
+      const options = await storage.getCardOptions(req.params.optionSetId);
+      res.json(options);
+    } catch (error) {
+      console.error("Error fetching card options:", error);
+      res.status(500).json({ error: "Failed to fetch card options" });
+    }
+  });
+
+  app.post("/api/admin/card-options", requireAdmin, async (req, res) => {
+    try {
+      const option = await storage.createCardOption(req.body);
+      res.json(option);
+    } catch (error) {
+      console.error("Error creating card option:", error);
+      res.status(500).json({ error: "Failed to create card option" });
+    }
+  });
+
+  app.put("/api/admin/card-options/:id", requireAdmin, async (req, res) => {
+    try {
+      const option = await storage.updateCardOption(req.params.id, req.body);
+      if (!option) {
+        return res.status(404).json({ error: "Card option not found" });
+      }
+      res.json(option);
+    } catch (error) {
+      console.error("Error updating card option:", error);
+      res.status(500).json({ error: "Failed to update card option" });
+    }
+  });
+
+  app.delete("/api/admin/card-options/:id", requireAdmin, async (req, res) => {
+    try {
+      const success = await storage.deleteCardOption(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Card option not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting card option:", error);
+      res.status(500).json({ error: "Failed to delete card option" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

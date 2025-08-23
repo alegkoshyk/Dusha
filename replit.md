@@ -14,7 +14,7 @@ Preferred communication style: Simple, everyday language.
 - **Routing**: Wouter for lightweight client-side routing.
 - **State Management**: TanStack Query for server state and optimistic updates.
 - **Form Handling**: React Hook Form with Zod validation.
-- **Design**: Redesigned Dashboard matching mockups with brand cards, progress indicators, and consistent styling for action buttons. Implemented comprehensive admin navigation and card management with drag & drop reordering.
+- **Design**: Redesigned Dashboard matching mockups with brand cards, progress indicators, and consistent styling for action buttons. Implemented comprehensive admin navigation and card management with drag & drop reordering. Added dark theme for all admin panels with improved readability. Created card option sets management system for predefined choices like brand archetypes.
 
 ### Backend
 - **Runtime**: Node.js with TypeScript and ES modules.
@@ -25,7 +25,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Storage Solutions
 - **Database**: PostgreSQL with a normalized schema managed by Drizzle ORM.
-- **Schema**: Full relational database including tables for users, user profiles, brands, game levels, cards, card properties, relations, game sessions, and card responses.
+- **Schema**: Full relational database including tables for users, user profiles, brands, game levels, cards, card properties, relations, game sessions, card responses, and new card option management system.
+- **Card Option Sets**: New system for managing predefined choices (archetypes, values, channels) with configurable min/max selection rules.
 - **Session Data**: Structured relational storage with foreign key constraints.
 
 ### Export and Sharing
