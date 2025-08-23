@@ -54,17 +54,17 @@ export default function OptionsList() {
   const optionsWithSets: OptionWithSet[] = allOptions?.map(option => ({
     ...option,
     optionSet: optionSets?.find(set => set.id === option.optionSetId)
-  })) || [];
+  })).filter(option => option.optionSet) || []; // Фільтруємо варіанти без наборів
 
   // Фільтруємо варіанти за пошуковим запитом
   const filteredOptions = optionsWithSets.filter(option => {
     const query = searchQuery.toLowerCase();
     return (
       option.name.toLowerCase().includes(query) ||
-      option.description.toLowerCase().includes(query) ||
+      option.description?.toLowerCase().includes(query) ||
       option.value.toLowerCase().includes(query) ||
-      option.optionSet?.name.toLowerCase().includes(query) ||
-      option.optionSet?.description.toLowerCase().includes(query)
+      option.optionSet?.name?.toLowerCase().includes(query) ||
+      option.optionSet?.description?.toLowerCase().includes(query)
     );
   });
 
