@@ -102,12 +102,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       await storage.updateUserLoginTime(user.id);
+      
+      // Set user in session and explicitly save
       setUserInSession(req, user);
       
-      const { passwordHash, ...userWithoutPassword } = user;
-      res.json({ 
-        message: "Успішний вхід в систему",
-        user: userWithoutPassword 
+      // Force session save before sending response
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ error: "Помилка збереження сесії" });
+        }
+        
+        console.log("Session saved successfully, sessionID:", req.sessionID);
+        const { passwordHash, ...userWithoutPassword } = user;
+        res.json({ 
+          message: "Успішний вхід в систему",
+          user: userWithoutPassword 
+        });
       });
     } catch (error) {
       console.error("Login error:", error);

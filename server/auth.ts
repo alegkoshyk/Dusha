@@ -16,10 +16,12 @@ export const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || "your-secret-key-change-in-production",
   resave: false,
   saveUninitialized: false,
+  name: "sessionId", // Explicit session name
   cookie: {
-    secure: process.env.NODE_ENV === "production",
+    secure: false, // Temporarily disable for development
     httpOnly: true,
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    sameSite: "lax", // Add sameSite for better compatibility
   },
 });
 
@@ -27,13 +29,18 @@ export const sessionMiddleware = session({
 export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
   const session = req.session as any;
   
+  console.log("Auth check - sessionID:", req.sessionID);
+  console.log("Auth check - session user:", session?.user ? "exists" : "missing");
+  
   if (!session?.user) {
+    console.log("Auth failed - no user in session");
     return res.status(401).json({ 
       error: "Authentication required",
       message: "Потрібна аутентифікація для доступу до цього ресурсу"
     });
   }
   
+  console.log("Auth success for user:", session.user.email);
   next();
 };
 
