@@ -337,28 +337,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserStats(userId: string): Promise<{totalXp: number; totalGames: number; completedGames: number}> {
-    // Спочатку отримаємо всі сесії користувача
+    // Отримуємо всі сесії користувача
     const sessions = await this.getUserGameSessions(userId);
     
-    // Потім для кожної сесії підрахуємо загальний XP з відповідей
-    let totalXpFromAllSessions = 0;
+    // Рахуємо загальний XP прямо з card_responses для всіх сесій користувача
+    const allUserResponses = await db
+      .select({ earnedXp: cardResponsesTable.earnedXp })
+      .from(cardResponsesTable)
+      .innerJoin(gameSessionsTable, eq(cardResponsesTable.sessionId, gameSessionsTable.id))
+      .where(eq(gameSessionsTable.userId, userId));
     
-    for (const session of sessions) {
-      const responses = await this.getCardResponses(session.id);
-      const sessionXpFromResponses = responses.reduce((sum, response) => {
-        return sum + (response.earnedXp || 0);
-      }, 0);
-      
-      // Використовуємо максимум між збереженим totalXp та розрахованим
-      const sessionTotalXp = Math.max(session.totalXp || 0, sessionXpFromResponses);
-      totalXpFromAllSessions += sessionTotalXp;
-    }
+    const totalXpFromResponses = allUserResponses.reduce((sum, response) => {
+      return sum + (response.earnedXp || 0);
+    }, 0);
+    
+    // Також рахуємо загальний XP з totalXp в сесіях
+    const totalXpFromSessions = sessions.reduce((sum, session) => {
+      return sum + (session.totalXp || 0);
+    }, 0);
+    
+    // Використовуємо більше значення
+    const totalXp = Math.max(totalXpFromResponses, totalXpFromSessions);
     
     const totalGames = sessions.length;
     const completedGames = sessions.filter(s => s.completed).length;
     
     return {
-      totalXp: totalXpFromAllSessions,
+      totalXp,
       totalGames,
       completedGames
     };
