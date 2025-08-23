@@ -49,6 +49,11 @@ export interface IStorage {
   verifyPassword(password: string, hash: string): Promise<boolean>;
   updateUserLoginTime(id: string): Promise<void>;
   
+  // Token-based authentication for iPad compatibility
+  createAuthToken(userId: string, token: string): Promise<void>;
+  getUserByAuthToken(token: string): Promise<User | undefined>;
+  cleanupExpiredTokens(): Promise<void>;
+  
   // User data operations  
   createUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
   getUserSettings(userId: string): Promise<UserSettings | undefined>;
@@ -150,6 +155,38 @@ export class DatabaseStorage implements IStorage {
       .update(usersTable)
       .set({ lastLoginAt: new Date(), updatedAt: new Date() })
       .where(eq(usersTable.id, id));
+  }
+
+  // Simple in-memory token storage for iPad compatibility
+  private authTokens: Map<string, { userId: string; createdAt: Date }> = new Map();
+
+  async createAuthToken(userId: string, token: string): Promise<void> {
+    this.authTokens.set(token, { userId, createdAt: new Date() });
+    // Auto cleanup tokens older than 30 days
+    setTimeout(() => this.cleanupExpiredTokens(), 1000);
+  }
+
+  async getUserByAuthToken(token: string): Promise<User | undefined> {
+    const tokenData = this.authTokens.get(token);
+    if (!tokenData) return undefined;
+    
+    // Check if token is expired (30 days)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    if (tokenData.createdAt < thirtyDaysAgo) {
+      this.authTokens.delete(token);
+      return undefined;
+    }
+    
+    return await this.getUserById(tokenData.userId);
+  }
+
+  async cleanupExpiredTokens(): Promise<void> {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    for (const [token, data] of this.authTokens.entries()) {
+      if (data.createdAt < thirtyDaysAgo) {
+        this.authTokens.delete(token);
+      }
+    }
   }
 
   // User data operations

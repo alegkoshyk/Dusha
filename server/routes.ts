@@ -103,32 +103,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateUserLoginTime(user.id);
       
-      // Set user in session and explicitly save
+      // Generate simple auth token for iPad compatibility
+      const authToken = `auth_${user.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Store token in memory/database for validation
+      await storage.createAuthToken(user.id, authToken);
+      
+      // Set user in session as backup
       setUserInSession(req, user);
       
-      // Force session save before sending response
-      req.session.save((err) => {
-        if (err) {
-          console.error("Session save error:", err);
-          return res.status(500).json({ error: "Помилка збереження сесії" });
-        }
-        
-        console.log("Session saved successfully, sessionID:", req.sessionID);
-        console.log("Setting cookie manually for compatibility");
-        
-        // Set cookie manually for better iPad compatibility
-        res.cookie("sessionId", req.sessionID, {
-          maxAge: 30 * 24 * 60 * 60 * 1000,
-          httpOnly: false,
-          secure: false,
-          sameSite: "none"
-        });
-        
-        const { passwordHash, ...userWithoutPassword } = user;
-        res.json({ 
-          message: "Успішний вхід в систему",
-          user: userWithoutPassword 
-        });
+      const { passwordHash, ...userWithoutPassword } = user;
+      res.json({ 
+        message: "Успішний вхід в систему",
+        user: userWithoutPassword,
+        authToken: authToken  // Send token to client for localStorage
       });
     } catch (error) {
       console.error("Login error:", error);

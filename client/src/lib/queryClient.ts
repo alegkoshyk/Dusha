@@ -12,9 +12,15 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  // Get auth token from localStorage for iPad compatibility
+  const authToken = localStorage.getItem('authToken');
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: {
+      ...(data ? { "Content-Type": "application/json" } : {}),
+      ...(authToken ? { "x-auth-token": authToken } : {}),
+    },
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -28,9 +34,15 @@ export async function apiRequestJson<T = any>(
   url: string,
   data?: unknown | undefined,
 ): Promise<T> {
+  // Get auth token from localStorage for iPad compatibility
+  const authToken = localStorage.getItem('authToken');
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: {
+      ...(data ? { "Content-Type": "application/json" } : {}),
+      ...(authToken ? { "x-auth-token": authToken } : {}),
+    },
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -45,8 +57,12 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    // Get auth token from localStorage for iPad compatibility
+    const authToken = localStorage.getItem('authToken');
+    
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
+      headers: authToken ? { "x-auth-token": authToken } : {},
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

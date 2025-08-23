@@ -27,22 +27,41 @@ export const sessionMiddleware = session({
 });
 
 // Auth middleware to check if user is authenticated
-export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   const session = req.session as any;
+  const authToken = req.headers.authorization?.replace('Bearer ', '') || req.headers['x-auth-token'];
   
   console.log("Auth check - sessionID:", req.sessionID);
   console.log("Auth check - session user:", session?.user ? "exists" : "missing");
+  console.log("Auth check - auth token:", authToken ? "provided" : "missing");
   
-  if (!session?.user) {
-    console.log("Auth failed - no user in session");
-    return res.status(401).json({ 
-      error: "Authentication required",
-      message: "Потрібна аутентифікація для доступу до цього ресурсу"
-    });
+  // First try session-based auth
+  if (session?.user) {
+    console.log("Auth success via session for user:", session.user.email);
+    return next();
   }
   
-  console.log("Auth success for user:", session.user.email);
-  next();
+  // Fallback to token-based auth for iPad compatibility
+  if (authToken) {
+    try {
+      const { storage } = await import("./storage");
+      const user = await storage.getUserByAuthToken(authToken);
+      if (user) {
+        console.log("Auth success via token for user:", user.email);
+        // Set user in request for downstream use
+        (req as any).user = user;
+        return next();
+      }
+    } catch (error) {
+      console.log("Token auth failed:", error);
+    }
+  }
+  
+  console.log("Auth failed - no valid session or token");
+  return res.status(401).json({ 
+    error: "Authentication required",
+    message: "Потрібна аутентифікація для доступу до цього ресурсу"
+  });
 };
 
 // Optional auth middleware - doesn't block if not authenticated

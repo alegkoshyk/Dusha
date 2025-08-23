@@ -15,8 +15,12 @@ export function useAuth() {
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 хвилин
     queryFn: async () => {
+      // Get auth token for iPad compatibility
+      const authToken = localStorage.getItem('authToken');
+      
       const response = await fetch("/api/auth/me", {
         credentials: "include",
+        headers: authToken ? { "x-auth-token": authToken } : {},
       });
 
       if (response.status === 401) {
@@ -47,7 +51,15 @@ export function useAuth() {
         throw new Error(error.error || "Login failed");
       }
 
-      return await response.json();
+      const result = await response.json();
+      
+      // Store auth token for iPad compatibility
+      if (result.authToken) {
+        localStorage.setItem('authToken', result.authToken);
+        console.log('Auth token stored for iPad compatibility');
+      }
+
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
@@ -92,6 +104,8 @@ export function useAuth() {
       return await response.json();
     },
     onSuccess: () => {
+      // Clear auth token from localStorage
+      localStorage.removeItem('authToken');
       queryClient.clear();
       window.location.reload();
     },
