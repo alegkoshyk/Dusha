@@ -425,6 +425,268 @@ export default function CardOptionSets() {
             </div>
           </div>
         </div>
+
+        {/* Dialog for editing option sets */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-md bg-gray-800 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">
+                {editingOptionSet?.id ? 'Редагувати набір' : 'Створити набір'}
+              </DialogTitle>
+              <DialogDescription className="text-gray-400">
+                {editingOptionSet?.id ? 'Змініть дані набору варіантів' : 'Створіть новий набір варіантів'}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="name" className="text-white">Назва</Label>
+                <Input
+                  id="name"
+                  value={editingOptionSet?.name || ""}
+                  onChange={(e) => 
+                    setEditingOptionSet(prev => 
+                      prev ? { ...prev, name: e.target.value } : null
+                    )
+                  }
+                  className="bg-gray-700 border-gray-600 text-white"
+                  placeholder="Назва набору варіантів"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="description" className="text-white">Опис</Label>
+                <Textarea
+                  id="description"
+                  value={editingOptionSet?.description || ""}
+                  onChange={(e) => 
+                    setEditingOptionSet(prev => 
+                      prev ? { ...prev, description: e.target.value } : null
+                    )
+                  }
+                  className="bg-gray-700 border-gray-600 text-white"
+                  placeholder="Опис набору варіантів"
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cardTypeId" className="text-white">Тип картки</Label>
+                <Select
+                  value={editingOptionSet?.cardTypeId || "choice"}
+                  onValueChange={(value) =>
+                    setEditingOptionSet(prev => 
+                      prev ? { ...prev, cardTypeId: value } : null
+                    )
+                  }
+                >
+                  <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-700 border-gray-600">
+                    {cardTypes.map((type) => (
+                      <SelectItem 
+                        key={type.id || 'null'} 
+                        value={type.id || 'choice'}
+                        className="text-white hover:bg-gray-600"
+                      >
+                        {type.icon} {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isDefault"
+                    checked={editingOptionSet?.isDefault || false}
+                    onChange={(e) =>
+                      setEditingOptionSet(prev => 
+                        prev ? { ...prev, isDefault: e.target.checked } : null
+                      )
+                    }
+                    className="rounded"
+                  />
+                  <Label htmlFor="isDefault" className="text-white text-sm">
+                    За замовчуванням
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={editingOptionSet?.isActive ?? true}
+                    onChange={(e) =>
+                      setEditingOptionSet(prev => 
+                        prev ? { ...prev, isActive: e.target.checked } : null
+                      )
+                    }
+                    className="rounded"
+                  />
+                  <Label htmlFor="isActive" className="text-white text-sm">
+                    Активний
+                  </Label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsDialogOpen(false);
+                  setEditingOptionSet(null);
+                }}
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              >
+                Скасувати
+              </Button>
+              <Button 
+                onClick={handleSaveOptionSet}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={!editingOptionSet?.name?.trim()}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {editingOptionSet?.id ? 'Зберегти' : 'Створити'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog for editing options */}
+        <Dialog open={isOptionDialogOpen} onOpenChange={setIsOptionDialogOpen}>
+          <DialogContent className="max-w-md bg-gray-800 border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">
+                {editingOption?.id ? 'Редагувати варіант' : 'Створити варіант'}
+              </DialogTitle>
+              <DialogDescription className="text-gray-400">
+                {editingOption?.id ? 'Змініть дані варіанту' : 'Створіть новий варіант'}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="optionName" className="text-white">Назва</Label>
+                <Input
+                  id="optionName"
+                  value={editingOption?.name || ""}
+                  onChange={(e) => 
+                    setEditingOption(prev => 
+                      prev ? { ...prev, name: e.target.value } : null
+                    )
+                  }
+                  className="bg-gray-700 border-gray-600 text-white"
+                  placeholder="Назва варіанту"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="optionDescription" className="text-white">Опис</Label>
+                <Textarea
+                  id="optionDescription"
+                  value={editingOption?.description || ""}
+                  onChange={(e) => 
+                    setEditingOption(prev => 
+                      prev ? { ...prev, description: e.target.value } : null
+                    )
+                  }
+                  className="bg-gray-700 border-gray-600 text-white"
+                  placeholder="Опис варіанту"
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="optionValue" className="text-white">Значення</Label>
+                <Input
+                  id="optionValue"
+                  value={editingOption?.value || ""}
+                  onChange={(e) => 
+                    setEditingOption(prev => 
+                      prev ? { ...prev, value: e.target.value } : null
+                    )
+                  }
+                  className="bg-gray-700 border-gray-600 text-white"
+                  placeholder="Унікальне значення для коду"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="optionIcon" className="text-white">Іконка</Label>
+                <Input
+                  id="optionIcon"
+                  value={editingOption?.icon || ""}
+                  onChange={(e) => 
+                    setEditingOption(prev => 
+                      prev ? { ...prev, icon: e.target.value } : null
+                    )
+                  }
+                  className="bg-gray-700 border-gray-600 text-white"
+                  placeholder="🎭 (емодзі або символ)"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="optionOrder" className="text-white">Порядок</Label>
+                <Input
+                  id="optionOrder"
+                  type="number"
+                  min="1"
+                  value={editingOption?.order || 1}
+                  onChange={(e) => 
+                    setEditingOption(prev => 
+                      prev ? { ...prev, order: parseInt(e.target.value) || 1 } : null
+                    )
+                  }
+                  className="bg-gray-700 border-gray-600 text-white"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="optionIsActive"
+                  checked={editingOption?.isActive ?? true}
+                  onChange={(e) =>
+                    setEditingOption(prev => 
+                      prev ? { ...prev, isActive: e.target.checked } : null
+                    )
+                  }
+                  className="rounded"
+                />
+                <Label htmlFor="optionIsActive" className="text-white text-sm">
+                  Активний
+                </Label>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsOptionDialogOpen(false);
+                  setEditingOption(null);
+                }}
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              >
+                Скасувати
+              </Button>
+              <Button 
+                onClick={handleSaveOption}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={!editingOption?.name?.trim() || !editingOption?.value?.trim()}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {editingOption?.id ? 'Зберегти' : 'Створити'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
