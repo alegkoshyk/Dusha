@@ -970,8 +970,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCardOptionSet(id: string, updates: Partial<CardOptionSet>): Promise<CardOptionSet | undefined> {
+    // Remove timestamp fields that might cause issues
+    const { createdAt, updatedAt, ...cleanUpdates } = updates;
+    
     const [updated] = await db.update(cardOptionSetsTable)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...cleanUpdates, updatedAt: new Date() })
       .where(eq(cardOptionSetsTable.id, id))
       .returning();
     return updated;
@@ -1005,8 +1008,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCardOption(id: string, updates: Partial<CardOption>): Promise<CardOption | undefined> {
+    // Remove timestamp fields that might cause issues
+    const { createdAt, updatedAt, ...cleanUpdates } = updates;
+    
     const [updated] = await db.update(cardOptionsTable)
-      .set({ ...updates, updatedAt: new Date() })
+      .set({ ...cleanUpdates, updatedAt: new Date() })
       .where(eq(cardOptionsTable.id, id))
       .returning();
     return updated;
