@@ -54,247 +54,16 @@ export default function CardOptionSets() {
   const [editingOption, setEditingOption] = useState<CardOption | null>(null);
   const [selectedOptionSet, setSelectedOptionSet] = useState<string | null>(null);
 
-  // Fetch card option sets - використовуємо демонстраційні дані поки таблиці не створені
+  // Fetch card option sets з реальної бази даних
   const { data: optionSets, isLoading } = useQuery<CardOptionSet[]>({
     queryKey: ["/api/admin/card-option-sets"],
     staleTime: 1000 * 60 * 5, // 5 хвилин
-    retry: false,
-    queryFn: () => {
-      // Демонстраційні дані для тестування
-      return Promise.resolve([
-        {
-          id: "1",
-          name: "Архетипи бренду",
-          description: "Класичні архетипи для вибору ідентичності бренду",
-          cardTypeId: "archetype",
-          isDefault: true,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: "2", 
-          name: "Базові цінності",
-          description: "Основні цінності бренду",
-          cardTypeId: "values",
-          isDefault: false,
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }
-      ]);
-    }
   });
 
-  // Fetch options for selected set - демонстраційні дані
+  // Fetch options for selected set з реальної бази
   const { data: options } = useQuery<CardOption[]>({
-    queryKey: ["/api/admin/card-options", selectedOptionSet],
+    queryKey: [`/api/admin/card-option-sets/${selectedOptionSet}/options`],
     enabled: !!selectedOptionSet,
-    retry: false,
-    queryFn: () => {
-      if (selectedOptionSet === "1") {
-        // Архетипи бренду - всі 12 класичних архетипів
-        return Promise.resolve([
-          {
-            id: "1",
-            optionSetId: "1",
-            name: "Невинний",
-            description: "Оптимізм, довіра, чистота намірів",
-            value: "innocent",
-            icon: "☀️",
-            order: 1,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "2",
-            optionSetId: "1", 
-            name: "Мудрець",
-            description: "Знання, розуміння, істина",
-            value: "sage",
-            icon: "🧠",
-            order: 2,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "3",
-            optionSetId: "1",
-            name: "Дослідник",
-            description: "Свобода, пригоди, автентичність",
-            value: "explorer",
-            icon: "🌍",
-            order: 3,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "4",
-            optionSetId: "1",
-            name: "Герой",
-            description: "Мужність, майстерність, тріумф",
-            value: "hero",
-            icon: "⚡",
-            order: 4,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "5",
-            optionSetId: "1",
-            name: "Бунтар",
-            description: "Революція, свобода, зміни",
-            value: "rebel",
-            icon: "🔥",
-            order: 5,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "6",
-            optionSetId: "1",
-            name: "Маг",
-            description: "Перетворення, візія, харизма",
-            value: "magician",
-            icon: "✨",
-            order: 6,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "7",
-            optionSetId: "1",
-            name: "Простодушний",
-            description: "Належність, реалізм, емпатія",
-            value: "everyman",
-            icon: "👥",
-            order: 7,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "8",
-            optionSetId: "1",
-            name: "Коханець",
-            description: "Пристрасть, близькість, відданість",
-            value: "lover",
-            icon: "❤️",
-            order: 8,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "9",
-            optionSetId: "1",
-            name: "Блазень",
-            description: "Веселощі, легкість, момент",
-            value: "jester",
-            icon: "🃏",
-            order: 9,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "10",
-            optionSetId: "1",
-            name: "Піклувальник",
-            description: "Служіння, співчуття, щедрість",
-            value: "caregiver",
-            icon: "🤗",
-            order: 10,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "11",
-            optionSetId: "1",
-            name: "Правитель",
-            description: "Відповідальність, лідерство, контроль",
-            value: "ruler",
-            icon: "👑",
-            order: 11,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "12",
-            optionSetId: "1",
-            name: "Творець",
-            description: "Творчість, уява, артистизм",
-            value: "creator",
-            icon: "🎨",
-            order: 12,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          }
-        ]);
-      } else if (selectedOptionSet === "2") {
-        // Базові цінності
-        return Promise.resolve([
-          {
-            id: "v1",
-            optionSetId: "2",
-            name: "Чесність",
-            description: "Прозорість та правдивість у всіх справах",
-            value: "honesty",
-            icon: "💯",
-            order: 1,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "v2",
-            optionSetId: "2",
-            name: "Інновації",
-            description: "Постійний розвиток та нові рішення",
-            value: "innovation",
-            icon: "💡",
-            order: 2,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "v3",
-            optionSetId: "2",
-            name: "Якість",
-            description: "Досконалість у кожній деталі",
-            value: "quality",
-            icon: "⭐",
-            order: 3,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-          {
-            id: "v4",
-            optionSetId: "2",
-            name: "Сталість",
-            description: "Відповідальність перед планетою",
-            value: "sustainability",
-            icon: "🌱",
-            order: 4,
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          }
-        ]);
-      }
-      return Promise.resolve([]);
-    }
   });
 
   // Mutations for option sets
@@ -351,7 +120,7 @@ export default function CardOptionSets() {
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/card-options", selectedOptionSet] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/card-option-sets/${selectedOptionSet}/options`] });
       toast({ title: "Варіант створено", description: "Новий варіант успішно додано" });
       setIsOptionDialogOpen(false);
       setEditingOption(null);
@@ -367,7 +136,7 @@ export default function CardOptionSets() {
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/card-options", selectedOptionSet] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/card-option-sets/${selectedOptionSet}/options`] });
       toast({ title: "Варіант оновлено", description: "Зміни успішно збережено" });
       setIsOptionDialogOpen(false);
       setEditingOption(null);
@@ -383,7 +152,7 @@ export default function CardOptionSets() {
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/card-options", selectedOptionSet] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/card-option-sets/${selectedOptionSet}/options`] });
       toast({ title: "Варіант видалено", description: "Варіант успішно видалено" });
     },
     onError: () => {
@@ -491,7 +260,7 @@ export default function CardOptionSets() {
                   key={optionSet.id} 
                   className={`border-2 cursor-pointer transition-colors ${
                     selectedOptionSet === optionSet.id 
-                      ? getTypeColor(optionSet.cardTypeId)
+                      ? getTypeColor(optionSet.cardTypeId || 'choice')
                       : "bg-gray-800 border-gray-700 hover:border-gray-600"
                   }`}
                   onClick={() => setSelectedOptionSet(optionSet.id)}
@@ -504,14 +273,19 @@ export default function CardOptionSets() {
                         </CardTitle>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="outline" className="border-gray-600 text-gray-300">
-                            {cardTypes.find(t => t.id === optionSet.cardTypeId)?.name || optionSet.cardTypeId}
+                            {cardTypes.find(t => t.id === optionSet.cardTypeId)?.name || 'Універсальний'}
                           </Badge>
                           {optionSet.isDefault && (
-                            <Badge className="bg-blue-600 text-white">За замовчуванням</Badge>
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              За замовчуванням
+                            </Badge>
                           )}
                         </div>
+                        {optionSet.description && (
+                          <p className="text-gray-400 mt-2 text-sm">{optionSet.description}</p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -520,8 +294,7 @@ export default function CardOptionSets() {
                             setEditingOptionSet(optionSet);
                             setIsDialogOpen(true);
                           }}
-                          className="text-gray-400 hover:text-white hover:bg-gray-700"
-                          data-testid={`button-edit-option-set-${optionSet.id}`}
+                          className="p-2 hover:bg-gray-700"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -530,23 +303,25 @@ export default function CardOptionSets() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteOptionSetMutation.mutate(optionSet.id);
+                            if (confirm('Ви впевнені, що хочете видалити цей набір варіантів?')) {
+                              deleteOptionSetMutation.mutate(optionSet.id);
+                            }
                           }}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                          data-testid={`button-delete-option-set-${optionSet.id}`}
+                          className="p-2 hover:bg-red-600 text-red-400"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  {optionSet.description && (
-                    <CardContent className="pt-0">
-                      <p className="text-sm text-gray-400">{optionSet.description}</p>
-                    </CardContent>
-                  )}
                 </Card>
               ))}
+              
+              {!optionSets?.length && (
+                <div className="text-center py-8 text-gray-400">
+                  Поки що немає наборів варіантів
+                </div>
+              )}
             </div>
           </div>
 
@@ -554,11 +329,16 @@ export default function CardOptionSets() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-white">
-                {selectedOptionSet ? "Варіанти" : "Оберіть набір"}
+                Варіанти
+                {selectedOptionSet && (
+                  <span className="text-gray-400 ml-2 text-base">
+                    ({optionSets?.find(s => s.id === selectedOptionSet)?.name})
+                  </span>
+                )}
               </h2>
               {selectedOptionSet && (
                 <Button 
-                  size="sm"
+                  size="sm" 
                   onClick={() => {
                     setEditingOption({
                       id: "",
@@ -575,261 +355,76 @@ export default function CardOptionSets() {
                     setIsOptionDialogOpen(true);
                   }}
                   className="flex items-center gap-2"
-                  data-testid="button-add-option"
                 >
                   <Plus className="h-4 w-4" />
                   Додати Варіант
                 </Button>
               )}
             </div>
-
-            {selectedOptionSet ? (
-              <div className="space-y-3">
-                {options?.map((option) => (
-                  <Card key={option.id} className="bg-gray-800 border-gray-700">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            {option.icon && <span className="text-lg">{option.icon}</span>}
-                            <h4 className="font-medium text-white">{option.name}</h4>
+            
+            <div className="space-y-3">
+              {selectedOptionSet ? (
+                <>
+                  {options?.map((option) => (
+                    <Card key={option.id} className="bg-gray-800 border-gray-700">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-start gap-3">
+                            {option.icon && (
+                              <span className="text-xl">{option.icon}</span>
+                            )}
+                            <div>
+                              <h4 className="text-white font-medium">{option.name}</h4>
+                              {option.description && (
+                                <p className="text-gray-400 text-sm mt-1">{option.description}</p>
+                              )}
+                              <p className="text-gray-500 text-xs mt-1">Значення: {option.value}</p>
+                            </div>
                           </div>
-                          {option.description && (
-                            <p className="text-sm text-gray-400 mt-1">{option.description}</p>
-                          )}
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline" className="border-gray-600 text-gray-300 text-xs">
-                              Порядок: {option.order}
-                            </Badge>
-                            <Badge variant="outline" className="border-gray-600 text-gray-300 text-xs">
-                              {option.value}
-                            </Badge>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setEditingOption(option);
+                                setIsOptionDialogOpen(true);
+                              }}
+                              className="p-2 hover:bg-gray-700"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm('Ви впевнені, що хочете видалити цей варіант?')) {
+                                  deleteOptionMutation.mutate(option.id);
+                                }
+                              }}
+                              className="p-2 hover:bg-red-600 text-red-400"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setEditingOption(option);
-                              setIsOptionDialogOpen(true);
-                            }}
-                            className="text-gray-400 hover:text-white hover:bg-gray-700"
-                            data-testid={`button-edit-option-${option.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteOptionMutation.mutate(option.id)}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                            data-testid={`button-delete-option-${option.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )) || (
-                  <div className="text-center py-8 text-gray-500">
-                    Варіанти відсутні. Додайте перший варіант.
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-500">
-                <List className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Оберіть набір варіантів ліворуч для перегляду та редагування варіантів</p>
-              </div>
-            )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                  
+                  {!options?.length && (
+                    <div className="text-center py-8 text-gray-400">
+                      У цьому наборі поки що немає варіантів
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  Оберіть набір варіантів зліва, щоб переглянути його варіанти
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Edit Option Set Dialog */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-2xl bg-gray-800 text-white border-gray-700">
-            <DialogHeader>
-              <DialogTitle className="text-white">
-                {editingOptionSet?.id ? "Редагувати набір" : "Створити набір"}
-              </DialogTitle>
-              <DialogDescription className="text-gray-400">
-                Налаштуйте параметри набору варіантів для карток
-              </DialogDescription>
-            </DialogHeader>
-            {editingOptionSet && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name" className="text-gray-300">Назва набору</Label>
-                    <Input
-                      id="name"
-                      value={editingOptionSet.name}
-                      onChange={(e) => setEditingOptionSet({
-                        ...editingOptionSet,
-                        name: e.target.value
-                      })}
-                      className="bg-gray-700 border-gray-600 text-white"
-                      placeholder="Наприклад: Архетипи бренду"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cardTypeId" className="text-gray-300">Тип картки</Label>
-                    <Select 
-                      value={editingOptionSet.cardTypeId} 
-                      onValueChange={(value) => setEditingOptionSet({
-                        ...editingOptionSet,
-                        cardTypeId: value
-                      })}
-                    >
-                      <SelectTrigger className="bg-gray-700 border-gray-600 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-gray-700 border-gray-600">
-                        {cardTypes.map((type) => (
-                          <SelectItem key={type.id} value={type.id} className="text-white hover:bg-gray-600">
-                            {type.icon} {type.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="description" className="text-gray-300">Опис</Label>
-                  <Textarea
-                    id="description"
-                    value={editingOptionSet.description || ""}
-                    onChange={(e) => setEditingOptionSet({
-                      ...editingOptionSet,
-                      description: e.target.value
-                    })}
-                    className="bg-gray-700 border-gray-600 text-white"
-                    placeholder="Опис набору варіантів..."
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)} className="border-gray-600 text-gray-300 hover:bg-gray-700">
-                    Скасувати
-                  </Button>
-                  <Button 
-                    onClick={handleSaveOptionSet}
-                    disabled={createOptionSetMutation.isPending || updateOptionSetMutation.isPending}
-                    data-testid="button-save-option-set"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {(createOptionSetMutation.isPending || updateOptionSetMutation.isPending) ? "Збереження..." : "Зберегти"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Option Dialog */}
-        <Dialog open={isOptionDialogOpen} onOpenChange={setIsOptionDialogOpen}>
-          <DialogContent className="max-w-2xl bg-gray-800 text-white border-gray-700">
-            <DialogHeader>
-              <DialogTitle className="text-white">
-                {editingOption?.id ? "Редагувати варіант" : "Додати варіант"}
-              </DialogTitle>
-              <DialogDescription className="text-gray-400">
-                Налаштуйте параметри варіанту відповіді
-              </DialogDescription>
-            </DialogHeader>
-            {editingOption && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="optionName" className="text-gray-300">Назва варіанту</Label>
-                    <Input
-                      id="optionName"
-                      value={editingOption.name}
-                      onChange={(e) => setEditingOption({
-                        ...editingOption,
-                        name: e.target.value
-                      })}
-                      className="bg-gray-700 border-gray-600 text-white"
-                      placeholder="Наприклад: Невинний"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="optionIcon" className="text-gray-300">Іконка</Label>
-                    <Input
-                      id="optionIcon"
-                      value={editingOption.icon || ""}
-                      onChange={(e) => setEditingOption({
-                        ...editingOption,
-                        icon: e.target.value
-                      })}
-                      className="bg-gray-700 border-gray-600 text-white"
-                      placeholder="🎭"
-                      maxLength={10}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="optionValue" className="text-gray-300">Значення</Label>
-                    <Input
-                      id="optionValue"
-                      value={editingOption.value}
-                      onChange={(e) => setEditingOption({
-                        ...editingOption,
-                        value: e.target.value
-                      })}
-                      className="bg-gray-700 border-gray-600 text-white"
-                      placeholder="innocent"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="optionDescription" className="text-gray-300">Опис</Label>
-                  <Textarea
-                    id="optionDescription"
-                    value={editingOption.description || ""}
-                    onChange={(e) => setEditingOption({
-                      ...editingOption,
-                      description: e.target.value
-                    })}
-                    className="bg-gray-700 border-gray-600 text-white"
-                    placeholder="Детальний опис варіанту..."
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="optionOrder" className="text-gray-300">Порядок</Label>
-                  <Input
-                    id="optionOrder"
-                    type="number"
-                    value={editingOption.order}
-                    onChange={(e) => setEditingOption({
-                      ...editingOption,
-                      order: parseInt(e.target.value) || 0
-                    })}
-                    className="bg-gray-700 border-gray-600 text-white"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsOptionDialogOpen(false)} className="border-gray-600 text-gray-300 hover:bg-gray-700">
-                    Скасувати
-                  </Button>
-                  <Button 
-                    onClick={handleSaveOption}
-                    disabled={createOptionMutation.isPending || updateOptionMutation.isPending}
-                    data-testid="button-save-option"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {(createOptionMutation.isPending || updateOptionMutation.isPending) ? "Збереження..." : "Зберегти"}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

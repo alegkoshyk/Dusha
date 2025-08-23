@@ -96,6 +96,7 @@ export interface IStorage {
   
   // Card options operations
   getCardOptions(optionSetId: string): Promise<CardOption[]>;
+  getCardOptionsBySetId(setId: string): Promise<CardOption[]>;
   createCardOption(option: InsertCardOption): Promise<CardOption>;
   updateCardOption(id: string, updates: Partial<CardOption>): Promise<CardOption | undefined>;
   deleteCardOption(id: string): Promise<boolean>;
@@ -987,6 +988,12 @@ export class DatabaseStorage implements IStorage {
   async getCardOptions(optionSetId: string): Promise<CardOption[]> {
     return await db.select().from(cardOptionsTable)
       .where(and(eq(cardOptionsTable.optionSetId, optionSetId), eq(cardOptionsTable.isActive, true)))
+      .orderBy(cardOptionsTable.order);
+  }
+
+  async getCardOptionsBySetId(setId: string): Promise<CardOption[]> {
+    return await db.select().from(cardOptionsTable)
+      .where(and(eq(cardOptionsTable.optionSetId, setId), eq(cardOptionsTable.isActive, true)))
       .orderBy(cardOptionsTable.order);
   }
 

@@ -746,6 +746,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get options for specific option set
+  app.get("/api/admin/card-option-sets/:setId/options", requireAdmin, async (req, res) => {
+    try {
+      const { setId } = req.params;
+      const options = await storage.getCardOptionsBySetId(setId);
+      res.json(options);
+    } catch (error) {
+      console.error("Error fetching card options:", error);
+      res.status(500).json({ error: "Failed to fetch card options" });
+    }
+  });
+
   app.get("/api/admin/card-option-sets/:id", requireAdmin, async (req, res) => {
     try {
       const optionSet = await storage.getCardOptionSet(req.params.id);
