@@ -200,13 +200,7 @@ export default function CardsManagement() {
 
   const updateCardMutation = useMutation({
     mutationFn: async ({ cardId, cardData }: { cardId: string; cardData: Partial<GameCard> }) => {
-      return await apiRequest(`/api/admin/cards/${cardId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(cardData),
-      });
+      return await apiRequest("PUT", `/api/admin/cards/${cardId}`, cardData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
@@ -228,9 +222,7 @@ export default function CardsManagement() {
 
   const deleteCardMutation = useMutation({
     mutationFn: async (cardId: string) => {
-      return await apiRequest(`/api/admin/cards/${cardId}`, {
-        method: "DELETE",
-      });
+      return await apiRequest("DELETE", `/api/admin/cards/${cardId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
@@ -250,13 +242,8 @@ export default function CardsManagement() {
 
   const updateCardsOrderMutation = useMutation({
     mutationFn: async (cards: { id: string; positionX: number }[]) => {
-      return await apiRequest("/api/admin/cards/reorder", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ cards }),
-      });
+      const response = await apiRequest("POST", "/api/admin/cards/reorder", { cards });
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
@@ -276,9 +263,8 @@ export default function CardsManagement() {
 
   const normalizePositionsMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/admin/cards/normalize-positions", {
-        method: "POST",
-      });
+      const response = await apiRequest("POST", "/api/admin/cards/normalize-positions");
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
