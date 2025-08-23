@@ -325,6 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { cardId, response, responseType = "text", timeSpent, isWithinTimeLimit, earnedXP } = req.body;
       
       console.log("Saving response:", { sessionId: id, cardId, response, responseType });
+      console.log("Timer data:", { timeSpent, isWithinTimeLimit, earnedXP });
       console.log("Response type:", typeof response);
       console.log("Response length:", response?.length);
       

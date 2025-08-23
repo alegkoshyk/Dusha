@@ -69,7 +69,7 @@ export function GameCard({
   const [validation, setValidation] = useState<{ isValid: boolean; message?: string }>({ isValid: true });
   
   // Таймер логіка
-  const [timeLeft, setTimeLeft] = useState(card.estimatedTime * 60); // Конвертуємо хвилини в секунди
+  const [timeLeft, setTimeLeft] = useState((card.estimatedTime || 3) * 60); // Конвертуємо хвилини в секунди
   const [isTimerActive, setIsTimerActive] = useState(true);
   const [startTime] = useState(() => Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -120,7 +120,7 @@ export function GameCard({
     }
 
     // Скидаємо таймер для нової карти
-    setTimeLeft(card.estimatedTime * 60);
+    setTimeLeft((card.estimatedTime || 3) * 60);
     setIsTimerActive(true);
   }, [card.id, response]);
 
