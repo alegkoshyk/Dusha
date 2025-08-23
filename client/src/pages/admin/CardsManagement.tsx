@@ -351,7 +351,8 @@ export default function CardsManagement() {
   }, {} as Record<string, GameCard[]>) || {};
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <div className="min-h-screen bg-gray-900 text-white">
+      <div className="container mx-auto py-8 space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -561,6 +562,7 @@ export default function CardsManagement() {
           )}
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
