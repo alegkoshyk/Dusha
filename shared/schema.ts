@@ -155,6 +155,10 @@ export const cardResponsesTable = pgTable("card_responses", {
   response: json("response").notNull(), // Текст, вибір або масив значень
   responseType: text("response_type", { enum: ["text", "choice", "values"] }).notNull(),
   submittedAt: timestamp("submitted_at").default(sql`now()`).notNull(),
+  startedAt: timestamp("started_at").default(sql`now()`).notNull(), // Коли почалося проходження картки
+  timeSpent: integer("time_spent"), // Час у секундах, витрачений на картку
+  isWithinTimeLimit: boolean("is_within_time_limit").default(true), // Чи встигли в ліміт часу
+  earnedXP: integer("earned_xp").default(0), // Фактично нараховані XP (з урахуванням таймера)
 }, (table) => ({
   uniqueResponse: index("unique_card_response").on(table.sessionId, table.cardId),
 }));
@@ -331,6 +335,11 @@ export const updateGameSessionSchema = insertGameSessionSchema.partial();
 export const insertCardResponseSchema = createInsertSchema(cardResponsesTable).omit({
   id: true,
   submittedAt: true,
+  startedAt: true,
+}).extend({
+  timeSpent: z.number().optional(),
+  isWithinTimeLimit: z.boolean().optional(),
+  earnedXP: z.number().optional(),
 });
 
 // Типи для користувачів

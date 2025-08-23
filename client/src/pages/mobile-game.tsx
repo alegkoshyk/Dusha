@@ -182,20 +182,36 @@ export default function MobileGame() {
     setLocation(`/game/${sessionId}`);
   };
 
-  const handleCardResponse = async (response: any) => {
+  const handleCardResponse = async (response: any, timeData?: { timeSpent: number; isWithinTimeLimit: boolean; earnedXP: number }) => {
     if (!currentCardId) return;
 
     try {
       const requestData = { 
         cardId: currentCardId, 
-        response 
+        response,
+        ...(timeData && {
+          timeSpent: timeData.timeSpent,
+          isWithinTimeLimit: timeData.isWithinTimeLimit,
+          earnedXP: timeData.earnedXP
+        })
       };
       
       await submitResponseMutation.mutateAsync(requestData);
 
+      // Показуємо результат таймера в повідомленні
+      let description = "Ваша відповідь успішно збережена.";
+      if (timeData) {
+        if (timeData.isWithinTimeLimit) {
+          description += ` Ви встигли! Отримано ${timeData.earnedXP} XP.`;
+        } else {
+          description += " Час вийшов, але відповідь збережена.";
+        }
+      }
+
       toast({
         title: "Відповідь збережена!",
-        description: "Ваша відповідь успішно збережена.",
+        description,
+        variant: timeData?.isWithinTimeLimit === false ? "destructive" : "default",
       });
 
       // Автоматично переходимо до наступної карти або повертаємося на поле

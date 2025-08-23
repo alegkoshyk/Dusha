@@ -322,7 +322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:id/responses", async (req, res) => {
     try {
       const { id } = req.params;
-      const { cardId, response, responseType = "text" } = req.body;
+      const { cardId, response, responseType = "text", timeSpent, isWithinTimeLimit, earnedXP } = req.body;
       
       console.log("Saving response:", { sessionId: id, cardId, response, responseType });
       console.log("Response type:", typeof response);
@@ -353,7 +353,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Error validating card" });
       }
       
-      const session = await storage.saveCardResponse(id, cardId, response, responseType);
+      const session = await storage.saveCardResponse(id, cardId, response, responseType, {
+        timeSpent,
+        isWithinTimeLimit,
+        earnedXP
+      });
       
       if (!session) {
         return res.status(404).json({ error: "Game session not found" });

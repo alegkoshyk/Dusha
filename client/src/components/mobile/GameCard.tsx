@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,8 @@ import {
   Zap,
   Trophy,
   Eye,
-  Plus
+  Plus,
+  Timer
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import type { GameCard as GameCardType, CardProperty } from '@shared/schema';
@@ -34,7 +35,7 @@ interface ExtendedGameCard extends GameCardType {
 interface GameCardProps {
   card: ExtendedGameCard;
   response?: any;
-  onResponse: (response: any) => void;
+  onResponse: (response: any, timeData?: { timeSpent: number; isWithinTimeLimit: boolean; earnedXP: number }) => void;
   onNext: () => void;
   onPrevious?: () => void;
   canGoNext: boolean;
@@ -66,11 +67,41 @@ export function GameCard({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [showHint, setShowHint] = useState(false);
   const [validation, setValidation] = useState<{ isValid: boolean; message?: string }>({ isValid: true });
+  
+  // Таймер логіка
+  const [timeLeft, setTimeLeft] = useState(card.estimatedTime * 60); // Конвертуємо хвилини в секунди
+  const [isTimerActive, setIsTimerActive] = useState(true);
+  const [startTime] = useState(() => Date.now());
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Ініціалізація таймера
+  useEffect(() => {
+    if (isTimerActive && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            setIsTimerActive(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [isTimerActive, timeLeft]);
 
   // Ініціалізація та оновлення відповіді при зміні карти або збереженої відповіді
   useEffect(() => {
-
-    
     if (response !== undefined && response !== null) {
       if (typeof response === 'string') {
         setCurrentResponse(response);
@@ -78,7 +109,6 @@ export function GameCard({
       } else if (Array.isArray(response)) {
         setCurrentResponse('');
         setSelectedOptions(response);
-
       } else {
         setCurrentResponse('');
         setSelectedOptions([]);
@@ -88,6 +118,10 @@ export function GameCard({
       setCurrentResponse('');
       setSelectedOptions([]);
     }
+
+    // Скидаємо таймер для нової карти
+    setTimeLeft(card.estimatedTime * 60);
+    setIsTimerActive(true);
   }, [card.id, response]);
 
   useEffect(() => {
@@ -142,6 +176,21 @@ export function GameCard({
     setValidation({ isValid: true });
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const calculateTimeData = () => {
+    const timeSpent = Math.round((Date.now() - startTime) / 1000);
+    const isWithinTimeLimit = timeLeft > 0;
+    const baseXP = (card.rewards as any)?.xp || 0;
+    const earnedXP = isWithinTimeLimit ? baseXP : 0;
+    
+    return { timeSpent, isWithinTimeLimit, earnedXP };
+  };
+
   const handleSubmit = () => {
     // For info cards, submit immediately to mark as completed
     if (card.type === 'info' || card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start') {
@@ -151,13 +200,16 @@ export function GameCard({
 
     if (!validation.isValid) return;
 
+    setIsTimerActive(false);
+
     const responseData = (card.type === 'values' || card.type === 'archetype')
       ? selectedOptions 
       : card.type === 'choice'
         ? selectedOptions[0] 
         : currentResponse.trim();
 
-    onResponse(responseData);
+    const timeData = calculateTimeData();
+    onResponse(responseData, timeData);
   };
 
   const handleOptionToggle = (optionId: string) => {
@@ -246,13 +298,28 @@ export function GameCard({
             </div>
             
             <div className="flex items-center gap-2">
+              {/* Таймер */}
+              {card.type !== 'info' && (
+                <Badge 
+                  variant={timeLeft > 30 ? "secondary" : timeLeft > 0 ? "destructive" : "outline"} 
+                  className="flex items-center gap-1"
+                >
+                  <Timer className="w-3 h-3" />
+                  {formatTime(timeLeft)}
+                </Badge>
+              )}
+              
               <Badge variant="outline" className={getDifficultyColor(card.difficulty)}>
                 {getDifficultyLabel(card.difficulty)}
               </Badge>
+              
               {card.rewards && typeof card.rewards === 'object' && 'xp' in card.rewards && (
-                <Badge variant="secondary" className="flex items-center gap-1">
+                <Badge 
+                  variant={timeLeft > 0 ? "secondary" : "outline"} 
+                  className={`flex items-center gap-1 ${timeLeft <= 0 ? 'opacity-50' : ''}`}
+                >
                   <Zap className="w-3 h-3" />
-                  {(card.rewards as any).xp} XP
+                  {timeLeft > 0 ? (card.rewards as any).xp : 0} XP
                 </Badge>
               )}
             </div>
@@ -593,6 +660,34 @@ export function GameCard({
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* Timer Warning Message */}
+              {card.type !== 'info' && timeLeft <= 30 && timeLeft > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg"
+                >
+                  <Clock className="w-4 h-4 text-orange-500" />
+                  <span className="text-sm text-orange-700 dark:text-orange-300">
+                    Залишилось часу: {formatTime(timeLeft)}. Поспішайте, щоб отримати бонусні XP!
+                  </span>
+                </motion.div>
+              )}
+
+              {/* Time's Up Message */}
+              {card.type !== 'info' && timeLeft === 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+                >
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-700 dark:text-red-300">
+                    Час вийшов! Відповідь буде збережена, але бонусні XP не нараховуються.
+                  </span>
+                </motion.div>
               )}
 
               {/* Validation Message */}

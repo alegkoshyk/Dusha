@@ -60,7 +60,7 @@ export interface IStorage {
   deleteGameSession(id: string): Promise<boolean>;
   
   // Game progress operations
-  saveCardResponse(sessionId: string, cardId: string, response: any, responseType: string): Promise<GameSession | undefined>;
+  saveCardResponse(sessionId: string, cardId: string, response: any, responseType: string, timeData?: { timeSpent?: number; isWithinTimeLimit?: boolean; earnedXP?: number }): Promise<GameSession | undefined>;
   getCardResponses(sessionId: string): Promise<CardResponse[]>;
   getGameProgress(sessionId: string): Promise<{ progress: number; currentLevel: string; currentCard: string } | undefined>;
   generateBrandMap(sessionId: string): Promise<BrandMap | undefined>;
@@ -342,7 +342,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async saveCardResponse(sessionId: string, cardId: string, response: any, responseType: string): Promise<GameSession | undefined> {
+  async saveCardResponse(sessionId: string, cardId: string, response: any, responseType: string, timeData?: { timeSpent?: number; isWithinTimeLimit?: boolean; earnedXP?: number }): Promise<GameSession | undefined> {
     console.log("DatabaseStorage.saveCardResponse called with:", { sessionId, cardId, response, responseType });
     
     try {
@@ -354,6 +354,11 @@ export class DatabaseStorage implements IStorage {
           cardId,
           response,
           responseType: responseType as "text" | "choice" | "values",
+          ...(timeData && {
+            timeSpent: timeData.timeSpent,
+            isWithinTimeLimit: timeData.isWithinTimeLimit ?? true,
+            earnedXP: timeData.earnedXP ?? 0,
+          })
         })
         .onConflictDoUpdate({
           target: [cardResponsesTable.sessionId, cardResponsesTable.cardId],
@@ -361,6 +366,11 @@ export class DatabaseStorage implements IStorage {
             response,
             responseType: responseType as "text" | "choice" | "values",
             submittedAt: sql`now()`,
+            ...(timeData && {
+              timeSpent: timeData.timeSpent,
+              isWithinTimeLimit: timeData.isWithinTimeLimit ?? true,
+              earnedXP: timeData.earnedXP ?? 0,
+            })
           }
         });
       
@@ -379,6 +389,11 @@ export class DatabaseStorage implements IStorage {
     const totalCards = totalCardsResult[0]?.count || 0;
     const progress = Math.round((completedCards.length / totalCards) * 100);
 
+    // Calculate total earned XP
+    const totalEarnedXP = completedResponses.reduce((sum, response) => {
+      return sum + (response.earnedXP || 0);
+    }, 0);
+
     // Determine next card based on game flow
     const nextCard = await this.getNextCard(completedCards);
 
@@ -388,6 +403,7 @@ export class DatabaseStorage implements IStorage {
         completedCards,
         progress,
         currentCard: nextCard,
+        totalXp: totalEarnedXP,
         updatedAt: sql`now()`,
       })
       .where(eq(gameSessionsTable.id, sessionId))
