@@ -312,42 +312,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserStats(userId: string): Promise<{totalXp: number; totalGames: number; completedGames: number}> {
-    // Get all user sessions with proper joins
-    const sessionsWithXp = await db
-      .select({
-        sessionId: gameSessionsTable.id,
-        totalXp: gameSessionsTable.totalXp,
-        completed: gameSessionsTable.completed,
-        earnedXp: cardResponsesTable.earnedXp
-      })
-      .from(gameSessionsTable)
-      .innerJoin(userBrandsTable, eq(gameSessionsTable.brandId, userBrandsTable.id))
-      .leftJoin(cardResponsesTable, eq(gameSessionsTable.id, cardResponsesTable.sessionId))
-      .where(eq(userBrandsTable.userId, userId));
-
-    // Group by session and calculate totals
-    const sessionMap = new Map<string, {totalXp: number; completed: boolean; calculatedXp: number}>();
+    // Спочатку отримаємо всі сесії користувача
+    const sessions = await this.getUserGameSessions(userId);
     
-    sessionsWithXp.forEach(row => {
-      if (!sessionMap.has(row.sessionId)) {
-        sessionMap.set(row.sessionId, {
-          totalXp: row.totalXp || 0,
-          completed: !!row.completed,
-          calculatedXp: 0
-        });
-      }
-      if (row.earnedXp) {
-        sessionMap.get(row.sessionId)!.calculatedXp += row.earnedXp;
-      }
-    });
-
-    const sessions = Array.from(sessionMap.values());
+    // Потім для кожної сесії підрахуємо загальний XP з відповідей
+    let totalXpFromAllSessions = 0;
+    
+    for (const session of sessions) {
+      const responses = await this.getCardResponses(session.id);
+      const sessionXpFromResponses = responses.reduce((sum, response) => {
+        return sum + (response.earnedXp || 0);
+      }, 0);
+      
+      // Використовуємо максимум між збереженим totalXp та розрахованим
+      const sessionTotalXp = Math.max(session.totalXp || 0, sessionXpFromResponses);
+      totalXpFromAllSessions += sessionTotalXp;
+    }
+    
     const totalGames = sessions.length;
     const completedGames = sessions.filter(s => s.completed).length;
-    const totalXp = sessions.reduce((sum, s) => sum + Math.max(s.totalXp, s.calculatedXp), 0);
     
     return {
-      totalXp,
+      totalXp: totalXpFromAllSessions,
       totalGames,
       completedGames
     };
