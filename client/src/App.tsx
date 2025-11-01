@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -14,9 +14,33 @@ import Results from "@/pages/results";
 import BrandBoard from "@/pages/brand-board";
 import { Auth } from "@/pages/auth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+// Lyceum pages
+import LyceumHome from "@/pages/lyceum/LyceumHome";
+import About from "@/pages/lyceum/About";
+import Contacts from "@/pages/lyceum/Contacts";
+import Preschool from "@/pages/lyceum/Preschool";
+import GenericPage from "@/pages/lyceum/GenericPage";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  const [location] = useLocation();
+
+  // Check if current route is a lyceum page
+  const isLyceumRoute = location.startsWith("/lyceum");
+
+  // Show lyceum pages without authentication
+  if (isLyceumRoute) {
+    return (
+      <Switch>
+        <Route path="/lyceum" component={LyceumHome} />
+        <Route path="/lyceum/o-nas/misiya-ta-cinnosti" component={About} />
+        <Route path="/lyceum/kontakti" component={Contacts} />
+        <Route path="/lyceum/osvitni-poslugi/doshkilnij-licej2" component={Preschool} />
+        <Route path="/lyceum/:rest*" component={GenericPage} />
+        <Route component={NotFound} />
+      </Switch>
+    );
+  }
 
   if (isLoading) {
     return (
