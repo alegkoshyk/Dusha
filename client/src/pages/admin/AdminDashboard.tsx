@@ -166,15 +166,15 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-800 border-gray-700 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-cyan-500" onClick={() => navigate('/rcadmin/db-sync')} data-testid="card-db-sync">
+          <Card className="bg-gray-800 border-gray-700 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-gray-500" onClick={() => navigate('/rcadmin/settings')} data-testid="card-settings">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-cyan-900 rounded-lg">
-                  <RefreshCw className="h-5 w-5 text-cyan-400" />
+                <div className="p-2 bg-gray-700 rounded-lg">
+                  <Settings className="h-5 w-5 text-gray-400" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white text-sm">Синхронізація БД</h3>
-                  <p className="text-xs text-gray-400">Dev → Production</p>
+                  <h3 className="font-semibold text-white text-sm">Налаштування</h3>
+                  <p className="text-xs text-gray-400">Синхронізація БД та інше</p>
                 </div>
               </div>
             </CardContent>
