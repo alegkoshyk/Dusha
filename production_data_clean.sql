@@ -1,22 +1,22 @@
 -- =============================================
 -- ПОВНИЙ SQL ДЛЯ PRODUCTION БАЗИ ДАНИХ
--- (з очищенням існуючих даних)
+-- (з TRUNCATE CASCADE для повного очищення)
 -- =============================================
 
--- ОЧИСТКА ІСНУЮЧИХ ДАНИХ (у правильному порядку через foreign keys)
-DELETE FROM card_responses;
-DELETE FROM game_sessions;
-DELETE FROM user_brands;
-DELETE FROM user_profiles;
-DELETE FROM user_settings;
-DELETE FROM card_option_set_links;
-DELETE FROM card_options;
-DELETE FROM card_option_sets;
-DELETE FROM card_properties;
-DELETE FROM card_relations;
-DELETE FROM game_cards;
-DELETE FROM game_levels;
-DELETE FROM users;
+-- ОЧИСТКА ВСІХ ТАБЛИЦЬ (CASCADE автоматично очистить залежності)
+TRUNCATE TABLE card_properties CASCADE;
+TRUNCATE TABLE card_relations CASCADE;
+TRUNCATE TABLE card_option_set_links CASCADE;
+TRUNCATE TABLE card_options CASCADE;
+TRUNCATE TABLE card_option_sets CASCADE;
+TRUNCATE TABLE card_responses CASCADE;
+TRUNCATE TABLE game_sessions CASCADE;
+TRUNCATE TABLE game_cards CASCADE;
+TRUNCATE TABLE game_levels CASCADE;
+TRUNCATE TABLE user_brands CASCADE;
+TRUNCATE TABLE user_profiles CASCADE;
+TRUNCATE TABLE user_settings CASCADE;
+TRUNCATE TABLE users CASCADE;
 
 -- 1. РІВНІ ГРИ
 INSERT INTO public.game_levels (id, name, description, "order", color, icon, created_at, updated_at) VALUES ('soul', 'Душа бренду', 'Знайдіть свою місію, цінності та історію бренду', 1, '#e11d48', 'Heart', '2025-08-18 18:55:55.984716', '2025-08-18 18:55:55.984716');
