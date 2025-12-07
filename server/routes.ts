@@ -1003,16 +1003,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const values = columns.map(col => {
           const val = row[col];
           if (val === null || val === undefined) return 'NULL';
-          if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
-          if (val instanceof Date) return `'${val.toISOString()}'`;
-          if (typeof val === 'number') return String(val);
           
-          // Handle JSON columns - always stringify the value
+          // Handle JSON columns FIRST - always stringify any value
           if (jsonColumns.has(col)) {
             const jsonStr = JSON.stringify(val).replace(/'/g, "''");
             return `'${jsonStr}'::json`;
           }
           
+          if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+          if (val instanceof Date) return `'${val.toISOString()}'`;
+          if (typeof val === 'number') return String(val);
           if (typeof val === 'object') {
             const jsonStr = JSON.stringify(val).replace(/'/g, "''");
             return `'${jsonStr}'`;
@@ -1101,16 +1101,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const values = columns.map(col => {
               const val = row[col];
               if (val === null || val === undefined) return 'NULL';
-              if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
-              if (val instanceof Date) return `'${val.toISOString()}'`;
-              if (typeof val === 'number') return String(val);
               
-              // Handle JSON columns - always stringify the value
+              // Handle JSON columns FIRST - always stringify any value
               if (jsonColumns.has(col)) {
                 const jsonStr = JSON.stringify(val).replace(/'/g, "''");
                 return `'${jsonStr}'::json`;
               }
               
+              if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+              if (val instanceof Date) return `'${val.toISOString()}'`;
+              if (typeof val === 'number') return String(val);
               if (typeof val === 'object') {
                 const jsonStr = JSON.stringify(val).replace(/'/g, "''");
                 return `'${jsonStr}'`;
