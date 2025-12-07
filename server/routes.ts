@@ -18,6 +18,8 @@ import {
   optionalAuth
 } from "./auth";
 import { z } from "zod";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 // Admin middleware
 const requireAdmin = async (req: any, res: any, next: any) => {
@@ -874,6 +876,220 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting card option:", error);
       res.status(500).json({ error: "Failed to delete card option" });
+    }
+  });
+
+  // =====================================================
+  // DATABASE SYNC ROUTES (Dev to Production)
+  // =====================================================
+
+  // Get comparison between dev and prod databases
+  app.get("/api/admin/db-sync/compare", requireAdmin, async (req, res) => {
+    try {
+      const prodDbUrl = process.env.PRODUCTION_DATABASE_URL;
+      if (!prodDbUrl) {
+        return res.status(400).json({ error: "PRODUCTION_DATABASE_URL not configured" });
+      }
+
+      // Import neon for production database
+      const { neon } = await import("@neondatabase/serverless");
+      const prodQuery = neon(prodDbUrl);
+
+      // Tables to sync
+      const tables = [
+        'game_levels',
+        'game_cards', 
+        'card_properties',
+        'card_relations',
+        'card_option_sets',
+        'card_options',
+        'card_option_set_links',
+        'users',
+        'user_profiles',
+        'user_settings',
+        'user_brands',
+        'game_sessions',
+        'card_responses'
+      ];
+
+      const comparison: any[] = [];
+
+      for (const table of tables) {
+        try {
+          // Get dev count using raw SQL
+          const devResult = await db.execute(sql.raw(`SELECT COUNT(*) as count FROM "${table}"`));
+          const devCount = Number(devResult.rows[0]?.count || 0);
+
+          // Get prod count
+          let prodCount = 0;
+          try {
+            const prodResult = await prodQuery(`SELECT COUNT(*) as count FROM "${table}"`);
+            prodCount = Number(prodResult[0]?.count || 0);
+          } catch (e: any) {
+            if (e.message?.includes('does not exist')) {
+              prodCount = -1; // Table doesn't exist in prod
+            }
+          }
+
+          comparison.push({
+            table,
+            devCount,
+            prodCount,
+            diff: devCount - (prodCount >= 0 ? prodCount : 0),
+            status: prodCount === -1 ? 'missing' : (devCount === prodCount ? 'synced' : 'different')
+          });
+        } catch (e: any) {
+          comparison.push({
+            table,
+            devCount: 0,
+            prodCount: 0,
+            diff: 0,
+            status: 'error',
+            error: e.message
+          });
+        }
+      }
+
+      res.json({ comparison, prodDbConnected: true });
+    } catch (error: any) {
+      console.error("DB Sync compare error:", error);
+      res.status(500).json({ error: error.message || "Failed to compare databases" });
+    }
+  });
+
+  // Sync a specific table from dev to prod
+  app.post("/api/admin/db-sync/sync-table", requireAdmin, async (req, res) => {
+    try {
+      const { table } = req.body;
+      if (!table) {
+        return res.status(400).json({ error: "Table name required" });
+      }
+
+      const prodDbUrl = process.env.PRODUCTION_DATABASE_URL;
+      if (!prodDbUrl) {
+        return res.status(400).json({ error: "PRODUCTION_DATABASE_URL not configured" });
+      }
+
+      const { neon } = await import("@neondatabase/serverless");
+      const prodQuery = neon(prodDbUrl);
+
+      // Get all data from dev
+      const devData = await db.execute(sql.raw(`SELECT * FROM "${table}"`));
+      
+      if (devData.rows.length === 0) {
+        return res.json({ synced: 0, message: "No data to sync" });
+      }
+
+      // Truncate prod table first
+      await prodQuery(`TRUNCATE TABLE "${table}" CASCADE`);
+
+      // Build INSERT statements  
+      const columns = Object.keys(devData.rows[0]);
+      let synced = 0;
+
+      for (const row of devData.rows) {
+        const values = columns.map(col => {
+          const val = row[col];
+          if (val === null) return 'NULL';
+          if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
+          if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+          if (val instanceof Date) return `'${val.toISOString()}'`;
+          if (typeof val === 'object') return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+          return String(val);
+        });
+        const columnsStr = columns.map(c => `"${c}"`).join(', ');
+        const valuesStr = values.join(', ');
+        
+        await prodQuery(`INSERT INTO "${table}" (${columnsStr}) VALUES (${valuesStr})`);
+        synced++;
+      }
+
+      res.json({ synced, message: `Successfully synced ${synced} rows` });
+    } catch (error: any) {
+      console.error("DB Sync table error:", error);
+      res.status(500).json({ error: error.message || "Failed to sync table" });
+    }
+  });
+
+  // Sync all tables
+  app.post("/api/admin/db-sync/sync-all", requireAdmin, async (req, res) => {
+    try {
+      const prodDbUrl = process.env.PRODUCTION_DATABASE_URL;
+      if (!prodDbUrl) {
+        return res.status(400).json({ error: "PRODUCTION_DATABASE_URL not configured" });
+      }
+
+      const { neon } = await import("@neondatabase/serverless");
+      const prodQuery = neon(prodDbUrl);
+
+      // Tables in order (respecting foreign keys)
+      const tables = [
+        'game_levels',
+        'users',
+        'user_profiles',
+        'user_settings',
+        'user_brands',
+        'game_cards',
+        'card_properties',
+        'card_relations',
+        'card_option_sets',
+        'card_options',
+        'card_option_set_links',
+        'game_sessions',
+        'card_responses'
+      ];
+
+      const results: any[] = [];
+
+      // First truncate all tables in reverse order
+      for (const table of [...tables].reverse()) {
+        try {
+          await prodQuery(`TRUNCATE TABLE "${table}" CASCADE`);
+        } catch (e) {
+          // Ignore if table doesn't exist
+        }
+      }
+
+      // Now insert data
+      for (const table of tables) {
+        try {
+          const devData = await db.execute(sql.raw(`SELECT * FROM "${table}"`));
+          
+          if (devData.rows.length === 0) {
+            results.push({ table, synced: 0, status: 'empty' });
+            continue;
+          }
+
+          const columns = Object.keys(devData.rows[0]);
+          let synced = 0;
+
+          for (const row of devData.rows) {
+            const values = columns.map(col => {
+              const val = row[col];
+              if (val === null) return 'NULL';
+              if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
+              if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
+              if (val instanceof Date) return `'${val.toISOString()}'`;
+              if (typeof val === 'object') return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
+              return String(val);
+            });
+            const columnsStr = columns.map(c => `"${c}"`).join(', ');
+            const valuesStr = values.join(', ');
+            
+            await prodQuery(`INSERT INTO "${table}" (${columnsStr}) VALUES (${valuesStr})`);
+            synced++;
+          }
+
+          results.push({ table, synced, status: 'success' });
+        } catch (e: any) {
+          results.push({ table, synced: 0, status: 'error', error: e.message });
+        }
+      }
+
+      res.json({ results, success: true });
+    } catch (error: any) {
+      console.error("DB Sync all error:", error);
+      res.status(500).json({ error: error.message || "Failed to sync all tables" });
     }
   });
 
