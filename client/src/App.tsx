@@ -21,6 +21,7 @@ import CardOptionSets from "@/pages/admin/CardOptionSets";
 import OptionsList from "@/pages/admin/OptionsList";
 import Users from "@/pages/admin/Users";
 import DatabaseSync from "@/pages/admin/DatabaseSync";
+import Settings from "@/pages/admin/Settings";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
