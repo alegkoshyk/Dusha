@@ -41,10 +41,8 @@ export default function DatabaseSync() {
 
   const syncAllMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("/api/admin/db-sync/sync-all", {
-        method: "POST",
-      });
-      return response;
+      const response = await apiRequest("POST", "/api/admin/db-sync/sync-all");
+      return response.json();
     },
     onSuccess: (data: any) => {
       setSyncProgress(data.results || []);
@@ -67,12 +65,9 @@ export default function DatabaseSync() {
 
   const syncTableMutation = useMutation({
     mutationFn: async (table: string) => {
-      const response = await apiRequest("/api/admin/db-sync/sync-table", {
-        method: "POST",
-        body: JSON.stringify({ table }),
-        headers: { "Content-Type": "application/json" },
-      });
-      return { table, ...response };
+      const response = await apiRequest("POST", "/api/admin/db-sync/sync-table", { table });
+      const data = await response.json();
+      return { table, ...data };
     },
     onSuccess: (data: any) => {
       toast({
