@@ -60,6 +60,7 @@ function Router() {
           <Route path="/rcadmin/options-list" component={OptionsList} />
           <Route path="/rcadmin/users" component={Users} />
           <Route path="/rcadmin/db-sync" component={DatabaseSync} />
+          <Route path="/rcadmin/settings" component={Settings} />
           <Route component={NotFound} />
         </Switch>
       </main>

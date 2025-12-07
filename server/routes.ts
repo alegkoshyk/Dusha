@@ -987,6 +987,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const columns = Object.keys(devData.rows[0]);
       let synced = 0;
 
+      // Get column types for proper JSON handling
+      const columnTypesResult = await db.execute(sql.raw(`
+        SELECT column_name, data_type 
+        FROM information_schema.columns 
+        WHERE table_name = '${table}'
+      `));
+      const jsonColumns = new Set(
+        columnTypesResult.rows
+          .filter((r: any) => r.data_type === 'json' || r.data_type === 'jsonb')
+          .map((r: any) => r.column_name)
+      );
+
       for (const row of devData.rows) {
         const values = columns.map(col => {
           const val = row[col];
@@ -994,9 +1006,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
           if (val instanceof Date) return `'${val.toISOString()}'`;
           if (typeof val === 'number') return String(val);
-          if (typeof val === 'object') {
+          
+          // Handle JSON columns - always stringify the value
+          if (jsonColumns.has(col)) {
             const jsonStr = JSON.stringify(val).replace(/'/g, "''");
             return `'${jsonStr}'::json`;
+          }
+          
+          if (typeof val === 'object') {
+            const jsonStr = JSON.stringify(val).replace(/'/g, "''");
+            return `'${jsonStr}'`;
           }
           return `'${String(val).replace(/'/g, "''")}'`;
         });
@@ -1066,6 +1085,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const columns = Object.keys(devData.rows[0]);
           let synced = 0;
 
+          // Get column types for proper JSON handling
+          const columnTypesResult = await db.execute(sql.raw(`
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = '${table}'
+          `));
+          const jsonColumns = new Set(
+            columnTypesResult.rows
+              .filter((r: any) => r.data_type === 'json' || r.data_type === 'jsonb')
+              .map((r: any) => r.column_name)
+          );
+
           for (const row of devData.rows) {
             const values = columns.map(col => {
               const val = row[col];
@@ -1073,9 +1104,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
               if (val instanceof Date) return `'${val.toISOString()}'`;
               if (typeof val === 'number') return String(val);
-              if (typeof val === 'object') {
+              
+              // Handle JSON columns - always stringify the value
+              if (jsonColumns.has(col)) {
                 const jsonStr = JSON.stringify(val).replace(/'/g, "''");
                 return `'${jsonStr}'::json`;
+              }
+              
+              if (typeof val === 'object') {
+                const jsonStr = JSON.stringify(val).replace(/'/g, "''");
+                return `'${jsonStr}'`;
               }
               return `'${String(val).replace(/'/g, "''")}'`;
             });
