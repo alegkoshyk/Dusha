@@ -6,22 +6,26 @@ import type { User } from "@shared/schema";
 
 const PgSession = connectPgSimple(session);
 
+// Determine if running in production
+const isProduction = process.env.NODE_ENV === 'production' || process.env.REPL_DEPLOYMENT === '1';
+
 // Configure session middleware
 export const sessionMiddleware = session({
   store: new PgSession({
     pool: pool,
     tableName: "sessions",
-    createTableIfMissing: false,
+    createTableIfMissing: true, // Auto-create sessions table if missing
   }),
   secret: process.env.SESSION_SECRET || "your-secret-key-change-in-production",
   resave: false,
   saveUninitialized: true, // Change to true for iPad compatibility
   name: "connect.sid", // Standard session name
+  proxy: isProduction, // Trust proxy in production
   cookie: {
-    secure: false, // Disable for development
+    secure: isProduction, // true for HTTPS in production
     httpOnly: false, // Disable for iPad/Safari compatibility
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-    sameSite: "none", // Change to "none" for cross-origin compatibility
+    sameSite: isProduction ? "none" : "lax", // "none" for production, "lax" for dev
     domain: undefined, // Let browser handle domain
   },
 });
