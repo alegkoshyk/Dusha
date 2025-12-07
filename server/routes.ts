@@ -990,12 +990,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const row of devData.rows) {
         const values = columns.map(col => {
           const val = row[col];
-          if (val === null) return 'NULL';
-          if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
+          if (val === null || val === undefined) return 'NULL';
           if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
           if (val instanceof Date) return `'${val.toISOString()}'`;
-          if (typeof val === 'object') return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
-          return String(val);
+          if (typeof val === 'number') return String(val);
+          if (typeof val === 'object') {
+            const jsonStr = JSON.stringify(val).replace(/'/g, "''");
+            return `'${jsonStr}'::json`;
+          }
+          return `'${String(val).replace(/'/g, "''")}'`;
         });
         const columnsStr = columns.map(c => `"${c}"`).join(', ');
         const valuesStr = values.join(', ');
@@ -1066,12 +1069,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (const row of devData.rows) {
             const values = columns.map(col => {
               const val = row[col];
-              if (val === null) return 'NULL';
-              if (typeof val === 'string') return `'${val.replace(/'/g, "''")}'`;
+              if (val === null || val === undefined) return 'NULL';
               if (typeof val === 'boolean') return val ? 'TRUE' : 'FALSE';
               if (val instanceof Date) return `'${val.toISOString()}'`;
-              if (typeof val === 'object') return `'${JSON.stringify(val).replace(/'/g, "''")}'`;
-              return String(val);
+              if (typeof val === 'number') return String(val);
+              if (typeof val === 'object') {
+                const jsonStr = JSON.stringify(val).replace(/'/g, "''");
+                return `'${jsonStr}'::json`;
+              }
+              return `'${String(val).replace(/'/g, "''")}'`;
             });
             const columnsStr = columns.map(c => `"${c}"`).join(', ');
             const valuesStr = values.join(', ');
