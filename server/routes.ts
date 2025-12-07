@@ -886,13 +886,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get comparison between dev and prod databases
   app.get("/api/admin/db-sync/compare", requireAdmin, async (req, res) => {
     try {
+      const devDbUrl = process.env.DEVELOPMENT_DATABASE_URL;
       const prodDbUrl = process.env.PRODUCTION_DATABASE_URL;
-      if (!prodDbUrl) {
-        return res.status(400).json({ error: "PRODUCTION_DATABASE_URL not configured" });
+      
+      if (!devDbUrl || !prodDbUrl) {
+        return res.status(400).json({ 
+          error: "Database URLs not configured",
+          devConfigured: !!devDbUrl,
+          prodConfigured: !!prodDbUrl
+        });
       }
 
-      // Import neon for production database
+      // Import neon for both databases
       const { neon } = await import("@neondatabase/serverless");
+      const devQuery = neon(devDbUrl);
       const prodQuery = neon(prodDbUrl);
 
       // Tables to sync
@@ -916,9 +923,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const table of tables) {
         try {
-          // Get dev count using raw SQL
-          const devResult = await db.execute(sql.raw(`SELECT COUNT(*) as count FROM "${table}"`));
-          const devCount = Number(devResult.rows[0]?.count || 0);
+          // Get dev count
+          let devCount = 0;
+          try {
+            const devResult = await devQuery(`SELECT COUNT(*) as count FROM "${table}"`);
+            devCount = Number(devResult[0]?.count || 0);
+          } catch (e: any) {
+            if (e.message?.includes('does not exist')) {
+              devCount = -1;
+            }
+          }
 
           // Get prod count
           let prodCount = 0;
@@ -933,9 +947,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           comparison.push({
             table,
-            devCount,
-            prodCount,
-            diff: devCount - (prodCount >= 0 ? prodCount : 0),
+            devCount: devCount >= 0 ? devCount : 0,
+            prodCount: prodCount >= 0 ? prodCount : 0,
+            diff: (devCount >= 0 ? devCount : 0) - (prodCount >= 0 ? prodCount : 0),
             status: prodCount === -1 ? 'missing' : (devCount === prodCount ? 'synced' : 'different')
           });
         } catch (e: any) {
@@ -950,7 +964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      res.json({ comparison, prodDbConnected: true });
+      res.json({ comparison, devDbConnected: true, prodDbConnected: true });
     } catch (error: any) {
       console.error("DB Sync compare error:", error);
       res.status(500).json({ error: error.message || "Failed to compare databases" });
@@ -965,18 +979,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Table name required" });
       }
 
+      const devDbUrl = process.env.DEVELOPMENT_DATABASE_URL;
       const prodDbUrl = process.env.PRODUCTION_DATABASE_URL;
-      if (!prodDbUrl) {
-        return res.status(400).json({ error: "PRODUCTION_DATABASE_URL not configured" });
+      if (!devDbUrl || !prodDbUrl) {
+        return res.status(400).json({ error: "Database URLs not configured" });
       }
 
       const { neon } = await import("@neondatabase/serverless");
+      const devQuery = neon(devDbUrl);
       const prodQuery = neon(prodDbUrl);
 
       // Get all data from dev
-      const devData = await db.execute(sql.raw(`SELECT * FROM "${table}"`));
+      const devData = await devQuery(`SELECT * FROM "${table}"`);
       
-      if (devData.rows.length === 0) {
+      if (devData.length === 0) {
         return res.json({ synced: 0, message: "No data to sync" });
       }
 
@@ -984,22 +1000,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await prodQuery(`TRUNCATE TABLE "${table}" CASCADE`);
 
       // Build INSERT statements  
-      const columns = Object.keys(devData.rows[0]);
+      const columns = Object.keys(devData[0]);
       let synced = 0;
 
       // Get column types for proper JSON handling
-      const columnTypesResult = await db.execute(sql.raw(`
+      const columnTypesResult = await devQuery(`
         SELECT column_name, data_type 
         FROM information_schema.columns 
         WHERE table_name = '${table}'
-      `));
+      `);
       const jsonColumns = new Set(
-        columnTypesResult.rows
+        columnTypesResult
           .filter((r: any) => r.data_type === 'json' || r.data_type === 'jsonb')
           .map((r: any) => r.column_name)
       );
 
-      for (const row of devData.rows) {
+      for (const row of devData) {
         const values = columns.map(col => {
           const val = row[col];
           if (val === null || val === undefined) return 'NULL';
@@ -1036,12 +1052,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Sync all tables
   app.post("/api/admin/db-sync/sync-all", requireAdmin, async (req, res) => {
     try {
+      const devDbUrl = process.env.DEVELOPMENT_DATABASE_URL;
       const prodDbUrl = process.env.PRODUCTION_DATABASE_URL;
-      if (!prodDbUrl) {
-        return res.status(400).json({ error: "PRODUCTION_DATABASE_URL not configured" });
+      if (!devDbUrl || !prodDbUrl) {
+        return res.status(400).json({ error: "Database URLs not configured" });
       }
 
       const { neon } = await import("@neondatabase/serverless");
+      const devQuery = neon(devDbUrl);
       const prodQuery = neon(prodDbUrl);
 
       // Tables in order (respecting foreign keys)
@@ -1075,29 +1093,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Now insert data
       for (const table of tables) {
         try {
-          const devData = await db.execute(sql.raw(`SELECT * FROM "${table}"`));
+          const devData = await devQuery(`SELECT * FROM "${table}"`);
           
-          if (devData.rows.length === 0) {
+          if (devData.length === 0) {
             results.push({ table, synced: 0, status: 'empty' });
             continue;
           }
 
-          const columns = Object.keys(devData.rows[0]);
+          const columns = Object.keys(devData[0]);
           let synced = 0;
 
           // Get column types for proper JSON handling
-          const columnTypesResult = await db.execute(sql.raw(`
+          const columnTypesResult = await devQuery(`
             SELECT column_name, data_type 
             FROM information_schema.columns 
             WHERE table_name = '${table}'
-          `));
+          `);
           const jsonColumns = new Set(
-            columnTypesResult.rows
+            columnTypesResult
               .filter((r: any) => r.data_type === 'json' || r.data_type === 'jsonb')
               .map((r: any) => r.column_name)
           );
 
-          for (const row of devData.rows) {
+          for (const row of devData) {
             const values = columns.map(col => {
               const val = row[col];
               if (val === null || val === undefined) return 'NULL';
