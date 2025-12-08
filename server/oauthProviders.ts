@@ -4,8 +4,8 @@ import { storage } from "./storage";
 import { setUserInSession } from "./auth";
 import crypto from "crypto";
 
-// OAuth state management
-const oauthStates = new Map<string, { provider: string; timestamp: number }>();
+// OAuth state management with nonce for extra security
+const oauthStates = new Map<string, { provider: string; timestamp: number; nonce?: string }>();
 
 // Clean up old states every hour
 setInterval(() => {
@@ -18,20 +18,22 @@ setInterval(() => {
   }
 }, 60 * 60 * 1000);
 
-// Generate secure state
-function generateState(provider: string): string {
+// Generate secure state with optional nonce
+function generateState(provider: string, includeNonce: boolean = false): { state: string; nonce?: string } {
   const state = crypto.randomBytes(32).toString('hex');
-  oauthStates.set(state, { provider, timestamp: Date.now() });
-  return state;
+  const nonce = includeNonce ? crypto.randomBytes(32).toString('hex') : undefined;
+  oauthStates.set(state, { provider, timestamp: Date.now(), nonce });
+  return { state, nonce };
 }
 
-// Verify state
-function verifyState(state: string, provider: string): boolean {
+// Verify state and get nonce
+function verifyState(state: string, provider: string): { valid: boolean; nonce?: string } {
   const data = oauthStates.get(state);
-  if (!data) return false;
-  if (data.provider !== provider) return false;
+  if (!data) return { valid: false };
+  if (data.provider !== provider) return { valid: false };
+  const nonce = data.nonce;
   oauthStates.delete(state);
-  return true;
+  return { valid: true, nonce };
 }
 
 // Get base URL dynamically
@@ -53,7 +55,7 @@ export function setupOAuthRoutes(app: Express) {
       return res.status(500).json({ error: "Google OAuth not configured" });
     }
 
-    const state = generateState("google");
+    const { state } = generateState("google");
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/auth/google/callback`;
 
@@ -79,7 +81,8 @@ export function setupOAuthRoutes(app: Express) {
         return res.redirect("/?error=google_oauth_denied");
       }
 
-      if (!code || !state || !verifyState(state as string, "google")) {
+      const stateResult = verifyState(state as string, "google");
+      if (!code || !state || !stateResult.valid) {
         return res.redirect("/?error=invalid_state");
       }
 
@@ -174,17 +177,21 @@ export function setupOAuthRoutes(app: Express) {
       return res.status(500).json({ error: "Apple OAuth not configured" });
     }
 
-    const state = generateState("apple");
+    // Use nonce for extra security with Apple
+    const { state, nonce } = generateState("apple", true);
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/auth/apple/callback`;
 
     const appleAuthUrl = new URL("https://appleid.apple.com/auth/authorize");
     appleAuthUrl.searchParams.set("client_id", clientId);
     appleAuthUrl.searchParams.set("redirect_uri", redirectUri);
-    appleAuthUrl.searchParams.set("response_type", "code id_token");
+    appleAuthUrl.searchParams.set("response_type", "code");
     appleAuthUrl.searchParams.set("scope", "name email");
     appleAuthUrl.searchParams.set("state", state);
     appleAuthUrl.searchParams.set("response_mode", "form_post");
+    if (nonce) {
+      appleAuthUrl.searchParams.set("nonce", nonce);
+    }
 
     res.redirect(appleAuthUrl.toString());
   });
@@ -192,27 +199,85 @@ export function setupOAuthRoutes(app: Express) {
   // Apple OAuth callback (uses POST for form_post response mode)
   app.post("/api/auth/apple/callback", async (req: Request, res: Response) => {
     try {
-      const { code, state, id_token, user: userJson, error } = req.body;
+      const { code, state, user: userJson, error } = req.body;
 
       if (error) {
         console.error("Apple OAuth error:", error);
         return res.redirect("/?error=apple_oauth_denied");
       }
 
-      if (!code || !state || !verifyState(state, "apple")) {
+      const stateResult = verifyState(state, "apple");
+      if (!code || !state || !stateResult.valid) {
         return res.redirect("/?error=invalid_state");
       }
+      const expectedNonce = stateResult.nonce;
 
-      // Decode the ID token to get user info (Apple provides minimal info)
+      const clientId = process.env.APPLE_CLIENT_ID;
+      const clientSecret = process.env.APPLE_CLIENT_SECRET;
+      if (!clientId || !clientSecret) {
+        return res.redirect("/?error=oauth_not_configured");
+      }
+
+      const baseUrl = getBaseUrl(req);
+      const redirectUri = `${baseUrl}/api/auth/apple/callback`;
+
+      // Exchange authorization code for tokens (secure server-side exchange)
+      const tokenResponse = await fetch("https://appleid.apple.com/auth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code: code as string,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        console.error("Apple token error:", await tokenResponse.text());
+        return res.redirect("/?error=token_exchange_failed");
+      }
+
+      const tokens = await tokenResponse.json();
+      
+      // Decode the verified ID token from Apple's token response
       let appleUser: any = {};
-      if (id_token) {
+      if (tokens.id_token) {
         try {
-          const payload = JSON.parse(Buffer.from(id_token.split('.')[1], 'base64').toString());
+          // The id_token from Apple's token endpoint is signed and can be trusted
+          // since it came directly from Apple's server in exchange for a valid code
+          const payload = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64').toString());
+          
+          // Validate essential claims
+          if (payload.iss !== 'https://appleid.apple.com') {
+            console.error("Invalid Apple ID token issuer");
+            return res.redirect("/?error=invalid_token_issuer");
+          }
+          if (payload.aud !== clientId) {
+            console.error("Invalid Apple ID token audience");
+            return res.redirect("/?error=invalid_token_audience");
+          }
+          if (payload.exp * 1000 < Date.now()) {
+            console.error("Apple ID token expired");
+            return res.redirect("/?error=token_expired");
+          }
+          
+          // Verify nonce if we sent one
+          if (expectedNonce && payload.nonce !== expectedNonce) {
+            console.error("Apple ID token nonce mismatch");
+            return res.redirect("/?error=invalid_nonce");
+          }
+          
           appleUser.id = payload.sub;
           appleUser.email = payload.email;
+          appleUser.emailVerified = payload.email_verified;
         } catch (e) {
           console.error("Failed to decode Apple ID token:", e);
+          return res.redirect("/?error=invalid_token");
         }
+      } else {
+        return res.redirect("/?error=no_id_token");
       }
 
       // Apple provides user info only on first login
