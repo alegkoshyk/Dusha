@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/hooks/useAuth";
 import { loginUserSchema, type LoginUser } from "@shared/schema";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { SiGoogle, SiApple } from "react-icons/si";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -112,6 +114,42 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
             {isLoginPending ? "Вхід..." : "Увійти"}
           </Button>
         </form>
+
+        <div className="my-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <Separator className="w-full" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-muted-foreground">
+                або увійти через
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => window.location.href = '/api/auth/google'}
+            data-testid="button-google-login"
+          >
+            <SiGoogle className="mr-2 h-4 w-4" />
+            Google
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => window.location.href = '/api/auth/apple'}
+            data-testid="button-apple-login"
+          >
+            <SiApple className="mr-2 h-4 w-4" />
+            Apple
+          </Button>
+        </div>
 
         {onSwitchToRegister && (
           <div className="mt-6 text-center">
