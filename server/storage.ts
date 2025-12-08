@@ -158,6 +158,69 @@ export class DatabaseStorage implements IStorage {
       .where(eq(usersTable.id, id));
   }
 
+  // Alias for OAuth providers
+  async updateUserLastLogin(id: string): Promise<void> {
+    return this.updateUserLoginTime(id);
+  }
+
+  // OAuth user operations
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.googleId, googleId))
+      .limit(1);
+    return user;
+  }
+
+  async getUserByAppleId(appleId: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.appleId, appleId))
+      .limit(1);
+    return user;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const [updated] = await db
+      .update(usersTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(usersTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async createOAuthUser(userData: {
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    avatar?: string;
+    googleId?: string;
+    appleId?: string;
+    authProvider: string;
+  }): Promise<User> {
+    const [user] = await db
+      .insert(usersTable)
+      .values({
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        avatar: userData.avatar,
+        googleId: userData.googleId,
+        appleId: userData.appleId,
+        authProvider: userData.authProvider,
+        passwordHash: null as any, // OAuth users don't have password
+      })
+      .returning();
+
+    // Create default user settings and profile
+    await this.createUserSettings({ userId: user.id });
+    await this.createUserProfile({ userId: user.id });
+
+    return user;
+  }
+
   // Simple in-memory token storage for iPad compatibility
   private authTokens: Map<string, { userId: string; createdAt: Date }> = new Map();
 

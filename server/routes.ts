@@ -17,6 +17,7 @@ import {
   clearUserFromSession,
   optionalAuth
 } from "./auth";
+import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
@@ -50,6 +51,9 @@ const updateProgressSchema = z.object({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Apply session middleware
   app.use(sessionMiddleware);
+  
+  // Setup OAuth routes (Google, Apple)
+  setupOAuthRoutes(app);
 
   // Authentication routes
   app.post("/api/auth/register", async (req, res) => {

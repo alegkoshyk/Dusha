@@ -7,18 +7,23 @@ import { relations } from "drizzle-orm";
 // Таблиця користувачів
 export const usersTable = pgTable("users", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  email: varchar("email", { length: 255 }).unique(),
+  passwordHash: varchar("password_hash", { length: 255 }),
   firstName: varchar("first_name", { length: 100}),
   lastName: varchar("last_name", { length: 100}),
   avatar: text("avatar"),
-  role: varchar("role", { length: 20 }).notNull().default("user"), // "user" or "admin"
+  role: varchar("role", { length: 20 }).notNull().default("user"),
   isActive: boolean("is_active").notNull().default(true),
   lastLoginAt: timestamp("last_login_at"),
+  googleId: varchar("google_id", { length: 255 }).unique(),
+  appleId: varchar("apple_id", { length: 255 }).unique(),
+  authProvider: varchar("auth_provider", { length: 50 }).default("email"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 }, (table) => ({
   emailIdx: index("users_email_idx").on(table.email),
+  googleIdIdx: index("users_google_id_idx").on(table.googleId),
+  appleIdIdx: index("users_apple_id_idx").on(table.appleId),
 }));
 
 // Таблиця налаштувань користувача
