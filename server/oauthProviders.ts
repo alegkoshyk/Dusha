@@ -159,6 +159,19 @@ export function setupOAuthRoutes(app: Express) {
       // Update last login
       await storage.updateUserLastLogin(user.id);
 
+      // Explicitly save session before redirect (important for production)
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error("Session save error:", err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      console.log("Google OAuth success - session saved for user:", user.email);
       res.redirect("/dashboard");
     } catch (error) {
       console.error("Google OAuth callback error:", error);
@@ -326,6 +339,19 @@ export function setupOAuthRoutes(app: Express) {
       // Update last login
       await storage.updateUserLastLogin(user.id);
 
+      // Explicitly save session before redirect (important for production)
+      await new Promise<void>((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error("Session save error:", err);
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      console.log("Apple OAuth success - session saved for user:", user.email);
       res.redirect("/dashboard");
     } catch (error) {
       console.error("Apple OAuth callback error:", error);
