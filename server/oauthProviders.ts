@@ -4,6 +4,54 @@ import { storage } from "./storage";
 import { setUserInSession } from "./auth";
 import crypto from "crypto";
 
+// Generate Apple client secret (JWT signed with private key)
+function generateAppleClientSecret(): string {
+  const teamId = process.env.APPLE_TEAM_ID;
+  const keyId = process.env.APPLE_KEY_ID;
+  const clientId = process.env.APPLE_CLIENT_ID;
+  const privateKey = process.env.APPLE_PRIVATE_KEY;
+
+  if (!teamId || !keyId || !clientId || !privateKey) {
+    throw new Error("Missing Apple OAuth configuration");
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const expiration = now + 86400 * 180; // 180 days
+
+  // JWT Header
+  const header = {
+    alg: "ES256",
+    kid: keyId,
+    typ: "JWT"
+  };
+
+  // JWT Payload
+  const payload = {
+    iss: teamId,
+    iat: now,
+    exp: expiration,
+    aud: "https://appleid.apple.com",
+    sub: clientId
+  };
+
+  // Base64url encode
+  const base64url = (data: object) => 
+    Buffer.from(JSON.stringify(data)).toString('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  const headerEncoded = base64url(header);
+  const payloadEncoded = base64url(payload);
+  const signingInput = `${headerEncoded}.${payloadEncoded}`;
+
+  // Sign with ES256 (ECDSA with P-256 and SHA-256)
+  const sign = crypto.createSign('SHA256');
+  sign.update(signingInput);
+  const signature = sign.sign(privateKey.replace(/\\n/g, '\n'), 'base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  return `${signingInput}.${signature}`;
+}
+
 // OAuth state management with nonce for extra security
 const oauthStates = new Map<string, { provider: string; timestamp: number; nonce?: string }>();
 
@@ -226,8 +274,16 @@ export function setupOAuthRoutes(app: Express) {
       const expectedNonce = stateResult.nonce;
 
       const clientId = process.env.APPLE_CLIENT_ID;
-      const clientSecret = process.env.APPLE_CLIENT_SECRET;
-      if (!clientId || !clientSecret) {
+      if (!clientId) {
+        return res.redirect("/?error=oauth_not_configured");
+      }
+      
+      // Generate client secret dynamically (Apple requires JWT signed with private key)
+      let clientSecret: string;
+      try {
+        clientSecret = generateAppleClientSecret();
+      } catch (e) {
+        console.error("Failed to generate Apple client secret:", e);
         return res.redirect("/?error=oauth_not_configured");
       }
 
