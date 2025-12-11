@@ -239,8 +239,26 @@ export function setupOAuthRoutes(app: Express) {
   // Initiate Apple OAuth flow
   app.get("/api/auth/apple", (req: Request, res: Response) => {
     const clientId = process.env.APPLE_CLIENT_ID;
-    if (!clientId) {
-      return res.status(500).json({ error: "Apple OAuth not configured" });
+    const teamId = process.env.APPLE_TEAM_ID;
+    const keyId = process.env.APPLE_KEY_ID;
+    const privateKey = process.env.APPLE_PRIVATE_KEY;
+    
+    console.log("Apple OAuth config check:", {
+      hasClientId: !!clientId,
+      hasTeamId: !!teamId,
+      hasKeyId: !!keyId,
+      hasPrivateKey: !!privateKey,
+      privateKeyLength: privateKey?.length || 0
+    });
+    
+    if (!clientId || !teamId || !keyId || !privateKey) {
+      console.error("Apple OAuth missing config:", {
+        clientId: clientId ? "present" : "MISSING",
+        teamId: teamId ? "present" : "MISSING",
+        keyId: keyId ? "present" : "MISSING",
+        privateKey: privateKey ? "present" : "MISSING"
+      });
+      return res.redirect("/?error=apple_oauth_not_configured");
     }
 
     // Use nonce for extra security with Apple
