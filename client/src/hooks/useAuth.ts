@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import type { User, LoginUser, RegisterUser } from "@shared/schema";
 
 interface AuthUser {
@@ -7,14 +8,40 @@ interface AuthUser {
   settings?: any;
 }
 
+// Check for auth_token in URL (from OAuth redirect) and store it
+function checkAndStoreUrlToken() {
+  if (typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('auth_token');
+    if (urlToken) {
+      localStorage.setItem('authToken', urlToken);
+      console.log('Auth token from OAuth stored');
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }
+}
+
+// Run immediately on module load
+checkAndStoreUrlToken();
+
 export function useAuth() {
   const queryClient = useQueryClient();
+
+  // Also check on hook mount in case of client-side navigation
+  useEffect(() => {
+    checkAndStoreUrlToken();
+  }, []);
 
   const { data, isLoading, error } = useQuery<AuthUser>({
     queryKey: ["/api/auth/me"],
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 хвилин
     queryFn: async () => {
+      // Check URL for token first (OAuth redirect)
+      checkAndStoreUrlToken();
+      
       // Get auth token for iPad compatibility
       const authToken = localStorage.getItem('authToken');
       

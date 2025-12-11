@@ -207,6 +207,10 @@ export function setupOAuthRoutes(app: Express) {
       // Update last login
       await storage.updateUserLastLogin(user.id);
 
+      // Generate auth token for reliable authentication after OAuth redirect
+      const authToken = crypto.randomBytes(32).toString('hex');
+      await storage.createAuthToken(user.id, authToken);
+
       // Explicitly save session before redirect (important for production)
       await new Promise<void>((resolve, reject) => {
         req.session.save((err) => {
@@ -220,7 +224,8 @@ export function setupOAuthRoutes(app: Express) {
       });
 
       console.log("Google OAuth success - session saved for user:", user.email);
-      res.redirect("/dashboard");
+      // Redirect with token for reliable auth pickup
+      res.redirect(`/dashboard?auth_token=${authToken}`);
     } catch (error) {
       console.error("Google OAuth callback error:", error);
       res.redirect("/?error=oauth_failed");
@@ -395,6 +400,10 @@ export function setupOAuthRoutes(app: Express) {
       // Update last login
       await storage.updateUserLastLogin(user.id);
 
+      // Generate auth token for reliable authentication after OAuth redirect
+      const authToken = crypto.randomBytes(32).toString('hex');
+      await storage.createAuthToken(user.id, authToken);
+
       // Explicitly save session before redirect (important for production)
       await new Promise<void>((resolve, reject) => {
         req.session.save((err) => {
@@ -408,7 +417,8 @@ export function setupOAuthRoutes(app: Express) {
       });
 
       console.log("Apple OAuth success - session saved for user:", user.email);
-      res.redirect("/dashboard");
+      // Redirect with token for reliable auth pickup
+      res.redirect(`/dashboard?auth_token=${authToken}`);
     } catch (error) {
       console.error("Apple OAuth callback error:", error);
       res.redirect("/?error=oauth_failed");
