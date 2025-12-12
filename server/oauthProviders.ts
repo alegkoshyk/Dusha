@@ -457,11 +457,25 @@ export function setupOAuthRoutes(app: Express) {
     }
   });
 
-  // Check OAuth providers availability
+  // Check OAuth providers availability (with detailed Apple config check)
   app.get("/api/auth/providers", (req: Request, res: Response) => {
+    const appleConfig = {
+      hasClientId: !!process.env.APPLE_CLIENT_ID,
+      hasTeamId: !!process.env.APPLE_TEAM_ID,
+      hasKeyId: !!process.env.APPLE_KEY_ID,
+      hasPrivateKey: !!process.env.APPLE_PRIVATE_KEY,
+      privateKeyLength: process.env.APPLE_PRIVATE_KEY?.length || 0,
+    };
+    
+    const appleFullyConfigured = appleConfig.hasClientId && 
+      appleConfig.hasTeamId && 
+      appleConfig.hasKeyId && 
+      appleConfig.hasPrivateKey;
+    
     res.json({
       google: !!process.env.GOOGLE_CLIENT_ID,
-      apple: !!process.env.APPLE_CLIENT_ID,
+      apple: appleFullyConfigured,
+      appleConfig, // Detailed config status (no secrets exposed)
       email: true,
     });
   });
