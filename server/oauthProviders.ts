@@ -459,13 +459,28 @@ export function setupOAuthRoutes(app: Express) {
 
   // Check OAuth providers availability (with detailed Apple config check)
   app.get("/api/auth/providers", (req: Request, res: Response) => {
+    const privateKey = process.env.APPLE_PRIVATE_KEY || "";
+    const normalizedKey = privateKey.replace(/\\n/g, '\n');
+    
     const appleConfig = {
       hasClientId: !!process.env.APPLE_CLIENT_ID,
       hasTeamId: !!process.env.APPLE_TEAM_ID,
       hasKeyId: !!process.env.APPLE_KEY_ID,
       hasPrivateKey: !!process.env.APPLE_PRIVATE_KEY,
-      privateKeyLength: process.env.APPLE_PRIVATE_KEY?.length || 0,
+      privateKeyLength: privateKey.length,
+      keyStartsWith: privateKey.substring(0, 30),
+      keyHasBeginMarker: normalizedKey.includes('-----BEGIN PRIVATE KEY-----'),
+      keyHasEndMarker: normalizedKey.includes('-----END PRIVATE KEY-----'),
     };
+    
+    // Test JWT generation
+    let jwtTestResult = "not_tested";
+    try {
+      generateAppleClientSecret();
+      jwtTestResult = "success";
+    } catch (e: any) {
+      jwtTestResult = `error: ${e.message}`;
+    }
     
     const appleFullyConfigured = appleConfig.hasClientId && 
       appleConfig.hasTeamId && 
@@ -476,6 +491,7 @@ export function setupOAuthRoutes(app: Express) {
       google: !!process.env.GOOGLE_CLIENT_ID,
       apple: appleFullyConfigured,
       appleConfig, // Detailed config status (no secrets exposed)
+      jwtTestResult,
       email: true,
     });
   });
