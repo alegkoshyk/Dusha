@@ -282,8 +282,20 @@ export function setupOAuthRoutes(app: Express) {
 
   // Apple OAuth callback (uses POST for form_post response mode)
   app.post("/api/auth/apple/callback", async (req: Request, res: Response) => {
+    console.log("=== APPLE OAUTH CALLBACK RECEIVED ===");
+    console.log("Request body keys:", Object.keys(req.body || {}));
+    console.log("Request headers origin:", req.headers.origin);
+    console.log("Request protocol:", req.protocol);
+    
     try {
       const { code, state, user: userJson, error } = req.body;
+      
+      console.log("Apple callback params:", {
+        hasCode: !!code,
+        hasState: !!state,
+        hasUserJson: !!userJson,
+        error: error || "none"
+      });
 
       if (error) {
         console.error("Apple OAuth error:", error);
@@ -435,6 +447,8 @@ export function setupOAuthRoutes(app: Express) {
       });
 
       console.log("Apple OAuth success - session saved for user:", user.email);
+      console.log("Generated auth token length:", authToken.length);
+      console.log("Redirecting to dashboard with token...");
       // Redirect with token for reliable auth pickup
       res.redirect(`/dashboard?auth_token=${authToken}`);
     } catch (error) {
