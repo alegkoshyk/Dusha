@@ -1015,7 +1015,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(userId: string): Promise<void> {
+    console.log(`Deleting user ${userId} and all related data...`);
+    
+    // 1. Clean up auth tokens for this user
+    for (const [token, data] of this.authTokens.entries()) {
+      if (data.userId === userId) {
+        this.authTokens.delete(token);
+      }
+    }
+    
+    // 2. Delete user (cascade will handle related data:
+    //    - user_settings (CASCADE)
+    //    - user_profiles (CASCADE)
+    //    - user_brands (CASCADE) -> game_sessions (CASCADE) -> card_responses (CASCADE)
+    //    - game_sessions directly linked to user (CASCADE) -> card_responses (CASCADE)
     await db.delete(usersTable).where(eq(usersTable.id, userId));
+    
+    console.log(`User ${userId} and all related data deleted successfully`);
   }
 
   // Card option sets operations
