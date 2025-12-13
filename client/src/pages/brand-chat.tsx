@@ -104,8 +104,9 @@ export default function BrandChat() {
       return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt });
     },
     onSuccess: (data) => {
-      if (data.imageBase64) {
-        setGeneratedImage(data.imageBase64);
+      const imageData = data.imageBase64 || data.imageUrl;
+      if (imageData) {
+        setGeneratedImage(imageData);
         toast({
           title: "Зображення створено",
           description: "Зображення успішно згенеровано",

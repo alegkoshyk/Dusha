@@ -122,12 +122,12 @@ export default function Settings() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Key className="w-5 h-5" />
-            NanoBanana (Gemini) API ключ
+            NanoBanana API ключ
           </CardTitle>
           <CardDescription>
-            Додайте свій API ключ Google Gemini для генерації зображень у чаті з брендом.
+            Додайте свій API ключ NanoBanana для генерації зображень у чаті з брендом.
             <a 
-              href="https://ai.google.dev/" 
+              href="https://nanobananaapi.ai/api-key" 
               target="_blank" 
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 ml-1 text-blue-600 hover:underline"
@@ -209,13 +209,13 @@ export default function Settings() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="apiKey">API ключ Google Gemini</Label>
+                <Label htmlFor="apiKey">API ключ NanoBanana</Label>
                 <Input
                   id="apiKey"
                   type="password"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="AIza..."
+                  placeholder="Ваш NanoBanana API ключ"
                   data-testid="input-api-key"
                 />
                 <p className="text-xs text-gray-500">

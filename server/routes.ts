@@ -1743,7 +1743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profile = await storage.getUserProfile(userId);
       if (!profile?.geminiApiKey) {
         return res.status(400).json({ 
-          error: "API ключ не налаштовано. Додайте Gemini API ключ у налаштуваннях." 
+          error: "API ключ не налаштовано. Додайте NanoBanana API ключ у налаштуваннях." 
         });
       }
 
@@ -1765,7 +1765,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         success: true, 
-        imageBase64: result.imageBase64 
+        imageBase64: result.imageBase64,
+        imageUrl: result.imageUrl
       });
     } catch (error: any) {
       console.error("Image generation error:", error);

@@ -817,7 +817,7 @@ export default function Settings() {
                   NanoBanana - Генерація зображень
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Налаштуйте API ключ для генерації зображень через NanoBanana (Gemini)
+                  Налаштуйте API ключ для генерації зображень через NanoBanana
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -826,7 +826,7 @@ export default function Settings() {
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-white text-base flex items-center gap-2">
                         <Key className="h-4 w-4" />
-                        Google Gemini API ключ
+                        NanoBanana API ключ
                       </CardTitle>
                       <Badge className={userSettings?.hasGeminiKey ? 'bg-green-600' : 'bg-gray-600'} data-testid="badge-gemini-status">
                         {userSettings?.hasGeminiKey ? (
@@ -839,7 +839,7 @@ export default function Settings() {
                     <CardDescription className="text-gray-400">
                       {userSettings?.hasGeminiKey 
                         ? 'Ключ збережено. Генерація зображень доступна.'
-                        : 'Введіть ваш Google Gemini API ключ для генерації зображень.'}
+                        : 'Введіть ваш NanoBanana API ключ для генерації зображень.'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -852,7 +852,7 @@ export default function Settings() {
                             type={showGeminiKey ? "text" : "password"}
                             value={geminiKeyInput}
                             onChange={(e) => setGeminiKeyInput(e.target.value)}
-                            placeholder="AIza..."
+                            placeholder="Ваш NanoBanana API ключ"
                             className="bg-gray-800 border-gray-600 text-white pr-10"
                             data-testid="input-gemini-api-key"
                           />
@@ -904,12 +904,12 @@ export default function Settings() {
                         <p className="text-xs text-blue-200">
                           Перейдіть на{" "}
                           <a 
-                            href="https://aistudio.google.com/app/apikey" 
+                            href="https://nanobananaapi.ai/api-key" 
                             target="_blank" 
                             rel="noopener noreferrer" 
                             className="underline hover:text-white inline-flex items-center gap-1"
                           >
-                            Google AI Studio
+                            NanoBanana API
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         </p>
