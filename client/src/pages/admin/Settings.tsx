@@ -107,7 +107,7 @@ export default function Settings() {
     queryKey: ["/api/admin/ai-usage"],
   });
 
-  const { data: userSettings, refetch: refetchUserSettings } = useQuery<{ hasGeminiKey: boolean }>({
+  const { data: userSettings, refetch: refetchUserSettings } = useQuery<{ hasGeminiApiKey: boolean }>({
     queryKey: ["/api/user/settings"],
   });
 
@@ -828,8 +828,8 @@ export default function Settings() {
                         <Key className="h-4 w-4" />
                         NanoBanana API ключ
                       </CardTitle>
-                      <Badge className={userSettings?.hasGeminiKey ? 'bg-green-600' : 'bg-gray-600'} data-testid="badge-gemini-status">
-                        {userSettings?.hasGeminiKey ? (
+                      <Badge className={userSettings?.hasGeminiApiKey ? 'bg-green-600' : 'bg-gray-600'} data-testid="badge-gemini-status">
+                        {userSettings?.hasGeminiApiKey ? (
                           <><Check className="h-3 w-3 mr-1" /> Налаштовано</>
                         ) : (
                           <><X className="h-3 w-3 mr-1" /> Не налаштовано</>
@@ -837,7 +837,7 @@ export default function Settings() {
                       </Badge>
                     </div>
                     <CardDescription className="text-gray-400">
-                      {userSettings?.hasGeminiKey 
+                      {userSettings?.hasGeminiApiKey 
                         ? 'Ключ збережено. Генерація зображень доступна.'
                         : 'Введіть ваш NanoBanana API ключ для генерації зображень.'}
                     </CardDescription>
@@ -880,7 +880,7 @@ export default function Settings() {
                           )}
                           Зберегти
                         </Button>
-                        {userSettings?.hasGeminiKey && (
+                        {userSettings?.hasGeminiApiKey && (
                           <Button
                             onClick={() => deleteGeminiKeyMutation.mutate()}
                             disabled={deleteGeminiKeyMutation.isPending}
@@ -924,25 +924,25 @@ export default function Settings() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiApiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
                         <h5 className="font-medium text-white mb-2">Генерація зображень</h5>
                         <p className="text-sm text-gray-400">
                           Створюйте унікальні зображення для вашого бренду за допомогою AI
                         </p>
                       </div>
-                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiApiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
                         <h5 className="font-medium text-white mb-2">Візуальна ідентичність</h5>
                         <p className="text-sm text-gray-400">
                           Генеруйте логотипи, банери та інші візуальні елементи бренду
                         </p>
                       </div>
-                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiApiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
                         <h5 className="font-medium text-white mb-2">Швидкий результат</h5>
                         <p className="text-sm text-gray-400">
                           Отримуйте готові зображення за лічені секунди
                         </p>
                       </div>
-                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiApiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
                         <h5 className="font-medium text-white mb-2">Інтеграція в чат</h5>
                         <p className="text-sm text-gray-400">
                           Генеруйте зображення прямо з чату бренд-асистента
