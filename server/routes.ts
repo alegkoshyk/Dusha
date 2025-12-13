@@ -1165,12 +1165,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Check if OpenAI is configured
   app.get("/api/admin/ai-settings", requireAdmin, async (req, res) => {
     try {
+      const configured = await isOpenAIConfigured();
+      const dbSetting = await storage.getAppSetting("OPENAI_API_KEY");
       res.json({
-        isConfigured: isOpenAIConfigured(),
-        hasApiKey: !!process.env.OPENAI_API_KEY
+        configured,
+        hasDbKey: !!dbSetting?.value,
+        hasEnvKey: !!process.env.OPENAI_API_KEY,
+        keySource: dbSetting?.value ? 'database' : (process.env.OPENAI_API_KEY ? 'environment' : 'none')
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Save OpenAI API key to database
+  app.post("/api/admin/ai-settings", requireAdmin, async (req, res) => {
+    try {
+      const { apiKey } = req.body;
+      
+      if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10) {
+        return res.status(400).json({ error: "Некоректний API ключ" });
+      }
+
+      await storage.setAppSetting(
+        "OPENAI_API_KEY", 
+        apiKey.trim(), 
+        true, 
+        "OpenAI API ключ для AI аналізу брендів"
+      );
+
+      // Reset cached OpenAI client to use new key
+      const { resetOpenAIClient } = await import("./openai");
+      resetOpenAIClient();
+
+      res.json({ 
+        success: true, 
+        message: "API ключ успішно збережено" 
+      });
+    } catch (error: any) {
+      console.error("Error saving OpenAI API key:", error);
+      res.status(500).json({ error: "Не вдалося зберегти API ключ" });
     }
   });
 

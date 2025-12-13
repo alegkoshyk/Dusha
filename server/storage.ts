@@ -14,6 +14,7 @@ import {
   type InsertUserBrand,
   type UserProfile,
   type InsertUserProfile,
+  type AppSetting,
   gameSessionsTable,
   cardResponsesTable,
   gameCardsTable,
@@ -28,6 +29,7 @@ import {
   cardOptionSetsTable,
   cardOptionsTable,
   cardOptionSetLinksTable,
+  appSettingsTable,
   type CardType,
   type InsertCardType,
   type CardOptionSet,
@@ -1305,6 +1307,45 @@ export class DatabaseStorage implements IStorage {
     }
     
     return response;
+  }
+
+  // App settings operations
+  async getAppSetting(key: string): Promise<AppSetting | undefined> {
+    const [setting] = await db
+      .select()
+      .from(appSettingsTable)
+      .where(eq(appSettingsTable.key, key))
+      .limit(1);
+    return setting;
+  }
+
+  async setAppSetting(key: string, value: string, isSecret: boolean = false, description?: string): Promise<AppSetting> {
+    const existing = await this.getAppSetting(key);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(appSettingsTable)
+        .set({ 
+          value, 
+          isSecret,
+          description: description || existing.description,
+          updatedAt: new Date() 
+        })
+        .where(eq(appSettingsTable.key, key))
+        .returning();
+      return updated;
+    }
+    
+    const [created] = await db
+      .insert(appSettingsTable)
+      .values({
+        key,
+        value,
+        isSecret,
+        description,
+      })
+      .returning();
+    return created;
   }
 }
 

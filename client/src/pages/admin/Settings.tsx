@@ -5,13 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info, Eye, EyeOff, Save } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface AISettingsData {
   configured: boolean;
+  hasDbKey: boolean;
+  hasEnvKey: boolean;
+  keySource: 'database' | 'environment' | 'none';
 }
 
 interface TableComparison {
@@ -39,6 +44,8 @@ export default function Settings() {
   const { toast } = useToast();
   const [syncProgress, setSyncProgress] = useState<SyncResult[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
 
   const { data: comparison, isLoading, refetch, isRefetching } = useQuery<CompareResult>({
     queryKey: ["/api/admin/db-sync/compare"],
@@ -46,6 +53,28 @@ export default function Settings() {
 
   const { data: aiSettings, isLoading: isLoadingAI, refetch: refetchAI } = useQuery<AISettingsData>({
     queryKey: ["/api/admin/ai-settings"],
+  });
+
+  const saveApiKeyMutation = useMutation({
+    mutationFn: async (apiKey: string) => {
+      const response = await apiRequest("POST", "/api/admin/ai-settings", { apiKey });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Успішно збережено",
+        description: "API ключ успішно збережено в базі даних",
+      });
+      setApiKeyInput("");
+      refetchAI();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Помилка",
+        description: error.message || "Не вдалося зберегти API ключ",
+        variant: "destructive",
+      });
+    },
   });
 
   const syncAllMutation = useMutation({
@@ -330,26 +359,77 @@ export default function Settings() {
                       </Badge>
                     </div>
 
-                    {!aiSettings?.configured && (
-                      <Card className="bg-blue-900/30 border-blue-700">
-                        <CardContent className="p-4">
-                          <div className="flex gap-3">
-                            <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                            <div className="space-y-3">
-                              <h4 className="font-medium text-blue-300">Як налаштувати OpenAI API</h4>
-                              <ol className="list-decimal list-inside text-sm text-blue-200 space-y-2">
-                                <li>Перейдіть на <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">platform.openai.com/api-keys</a></li>
-                                <li>Створіть новий API ключ</li>
-                                <li>У Replit відкрийте вкладку "Secrets" (іконка замка)</li>
-                                <li>Додайте новий секрет з ім'ям <code className="bg-blue-900 px-1 rounded">OPENAI_API_KEY</code></li>
-                                <li>Вставте ваш API ключ як значення</li>
-                                <li>Перезапустіть додаток</li>
-                              </ol>
+                    <Card className="bg-gray-900 border-gray-700">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-white text-base">
+                          {aiSettings?.configured ? 'Оновити API ключ' : 'Додати API ключ'}
+                        </CardTitle>
+                        <CardDescription className="text-gray-400">
+                          {aiSettings?.keySource === 'database' 
+                            ? 'Ключ зберігається в базі даних. Ви можете його оновити.'
+                            : aiSettings?.keySource === 'environment'
+                            ? 'Ключ налаштовано через змінну середовища. Ви можете додати ключ в БД для зручності.'
+                            : 'Введіть ваш OpenAI API ключ для активації AI функцій.'}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="api-key" className="text-gray-300">API ключ</Label>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <Input
+                                id="api-key"
+                                type={showApiKey ? "text" : "password"}
+                                value={apiKeyInput}
+                                onChange={(e) => setApiKeyInput(e.target.value)}
+                                placeholder="sk-..."
+                                className="bg-gray-800 border-gray-600 text-white pr-10"
+                                data-testid="input-api-key"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-gray-400"
+                                onClick={() => setShowApiKey(!showApiKey)}
+                                data-testid="button-toggle-key-visibility"
+                              >
+                                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </Button>
                             </div>
+                            <Button
+                              onClick={() => saveApiKeyMutation.mutate(apiKeyInput)}
+                              disabled={!apiKeyInput || apiKeyInput.length < 10 || saveApiKeyMutation.isPending}
+                              className="bg-green-600 hover:bg-green-700"
+                              data-testid="button-save-api-key"
+                            >
+                              {saveApiKeyMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Save className="h-4 w-4 mr-2" />
+                              )}
+                              Зберегти
+                            </Button>
                           </div>
-                        </CardContent>
-                      </Card>
-                    )}
+                          <p className="text-xs text-gray-500">
+                            Ключ буде безпечно збережено в базі даних
+                          </p>
+                        </div>
+
+                        <div className="flex gap-3 p-3 rounded-lg bg-blue-900/30 border border-blue-700">
+                          <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-blue-300 text-sm">Як отримати API ключ</h4>
+                            <ol className="list-decimal list-inside text-xs text-blue-200 space-y-1">
+                              <li>Перейдіть на <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">platform.openai.com/api-keys</a></li>
+                              <li>Увійдіть або зареєструйтесь</li>
+                              <li>Створіть новий API ключ</li>
+                              <li>Скопіюйте та вставте його сюди</li>
+                            </ol>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
 
                     <div className="space-y-4">
                       <h4 className="text-white font-medium">Можливості AI:</h4>

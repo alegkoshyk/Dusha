@@ -1,13 +1,32 @@
 import OpenAI from "openai";
+import { storage } from "./storage";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const MODEL = "gpt-5";
 
 let openaiClient: OpenAI | null = null;
+let cachedApiKey: string | null = null;
 
-function getOpenAIClient(): OpenAI {
+async function getOpenAIApiKey(): Promise<string | null> {
+  // First check database
+  const dbSetting = await storage.getAppSetting("OPENAI_API_KEY");
+  if (dbSetting?.value) {
+    return dbSetting.value;
+  }
+  // Fall back to environment variable
+  return process.env.OPENAI_API_KEY || null;
+}
+
+async function getOpenAIClient(): Promise<OpenAI> {
+  const apiKey = await getOpenAIApiKey();
+  
+  // Reset client if API key changed
+  if (apiKey !== cachedApiKey) {
+    openaiClient = null;
+    cachedApiKey = apiKey;
+  }
+  
   if (!openaiClient) {
-    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error("OpenAI API key not configured");
     }
@@ -16,8 +35,14 @@ function getOpenAIClient(): OpenAI {
   return openaiClient;
 }
 
-export function isOpenAIConfigured(): boolean {
-  return !!process.env.OPENAI_API_KEY;
+export async function isOpenAIConfigured(): Promise<boolean> {
+  const apiKey = await getOpenAIApiKey();
+  return !!apiKey;
+}
+
+export function resetOpenAIClient(): void {
+  openaiClient = null;
+  cachedApiKey = null;
 }
 
 export interface LevelInsight {
@@ -49,7 +74,7 @@ export async function analyzeBrandLevel(
   level: "soul" | "mind" | "body",
   responses: { cardTitle: string; response: any }[]
 ): Promise<LevelInsight> {
-  const openai = getOpenAIClient();
+  const openai = await getOpenAIClient();
 
   const levelNames = {
     soul: "Душа Бренду",
@@ -113,7 +138,7 @@ ${responses.map(r => `- ${r.cardTitle}: ${JSON.stringify(r.response)}`).join("\n
 export async function generateBrandInsights(
   allResponses: { level: string; cardTitle: string; response: any }[]
 ): Promise<BrandInsights> {
-  const openai = getOpenAIClient();
+  const openai = await getOpenAIClient();
 
   const soulResponses = allResponses.filter(r => r.level === "soul");
   const mindResponses = allResponses.filter(r => r.level === "mind");
