@@ -55,20 +55,27 @@ export async function generateImageWithNanoBanana(
   prompt: string,
   context?: string
 ): Promise<GenerateImageResult> {
+  console.log('NanoBanana: Starting image generation...');
+  
   const apiKey = decryptApiKey(encryptedApiKey);
   
   if (!apiKey) {
+    console.error('NanoBanana: Failed to decrypt API key');
     return {
       success: false,
       error: "Не вдалося розшифрувати API ключ. Будь ласка, оновіть ключ у налаштуваннях."
     };
   }
 
+  console.log('NanoBanana: API key decrypted, length:', apiKey.length);
+
   const fullPrompt = context 
     ? `Based on this brand context: ${context}\n\nGenerate an image for: ${prompt}`
     : prompt;
 
   try {
+    console.log('NanoBanana: Sending request to:', `${NANOBANANA_BASE_URL}/generate`);
+    
     const response = await fetch(`${NANOBANANA_BASE_URL}/generate`, {
       method: 'POST',
       headers: {
@@ -77,14 +84,16 @@ export async function generateImageWithNanoBanana(
       },
       body: JSON.stringify({
         prompt: fullPrompt,
-        type: 'TEXTTOIAMGE',
+        type: 'TEXTTOIMAGE',
         numImages: 1
       })
     });
 
+    console.log('NanoBanana: Response status:', response.status);
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('NanoBanana API error:', errorData);
+      console.error('NanoBanana API error:', response.status, errorData);
       
       if (response.status === 401 || response.status === 403) {
         return {
@@ -95,20 +104,24 @@ export async function generateImageWithNanoBanana(
       
       return {
         success: false,
-        error: `Помилка API: ${errorData.msg || response.statusText}`
+        error: `Помилка API: ${errorData.msg || errorData.message || response.statusText}`
       };
     }
 
     const taskData: NanoBananaTaskResponse = await response.json();
+    console.log('NanoBanana: Task response:', JSON.stringify(taskData));
     
     if (taskData.code !== 200 || !taskData.data?.taskId) {
+      console.error('NanoBanana: Invalid task response');
       return {
         success: false,
         error: `Помилка створення задачі: ${taskData.msg || 'Невідома помилка'}`
       };
     }
 
+    console.log('NanoBanana: Task created, polling for result...');
     const result = await pollForResult(apiKey, taskData.data.taskId);
+    console.log('NanoBanana: Poll result:', JSON.stringify(result));
 
     if (result.data?.status === 'failed') {
       return {
@@ -118,12 +131,14 @@ export async function generateImageWithNanoBanana(
     }
 
     if (result.data?.images?.[0]?.url) {
+      console.log('NanoBanana: Image generated successfully');
       return {
         success: true,
         imageUrl: result.data.images[0].url
       };
     }
 
+    console.error('NanoBanana: No image in response');
     return {
       success: false,
       error: "API не повернуло зображення. Спробуйте інший запит."
