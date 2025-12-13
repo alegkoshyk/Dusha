@@ -23,7 +23,8 @@ import CardOptionSets from "@/pages/admin/CardOptionSets";
 import OptionsList from "@/pages/admin/OptionsList";
 import Users from "@/pages/admin/Users";
 import DatabaseSync from "@/pages/admin/DatabaseSync";
-import Settings from "@/pages/admin/Settings";
+import AdminSettings from "@/pages/admin/Settings";
+import UserSettings from "@/pages/settings";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -64,7 +65,8 @@ function Router() {
           <Route path="/rcadmin/options-list" component={OptionsList} />
           <Route path="/rcadmin/users" component={Users} />
           <Route path="/rcadmin/db-sync" component={DatabaseSync} />
-          <Route path="/rcadmin/settings" component={Settings} />
+          <Route path="/rcadmin/settings" component={AdminSettings} />
+          <Route path="/settings" component={UserSettings} />
           <Route component={NotFound} />
         </Switch>
       </main>

@@ -13,7 +13,9 @@ import {
   User,
   Loader2,
   AlertCircle,
-  Eye
+  Eye,
+  Image,
+  Download
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +38,7 @@ export default function BrandChat() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -96,6 +99,28 @@ export default function BrandChat() {
     },
   });
 
+  const generateImageMutation = useMutation({
+    mutationFn: async (prompt: string) => {
+      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt });
+    },
+    onSuccess: (data) => {
+      if (data.imageBase64) {
+        setGeneratedImage(data.imageBase64);
+        toast({
+          title: "Зображення створено",
+          description: "Зображення успішно згенеровано",
+        });
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Помилка",
+        description: error.message || "Не вдалося згенерувати зображення",
+        variant: "destructive",
+      });
+    },
+  });
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -112,6 +137,26 @@ export default function BrandChat() {
     if (window.confirm('Ви впевнені, що хочете видалити всю історію чату?')) {
       clearChatMutation.mutate();
     }
+  };
+
+  const handleGenerateImage = () => {
+    if (!message.trim()) {
+      toast({
+        title: "Введіть опис",
+        description: "Напишіть опис зображення для генерації",
+        variant: "destructive",
+      });
+      return;
+    }
+    generateImageMutation.mutate(message.trim());
+  };
+
+  const handleDownloadImage = () => {
+    if (!generatedImage) return;
+    const link = document.createElement('a');
+    link.href = generatedImage;
+    link.download = `brand-image-${Date.now()}.png`;
+    link.click();
   };
 
   if (sessionLoading || messagesLoading) {
@@ -239,20 +284,66 @@ export default function BrandChat() {
           )}
         </ScrollArea>
 
+        {generatedImage && (
+          <div className="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <div className="flex items-start gap-4">
+              <img 
+                src={generatedImage} 
+                alt="Згенероване зображення" 
+                className="max-w-xs rounded-lg shadow-md"
+                data-testid="img-generated"
+              />
+              <div className="flex flex-col gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleDownloadImage}
+                  data-testid="button-download-image"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Завантажити
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setGeneratedImage(null)}
+                  data-testid="button-close-image"
+                >
+                  Закрити
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSend} className="p-4 border-t dark:border-gray-700">
           <div className="flex gap-2">
             <Input
               ref={inputRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Напишіть повідомлення..."
-              disabled={sendMessageMutation.isPending}
+              placeholder="Напишіть повідомлення або опис зображення..."
+              disabled={sendMessageMutation.isPending || generateImageMutation.isPending}
               className="flex-1"
               data-testid="input-message"
             />
             <Button 
+              type="button"
+              variant="outline"
+              onClick={handleGenerateImage}
+              disabled={!message.trim() || generateImageMutation.isPending || sendMessageMutation.isPending}
+              title="Згенерувати зображення"
+              data-testid="button-generate-image"
+            >
+              {generateImageMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Image className="w-4 h-4" />
+              )}
+            </Button>
+            <Button 
               type="submit" 
-              disabled={!message.trim() || sendMessageMutation.isPending}
+              disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending}
               data-testid="button-send"
             >
               {sendMessageMutation.isPending ? (

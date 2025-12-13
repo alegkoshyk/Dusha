@@ -66,6 +66,7 @@ export const userProfilesTable = pgTable("user_profiles", {
   achievements: json("achievements").default(sql`'[]'`),
   totalXp: integer("total_xp").notNull().default(0),
   level: integer("level").notNull().default(1),
+  geminiApiKey: text("gemini_api_key"), // NanoBanana (Gemini) API key for image generation
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 });
@@ -591,16 +592,3 @@ export const insertCardOptionSetLinkSchema = createInsertSchema(cardOptionSetLin
   id: true,
   createdAt: true,
 });
-
-// Нові типи
-export type CardType = typeof cardTypesTable.$inferSelect;
-export type InsertCardType = z.infer<typeof insertCardTypeSchema>;
-
-export type CardOptionSet = typeof cardOptionSetsTable.$inferSelect;
-export type InsertCardOptionSet = z.infer<typeof insertCardOptionSetSchema>;
-
-export type CardOption = typeof cardOptionsTable.$inferSelect;
-export type InsertCardOption = z.infer<typeof insertCardOptionSchema>;
-
-export type CardOptionSetLink = typeof cardOptionSetLinksTable.$inferSelect;
-export type InsertCardOptionSetLink = z.infer<typeof insertCardOptionSetLinkSchema>;

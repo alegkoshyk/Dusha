@@ -1521,6 +1521,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Settings API
+  app.get("/api/user/settings", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const profile = await storage.getUserProfile(userId);
+      
+      res.json({
+        hasGeminiApiKey: !!profile?.geminiApiKey,
+        maskedApiKey: profile?.geminiApiKey ? 
+          (await import('./encryption')).maskApiKey(
+            (await import('./encryption')).decryptApiKey(profile.geminiApiKey) || ''
+          ) : undefined
+      });
+    } catch (error: any) {
+      console.error("Get settings error:", error);
+      res.status(500).json({ error: "Не вдалося отримати налаштування" });
+    }
+  });
+
+  app.post("/api/user/settings/gemini-api-key", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { apiKey } = req.body;
+      if (!apiKey || typeof apiKey !== 'string') {
+        return res.status(400).json({ error: "API ключ обов'язковий" });
+      }
+
+      const { encryptApiKey } = await import('./encryption');
+      const encryptedKey = encryptApiKey(apiKey);
+
+      let profile = await storage.getUserProfile(userId);
+      if (!profile) {
+        profile = await storage.createUserProfile({ userId, geminiApiKey: encryptedKey } as any);
+      } else {
+        profile = await storage.updateUserProfile(userId, { geminiApiKey: encryptedKey });
+      }
+
+      res.json({ success: true, message: "API ключ збережено" });
+    } catch (error: any) {
+      console.error("Save API key error:", error);
+      res.status(500).json({ error: "Не вдалося зберегти API ключ" });
+    }
+  });
+
+  app.delete("/api/user/settings/gemini-api-key", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      await storage.updateUserProfile(userId, { geminiApiKey: null });
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete API key error:", error);
+      res.status(500).json({ error: "Не вдалося видалити API ключ" });
+    }
+  });
+
+  // NanoBanana Image Generation
+  app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { prompt } = req.body;
+      const userId = req.session?.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      if (!prompt || typeof prompt !== 'string') {
+        return res.status(400).json({ error: "Опис зображення обов'язковий" });
+      }
+
+      const gameSession = await storage.getGameSession(sessionId);
+      if (!gameSession) {
+        return res.status(404).json({ error: "Гру не знайдено" });
+      }
+
+      if (gameSession.userId !== userId) {
+        return res.status(403).json({ error: "Немає доступу до цієї гри" });
+      }
+
+      const profile = await storage.getUserProfile(userId);
+      if (!profile?.geminiApiKey) {
+        return res.status(400).json({ 
+          error: "API ключ не налаштовано. Додайте Gemini API ключ у налаштуваннях." 
+        });
+      }
+
+      // Get brand context
+      let brandContext = '';
+      if (gameSession.brandId) {
+        const brand = await storage.getUserBrand(gameSession.brandId);
+        if (brand) {
+          brandContext = `Brand: ${brand.name}. ${brand.description || ''}`;
+        }
+      }
+
+      const { generateImageWithNanoBanana } = await import('./nanobanana');
+      const result = await generateImageWithNanoBanana(profile.geminiApiKey, prompt, brandContext);
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json({ 
+        success: true, 
+        imageBase64: result.imageBase64 
+      });
+    } catch (error: any) {
+      console.error("Image generation error:", error);
+      res.status(500).json({ error: "Не вдалося згенерувати зображення" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
