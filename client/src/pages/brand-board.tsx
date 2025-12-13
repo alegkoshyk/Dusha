@@ -140,6 +140,10 @@ export default function BrandBoard() {
     onSuccess: (data: BrandInsights) => {
       setAiInsights(data);
       setAiError(null);
+      // Invalidate analyses history to show new saved analysis
+      if (sessionData?.brandId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/brands', sessionData.brandId, 'ai-analyses'] });
+      }
     },
     onError: (error: Error) => {
       if (error.message.includes('not configured') || error.message.includes('API key')) {
@@ -697,7 +701,12 @@ export default function BrandBoard() {
                   {aiAnalysisHistory.map((analysis) => (
                     <div 
                       key={analysis.id} 
-                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                      onClick={() => {
+                        if (analysis.content) {
+                          setAiInsights(analysis.content as BrandInsights);
+                        }
+                      }}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
@@ -714,34 +723,69 @@ export default function BrandBoard() {
                             </span>
                           </div>
                           {analysis.score && (
-                            <Badge variant="outline" className="flex items-center gap-1">
+                            <Badge 
+                              variant="outline" 
+                              className={`flex items-center gap-1 ${
+                                analysis.score >= 80 ? 'border-green-500 text-green-600' :
+                                analysis.score >= 60 ? 'border-yellow-500 text-yellow-600' :
+                                'border-red-500 text-red-600'
+                              }`}
+                            >
                               <Star className="w-3 h-3" />
                               {analysis.score}/100
                             </Badge>
                           )}
                         </div>
-                        <Badge variant="secondary">{analysis.analysisType}</Badge>
+                        <Badge variant="secondary">{analysis.analysisType === 'full' ? 'Повний аналіз' : analysis.analysisType}</Badge>
+                      </div>
+
+                      {/* Key Metrics Row */}
+                      <div className="flex flex-wrap gap-3 mt-3 mb-2">
+                        {analysis.strengths && Array.isArray(analysis.strengths) && (
+                          <div className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                            <CheckCircle className="w-3 h-3" />
+                            <span>{analysis.strengths.length} сильних сторін</span>
+                          </div>
+                        )}
+                        {analysis.weaknesses && Array.isArray(analysis.weaknesses) && (
+                          <div className="flex items-center gap-1 text-xs text-red-500 dark:text-red-400">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>{analysis.weaknesses.length} слабких сторін</span>
+                          </div>
+                        )}
+                        {analysis.recommendations && Array.isArray(analysis.recommendations) && (
+                          <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                            <Lightbulb className="w-3 h-3" />
+                            <span>{analysis.recommendations.length} рекомендацій</span>
+                          </div>
+                        )}
                       </div>
                       
                       {analysis.insights && Array.isArray(analysis.insights) && analysis.insights.length > 0 && (
                         <div className="mt-2">
-                          <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Ключові інсайти:</h5>
+                          <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Наступні кроки:</h5>
                           <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                            {analysis.insights.slice(0, 3).map((insight: string, i: number) => (
+                            {analysis.insights.slice(0, 2).map((insight: string, i: number) => (
                               <li key={i} className="flex items-start gap-2">
                                 <Sparkles className="w-3 h-3 text-indigo-500 mt-1 flex-shrink-0" />
-                                <span>{insight}</span>
+                                <span className="line-clamp-1">{insight}</span>
                               </li>
                             ))}
+                            {analysis.insights.length > 2 && (
+                              <li className="text-xs text-indigo-500">+{analysis.insights.length - 2} більше...</li>
+                            )}
                           </ul>
                         </div>
                       )}
                       
-                      {analysis.provider && (
-                        <div className="mt-2 text-xs text-gray-400">
-                          {analysis.provider} {analysis.model && `• ${analysis.model}`}
-                        </div>
-                      )}
+                      <div className="mt-3 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                        {analysis.provider && (
+                          <div className="text-xs text-gray-400">
+                            {analysis.provider} {analysis.model && `• ${analysis.model}`}
+                          </div>
+                        )}
+                        <span className="text-xs text-indigo-500 hover:text-indigo-600">Натисніть для перегляду →</span>
+                      </div>
                     </div>
                   ))}
                 </div>

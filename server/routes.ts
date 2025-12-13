@@ -1359,12 +1359,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate AI insights for a game session
   app.post("/api/game-sessions/:sessionId/ai-insights", requireAuth, async (req, res) => {
     try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
       const isConfigured = await isOpenAIConfigured();
       if (!isConfigured) {
         return res.status(400).json({ error: "AI API не налаштовано. Зверніться до адміністратора." });
       }
 
       const { sessionId } = req.params;
+      const startTime = Date.now();
       
       // Get game session to find brand info
       const gameSession = await storage.getGameSession(sessionId);
@@ -1406,6 +1412,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const insights = await generateBrandInsights(formattedResponses, brandData);
+      const generationTimeMs = Date.now() - startTime;
+
+      // Save analysis to database if brand exists
+      if (gameSession.brandId) {
+        try {
+          // Extract key metrics for storage
+          const levelStrengths: string[] = [];
+          const levelWeaknesses: string[] = [];
+          const levelRecommendations: string[] = [];
+          
+          if (insights.levels) {
+            insights.levels.forEach((level: any) => {
+              if (level.strengths) levelStrengths.push(...level.strengths);
+              if (level.weaknesses) levelWeaknesses.push(...level.weaknesses);
+              if (level.recommendations) levelRecommendations.push(...level.recommendations);
+            });
+          }
+
+          await storage.createBrandAiAnalysis({
+            brandId: gameSession.brandId,
+            userId: currentUser.id,
+            analysisType: 'full',
+            content: insights,
+            score: insights.overallScore || null,
+            insights: insights.nextSteps || null,
+            recommendations: levelRecommendations.length > 0 ? levelRecommendations : null,
+            strengths: levelStrengths.length > 0 ? levelStrengths : null,
+            weaknesses: levelWeaknesses.length > 0 ? levelWeaknesses : null,
+            provider: 'openai',
+            model: 'gpt-4o',
+            tokensUsed: null,
+            generationTimeMs,
+          });
+          console.log("AI Analysis saved to database for brand:", gameSession.brandId);
+        } catch (saveError) {
+          console.error("Failed to save AI analysis to database:", saveError);
+          // Continue - we still want to return the insights even if saving failed
+        }
+      }
+
       res.json(insights);
     } catch (error: any) {
       console.error("AI Insights error:", error);
