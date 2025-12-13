@@ -271,29 +271,41 @@ export default function BrandBoard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header />
       
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={handleBack} data-testid="button-back">
-              <ArrowLeft className="w-4 h-4 mr-2" />Назад
+      <div className="container mx-auto px-4 py-4 md:py-8">
+        {/* Mobile-friendly header */}
+        <div className="flex flex-col gap-4 mb-6 md:mb-8">
+          {/* Top row: Back button and title */}
+          <div className="flex items-start gap-3">
+            <Button variant="outline" size="sm" onClick={handleBack} data-testid="button-back" className="flex-shrink-0">
+              <ArrowLeft className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Назад</span>
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Дошка Бренду</h1>
-              <p className="text-gray-600 dark:text-gray-400">Ваша повна карта бренду зібрана в одному місці</p>
+            <div className="min-w-0">
+              <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white">Дошка Бренду</h1>
+              <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 line-clamp-2">Ваша повна карта бренду зібрана в одному місці</p>
             </div>
           </div>
           
-          <div className="flex gap-3 flex-wrap">
+          {/* Action buttons row */}
+          <div className="flex flex-wrap gap-2">
             <Button 
               variant="outline" 
+              size="sm"
               onClick={() => document.getElementById('ai-analysis-section')?.scrollIntoView({ behavior: 'smooth' })}
               className="border-indigo-300 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
               data-testid="button-ai-analyses"
             >
-              <Sparkles className="w-4 h-4 mr-2" />AI аналізи
+              <Sparkles className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="text-xs md:text-sm">AI аналізи</span>
             </Button>
-            <Button variant="outline" data-testid="button-share"><Share className="w-4 h-4 mr-2" />Поділитися</Button>
-            <Button data-testid="button-download-pdf"><Download className="w-4 h-4 mr-2" />Завантажити PDF</Button>
+            <Button variant="outline" size="sm" data-testid="button-share">
+              <Share className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="text-xs md:text-sm">Поділитися</span>
+            </Button>
+            <Button size="sm" data-testid="button-download-pdf">
+              <Download className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="text-xs md:text-sm">Завантажити PDF</span>
+            </Button>
           </div>
         </div>
 
