@@ -5,10 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon } from "lucide-react";
+import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+
+interface AISettingsData {
+  configured: boolean;
+}
 
 interface TableComparison {
   table: string;
@@ -38,6 +42,10 @@ export default function Settings() {
 
   const { data: comparison, isLoading, refetch, isRefetching } = useQuery<CompareResult>({
     queryKey: ["/api/admin/db-sync/compare"],
+  });
+
+  const { data: aiSettings, isLoading: isLoadingAI, refetch: refetchAI } = useQuery<AISettingsData>({
+    queryKey: ["/api/admin/ai-settings"],
   });
 
   const syncAllMutation = useMutation({
@@ -136,6 +144,10 @@ export default function Settings() {
             <TabsTrigger value="database" className="data-[state=active]:bg-gray-700 text-gray-300">
               <Database className="h-4 w-4 mr-2" />
               Синхронізація БД
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="data-[state=active]:bg-gray-700 text-gray-300" data-testid="tab-ai-settings">
+              <Brain className="h-4 w-4 mr-2" />
+              AI Налаштування
             </TabsTrigger>
           </TabsList>
 
@@ -274,6 +286,114 @@ export default function Settings() {
                       </tbody>
                     </table>
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="ai" className="space-y-6 mt-6">
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Brain className="h-5 w-5" />
+                  OpenAI Інтеграція
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Налаштування AI для аналізу брендів та генерації рекомендацій
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {isLoadingAI ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-900">
+                      <div className={`p-3 rounded-full ${aiSettings?.configured ? 'bg-green-900' : 'bg-red-900'}`}>
+                        <Key className={`h-6 w-6 ${aiSettings?.configured ? 'text-green-400' : 'text-red-400'}`} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-white">OPENAI_API_KEY</h3>
+                        <p className="text-sm text-gray-400">
+                          {aiSettings?.configured 
+                            ? 'API ключ налаштовано. AI функції доступні.'
+                            : 'API ключ не налаштовано. AI функції недоступні.'}
+                        </p>
+                      </div>
+                      <Badge className={aiSettings?.configured ? 'bg-green-600' : 'bg-red-600'} data-testid="badge-ai-status">
+                        {aiSettings?.configured ? (
+                          <><Check className="h-3 w-3 mr-1" /> Налаштовано</>
+                        ) : (
+                          <><X className="h-3 w-3 mr-1" /> Не налаштовано</>
+                        )}
+                      </Badge>
+                    </div>
+
+                    {!aiSettings?.configured && (
+                      <Card className="bg-blue-900/30 border-blue-700">
+                        <CardContent className="p-4">
+                          <div className="flex gap-3">
+                            <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-blue-300">Як налаштувати OpenAI API</h4>
+                              <ol className="list-decimal list-inside text-sm text-blue-200 space-y-2">
+                                <li>Перейдіть на <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">platform.openai.com/api-keys</a></li>
+                                <li>Створіть новий API ключ</li>
+                                <li>У Replit відкрийте вкладку "Secrets" (іконка замка)</li>
+                                <li>Додайте новий секрет з ім'ям <code className="bg-blue-900 px-1 rounded">OPENAI_API_KEY</code></li>
+                                <li>Вставте ваш API ключ як значення</li>
+                                <li>Перезапустіть додаток</li>
+                              </ol>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <div className="space-y-4">
+                      <h4 className="text-white font-medium">Можливості AI:</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                          <h5 className="font-medium text-white mb-2">Аналіз бренду</h5>
+                          <p className="text-sm text-gray-400">
+                            AI аналізує відповіді користувача на кожному рівні (Душа, Розум, Тіло) та надає персоналізовані рекомендації
+                          </p>
+                        </div>
+                        <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                          <h5 className="font-medium text-white mb-2">Оцінка консистентності</h5>
+                          <p className="text-sm text-gray-400">
+                            Автоматична оцінка узгодженості бренд-стратегії з виявленням сильних та слабких сторін
+                          </p>
+                        </div>
+                        <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                          <h5 className="font-medium text-white mb-2">Чекліст готовності</h5>
+                          <p className="text-sm text-gray-400">
+                            Перевірка повноти бренд-стратегії з пріоритезацією задач для покращення
+                          </p>
+                        </div>
+                        <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                          <h5 className="font-medium text-white mb-2">Наступні кроки</h5>
+                          <p className="text-sm text-gray-400">
+                            AI генерує конкретні рекомендації щодо подальшого розвитку бренду
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => refetchAI()}
+                        disabled={isLoadingAI}
+                        className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                        data-testid="button-refresh-ai"
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingAI ? 'animate-spin' : ''}`} />
+                        Оновити статус
+                      </Button>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

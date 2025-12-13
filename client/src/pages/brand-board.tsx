@@ -7,9 +7,38 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Download, Share, MapPin, Heart, Brain, Dumbbell, Edit2, Save, ChevronRight, Lightbulb, Check } from 'lucide-react';
+import { ArrowLeft, Download, Share, MapPin, Heart, Brain, Dumbbell, Edit2, Save, ChevronRight, Lightbulb, Check, Sparkles, Loader2, AlertCircle, CheckCircle, CircleDot, ArrowRight, TrendingUp, Settings } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useState } from 'react';
+
+interface LevelInsight {
+  level: string;
+  levelName: string;
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+  consistencyScore: number;
+}
+
+interface ChecklistItem {
+  text: string;
+  status: 'done' | 'needs_improvement' | 'missing';
+  priority: 'high' | 'medium' | 'low';
+}
+
+interface ChecklistCategory {
+  category: string;
+  items: ChecklistItem[];
+}
+
+interface BrandInsights {
+  overallScore: number;
+  overallSummary: string;
+  levels: LevelInsight[];
+  checklist: ChecklistCategory[];
+  nextSteps: string[];
+}
 
 interface CardOption {
   id: string;
@@ -54,6 +83,31 @@ export default function BrandBoard() {
   const { data: cardResponses, isLoading: responsesLoading } = useQuery<CardResponse[]>({
     queryKey: [`/api/game-sessions/${sessionId}/responses`],
     enabled: !!sessionId
+  });
+
+  const [aiInsights, setAiInsights] = useState<BrandInsights | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const generateInsightsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', `/api/game-sessions/${sessionId}/ai-insights`);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to generate insights');
+      }
+      return res.json();
+    },
+    onSuccess: (data: BrandInsights) => {
+      setAiInsights(data);
+      setAiError(null);
+    },
+    onError: (error: Error) => {
+      if (error.message.includes('not configured') || error.message.includes('API key')) {
+        setAiError('api_key_missing');
+      } else {
+        setAiError('generic');
+      }
+    }
   });
 
   const saveResponseMutation = useMutation({
@@ -337,6 +391,223 @@ export default function BrandBoard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* AI Insights Section */}
+        <Card className="mt-8 border-indigo-200 dark:border-indigo-800">
+          <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-indigo-800 dark:text-indigo-200">
+                <Sparkles className="w-6 h-6" />
+                AI Аналіз Бренду
+              </CardTitle>
+              <Button
+                onClick={() => generateInsightsMutation.mutate()}
+                disabled={generateInsightsMutation.isPending || aiError === 'api_key_missing'}
+                className={`${aiError === 'api_key_missing' ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} text-white`}
+                data-testid="button-generate-ai"
+              >
+                {generateInsightsMutation.isPending ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Аналізую...</>
+                ) : aiError === 'api_key_missing' ? (
+                  <><Settings className="w-4 h-4 mr-2" />API не налаштовано</>
+                ) : (
+                  <><Sparkles className="w-4 h-4 mr-2" />{aiInsights ? 'Оновити аналіз' : 'Отримати AI аналіз'}</>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {aiError === 'api_key_missing' && (
+              <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
+                <div className="flex items-start gap-3">
+                  <Settings className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-amber-800 dark:text-amber-200">OpenAI не налаштовано</h4>
+                    <p className="text-sm text-amber-600 dark:text-amber-300 mb-2">
+                      Для використання AI аналізу необхідно налаштувати OpenAI API ключ.
+                    </p>
+                    <p className="text-xs text-amber-500 dark:text-amber-400">
+                      Зверніться до адміністратора для налаштування (Налаштування → AI Налаштування)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {aiError === 'generic' && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg mb-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-red-800 dark:text-red-200">Помилка генерації</h4>
+                    <p className="text-sm text-red-600 dark:text-red-300">
+                      Не вдалося отримати AI аналіз. Спробуйте ще раз пізніше.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!aiInsights && !generateInsightsMutation.isPending && !aiError && (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-8 h-8 text-indigo-500" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  Отримайте персоналізований аналіз вашого бренду
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                  AI проаналізує ваші відповіді та надасть рекомендації для покращення бренд-стратегії
+                </p>
+              </div>
+            )}
+
+            {generateInsightsMutation.isPending && (
+              <div className="text-center py-12">
+                <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mx-auto mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">Аналізую вашу бренд-стратегію...</p>
+              </div>
+            )}
+
+            {aiInsights && (
+              <div className="space-y-8">
+                {/* Overall Score */}
+                <div className="flex items-center gap-6 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg">
+                  <div className="relative w-24 h-24">
+                    <svg className="w-24 h-24 transform -rotate-90">
+                      <circle cx="48" cy="48" r="40" fill="none" stroke="currentColor" strokeWidth="8" className="text-gray-200 dark:text-gray-700" />
+                      <circle cx="48" cy="48" r="40" fill="none" stroke="currentColor" strokeWidth="8" 
+                        strokeDasharray={`${(aiInsights.overallScore / 100) * 251.2} 251.2`}
+                        className="text-indigo-500" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-gray-900 dark:text-white">{aiInsights.overallScore}</span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Загальна оцінка консистентності</h3>
+                    <p className="text-gray-600 dark:text-gray-400">{aiInsights.overallSummary}</p>
+                  </div>
+                </div>
+
+                {/* Level Insights */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {aiInsights.levels.map((level) => {
+                    const colors = level.level === 'soul' 
+                      ? { bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-200 dark:border-purple-800', text: 'text-purple-700 dark:text-purple-300', accent: 'bg-purple-500' }
+                      : level.level === 'mind'
+                      ? { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', text: 'text-blue-700 dark:text-blue-300', accent: 'bg-blue-500' }
+                      : { bg: 'bg-green-50 dark:bg-green-900/20', border: 'border-green-200 dark:border-green-800', text: 'text-green-700 dark:text-green-300', accent: 'bg-green-500' };
+
+                    return (
+                      <Card key={level.level} className={`${colors.border}`}>
+                        <CardHeader className={`${colors.bg} py-3`}>
+                          <div className="flex items-center justify-between">
+                            <CardTitle className={`text-sm font-medium ${colors.text}`}>{level.levelName}</CardTitle>
+                            <Badge className={`${colors.accent} text-white`}>{level.consistencyScore}/100</Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4 space-y-3">
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{level.summary}</p>
+                          
+                          {level.strengths.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">Сильні сторони:</h5>
+                              <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                                {level.strengths.slice(0, 3).map((s, i) => (
+                                  <li key={i} className="flex items-start gap-1">
+                                    <CheckCircle className="w-3 h-3 text-green-500 mt-0.5 flex-shrink-0" />
+                                    <span>{s}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {level.weaknesses.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold text-orange-600 dark:text-orange-400 mb-1">Потребує уваги:</h5>
+                              <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                                {level.weaknesses.slice(0, 3).map((w, i) => (
+                                  <li key={i} className="flex items-start gap-1">
+                                    <CircleDot className="w-3 h-3 text-orange-500 mt-0.5 flex-shrink-0" />
+                                    <span>{w}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {/* Checklist */}
+                {aiInsights.checklist.length > 0 && (
+                  <Card className="border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <CardHeader className="bg-gray-50 dark:bg-gray-800/50">
+                      <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
+                        <TrendingUp className="w-5 h-5" />
+                        Чекліст консистентності бренду
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {aiInsights.checklist.map((category, idx) => (
+                          <div key={idx} className="space-y-2 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700">
+                            <h4 className="font-medium text-gray-900 dark:text-white text-sm">{category.category}</h4>
+                            <ul className="space-y-1.5">
+                              {category.items.map((item, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm">
+                                  {item.status === 'done' ? (
+                                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                                  ) : item.status === 'needs_improvement' ? (
+                                    <AlertCircle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />
+                                  ) : (
+                                    <CircleDot className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                                  )}
+                                  <span className={`${item.status === 'done' ? 'text-gray-600 dark:text-gray-400' : item.status === 'needs_improvement' ? 'text-yellow-700 dark:text-yellow-300' : 'text-red-700 dark:text-red-300'}`}>
+                                    {item.text}
+                                    {item.priority === 'high' && <Badge variant="outline" className="ml-2 text-xs py-0">!</Badge>}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Next Steps */}
+                {aiInsights.nextSteps.length > 0 && (
+                  <Card className="border-amber-200 dark:border-amber-800">
+                    <CardHeader className="bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20">
+                      <CardTitle className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                        <ArrowRight className="w-5 h-5" />
+                        Наступні кроки
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      <ul className="space-y-3">
+                        {aiInsights.nextSteps.map((step, idx) => (
+                          <li key={idx} className="flex items-start gap-3">
+                            <span className="w-6 h-6 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center text-amber-700 dark:text-amber-300 text-sm font-medium flex-shrink-0">
+                              {idx + 1}
+                            </span>
+                            <p className="text-gray-700 dark:text-gray-300">{step}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Full Card Modal */}
