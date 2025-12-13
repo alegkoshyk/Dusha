@@ -44,6 +44,9 @@ import {
   type InsertCardOption,
   type CardOptionSetLink,
   type InsertCardOptionSetLink,
+  type BrandAiAnalysis,
+  type InsertBrandAiAnalysis,
+  brandAiAnalysesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte } from "drizzle-orm";
@@ -114,6 +117,11 @@ export interface IStorage {
   createCardOptionSetLink(link: InsertCardOptionSetLink): Promise<CardOptionSetLink>;
   updateCardOptionSetLink(id: string, updates: Partial<CardOptionSetLink>): Promise<CardOptionSetLink | undefined>;
   deleteCardOptionSetLink(id: string): Promise<boolean>;
+  
+  // Brand AI Analysis operations
+  createBrandAiAnalysis(analysis: InsertBrandAiAnalysis): Promise<BrandAiAnalysis>;
+  getBrandAiAnalyses(brandId: string): Promise<BrandAiAnalysis[]>;
+  getLatestBrandAiAnalysis(brandId: string): Promise<BrandAiAnalysis | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1450,6 +1458,33 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(aiChatMessagesTable)
       .where(eq(aiChatMessagesTable.sessionId, sessionId));
+  }
+
+  // Brand AI Analysis operations
+  async createBrandAiAnalysis(analysis: InsertBrandAiAnalysis): Promise<BrandAiAnalysis> {
+    const [result] = await db
+      .insert(brandAiAnalysesTable)
+      .values(analysis)
+      .returning();
+    return result;
+  }
+
+  async getBrandAiAnalyses(brandId: string): Promise<BrandAiAnalysis[]> {
+    return await db
+      .select()
+      .from(brandAiAnalysesTable)
+      .where(eq(brandAiAnalysesTable.brandId, brandId))
+      .orderBy(desc(brandAiAnalysesTable.createdAt));
+  }
+
+  async getLatestBrandAiAnalysis(brandId: string): Promise<BrandAiAnalysis | undefined> {
+    const [result] = await db
+      .select()
+      .from(brandAiAnalysesTable)
+      .where(eq(brandAiAnalysesTable.brandId, brandId))
+      .orderBy(desc(brandAiAnalysesTable.createdAt))
+      .limit(1);
+    return result;
   }
 }
 
