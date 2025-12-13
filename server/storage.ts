@@ -773,6 +773,9 @@ export class DatabaseStorage implements IStorage {
         .select({
           cardId: cardResponsesTable.cardId,
           cardTitle: gameCardsTable.title,
+          cardDescription: gameCardsTable.description,
+          cardType: gameCardsTable.type,
+          cardHint: gameCardsTable.hint,
           response: cardResponsesTable.response,
           responseType: cardResponsesTable.responseType,
           createdAt: cardResponsesTable.submittedAt,
@@ -786,10 +789,19 @@ export class DatabaseStorage implements IStorage {
       // Load translations once for efficiency
       const valueToName = await this.loadOptionTranslations();
       
-      // Translate responses to Ukrainian names
-      const translatedResponses = responses.map((r) => ({
-        ...r,
-        response: this.translateResponseWithMap(r.response, valueToName)
+      // Translate responses and add options for choice cards
+      const translatedResponses = await Promise.all(responses.map(async (r) => {
+        const result: any = {
+          ...r,
+          response: this.translateResponseWithMap(r.response, valueToName)
+        };
+        
+        // Add options for choice/values type cards
+        if (['choice', 'values', 'archetype', 'multiselect'].includes(r.cardType || '')) {
+          result.options = await this.getCardOptionsByCardId(r.cardId);
+        }
+        
+        return result;
       }));
       
       return translatedResponses;
@@ -809,14 +821,23 @@ export class DatabaseStorage implements IStorage {
       for (const response of simpleResponses) {
         const card = await this.getGameCard(response.cardId);
         const translatedResponse = this.translateResponseWithMap(response.response, valueToName);
-        result.push({
+        const cardResult: any = {
           cardId: response.cardId,
           cardTitle: card?.title || response.cardId,
+          cardDescription: card?.description || '',
+          cardType: card?.type || 'text',
+          cardHint: card?.hint || '',
           response: translatedResponse,
           responseType: response.responseType,
           createdAt: response.submittedAt,
           level: card?.levelId || 'unknown'
-        });
+        };
+        
+        if (card && ['choice', 'values', 'archetype', 'multiselect'].includes(card.type || '')) {
+          cardResult.options = await this.getCardOptionsByCardId(response.cardId);
+        }
+        
+        result.push(cardResult);
       }
       
       return result;
