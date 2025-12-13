@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,16 +7,32 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info, Eye, EyeOff, Save } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info, Eye, EyeOff, Save, Sparkles } from "lucide-react";
 import { Link } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
-interface AISettingsData {
+interface ProviderStatus {
   configured: boolean;
   hasDbKey: boolean;
   hasEnvKey: boolean;
   keySource: 'database' | 'environment' | 'none';
+}
+
+interface AISettings {
+  provider: string;
+  modelOpenAI: string;
+  modelPerplexity: string;
+  context: string;
+}
+
+interface AISettingsData {
+  openai: ProviderStatus;
+  perplexity: ProviderStatus;
+  settings: AISettings;
+  configured: boolean;
 }
 
 interface TableComparison {
@@ -44,8 +60,14 @@ export default function Settings() {
   const { toast } = useToast();
   const [syncProgress, setSyncProgress] = useState<SyncResult[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState("");
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [openaiKeyInput, setOpenaiKeyInput] = useState("");
+  const [perplexityKeyInput, setPerplexityKeyInput] = useState("");
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [showPerplexityKey, setShowPerplexityKey] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState("openai");
+  const [selectedModelOpenAI, setSelectedModelOpenAI] = useState("gpt-4o");
+  const [selectedModelPerplexity, setSelectedModelPerplexity] = useState("llama-3.1-sonar-large-128k-online");
+  const [aiContext, setAiContext] = useState("");
 
   const { data: comparison, isLoading, refetch, isRefetching } = useQuery<CompareResult>({
     queryKey: ["/api/admin/db-sync/compare"],
@@ -55,23 +77,57 @@ export default function Settings() {
     queryKey: ["/api/admin/ai-settings"],
   });
 
+  useEffect(() => {
+    if (aiSettings?.settings) {
+      setSelectedProvider(aiSettings.settings.provider || 'openai');
+      setSelectedModelOpenAI(aiSettings.settings.modelOpenAI || 'gpt-4o');
+      setSelectedModelPerplexity(aiSettings.settings.modelPerplexity || 'llama-3.1-sonar-large-128k-online');
+      setAiContext(aiSettings.settings.context || '');
+    }
+  }, [aiSettings]);
+
   const saveApiKeyMutation = useMutation({
-    mutationFn: async (apiKey: string) => {
-      const response = await apiRequest("POST", "/api/admin/ai-settings", { apiKey });
+    mutationFn: async ({ apiKey, provider }: { apiKey: string; provider: string }) => {
+      const response = await apiRequest("POST", "/api/admin/ai-settings", { apiKey, provider });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, { provider }) => {
       toast({
         title: "Успішно збережено",
-        description: "API ключ успішно збережено в базі даних",
+        description: `${provider === 'perplexity' ? 'Perplexity' : 'OpenAI'} API ключ успішно збережено`,
       });
-      setApiKeyInput("");
+      if (provider === 'openai') {
+        setOpenaiKeyInput("");
+      } else {
+        setPerplexityKeyInput("");
+      }
       refetchAI();
     },
     onError: (error: any) => {
       toast({
         title: "Помилка",
         description: error.message || "Не вдалося зберегти API ключ",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveConfigMutation = useMutation({
+    mutationFn: async (config: { provider?: string; modelOpenAI?: string; modelPerplexity?: string; context?: string }) => {
+      const response = await apiRequest("POST", "/api/admin/ai-settings/config", config);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Успішно збережено",
+        description: "Налаштування AI успішно збережено",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/ai-settings"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Помилка",
+        description: error.message || "Не вдалося зберегти налаштування",
         variant: "destructive",
       });
     },
@@ -129,6 +185,15 @@ export default function Settings() {
     syncAllMutation.mutate();
   };
 
+  const handleSaveConfig = () => {
+    saveConfigMutation.mutate({
+      provider: selectedProvider,
+      modelOpenAI: selectedModelOpenAI,
+      modelPerplexity: selectedModelPerplexity,
+      context: aiContext,
+    });
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'synced':
@@ -149,6 +214,100 @@ export default function Settings() {
   const syncedTables = comparison?.comparison.filter(t => t.status === 'synced').length || 0;
   const totalTables = comparison?.comparison.length || 0;
 
+  const renderProviderKeySection = (
+    provider: 'openai' | 'perplexity',
+    status: ProviderStatus | undefined,
+    keyInput: string,
+    setKeyInput: (val: string) => void,
+    showKey: boolean,
+    setShowKey: (val: boolean) => void
+  ) => {
+    const isOpenAI = provider === 'openai';
+    const title = isOpenAI ? 'OpenAI' : 'Perplexity';
+    const placeholder = isOpenAI ? 'sk-...' : 'pplx-...';
+    const helpUrl = isOpenAI 
+      ? 'https://platform.openai.com/api-keys'
+      : 'https://www.perplexity.ai/settings/api';
+
+    return (
+      <Card className="bg-gray-900 border-gray-700">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-white text-base flex items-center gap-2">
+              <Key className="h-4 w-4" />
+              {title} API ключ
+            </CardTitle>
+            <Badge className={status?.configured ? 'bg-green-600' : 'bg-gray-600'} data-testid={`badge-${provider}-status`}>
+              {status?.configured ? (
+                <><Check className="h-3 w-3 mr-1" /> Налаштовано</>
+              ) : (
+                <><X className="h-3 w-3 mr-1" /> Не налаштовано</>
+              )}
+            </Badge>
+          </div>
+          <CardDescription className="text-gray-400">
+            {status?.keySource === 'database' 
+              ? 'Ключ зберігається в базі даних.'
+              : status?.keySource === 'environment'
+              ? 'Ключ налаштовано через змінну середовища.'
+              : `Введіть ваш ${title} API ключ.`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor={`${provider}-api-key`} className="text-gray-300">API ключ</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id={`${provider}-api-key`}
+                  type={showKey ? "text" : "password"}
+                  value={keyInput}
+                  onChange={(e) => setKeyInput(e.target.value)}
+                  placeholder={placeholder}
+                  className="bg-gray-800 border-gray-600 text-white pr-10"
+                  data-testid={`input-${provider}-api-key`}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-gray-400"
+                  onClick={() => setShowKey(!showKey)}
+                  data-testid={`button-toggle-${provider}-key-visibility`}
+                >
+                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <Button
+                onClick={() => saveApiKeyMutation.mutate({ apiKey: keyInput, provider })}
+                disabled={!keyInput || keyInput.length < 10 || saveApiKeyMutation.isPending}
+                className="bg-green-600 hover:bg-green-700"
+                data-testid={`button-save-${provider}-api-key`}
+              >
+                {saveApiKeyMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Зберегти
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex gap-3 p-3 rounded-lg bg-blue-900/30 border border-blue-700">
+            <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="font-medium text-blue-300 text-sm">Як отримати API ключ</h4>
+              <p className="text-xs text-blue-200">
+                Перейдіть на <a href={helpUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-white">{helpUrl}</a>
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <div className="container mx-auto py-8 space-y-6">
@@ -168,17 +327,180 @@ export default function Settings() {
           </Link>
         </div>
 
-        <Tabs defaultValue="database" className="w-full">
+        <Tabs defaultValue="ai" className="w-full">
           <TabsList className="bg-gray-800 border-gray-700">
-            <TabsTrigger value="database" className="data-[state=active]:bg-gray-700 text-gray-300">
-              <Database className="h-4 w-4 mr-2" />
-              Синхронізація БД
-            </TabsTrigger>
             <TabsTrigger value="ai" className="data-[state=active]:bg-gray-700 text-gray-300" data-testid="tab-ai-settings">
               <Brain className="h-4 w-4 mr-2" />
               AI Налаштування
             </TabsTrigger>
+            <TabsTrigger value="database" className="data-[state=active]:bg-gray-700 text-gray-300">
+              <Database className="h-4 w-4 mr-2" />
+              Синхронізація БД
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="ai" className="space-y-6 mt-6">
+            {isLoadingAI ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            ) : (
+              <>
+                <Card className="bg-gray-800 border-gray-700">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Sparkles className="h-5 w-5" />
+                      Налаштування AI провайдера
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Оберіть провайдера AI, модель та додатковий контекст для аналізу брендів
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-gray-300">Активний провайдер</Label>
+                        <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+                          <SelectTrigger className="bg-gray-900 border-gray-600 text-white" data-testid="select-provider">
+                            <SelectValue placeholder="Оберіть провайдера" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            <SelectItem value="openai">OpenAI</SelectItem>
+                            <SelectItem value="perplexity">Perplexity</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-gray-300">Модель OpenAI</Label>
+                        <Select value={selectedModelOpenAI} onValueChange={setSelectedModelOpenAI}>
+                          <SelectTrigger className="bg-gray-900 border-gray-600 text-white" data-testid="select-model-openai">
+                            <SelectValue placeholder="Оберіть модель" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                            <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                            <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                            <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-gray-300">Модель Perplexity</Label>
+                        <Select value={selectedModelPerplexity} onValueChange={setSelectedModelPerplexity}>
+                          <SelectTrigger className="bg-gray-900 border-gray-600 text-white" data-testid="select-model-perplexity">
+                            <SelectValue placeholder="Оберіть модель" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            <SelectItem value="llama-3.1-sonar-large-128k-online">Llama 3.1 Sonar Large (Online)</SelectItem>
+                            <SelectItem value="llama-3.1-sonar-small-128k-online">Llama 3.1 Sonar Small (Online)</SelectItem>
+                            <SelectItem value="llama-3.1-sonar-huge-128k-online">Llama 3.1 Sonar Huge (Online)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-gray-300">Додатковий контекст для AI</Label>
+                      <Textarea
+                        value={aiContext}
+                        onChange={(e) => setAiContext(e.target.value)}
+                        placeholder="Введіть додаткові інструкції для AI, наприклад, особливості вашого бізнесу або стиль відповідей..."
+                        className="bg-gray-900 border-gray-600 text-white min-h-[100px]"
+                        data-testid="textarea-ai-context"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Цей контекст буде додано до кожного запиту до AI
+                      </p>
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={handleSaveConfig}
+                        disabled={saveConfigMutation.isPending}
+                        className="bg-green-600 hover:bg-green-700"
+                        data-testid="button-save-ai-config"
+                      >
+                        {saveConfigMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-2" />
+                        )}
+                        Зберегти налаштування
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {renderProviderKeySection(
+                    'openai',
+                    aiSettings?.openai,
+                    openaiKeyInput,
+                    setOpenaiKeyInput,
+                    showOpenaiKey,
+                    setShowOpenaiKey
+                  )}
+                  {renderProviderKeySection(
+                    'perplexity',
+                    aiSettings?.perplexity,
+                    perplexityKeyInput,
+                    setPerplexityKeyInput,
+                    showPerplexityKey,
+                    setShowPerplexityKey
+                  )}
+                </div>
+
+                <Card className="bg-gray-800 border-gray-700">
+                  <CardHeader>
+                    <CardTitle className="text-white">Можливості AI</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                        <h5 className="font-medium text-white mb-2">Аналіз бренду</h5>
+                        <p className="text-sm text-gray-400">
+                          AI аналізує відповіді користувача на кожному рівні та надає персоналізовані рекомендації
+                        </p>
+                      </div>
+                      <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                        <h5 className="font-medium text-white mb-2">Оцінка консистентності</h5>
+                        <p className="text-sm text-gray-400">
+                          Автоматична оцінка узгодженості бренд-стратегії з виявленням сильних та слабких сторін
+                        </p>
+                      </div>
+                      <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                        <h5 className="font-medium text-white mb-2">Чекліст готовності</h5>
+                        <p className="text-sm text-gray-400">
+                          Перевірка повноти бренд-стратегії з пріоритезацією задач для покращення
+                        </p>
+                      </div>
+                      <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                        <h5 className="font-medium text-white mb-2">Наступні кроки</h5>
+                        <p className="text-sm text-gray-400">
+                          AI генерує конкретні рекомендації щодо подальшого розвитку бренду
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => refetchAI()}
+                    disabled={isLoadingAI}
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                    data-testid="button-refresh-ai"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingAI ? 'animate-spin' : ''}`} />
+                    Оновити
+                  </Button>
+                </div>
+              </>
+            )}
+          </TabsContent>
 
           <TabsContent value="database" className="space-y-6 mt-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -315,165 +637,6 @@ export default function Settings() {
                       </tbody>
                     </table>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="ai" className="space-y-6 mt-6">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Brain className="h-5 w-5" />
-                  OpenAI Інтеграція
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Налаштування AI для аналізу брендів та генерації рекомендацій
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {isLoadingAI ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-900">
-                      <div className={`p-3 rounded-full ${aiSettings?.configured ? 'bg-green-900' : 'bg-red-900'}`}>
-                        <Key className={`h-6 w-6 ${aiSettings?.configured ? 'text-green-400' : 'text-red-400'}`} />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white">OPENAI_API_KEY</h3>
-                        <p className="text-sm text-gray-400">
-                          {aiSettings?.configured 
-                            ? 'API ключ налаштовано. AI функції доступні.'
-                            : 'API ключ не налаштовано. AI функції недоступні.'}
-                        </p>
-                      </div>
-                      <Badge className={aiSettings?.configured ? 'bg-green-600' : 'bg-red-600'} data-testid="badge-ai-status">
-                        {aiSettings?.configured ? (
-                          <><Check className="h-3 w-3 mr-1" /> Налаштовано</>
-                        ) : (
-                          <><X className="h-3 w-3 mr-1" /> Не налаштовано</>
-                        )}
-                      </Badge>
-                    </div>
-
-                    <Card className="bg-gray-900 border-gray-700">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-white text-base">
-                          {aiSettings?.configured ? 'Оновити API ключ' : 'Додати API ключ'}
-                        </CardTitle>
-                        <CardDescription className="text-gray-400">
-                          {aiSettings?.keySource === 'database' 
-                            ? 'Ключ зберігається в базі даних. Ви можете його оновити.'
-                            : aiSettings?.keySource === 'environment'
-                            ? 'Ключ налаштовано через змінну середовища. Ви можете додати ключ в БД для зручності.'
-                            : 'Введіть ваш OpenAI API ключ для активації AI функцій.'}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="api-key" className="text-gray-300">API ключ</Label>
-                          <div className="flex gap-2">
-                            <div className="relative flex-1">
-                              <Input
-                                id="api-key"
-                                type={showApiKey ? "text" : "password"}
-                                value={apiKeyInput}
-                                onChange={(e) => setApiKeyInput(e.target.value)}
-                                placeholder="sk-..."
-                                className="bg-gray-800 border-gray-600 text-white pr-10"
-                                data-testid="input-api-key"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-gray-400"
-                                onClick={() => setShowApiKey(!showApiKey)}
-                                data-testid="button-toggle-key-visibility"
-                              >
-                                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </Button>
-                            </div>
-                            <Button
-                              onClick={() => saveApiKeyMutation.mutate(apiKeyInput)}
-                              disabled={!apiKeyInput || apiKeyInput.length < 10 || saveApiKeyMutation.isPending}
-                              className="bg-green-600 hover:bg-green-700"
-                              data-testid="button-save-api-key"
-                            >
-                              {saveApiKeyMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Save className="h-4 w-4 mr-2" />
-                              )}
-                              Зберегти
-                            </Button>
-                          </div>
-                          <p className="text-xs text-gray-500">
-                            Ключ буде безпечно збережено в базі даних
-                          </p>
-                        </div>
-
-                        <div className="flex gap-3 p-3 rounded-lg bg-blue-900/30 border border-blue-700">
-                          <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                          <div className="space-y-2">
-                            <h4 className="font-medium text-blue-300 text-sm">Як отримати API ключ</h4>
-                            <ol className="list-decimal list-inside text-xs text-blue-200 space-y-1">
-                              <li>Перейдіть на <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">platform.openai.com/api-keys</a></li>
-                              <li>Увійдіть або зареєструйтесь</li>
-                              <li>Створіть новий API ключ</li>
-                              <li>Скопіюйте та вставте його сюди</li>
-                            </ol>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <div className="space-y-4">
-                      <h4 className="text-white font-medium">Можливості AI:</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
-                          <h5 className="font-medium text-white mb-2">Аналіз бренду</h5>
-                          <p className="text-sm text-gray-400">
-                            AI аналізує відповіді користувача на кожному рівні (Душа, Розум, Тіло) та надає персоналізовані рекомендації
-                          </p>
-                        </div>
-                        <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
-                          <h5 className="font-medium text-white mb-2">Оцінка консистентності</h5>
-                          <p className="text-sm text-gray-400">
-                            Автоматична оцінка узгодженості бренд-стратегії з виявленням сильних та слабких сторін
-                          </p>
-                        </div>
-                        <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
-                          <h5 className="font-medium text-white mb-2">Чекліст готовності</h5>
-                          <p className="text-sm text-gray-400">
-                            Перевірка повноти бренд-стратегії з пріоритезацією задач для покращення
-                          </p>
-                        </div>
-                        <div className={`p-4 rounded-lg border ${aiSettings?.configured ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
-                          <h5 className="font-medium text-white mb-2">Наступні кроки</h5>
-                          <p className="text-sm text-gray-400">
-                            AI генерує конкретні рекомендації щодо подальшого розвитку бренду
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <Button
-                        variant="outline"
-                        onClick={() => refetchAI()}
-                        disabled={isLoadingAI}
-                        className="border-gray-600 text-gray-300 hover:bg-gray-700"
-                        data-testid="button-refresh-ai"
-                      >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingAI ? 'animate-spin' : ''}`} />
-                        Оновити статус
-                      </Button>
-                    </div>
-                  </>
                 )}
               </CardContent>
             </Card>

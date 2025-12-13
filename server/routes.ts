@@ -1162,49 +1162,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ============= AI/OpenAI Settings & Analysis =============
 
-  // Check if OpenAI is configured
+  // Check AI providers settings (OpenAI and Perplexity)
   app.get("/api/admin/ai-settings", requireAdmin, async (req, res) => {
     try {
       const configured = await isOpenAIConfigured();
-      const dbSetting = await storage.getAppSetting("OPENAI_API_KEY");
+      const openaiDbSetting = await storage.getAppSetting("OPENAI_API_KEY");
+      const perplexityDbSetting = await storage.getAppSetting("PERPLEXITY_API_KEY");
+      
+      // Get AI configuration settings
+      const aiProvider = await storage.getAppSetting("AI_PROVIDER");
+      const aiModelOpenAI = await storage.getAppSetting("AI_MODEL_OPENAI");
+      const aiModelPerplexity = await storage.getAppSetting("AI_MODEL_PERPLEXITY");
+      const aiContext = await storage.getAppSetting("AI_CONTEXT");
+      
       res.json({
-        configured,
-        hasDbKey: !!dbSetting?.value,
-        hasEnvKey: !!process.env.OPENAI_API_KEY,
-        keySource: dbSetting?.value ? 'database' : (process.env.OPENAI_API_KEY ? 'environment' : 'none')
+        openai: {
+          configured: !!openaiDbSetting?.value || !!process.env.OPENAI_API_KEY,
+          hasDbKey: !!openaiDbSetting?.value,
+          hasEnvKey: !!process.env.OPENAI_API_KEY,
+          keySource: openaiDbSetting?.value ? 'database' : (process.env.OPENAI_API_KEY ? 'environment' : 'none')
+        },
+        perplexity: {
+          configured: !!perplexityDbSetting?.value || !!process.env.PERPLEXITY_API_KEY,
+          hasDbKey: !!perplexityDbSetting?.value,
+          hasEnvKey: !!process.env.PERPLEXITY_API_KEY,
+          keySource: perplexityDbSetting?.value ? 'database' : (process.env.PERPLEXITY_API_KEY ? 'environment' : 'none')
+        },
+        settings: {
+          provider: aiProvider?.value || 'openai',
+          modelOpenAI: aiModelOpenAI?.value || 'gpt-4o',
+          modelPerplexity: aiModelPerplexity?.value || 'llama-3.1-sonar-large-128k-online',
+          context: aiContext?.value || ''
+        },
+        configured
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Save OpenAI API key to database
+  // Save AI API key to database (OpenAI or Perplexity)
   app.post("/api/admin/ai-settings", requireAdmin, async (req, res) => {
     try {
-      const { apiKey } = req.body;
+      const { apiKey, provider = 'openai' } = req.body;
       
       if (!apiKey || typeof apiKey !== 'string' || apiKey.trim().length < 10) {
         return res.status(400).json({ error: "Некоректний API ключ" });
       }
 
-      await storage.setAppSetting(
-        "OPENAI_API_KEY", 
-        apiKey.trim(), 
-        true, 
-        "OpenAI API ключ для AI аналізу брендів"
-      );
+      const keyName = provider === 'perplexity' ? 'PERPLEXITY_API_KEY' : 'OPENAI_API_KEY';
+      const description = provider === 'perplexity' 
+        ? 'Perplexity API ключ для AI аналізу брендів'
+        : 'OpenAI API ключ для AI аналізу брендів';
 
-      // Reset cached OpenAI client to use new key
-      const { resetOpenAIClient } = await import("./openai");
-      resetOpenAIClient();
+      await storage.setAppSetting(keyName, apiKey.trim(), true, description);
+
+      if (provider === 'openai') {
+        const { resetOpenAIClient } = await import("./openai");
+        resetOpenAIClient();
+      }
 
       res.json({ 
         success: true, 
-        message: "API ключ успішно збережено" 
+        message: `${provider === 'perplexity' ? 'Perplexity' : 'OpenAI'} API ключ успішно збережено` 
       });
     } catch (error: any) {
-      console.error("Error saving OpenAI API key:", error);
+      console.error("Error saving API key:", error);
       res.status(500).json({ error: "Не вдалося зберегти API ключ" });
+    }
+  });
+
+  // Save AI configuration settings
+  app.post("/api/admin/ai-settings/config", requireAdmin, async (req, res) => {
+    try {
+      const { provider, modelOpenAI, modelPerplexity, context } = req.body;
+
+      if (provider) {
+        await storage.setAppSetting("AI_PROVIDER", provider, false, "Активний AI провайдер (openai/perplexity)");
+      }
+      if (modelOpenAI) {
+        await storage.setAppSetting("AI_MODEL_OPENAI", modelOpenAI, false, "Модель OpenAI для використання");
+      }
+      if (modelPerplexity) {
+        await storage.setAppSetting("AI_MODEL_PERPLEXITY", modelPerplexity, false, "Модель Perplexity для використання");
+      }
+      if (context !== undefined) {
+        await storage.setAppSetting("AI_CONTEXT", context, false, "Додатковий контекст для AI промптів");
+      }
+
+      res.json({ success: true, message: "Налаштування успішно збережено" });
+    } catch (error: any) {
+      console.error("Error saving AI config:", error);
+      res.status(500).json({ error: "Не вдалося зберегти налаштування" });
     }
   });
 
