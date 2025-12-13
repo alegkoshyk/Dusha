@@ -17,6 +17,8 @@ import {
   type AppSetting,
   type AiUsageLog,
   type InsertAiUsageLog,
+  type AiChatMessage,
+  type InsertAiChatMessage,
   gameSessionsTable,
   cardResponsesTable,
   gameCardsTable,
@@ -33,6 +35,7 @@ import {
   cardOptionSetLinksTable,
   appSettingsTable,
   aiUsageLogsTable,
+  aiChatMessagesTable,
   type CardType,
   type InsertCardType,
   type CardOptionSet,
@@ -464,6 +467,7 @@ export class DatabaseStorage implements IStorage {
         progress: gameSessionsTable.progress,
         totalXp: gameSessionsTable.totalXp,
         completedCards: gameSessionsTable.completedCards,
+        earnedBadges: gameSessionsTable.earnedBadges,
         completed: gameSessionsTable.completed,
         createdAt: gameSessionsTable.createdAt,
         updatedAt: gameSessionsTable.updatedAt
@@ -1039,20 +1043,6 @@ export class DatabaseStorage implements IStorage {
     return users;
   }
 
-  async updateUser(userId: string, userData: Partial<any>): Promise<any> {
-    const [updatedUser] = await db
-      .update(usersTable)
-      .set({ ...userData, updatedAt: new Date() })
-      .where(eq(usersTable.id, userId))
-      .returning();
-
-    if (!updatedUser) {
-      throw new Error(`User with id ${userId} not found`);
-    }
-
-    return updatedUser;
-  }
-
   async deleteUser(userId: string): Promise<void> {
     console.log(`Deleting user ${userId} and all related data...`);
     
@@ -1437,6 +1427,29 @@ export class DatabaseStorage implements IStorage {
       totalCost: totalCostNum.toFixed(6),
       byProvider
     };
+  }
+
+  // AI Chat Messages operations
+  async getAiChatMessages(sessionId: string): Promise<AiChatMessage[]> {
+    return await db
+      .select()
+      .from(aiChatMessagesTable)
+      .where(eq(aiChatMessagesTable.sessionId, sessionId))
+      .orderBy(aiChatMessagesTable.createdAt);
+  }
+
+  async addAiChatMessage(message: InsertAiChatMessage): Promise<AiChatMessage> {
+    const [created] = await db
+      .insert(aiChatMessagesTable)
+      .values(message)
+      .returning();
+    return created;
+  }
+
+  async deleteAiChatMessages(sessionId: string): Promise<void> {
+    await db
+      .delete(aiChatMessagesTable)
+      .where(eq(aiChatMessagesTable.sessionId, sessionId));
   }
 }
 

@@ -21,7 +21,7 @@ import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
-import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel } from "./openai";
+import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage } from "./openai";
 
 // Admin middleware
 const requireAdmin = async (req: any, res: any, next: any) => {
@@ -1370,6 +1370,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Level AI Insights error:", error);
       res.status(500).json({ error: error.message || "Помилка аналізу рівня" });
+    }
+  });
+
+  // AI Chat - Get chat history for a game session
+  app.get("/api/game-sessions/:sessionId/chat", requireAuth, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const userId = req.session?.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const gameSession = await storage.getGameSession(sessionId);
+      if (!gameSession) {
+        return res.status(404).json({ error: "Гру не знайдено" });
+      }
+
+      const messages = await storage.getAiChatMessages(sessionId);
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Get chat history error:", error);
+      res.status(500).json({ error: "Не вдалося отримати історію чату" });
+    }
+  });
+
+  // AI Chat - Send message
+  app.post("/api/game-sessions/:sessionId/chat", requireAuth, async (req, res) => {
+    try {
+      const isConfigured = await isOpenAIConfigured();
+      if (!isConfigured) {
+        return res.status(400).json({ error: "AI API не налаштовано. Зверніться до адміністратора." });
+      }
+
+      const { sessionId } = req.params;
+      const { message } = req.body;
+      const userId = req.session?.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: "Повідомлення обов'язкове" });
+      }
+
+      const gameSession = await storage.getGameSession(sessionId);
+      if (!gameSession) {
+        return res.status(404).json({ error: "Гру не знайдено" });
+      }
+
+      // Get brand info
+      let brandName = "Бренд";
+      let brandDescription: string | undefined;
+      if (gameSession.brandId) {
+        const brand = await storage.getUserBrand(gameSession.brandId);
+        if (brand) {
+          brandName = brand.name;
+          brandDescription = brand.description || undefined;
+        }
+      }
+
+      // Get card responses for context
+      const responses = await storage.getSessionCardResponses(sessionId);
+      const formattedResponses = responses.map(r => ({
+        level: r.level,
+        cardTitle: r.cardTitle,
+        question: r.cardDescription || undefined,
+        response: r.response
+      }));
+
+      // Get chat history
+      const existingMessages = await storage.getAiChatMessages(sessionId);
+      const chatHistory = existingMessages.map(m => ({
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content
+      }));
+
+      // Save user message
+      await storage.addAiChatMessage({
+        sessionId,
+        userId,
+        role: "user",
+        content: message
+      });
+
+      // Get AI response
+      const aiResponse = await sendBrandChatMessage(
+        message,
+        chatHistory,
+        {
+          brandName,
+          brandDescription,
+          responses: formattedResponses
+        }
+      );
+
+      // Save AI response
+      const savedMessage = await storage.addAiChatMessage({
+        sessionId,
+        userId,
+        role: "assistant",
+        content: aiResponse.response,
+        metadata: aiResponse.tokensUsed ? { tokens: aiResponse.tokensUsed } : null
+      });
+
+      res.json({
+        message: savedMessage,
+        tokensUsed: aiResponse.tokensUsed
+      });
+    } catch (error: any) {
+      console.error("AI Chat error:", error);
+      res.status(500).json({ error: error.message || "Помилка AI чату" });
+    }
+  });
+
+  // AI Chat - Delete chat history
+  app.delete("/api/game-sessions/:sessionId/chat", requireAuth, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const userId = req.session?.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const gameSession = await storage.getGameSession(sessionId);
+      if (!gameSession) {
+        return res.status(404).json({ error: "Гру не знайдено" });
+      }
+
+      await storage.deleteAiChatMessages(sessionId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete chat error:", error);
+      res.status(500).json({ error: "Не вдалося видалити історію чату" });
     }
   });
 

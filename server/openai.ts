@@ -344,3 +344,91 @@ ${levelInsights.map(l => `
     nextSteps: overallResult.nextSteps || []
   };
 }
+
+export interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
+export interface BrandContext {
+  brandName: string;
+  brandDescription?: string;
+  responses: { level: string; cardTitle: string; question?: string; response: any }[];
+}
+
+export async function sendBrandChatMessage(
+  userMessage: string,
+  chatHistory: ChatMessage[],
+  brandContext: BrandContext
+): Promise<{ response: string; tokensUsed?: { input: number; output: number } }> {
+  const { client, config } = await getAIClient();
+
+  const systemPrompt = `Ти - експертний консультант з брендингу та маркетингу. Ти допомагаєш підприємцям розвивати їхні бренди.
+
+📌 Контекст бренду:
+- Назва: ${brandContext.brandName}
+${brandContext.brandDescription ? `- Опис: ${brandContext.brandDescription}` : ''}
+
+📊 Дані бренду з гри "Душа Бренду":
+${brandContext.responses.map(r => {
+  const responseText = typeof r.response === 'object' 
+    ? JSON.stringify(r.response, null, 2) 
+    : String(r.response);
+  return `[${r.level.toUpperCase()}] ${r.cardTitle}: ${responseText}`;
+}).join('\n')}
+
+${config.context ? `\n📝 Додатковий контекст:\n${config.context}` : ''}
+
+Твоя роль:
+- Давай практичні поради на основі даних бренду
+- Допомагай уточнювати стратегію та позиціонування
+- Відповідай чітко, конструктивно та українською мовою
+- Пропонуй конкретні кроки та приклади`;
+
+  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: systemPrompt },
+    ...chatHistory.slice(-10).map(m => ({
+      role: m.role as "user" | "assistant",
+      content: m.content
+    })),
+    { role: "user", content: userMessage }
+  ];
+
+  const response = await client.chat.completions.create({
+    model: config.model,
+    messages,
+    max_tokens: 2048,
+    temperature: 0.7
+  });
+
+  const usage = response.usage;
+  if (usage) {
+    const costRates = config.provider === "perplexity"
+      ? { input: 0.000001, output: 0.000001 }
+      : { input: 0.00001, output: 0.00003 };
+    
+    const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
+    
+    await storage.logAIUsage({
+      provider: config.provider,
+      model: config.model,
+      tokensInput: usage.prompt_tokens,
+      tokensOutput: usage.completion_tokens,
+      costEstimate: estimatedCost.toFixed(6),
+      endpoint: "brandChat",
+    });
+  }
+
+  const content = response.choices[0].message.content;
+  if (!content) {
+    throw new Error("Пуста відповідь від AI");
+  }
+
+  return {
+    response: content,
+    tokensUsed: usage ? {
+      input: usage.prompt_tokens,
+      output: usage.completion_tokens
+    } : undefined
+  };
+}

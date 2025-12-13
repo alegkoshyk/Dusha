@@ -511,6 +511,36 @@ export const insertAiUsageLogSchema = createInsertSchema(aiUsageLogsTable).omit(
 export type AiUsageLog = typeof aiUsageLogsTable.$inferSelect;
 export type InsertAiUsageLog = z.infer<typeof insertAiUsageLogSchema>;
 
+// Таблиця повідомлень AI чату для кожної гри
+export const aiChatMessagesTable = pgTable("ai_chat_messages", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: uuid("session_id").notNull().references(() => gameSessionsTable.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 20 }).notNull(), // 'user' | 'assistant' | 'system'
+  content: text("content").notNull(),
+  metadata: json("metadata"), // Додаткові дані (токени, модель тощо)
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const aiChatMessagesRelations = relations(aiChatMessagesTable, ({ one }) => ({
+  session: one(gameSessionsTable, {
+    fields: [aiChatMessagesTable.sessionId],
+    references: [gameSessionsTable.id],
+  }),
+  user: one(usersTable, {
+    fields: [aiChatMessagesTable.userId],
+    references: [usersTable.id],
+  }),
+}));
+
+export const insertAiChatMessageSchema = createInsertSchema(aiChatMessagesTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AiChatMessage = typeof aiChatMessagesTable.$inferSelect;
+export type InsertAiChatMessage = z.infer<typeof insertAiChatMessageSchema>;
+
 // Legacy типи для сумісності з поточним кодом
 export type GameLevel_Legacy = "soul" | "mind" | "body";
 
