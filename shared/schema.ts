@@ -489,6 +489,28 @@ export const insertAppSettingSchema = createInsertSchema(appSettingsTable).omit(
 export type AppSetting = typeof appSettingsTable.$inferSelect;
 export type InsertAppSetting = z.infer<typeof insertAppSettingSchema>;
 
+// Таблиця логів використання AI
+export const aiUsageLogsTable = pgTable("ai_usage_logs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  provider: varchar("provider", { length: 50 }).notNull(),
+  model: varchar("model", { length: 100 }),
+  tokensInput: integer("tokens_input"),
+  tokensOutput: integer("tokens_output"),
+  costEstimate: varchar("cost_estimate", { length: 20 }),
+  sessionId: uuid("session_id"),
+  userId: uuid("user_id"),
+  endpoint: varchar("endpoint", { length: 100 }),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const insertAiUsageLogSchema = createInsertSchema(aiUsageLogsTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AiUsageLog = typeof aiUsageLogsTable.$inferSelect;
+export type InsertAiUsageLog = z.infer<typeof insertAiUsageLogSchema>;
+
 // Legacy типи для сумісності з поточним кодом
 export type GameLevel_Legacy = "soul" | "mind" | "body";
 

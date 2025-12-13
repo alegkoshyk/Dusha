@@ -15,6 +15,8 @@ import {
   type UserProfile,
   type InsertUserProfile,
   type AppSetting,
+  type AiUsageLog,
+  type InsertAiUsageLog,
   gameSessionsTable,
   cardResponsesTable,
   gameCardsTable,
@@ -30,6 +32,7 @@ import {
   cardOptionsTable,
   cardOptionSetLinksTable,
   appSettingsTable,
+  aiUsageLogsTable,
   type CardType,
   type InsertCardType,
   type CardOptionSet,
@@ -40,7 +43,7 @@ import {
   type InsertCardOptionSetLink,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, count, sql, and, isNotNull, or, inArray } from "drizzle-orm";
+import { eq, count, sql, and, isNotNull, or, inArray, desc, gte } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export interface IStorage {
@@ -1346,6 +1349,94 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return created;
+  }
+
+  // AI Usage Logging operations
+  async logAIUsage(data: InsertAiUsageLog): Promise<AiUsageLog> {
+    const [log] = await db
+      .insert(aiUsageLogsTable)
+      .values(data)
+      .returning();
+    return log;
+  }
+
+  async getAIUsageLogs(limit: number = 50, offset: number = 0): Promise<AiUsageLog[]> {
+    return await db
+      .select()
+      .from(aiUsageLogsTable)
+      .orderBy(desc(aiUsageLogsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getAIUsageStats(period: 'day' | 'week' | 'month' | 'all' = 'all'): Promise<{
+    totalRequests: number;
+    totalTokensInput: number;
+    totalTokensOutput: number;
+    totalCost: string;
+    byProvider: { provider: string; requests: number; tokensInput: number; tokensOutput: number }[];
+  }> {
+    let dateFilter;
+    const now = new Date();
+    
+    switch (period) {
+      case 'day':
+        dateFilter = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case 'week':
+        dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        dateFilter = null;
+    }
+
+    let logs;
+    if (dateFilter) {
+      logs = await db
+        .select()
+        .from(aiUsageLogsTable)
+        .where(gte(aiUsageLogsTable.createdAt, dateFilter));
+    } else {
+      logs = await db
+        .select()
+        .from(aiUsageLogsTable);
+    }
+
+    const totalRequests = logs.length;
+    const totalTokensInput = logs.reduce((sum, log) => sum + (log.tokensInput || 0), 0);
+    const totalTokensOutput = logs.reduce((sum, log) => sum + (log.tokensOutput || 0), 0);
+    
+    let totalCostNum = 0;
+    logs.forEach(log => {
+      if (log.costEstimate) {
+        totalCostNum += parseFloat(log.costEstimate) || 0;
+      }
+    });
+
+    const byProviderMap = new Map<string, { requests: number; tokensInput: number; tokensOutput: number }>();
+    logs.forEach(log => {
+      const existing = byProviderMap.get(log.provider) || { requests: 0, tokensInput: 0, tokensOutput: 0 };
+      existing.requests += 1;
+      existing.tokensInput += log.tokensInput || 0;
+      existing.tokensOutput += log.tokensOutput || 0;
+      byProviderMap.set(log.provider, existing);
+    });
+
+    const byProvider = Array.from(byProviderMap.entries()).map(([provider, stats]) => ({
+      provider,
+      ...stats
+    }));
+
+    return {
+      totalRequests,
+      totalTokensInput,
+      totalTokensOutput,
+      totalCost: totalCostNum.toFixed(6),
+      byProvider
+    };
   }
 }
 

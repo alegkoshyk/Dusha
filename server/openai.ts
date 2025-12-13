@@ -117,6 +117,23 @@ ${responses.map(r => `- ${r.cardTitle}: ${JSON.stringify(r.response)}`).join("\n
     max_completion_tokens: 2048
   });
 
+  // Log AI usage
+  const usage = response.usage;
+  if (usage) {
+    const costPerInputToken = 0.00001;
+    const costPerOutputToken = 0.00003;
+    const estimatedCost = (usage.prompt_tokens * costPerInputToken) + (usage.completion_tokens * costPerOutputToken);
+    
+    await storage.logAIUsage({
+      provider: "openai",
+      model: MODEL,
+      tokensInput: usage.prompt_tokens,
+      tokensOutput: usage.completion_tokens,
+      costEstimate: estimatedCost.toFixed(6),
+      endpoint: "analyzeBrandLevel",
+    });
+  }
+
   const content = response.choices[0].message.content;
   if (!content) {
     throw new Error("Empty response from OpenAI");
@@ -191,6 +208,23 @@ ${l.levelName} (оцінка: ${l.consistencyScore}/100):
     response_format: { type: "json_object" },
     max_completion_tokens: 4096
   });
+
+  // Log AI usage
+  const overallUsage = overallResponse.usage;
+  if (overallUsage) {
+    const costPerInputToken = 0.00001;
+    const costPerOutputToken = 0.00003;
+    const estimatedCost = (overallUsage.prompt_tokens * costPerInputToken) + (overallUsage.completion_tokens * costPerOutputToken);
+    
+    await storage.logAIUsage({
+      provider: "openai",
+      model: MODEL,
+      tokensInput: overallUsage.prompt_tokens,
+      tokensOutput: overallUsage.completion_tokens,
+      costEstimate: estimatedCost.toFixed(6),
+      endpoint: "generateBrandInsights",
+    });
+  }
 
   const overallContent = overallResponse.choices[0].message.content;
   if (!overallContent) {

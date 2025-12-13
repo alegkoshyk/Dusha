@@ -1257,6 +1257,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get AI usage statistics
+  app.get("/api/admin/ai-usage", requireAdmin, async (req, res) => {
+    try {
+      const period = (req.query.period as 'day' | 'week' | 'month' | 'all') || 'all';
+      const stats = await storage.getAIUsageStats(period);
+      const recentLogs = await storage.getAIUsageLogs(20);
+      
+      res.json({
+        stats,
+        recentLogs
+      });
+    } catch (error: any) {
+      console.error("Error fetching AI usage:", error);
+      res.status(500).json({ error: "Не вдалося отримати статистику AI" });
+    }
+  });
+
   // Generate AI insights for a game session
   app.post("/api/game-sessions/:sessionId/ai-insights", requireAuth, async (req, res) => {
     try {
