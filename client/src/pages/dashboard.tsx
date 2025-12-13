@@ -18,7 +18,8 @@ import {
   Dumbbell,
   Users,
   TrendingUp,
-  BookOpen
+  BookOpen,
+  Sparkles
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
@@ -397,7 +398,7 @@ export default function Dashboard() {
                           </div>
 
                           {/* Action Button - стилізований як на дизайні */}
-                          <div className="pt-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="pt-2 space-y-2" onClick={(e) => e.stopPropagation()}>
                             {hasActiveGame ? (
                               <div className="flex gap-2">
                                 <Button
@@ -426,6 +427,24 @@ export default function Dashboard() {
                               >
                                 <Play className="w-4 h-4 mr-2" />
                                 Нова гра
+                              </Button>
+                            )}
+                            
+                            {/* AI Analyses Button */}
+                            {brandSessions.length > 0 && (
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  const latestSession = brandSessions.sort((a, b) => 
+                                    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+                                  )[0];
+                                  setLocation(`/game/${latestSession.id}/results`);
+                                }}
+                                className="w-full border-indigo-300 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+                                data-testid={`ai-analyses-${brand.id}`}
+                              >
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                AI аналізи бренду
                               </Button>
                             )}
                           </div>
