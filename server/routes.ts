@@ -1388,6 +1388,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Гру не знайдено" });
       }
 
+      if (gameSession.userId !== userId) {
+        return res.status(403).json({ error: "Немає доступу до цієї гри" });
+      }
+
       const messages = await storage.getAiChatMessages(sessionId);
       res.json(messages);
     } catch (error: any) {
@@ -1419,6 +1423,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameSession = await storage.getGameSession(sessionId);
       if (!gameSession) {
         return res.status(404).json({ error: "Гру не знайдено" });
+      }
+
+      if (gameSession.userId !== userId) {
+        return res.status(403).json({ error: "Немає доступу до цієї гри" });
       }
 
       // Get brand info
@@ -1499,6 +1507,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gameSession = await storage.getGameSession(sessionId);
       if (!gameSession) {
         return res.status(404).json({ error: "Гру не знайдено" });
+      }
+
+      if (gameSession.userId !== userId) {
+        return res.status(403).json({ error: "Немає доступу до цієї гри" });
       }
 
       await storage.deleteAiChatMessages(sessionId);
