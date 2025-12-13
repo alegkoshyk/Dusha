@@ -32,6 +32,14 @@ interface ChatMessage {
   createdAt: string;
 }
 
+interface LocalImageMessage {
+  id: string;
+  prompt: string;
+  imageUrl: string | null;
+  isLoading: boolean;
+  createdAt: string;
+}
+
 export default function BrandChat() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const { user } = useAuth();
@@ -39,6 +47,7 @@ export default function BrandChat() {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -103,16 +112,6 @@ export default function BrandChat() {
     mutationFn: async (prompt: string) => {
       return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt });
     },
-    onSuccess: (data) => {
-      const imageData = data.imageBase64 || data.imageUrl;
-      if (imageData) {
-        setGeneratedImage(imageData);
-        toast({
-          title: "Зображення створено",
-          description: "Зображення успішно згенеровано",
-        });
-      }
-    },
     onError: (error: any) => {
       toast({
         title: "Помилка",
@@ -126,7 +125,7 @@ export default function BrandChat() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, imageMessages]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +148,35 @@ export default function BrandChat() {
       });
       return;
     }
-    generateImageMutation.mutate(message.trim());
+    const prompt = message.trim();
+    const tempId = `img-${Date.now()}`;
+    
+    setImageMessages(prev => [...prev, {
+      id: tempId,
+      prompt,
+      imageUrl: null,
+      isLoading: true,
+      createdAt: new Date().toISOString()
+    }]);
+    
+    setMessage('');
+    
+    generateImageMutation.mutate(prompt, {
+      onSuccess: (data) => {
+        const imageData = data.imageBase64 || data.imageUrl;
+        setImageMessages(prev => prev.map(msg => 
+          msg.id === tempId 
+            ? { ...msg, imageUrl: imageData, isLoading: false }
+            : msg
+        ));
+        if (imageData) {
+          setGeneratedImage(imageData);
+        }
+      },
+      onError: () => {
+        setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+      }
+    });
   };
 
   const handleDownloadImage = () => {
@@ -271,6 +298,56 @@ export default function BrandChat() {
                   </div>
                 </div>
               ))}
+              
+              {imageMessages.map((imgMsg) => (
+                <div key={imgMsg.id} className="space-y-3">
+                  <div className="flex gap-3 flex-row-reverse" data-testid={`image-request-${imgMsg.id}`}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100 dark:bg-red-900">
+                      <User className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div className="max-w-[80%] rounded-lg px-4 py-3 bg-red-600 text-white">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Image className="w-4 h-4" />
+                        <span>Генерація зображення: {imgMsg.prompt}</span>
+                      </div>
+                      <span className="text-xs mt-1 block text-red-200">
+                        {new Date(imgMsg.createdAt).toLocaleTimeString('uk-UA', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3" data-testid={`image-response-${imgMsg.id}`}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-purple-100 dark:bg-purple-900">
+                      <Image className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div className="max-w-[80%] rounded-lg px-4 py-3 bg-gray-100 dark:bg-gray-800">
+                      {imgMsg.isLoading ? (
+                        <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span className="text-sm">Генерую зображення...</span>
+                        </div>
+                      ) : imgMsg.imageUrl ? (
+                        <div>
+                          <img 
+                            src={imgMsg.imageUrl} 
+                            alt={imgMsg.prompt}
+                            className="max-w-xs rounded-lg shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => setGeneratedImage(imgMsg.imageUrl)}
+                            data-testid={`img-chat-${imgMsg.id}`}
+                          />
+                          <p className="text-xs text-gray-500 mt-2">Натисніть для збільшення</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-red-500">Не вдалося згенерувати зображення</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
               {sendMessageMutation.isPending && (
                 <div className="flex gap-3" data-testid="chat-loading">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center bg-blue-100 dark:bg-blue-900">

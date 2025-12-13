@@ -29,8 +29,10 @@ interface NanoBananaStatusResponse {
 
 const NANOBANANA_BASE_URL = 'https://api.nanobananaapi.ai/api/v1/nanobanana';
 
-async function pollForResult(apiKey: string, taskId: string, maxAttempts: number = 60, interval: number = 2000): Promise<NanoBananaStatusResponse> {
+async function pollForResult(apiKey: string, taskId: string, maxAttempts: number = 30, interval: number = 3000): Promise<NanoBananaStatusResponse> {
   for (let i = 0; i < maxAttempts; i++) {
+    console.log(`NanoBanana: Polling attempt ${i + 1}/${maxAttempts} for task ${taskId}`);
+    
     const response = await fetch(`${NANOBANANA_BASE_URL}/record-info?taskId=${taskId}`, {
       method: 'GET',
       headers: {
@@ -39,8 +41,13 @@ async function pollForResult(apiKey: string, taskId: string, maxAttempts: number
     });
 
     const result: NanoBananaStatusResponse = await response.json();
+    console.log(`NanoBanana: Poll response:`, JSON.stringify(result));
 
-    if (result.data?.status === 'completed' || result.data?.status === 'failed') {
+    if (result.code === 200 && result.data?.status === 'completed') {
+      return result;
+    }
+    
+    if (result.code === 200 && result.data?.status === 'failed') {
       return result;
     }
 
