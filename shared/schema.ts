@@ -542,6 +542,48 @@ export const insertAiChatMessageSchema = createInsertSchema(aiChatMessagesTable)
 export type AiChatMessage = typeof aiChatMessagesTable.$inferSelect;
 export type InsertAiChatMessage = z.infer<typeof insertAiChatMessageSchema>;
 
+// Таблиця AI аналізу бренду
+export const brandAiAnalysesTable = pgTable("brand_ai_analyses", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  brandId: uuid("brand_id").notNull().references(() => userBrandsTable.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  analysisType: varchar("analysis_type", { length: 50 }).notNull(), // 'full', 'soul', 'mind', 'body', 'consistency'
+  content: json("content").notNull(), // AI analysis content
+  score: integer("score"), // Overall score 0-100
+  insights: json("insights"), // Key insights array
+  recommendations: json("recommendations"), // Recommendations array
+  strengths: json("strengths"), // Brand strengths
+  weaknesses: json("weaknesses"), // Brand weaknesses
+  provider: varchar("provider", { length: 50 }), // 'openai', 'perplexity'
+  model: varchar("model", { length: 100 }), // Model used
+  tokensUsed: integer("tokens_used"),
+  generationTimeMs: integer("generation_time_ms"), // Time to generate in milliseconds
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  brandIdIdx: index("brand_ai_analyses_brand_id_idx").on(table.brandId),
+  userIdIdx: index("brand_ai_analyses_user_id_idx").on(table.userId),
+  createdAtIdx: index("brand_ai_analyses_created_at_idx").on(table.createdAt),
+}));
+
+export const brandAiAnalysesRelations = relations(brandAiAnalysesTable, ({ one }) => ({
+  brand: one(userBrandsTable, {
+    fields: [brandAiAnalysesTable.brandId],
+    references: [userBrandsTable.id],
+  }),
+  user: one(usersTable, {
+    fields: [brandAiAnalysesTable.userId],
+    references: [usersTable.id],
+  }),
+}));
+
+export const insertBrandAiAnalysisSchema = createInsertSchema(brandAiAnalysesTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type BrandAiAnalysis = typeof brandAiAnalysesTable.$inferSelect;
+export type InsertBrandAiAnalysis = z.infer<typeof insertBrandAiAnalysisSchema>;
+
 // Legacy типи для сумісності з поточним кодом
 export type GameLevel_Legacy = "soul" | "mind" | "body";
 
