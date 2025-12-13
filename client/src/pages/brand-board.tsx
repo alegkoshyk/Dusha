@@ -35,6 +35,7 @@ interface ChecklistCategory {
 interface BrandInsights {
   overallScore: number;
   overallSummary: string;
+  brandName: string;
   levels: LevelInsight[];
   checklist: ChecklistCategory[];
   nextSteps: string[];
@@ -471,7 +472,7 @@ export default function BrandBoard() {
 
             {aiInsights && (
               <div className="space-y-8">
-                {/* Overall Score */}
+                {/* Overall Score with Brand Name */}
                 <div className="flex items-center gap-6 p-6 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg">
                   <div className="relative w-24 h-24">
                     <svg className="w-24 h-24 transform -rotate-90">
@@ -485,7 +486,12 @@ export default function BrandBoard() {
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Загальна оцінка консистентності</h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Аналіз бренду: {aiInsights.brandName || 'Ваш бренд'}
+                      </h3>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">Загальна оцінка консистентності</p>
                     <p className="text-gray-600 dark:text-gray-400">{aiInsights.overallSummary}</p>
                   </div>
                 </div>

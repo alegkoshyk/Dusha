@@ -1277,24 +1277,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate AI insights for a game session
   app.post("/api/game-sessions/:sessionId/ai-insights", requireAuth, async (req, res) => {
     try {
-      if (!isOpenAIConfigured()) {
-        return res.status(400).json({ error: "OpenAI API не налаштовано. Зверніться до адміністратора." });
+      const isConfigured = await isOpenAIConfigured();
+      if (!isConfigured) {
+        return res.status(400).json({ error: "AI API не налаштовано. Зверніться до адміністратора." });
       }
 
       const { sessionId } = req.params;
+      
+      // Get game session to find brand info
+      const gameSession = await storage.getGameSession(sessionId);
+      if (!gameSession) {
+        return res.status(404).json({ error: "Гру не знайдено" });
+      }
+      
+      // Get brand data if available
+      let brandData: { name: string; description?: string } | undefined;
+      if (gameSession.brandId) {
+        const brand = await storage.getUserBrand(gameSession.brandId);
+        if (brand) {
+          brandData = { 
+            name: brand.name, 
+            description: brand.description || undefined 
+          };
+        }
+      }
+      
       const responses = await storage.getSessionCardResponses(sessionId);
       
       if (!responses || responses.length === 0) {
         return res.status(400).json({ error: "Немає відповідей для аналізу" });
       }
 
+      // Format responses with full structure (use cardDescription as question)
       const formattedResponses = responses.map(r => ({
         level: r.level,
         cardTitle: r.cardTitle,
+        question: r.cardDescription || undefined,
         response: r.response
       }));
 
-      const insights = await generateBrandInsights(formattedResponses);
+      console.log("AI Analysis Request:", {
+        sessionId,
+        brandName: brandData?.name,
+        responsesCount: formattedResponses.length,
+        levels: Array.from(new Set(formattedResponses.map(r => r.level)))
+      });
+
+      const insights = await generateBrandInsights(formattedResponses, brandData);
       res.json(insights);
     } catch (error: any) {
       console.error("AI Insights error:", error);
@@ -1305,13 +1334,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Generate AI insights for a specific level
   app.post("/api/game-sessions/:sessionId/ai-insights/:level", requireAuth, async (req, res) => {
     try {
-      if (!isOpenAIConfigured()) {
-        return res.status(400).json({ error: "OpenAI API не налаштовано" });
+      const isConfigured = await isOpenAIConfigured();
+      if (!isConfigured) {
+        return res.status(400).json({ error: "AI API не налаштовано" });
       }
 
       const { sessionId, level } = req.params;
       if (!["soul", "mind", "body"].includes(level)) {
         return res.status(400).json({ error: "Невірний рівень" });
+      }
+
+      // Get game session to find brand info
+      const gameSession = await storage.getGameSession(sessionId);
+      let brandData: { name: string; description?: string } | undefined;
+      if (gameSession?.brandId) {
+        const brand = await storage.getUserBrand(gameSession.brandId);
+        if (brand) {
+          brandData = { name: brand.name, description: brand.description || undefined };
+        }
       }
 
       const responses = await storage.getSessionCardResponses(sessionId);
@@ -1323,7 +1363,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const insight = await analyzeBrandLevel(
         level as "soul" | "mind" | "body",
-        levelResponses.map(r => ({ cardTitle: r.cardTitle, response: r.response }))
+        levelResponses.map(r => ({ cardTitle: r.cardTitle, question: r.cardDescription, response: r.response })),
+        brandData
       );
       res.json(insight);
     } catch (error: any) {
