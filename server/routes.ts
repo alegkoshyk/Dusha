@@ -21,6 +21,7 @@ import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel } from "./openai";
 
 // Admin middleware
 const requireAdmin = async (req: any, res: any, next: any) => {
@@ -1156,6 +1157,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("DB Sync all error:", error);
       res.status(500).json({ error: error.message || "Failed to sync all tables" });
+    }
+  });
+
+  // ============= AI/OpenAI Settings & Analysis =============
+
+  // Check if OpenAI is configured
+  app.get("/api/admin/ai-settings", requireAdmin, async (req, res) => {
+    try {
+      res.json({
+        isConfigured: isOpenAIConfigured(),
+        hasApiKey: !!process.env.OPENAI_API_KEY
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Generate AI insights for a game session
+  app.post("/api/game-sessions/:sessionId/ai-insights", requireAuth, async (req, res) => {
+    try {
+      if (!isOpenAIConfigured()) {
+        return res.status(400).json({ error: "OpenAI API не налаштовано. Зверніться до адміністратора." });
+      }
+
+      const { sessionId } = req.params;
+      const responses = await storage.getSessionCardResponses(sessionId);
+      
+      if (!responses || responses.length === 0) {
+        return res.status(400).json({ error: "Немає відповідей для аналізу" });
+      }
+
+      const formattedResponses = responses.map(r => ({
+        level: r.level,
+        cardTitle: r.cardTitle,
+        response: r.response
+      }));
+
+      const insights = await generateBrandInsights(formattedResponses);
+      res.json(insights);
+    } catch (error: any) {
+      console.error("AI Insights error:", error);
+      res.status(500).json({ error: error.message || "Помилка генерації AI-аналізу" });
+    }
+  });
+
+  // Generate AI insights for a specific level
+  app.post("/api/game-sessions/:sessionId/ai-insights/:level", requireAuth, async (req, res) => {
+    try {
+      if (!isOpenAIConfigured()) {
+        return res.status(400).json({ error: "OpenAI API не налаштовано" });
+      }
+
+      const { sessionId, level } = req.params;
+      if (!["soul", "mind", "body"].includes(level)) {
+        return res.status(400).json({ error: "Невірний рівень" });
+      }
+
+      const responses = await storage.getSessionCardResponses(sessionId);
+      const levelResponses = responses.filter(r => r.level === level);
+      
+      if (levelResponses.length === 0) {
+        return res.status(400).json({ error: "Немає відповідей для цього рівня" });
+      }
+
+      const insight = await analyzeBrandLevel(
+        level as "soul" | "mind" | "body",
+        levelResponses.map(r => ({ cardTitle: r.cardTitle, response: r.response }))
+      );
+      res.json(insight);
+    } catch (error: any) {
+      console.error("Level AI Insights error:", error);
+      res.status(500).json({ error: error.message || "Помилка аналізу рівня" });
     }
   });
 
