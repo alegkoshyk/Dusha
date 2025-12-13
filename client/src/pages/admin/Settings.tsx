@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info, Eye, EyeOff, Save, Sparkles, BarChart3, Coins, Clock } from "lucide-react";
+import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info, Eye, EyeOff, Save, Sparkles, BarChart3, Coins, Clock, Image, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -92,6 +92,8 @@ export default function Settings() {
   const [selectedModelOpenAI, setSelectedModelOpenAI] = useState("gpt-4o");
   const [selectedModelPerplexity, setSelectedModelPerplexity] = useState("llama-3.1-sonar-large-128k-online");
   const [aiContext, setAiContext] = useState("");
+  const [geminiKeyInput, setGeminiKeyInput] = useState("");
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
 
   const { data: comparison, isLoading, refetch, isRefetching } = useQuery<CompareResult>({
     queryKey: ["/api/admin/db-sync/compare"],
@@ -103,6 +105,10 @@ export default function Settings() {
 
   const { data: aiUsage, isLoading: isLoadingUsage, refetch: refetchUsage } = useQuery<AIUsageData>({
     queryKey: ["/api/admin/ai-usage"],
+  });
+
+  const { data: userSettings, refetch: refetchUserSettings } = useQuery<{ hasGeminiKey: boolean }>({
+    queryKey: ["/api/user/settings"],
   });
 
   useEffect(() => {
@@ -158,6 +164,32 @@ export default function Settings() {
         description: error.message || "Не вдалося зберегти налаштування",
         variant: "destructive",
       });
+    },
+  });
+
+  const saveGeminiKeyMutation = useMutation({
+    mutationFn: async (apiKey: string) => {
+      const response = await apiRequest("POST", "/api/user/settings/gemini-api-key", { apiKey });
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "NanoBanana API ключ збережено" });
+      setGeminiKeyInput("");
+      refetchUserSettings();
+    },
+    onError: (error: any) => {
+      toast({ title: "Помилка", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteGeminiKeyMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("DELETE", "/api/user/settings/gemini-api-key");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "NanoBanana API ключ видалено" });
+      refetchUserSettings();
     },
   });
 
@@ -364,6 +396,10 @@ export default function Settings() {
             <TabsTrigger value="database" className="data-[state=active]:bg-gray-700 text-gray-300">
               <Database className="h-4 w-4 mr-2" />
               Синхронізація БД
+            </TabsTrigger>
+            <TabsTrigger value="nanobanana" className="data-[state=active]:bg-gray-700 text-gray-300" data-testid="tab-nanobanana">
+              <Image className="h-4 w-4 mr-2" />
+              NanoBanana
             </TabsTrigger>
           </TabsList>
 
@@ -769,6 +805,152 @@ export default function Settings() {
                     </table>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="nanobanana" className="space-y-6 mt-6">
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Image className="h-5 w-5" />
+                  NanoBanana - Генерація зображень
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Налаштуйте API ключ для генерації зображень через NanoBanana (Gemini)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Card className="bg-gray-900 border-gray-700">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-white text-base flex items-center gap-2">
+                        <Key className="h-4 w-4" />
+                        Google Gemini API ключ
+                      </CardTitle>
+                      <Badge className={userSettings?.hasGeminiKey ? 'bg-green-600' : 'bg-gray-600'} data-testid="badge-gemini-status">
+                        {userSettings?.hasGeminiKey ? (
+                          <><Check className="h-3 w-3 mr-1" /> Налаштовано</>
+                        ) : (
+                          <><X className="h-3 w-3 mr-1" /> Не налаштовано</>
+                        )}
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-gray-400">
+                      {userSettings?.hasGeminiKey 
+                        ? 'Ключ збережено. Генерація зображень доступна.'
+                        : 'Введіть ваш Google Gemini API ключ для генерації зображень.'}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="gemini-api-key" className="text-gray-300">API ключ</Label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            id="gemini-api-key"
+                            type={showGeminiKey ? "text" : "password"}
+                            value={geminiKeyInput}
+                            onChange={(e) => setGeminiKeyInput(e.target.value)}
+                            placeholder="AIza..."
+                            className="bg-gray-800 border-gray-600 text-white pr-10"
+                            data-testid="input-gemini-api-key"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-gray-400"
+                            onClick={() => setShowGeminiKey(!showGeminiKey)}
+                            data-testid="button-toggle-gemini-key-visibility"
+                          >
+                            {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                        <Button
+                          onClick={() => saveGeminiKeyMutation.mutate(geminiKeyInput)}
+                          disabled={!geminiKeyInput || geminiKeyInput.length < 10 || saveGeminiKeyMutation.isPending}
+                          className="bg-green-600 hover:bg-green-700"
+                          data-testid="button-save-gemini-api-key"
+                        >
+                          {saveGeminiKeyMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          Зберегти
+                        </Button>
+                        {userSettings?.hasGeminiKey && (
+                          <Button
+                            onClick={() => deleteGeminiKeyMutation.mutate()}
+                            disabled={deleteGeminiKeyMutation.isPending}
+                            variant="destructive"
+                            data-testid="button-delete-gemini-api-key"
+                          >
+                            {deleteGeminiKeyMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <X className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 p-3 rounded-lg bg-blue-900/30 border border-blue-700">
+                      <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <h4 className="font-medium text-blue-300 text-sm">Як отримати API ключ</h4>
+                        <p className="text-xs text-blue-200">
+                          Перейдіть на{" "}
+                          <a 
+                            href="https://aistudio.google.com/app/apikey" 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="underline hover:text-white inline-flex items-center gap-1"
+                          >
+                            Google AI Studio
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gray-800 border-gray-700">
+                  <CardHeader>
+                    <CardTitle className="text-white text-lg">Можливості NanoBanana</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                        <h5 className="font-medium text-white mb-2">Генерація зображень</h5>
+                        <p className="text-sm text-gray-400">
+                          Створюйте унікальні зображення для вашого бренду за допомогою AI
+                        </p>
+                      </div>
+                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                        <h5 className="font-medium text-white mb-2">Візуальна ідентичність</h5>
+                        <p className="text-sm text-gray-400">
+                          Генеруйте логотипи, банери та інші візуальні елементи бренду
+                        </p>
+                      </div>
+                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                        <h5 className="font-medium text-white mb-2">Швидкий результат</h5>
+                        <p className="text-sm text-gray-400">
+                          Отримуйте готові зображення за лічені секунди
+                        </p>
+                      </div>
+                      <div className={`p-4 rounded-lg border ${userSettings?.hasGeminiKey ? 'bg-gray-900 border-gray-700' : 'bg-gray-900/50 border-gray-800'}`}>
+                        <h5 className="font-medium text-white mb-2">Інтеграція в чат</h5>
+                        <p className="text-sm text-gray-400">
+                          Генеруйте зображення прямо з чату бренд-асистента
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </CardContent>
             </Card>
           </TabsContent>
