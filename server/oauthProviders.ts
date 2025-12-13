@@ -358,8 +358,22 @@ export function setupOAuthRoutes(app: Express) {
       });
 
       if (!tokenResponse.ok) {
-        console.error("Apple token error:", await tokenResponse.text());
-        return res.redirect("/?error=token_exchange_failed");
+        const errorText = await tokenResponse.text();
+        console.error("Apple token error response:", errorText);
+        console.error("Apple token error status:", tokenResponse.status);
+        console.error("Token request params:", {
+          clientId,
+          redirectUri,
+          hasCode: !!code,
+          clientSecretLength: clientSecret?.length
+        });
+        // Return the actual Apple error in URL for debugging
+        try {
+          const errorJson = JSON.parse(errorText);
+          return res.redirect(`/?error=token_exchange_failed&apple_error=${encodeURIComponent(errorJson.error || 'unknown')}`);
+        } catch {
+          return res.redirect(`/?error=token_exchange_failed&details=${encodeURIComponent(errorText.substring(0, 100))}`);
+        }
       }
 
       const tokens = await tokenResponse.json();
