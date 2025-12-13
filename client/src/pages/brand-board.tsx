@@ -7,9 +7,37 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Download, Share, MapPin, Heart, Brain, Dumbbell, Edit2, Save, ChevronRight, Lightbulb, Check, Sparkles, Loader2, AlertCircle, CheckCircle, CircleDot, ArrowRight, TrendingUp, Settings } from 'lucide-react';
+import { ArrowLeft, Download, Share, MapPin, Heart, Brain, Dumbbell, Edit2, Save, ChevronRight, Lightbulb, Check, Sparkles, Loader2, AlertCircle, CheckCircle, CircleDot, ArrowRight, TrendingUp, Settings, History, Clock, Star } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useState } from 'react';
+
+interface BrandAiAnalysis {
+  id: string;
+  brandId: string;
+  userId: string;
+  analysisType: string;
+  content: any;
+  score: number | null;
+  insights: string[] | null;
+  recommendations: string[] | null;
+  strengths: string[] | null;
+  weaknesses: string[] | null;
+  provider: string | null;
+  model: string | null;
+  tokensUsed: number | null;
+  generationTimeMs: number | null;
+  createdAt: string;
+}
+
+interface GameSessionData {
+  id: string;
+  brandId: string;
+  userId: string;
+  currentLevel: string;
+  currentCard: string;
+  progress: number;
+  totalXp: number;
+}
 
 interface LevelInsight {
   level: string;
@@ -86,7 +114,18 @@ export default function BrandBoard() {
     enabled: !!sessionId
   });
 
+  const { data: sessionData } = useQuery<GameSessionData>({
+    queryKey: ['/api/game-sessions', sessionId],
+    enabled: !!sessionId
+  });
+
+  const { data: aiAnalysisHistory } = useQuery<BrandAiAnalysis[]>({
+    queryKey: ['/api/brands', sessionData?.brandId, 'ai-analyses'],
+    enabled: !!sessionData?.brandId
+  });
+
   const [aiInsights, setAiInsights] = useState<BrandInsights | null>(null);
+  const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
   const generateInsightsMutation = useMutation({
@@ -614,6 +653,80 @@ export default function BrandBoard() {
             )}
           </CardContent>
         </Card>
+
+        {/* AI Analysis History Section */}
+        {aiAnalysisHistory && aiAnalysisHistory.length > 0 && (
+          <Card className="mt-6 border-gray-200 dark:border-gray-700">
+            <CardHeader 
+              className="bg-gray-50 dark:bg-gray-800/50 cursor-pointer"
+              onClick={() => setShowAnalysisHistory(!showAnalysisHistory)}
+            >
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <History className="w-5 h-5" />
+                  Історія AI аналізів ({aiAnalysisHistory.length})
+                </CardTitle>
+                <ChevronRight className={`w-5 h-5 transition-transform ${showAnalysisHistory ? 'rotate-90' : ''}`} />
+              </div>
+            </CardHeader>
+            {showAnalysisHistory && (
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  {aiAnalysisHistory.map((analysis) => (
+                    <div 
+                      key={analysis.id} 
+                      className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                              {new Date(analysis.createdAt).toLocaleDateString('uk-UA', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          {analysis.score && (
+                            <Badge variant="outline" className="flex items-center gap-1">
+                              <Star className="w-3 h-3" />
+                              {analysis.score}/100
+                            </Badge>
+                          )}
+                        </div>
+                        <Badge variant="secondary">{analysis.analysisType}</Badge>
+                      </div>
+                      
+                      {analysis.insights && Array.isArray(analysis.insights) && analysis.insights.length > 0 && (
+                        <div className="mt-2">
+                          <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Ключові інсайти:</h5>
+                          <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                            {analysis.insights.slice(0, 3).map((insight: string, i: number) => (
+                              <li key={i} className="flex items-start gap-2">
+                                <Sparkles className="w-3 h-3 text-indigo-500 mt-1 flex-shrink-0" />
+                                <span>{insight}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      
+                      {analysis.provider && (
+                        <div className="mt-2 text-xs text-gray-400">
+                          {analysis.provider} {analysis.model && `• ${analysis.model}`}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        )}
       </div>
 
       {/* Full Card Modal */}
