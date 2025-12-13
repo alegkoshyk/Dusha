@@ -12,6 +12,8 @@ import Game from "@/pages/game";
 import MobileGame from "@/pages/mobile-game";
 import Results from "@/pages/results";
 import BrandBoard from "@/pages/brand-board";
+import BrandMaps from "@/pages/brand-maps";
+import BrandChat from "@/pages/brand-chat";
 import { Auth } from "@/pages/auth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
@@ -52,6 +54,8 @@ function Router() {
           <Route path="/game/:sessionId" component={MobileGame} />
           <Route path="/game/:sessionId/results" component={BrandBoard} />
           <Route path="/brand-board/:sessionId" component={BrandBoard} />
+          <Route path="/brand-maps" component={BrandMaps} />
+          <Route path="/brand-chat/:sessionId" component={BrandChat} />
           <Route path="/classic/:sessionId?" component={Game} />
           <Route path="/rcadmin" component={AdminDashboard} />
           <Route path="/rcadmin/cards" component={CardsManagement} />
