@@ -38,7 +38,7 @@ import {
   type InsertCardOptionSetLink,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, count, sql, and, isNotNull, or } from "drizzle-orm";
+import { eq, count, sql, and, isNotNull, or, inArray } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export interface IStorage {
@@ -1024,11 +1024,54 @@ export class DatabaseStorage implements IStorage {
       }
     }
     
-    // 2. Delete user (cascade will handle related data:
-    //    - user_settings (CASCADE)
-    //    - user_profiles (CASCADE)
-    //    - user_brands (CASCADE) -> game_sessions (CASCADE) -> card_responses (CASCADE)
-    //    - game_sessions directly linked to user (CASCADE) -> card_responses (CASCADE)
+    // 2. Get all user's brands
+    const userBrands = await db
+      .select({ id: userBrandsTable.id })
+      .from(userBrandsTable)
+      .where(eq(userBrandsTable.userId, userId));
+    
+    // 3. Get all game sessions (both direct and via brands)
+    const directSessions = await db
+      .select({ id: gameSessionsTable.id })
+      .from(gameSessionsTable)
+      .where(eq(gameSessionsTable.userId, userId));
+    
+    const brandIds = userBrands.map(b => b.id);
+    let brandSessions: { id: string }[] = [];
+    if (brandIds.length > 0) {
+      brandSessions = await db
+        .select({ id: gameSessionsTable.id })
+        .from(gameSessionsTable)
+        .where(inArray(gameSessionsTable.brandId, brandIds));
+    }
+    
+    const allSessionIds = [...new Set([...directSessions.map(s => s.id), ...brandSessions.map(s => s.id)])];
+    
+    // 4. Delete card responses for all sessions
+    if (allSessionIds.length > 0) {
+      await db.delete(cardResponsesTable).where(inArray(cardResponsesTable.sessionId, allSessionIds));
+      console.log(`Deleted card responses for ${allSessionIds.length} sessions`);
+    }
+    
+    // 5. Delete game sessions
+    if (allSessionIds.length > 0) {
+      await db.delete(gameSessionsTable).where(inArray(gameSessionsTable.id, allSessionIds));
+      console.log(`Deleted ${allSessionIds.length} game sessions`);
+    }
+    
+    // 6. Delete user brands
+    if (brandIds.length > 0) {
+      await db.delete(userBrandsTable).where(inArray(userBrandsTable.id, brandIds));
+      console.log(`Deleted ${brandIds.length} brands`);
+    }
+    
+    // 7. Delete user profile
+    await db.delete(userProfilesTable).where(eq(userProfilesTable.userId, userId));
+    
+    // 8. Delete user settings
+    await db.delete(userSettingsTable).where(eq(userSettingsTable.userId, userId));
+    
+    // 9. Finally delete the user
     await db.delete(usersTable).where(eq(usersTable.id, userId));
     
     console.log(`User ${userId} and all related data deleted successfully`);
