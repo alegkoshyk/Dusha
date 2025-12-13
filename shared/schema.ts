@@ -469,6 +469,26 @@ export type InsertCardOption = typeof cardOptionsTable.$inferInsert;
 export type CardOptionSetLink = typeof cardOptionSetLinksTable.$inferSelect;
 export type InsertCardOptionSetLink = typeof cardOptionSetLinksTable.$inferInsert;
 
+// Таблиця налаштувань додатку (глобальні налаштування)
+export const appSettingsTable = pgTable("app_settings", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value"),
+  description: text("description"),
+  isSecret: boolean("is_secret").notNull().default(false),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+export const insertAppSettingSchema = createInsertSchema(appSettingsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type AppSetting = typeof appSettingsTable.$inferSelect;
+export type InsertAppSetting = z.infer<typeof insertAppSettingSchema>;
+
 // Legacy типи для сумісності з поточним кодом
 export type GameLevel_Legacy = "soul" | "mind" | "body";
 
