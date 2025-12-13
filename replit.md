@@ -59,3 +59,12 @@ Preferred communication style: Simple, everyday language.
 - **Date Handling**: date-fns.
 - **Drag and Drop**: @dnd-kit.
 - **Database**: PostgreSQL via Neon serverless.
+
+### Authentication
+- **Email/Password**: bcrypt hashing, session-based auth
+- **Google OAuth**: Standard OAuth 2.0 flow
+- **Apple OAuth**: JWT client secret with ES256 signature (DER to raw conversion)
+- **Auth Tokens**: localStorage-based tokens for cross-device support
+
+## Documentation
+Full project documentation available in `DOCUMENTATION.md`.
