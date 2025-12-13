@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { User, Home, Gamepad2, LayoutDashboard, CreditCard, Settings, Users, Eye, ChevronDown, List, Package, Map } from 'lucide-react';
+import { User, Home, Gamepad2, LayoutDashboard, CreditCard, Settings, Users, Eye, ChevronDown, List, Package, Map, Cog } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import UserDropdown from './UserDropdown';
 import { useAuth } from '@/hooks/useAuth';
@@ -112,6 +112,12 @@ export function Header() {
                     <Link href="/rcadmin/users" className="flex items-center gap-2 w-full">
                       <Users className="h-4 w-4" />
                       Користувачі
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/rcadmin/settings" className="flex items-center gap-2 w-full">
+                      <Cog className="h-4 w-4" />
+                      Налаштування
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
