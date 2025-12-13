@@ -1,0 +1,37 @@
+content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+2e02d270-c689-4535-816f-ac561f974749:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+2e02d270-c689-4535-816f-ac561f974749:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+2e02d270-c689-4535-816f-ac561f974749:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+2e02d270-c689-4535-816f-ac561f974749:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+2e02d270-c689-4535-816f-ac561f974749:1 Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+generate-image:1  Failed to load resource: the server responded with a status of 400 ()
