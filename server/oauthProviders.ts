@@ -43,10 +43,29 @@ function generateAppleClientSecret(): string {
   const payloadEncoded = base64url(payload);
   const signingInput = `${headerEncoded}.${payloadEncoded}`;
 
+  // Normalize private key format - handle various input formats
+  let normalizedKey = privateKey
+    .replace(/\\n/g, '\n')           // Replace literal \n
+    .replace(/\\r\\n/g, '\n')        // Replace literal \r\n
+    .replace(/-----BEGIN PRIVATE KEY----- /g, '-----BEGIN PRIVATE KEY-----\n')  // Fix space after header
+    .replace(/ -----END PRIVATE KEY-----/g, '\n-----END PRIVATE KEY-----');     // Fix space before footer
+  
+  // If still no newlines in the key body, try to reconstruct proper format
+  if (!normalizedKey.includes('\n')) {
+    // Extract the base64 content and reformat
+    const match = normalizedKey.match(/-----BEGIN PRIVATE KEY-----(.*?)-----END PRIVATE KEY-----/s);
+    if (match) {
+      const base64Content = match[1].replace(/\s+/g, '');
+      // Split into 64-char lines
+      const lines = base64Content.match(/.{1,64}/g) || [];
+      normalizedKey = `-----BEGIN PRIVATE KEY-----\n${lines.join('\n')}\n-----END PRIVATE KEY-----`;
+    }
+  }
+
   // Sign with ES256 (ECDSA with P-256 and SHA-256)
   const sign = crypto.createSign('SHA256');
   sign.update(signingInput);
-  const signature = sign.sign(privateKey.replace(/\\n/g, '\n'), 'base64')
+  const signature = sign.sign(normalizedKey, 'base64')
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
   return `${signingInput}.${signature}`;
