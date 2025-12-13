@@ -783,7 +783,16 @@ export class DatabaseStorage implements IStorage {
         .where(eq(cardResponsesTable.sessionId, sessionId))
         .orderBy(gameCardsTable.positionX);
       
-      return responses;
+      // Load translations once for efficiency
+      const valueToName = await this.loadOptionTranslations();
+      
+      // Translate responses to Ukrainian names
+      const translatedResponses = responses.map((r) => ({
+        ...r,
+        response: this.translateResponseWithMap(r.response, valueToName)
+      }));
+      
+      return translatedResponses;
     } catch (error) {
       console.error("Error in getSessionCardResponses:", error);
       // Fallback to simple responses without join
@@ -792,14 +801,18 @@ export class DatabaseStorage implements IStorage {
         .from(cardResponsesTable)
         .where(eq(cardResponsesTable.sessionId, sessionId));
       
-      // Manually get card titles
+      // Load translations once
+      const valueToName = await this.loadOptionTranslations();
+      
+      // Manually get card titles and translate responses
       const result = [];
       for (const response of simpleResponses) {
         const card = await this.getGameCard(response.cardId);
+        const translatedResponse = this.translateResponseWithMap(response.response, valueToName);
         result.push({
           cardId: response.cardId,
           cardTitle: card?.title || response.cardId,
-          response: response.response,
+          response: translatedResponse,
           responseType: response.responseType,
           createdAt: response.submittedAt,
           level: card?.levelId || 'unknown'
@@ -1209,6 +1222,67 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(cardOptionsTable)
       .where(eq(cardOptionsTable.isActive, true))
       .orderBy(cardOptionsTable.optionSetId, cardOptionsTable.order);
+  }
+
+  // Load all option translations at once for efficiency
+  async loadOptionTranslations(): Promise<Record<string, string>> {
+    const options = await db.select()
+      .from(cardOptionsTable)
+      .where(eq(cardOptionsTable.isActive, true));
+    
+    const valueToName: Record<string, string> = {};
+    options.forEach(opt => {
+      valueToName[opt.value] = opt.name;
+    });
+    return valueToName;
+  }
+
+  // Translate values using preloaded map
+  translateValuesWithMap(values: string | string[], valueToName: Record<string, string>): string | string[] {
+    if (!values) return values;
+    
+    const valueArray = Array.isArray(values) ? values : [values];
+    if (valueArray.length === 0) return values;
+    
+    const translated = valueArray.map(v => valueToName[v] || v);
+    return Array.isArray(values) ? translated : translated[0];
+  }
+
+  // Translate a complete response object using preloaded map
+  translateResponseWithMap(response: any, valueToName: Record<string, string>): any {
+    if (!response) return response;
+    
+    // If it's a simple array of strings, translate each
+    if (Array.isArray(response)) {
+      const hasObjects = response.some(item => typeof item === 'object');
+      if (!hasObjects) {
+        return this.translateValuesWithMap(response, valueToName);
+      }
+      return response;
+    }
+    
+    // If it's a simple string, try to translate
+    if (typeof response === 'string') {
+      return this.translateValuesWithMap(response, valueToName);
+    }
+    
+    // If it's an object, walk known fields and translate
+    if (typeof response === 'object') {
+      const translated = { ...response };
+      const fieldsToTranslate = [
+        'selectedValues', 'archetype', 'archetypes', 'values', 'channels',
+        'toneOfVoice', 'tone', 'products', 'metrics', 'pricing'
+      ];
+      
+      for (const field of fieldsToTranslate) {
+        if (translated[field]) {
+          translated[field] = this.translateValuesWithMap(translated[field], valueToName);
+        }
+      }
+      return translated;
+    }
+    
+    return response;
   }
 }
 
