@@ -279,7 +279,15 @@ export default function BrandBoard() {
             </div>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            <Button 
+              variant="outline" 
+              onClick={() => document.getElementById('ai-analysis-section')?.scrollIntoView({ behavior: 'smooth' })}
+              className="border-indigo-300 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+              data-testid="button-ai-analyses"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />AI аналізи
+            </Button>
             <Button variant="outline" data-testid="button-share"><Share className="w-4 h-4 mr-2" />Поділитися</Button>
             <Button data-testid="button-download-pdf"><Download className="w-4 h-4 mr-2" />Завантажити PDF</Button>
           </div>
@@ -433,7 +441,7 @@ export default function BrandBoard() {
         </div>
 
         {/* AI Insights Section */}
-        <Card className="mt-8 border-indigo-200 dark:border-indigo-800">
+        <Card id="ai-analysis-section" className="mt-8 border-indigo-200 dark:border-indigo-800">
           <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <CardTitle className="flex items-center gap-2 text-indigo-800 dark:text-indigo-200">

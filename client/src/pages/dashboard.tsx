@@ -636,7 +636,7 @@ export default function Dashboard() {
                                   Всього відповідей: {(session.completedCards as string[])?.length || 0}
                                 </p>
                                 
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 flex-wrap">
                                   <Button 
                                     variant="outline" 
                                     size="sm"
@@ -645,6 +645,16 @@ export default function Dashboard() {
                                   >
                                     <Eye className="w-4 h-4 mr-1" />
                                     Карта бренду
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleViewResults(session.id)}
+                                    className="border-indigo-300 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
+                                    data-testid={`ai-analyses-completed-${session.id}`}
+                                  >
+                                    <Sparkles className="w-4 h-4 mr-1" />
+                                    AI аналізи
                                   </Button>
                                   <Button
                                     variant="ghost"
