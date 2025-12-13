@@ -1222,6 +1222,7 @@ export class DatabaseStorage implements IStorage {
     // Mapping of card IDs to option set IDs
     const cardToOptionSetMapping: { [key: string]: string } = {
       'soul-values': 'brand-values',
+      'soul-archetype': 'brand-archetypes',
       'mind-archetype': 'brand-archetypes', 
       'body-products': 'products-services',
       'body-channels': 'communication-channels',
