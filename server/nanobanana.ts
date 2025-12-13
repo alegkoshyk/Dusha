@@ -84,7 +84,7 @@ export async function generateImageWithNanoBanana(
       },
       body: JSON.stringify({
         prompt: fullPrompt,
-        type: 'TEXTTOIMAGE',
+        type: 'TEXTTOIAMGE',
         numImages: 1
       })
     });
