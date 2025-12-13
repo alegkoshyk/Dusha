@@ -4,6 +4,37 @@ import { storage } from "./storage";
 import { setUserInSession } from "./auth";
 import crypto from "crypto";
 
+// Convert DER signature to raw R||S format for ES256
+function derToRaw(derSignature: Buffer): Buffer {
+  // DER format: 0x30 [total-length] 0x02 [r-length] [r] 0x02 [s-length] [s]
+  let offset = 2; // Skip 0x30 and total length
+  
+  // Read R
+  if (derSignature[offset] !== 0x02) throw new Error("Invalid DER signature");
+  offset++;
+  const rLength = derSignature[offset];
+  offset++;
+  let r = derSignature.subarray(offset, offset + rLength);
+  offset += rLength;
+  
+  // Read S
+  if (derSignature[offset] !== 0x02) throw new Error("Invalid DER signature");
+  offset++;
+  const sLength = derSignature[offset];
+  offset++;
+  let s = derSignature.subarray(offset, offset + sLength);
+  
+  // Remove leading zeros and pad to 32 bytes each
+  if (r.length > 32) r = r.subarray(r.length - 32);
+  if (s.length > 32) s = s.subarray(s.length - 32);
+  
+  const rawSig = Buffer.alloc(64);
+  r.copy(rawSig, 32 - r.length);
+  s.copy(rawSig, 64 - s.length);
+  
+  return rawSig;
+}
+
 // Generate Apple client secret (JWT signed with private key)
 function generateAppleClientSecret(): string {
   const teamId = process.env.APPLE_TEAM_ID;
@@ -38,6 +69,10 @@ function generateAppleClientSecret(): string {
   const base64url = (data: object) => 
     Buffer.from(JSON.stringify(data)).toString('base64')
       .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  
+  const base64urlFromBuffer = (buf: Buffer) => 
+    buf.toString('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
   const headerEncoded = base64url(header);
   const payloadEncoded = base64url(payload);
@@ -65,8 +100,11 @@ function generateAppleClientSecret(): string {
   // Sign with ES256 (ECDSA with P-256 and SHA-256)
   const sign = crypto.createSign('SHA256');
   sign.update(signingInput);
-  const signature = sign.sign(normalizedKey, 'base64')
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  // Get DER-encoded signature from Node.js crypto
+  const derSignature = sign.sign(normalizedKey);
+  // Convert to raw R||S format (64 bytes) that Apple expects
+  const rawSignature = derToRaw(derSignature);
+  const signature = base64urlFromBuffer(rawSignature);
 
   return `${signingInput}.${signature}`;
 }
@@ -487,6 +525,32 @@ export function setupOAuthRoutes(app: Express) {
     } catch (error) {
       console.error("Apple OAuth callback error:", error);
       res.redirect("/?error=oauth_failed");
+    }
+  });
+
+  // Debug endpoint to see JWT claims being sent to Apple
+  app.get("/api/auth/apple/debug", (req: Request, res: Response) => {
+    try {
+      const clientSecret = generateAppleClientSecret();
+      // Decode the JWT to show what's being sent
+      const parts = clientSecret.split('.');
+      const header = JSON.parse(Buffer.from(parts[0], 'base64').toString());
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+      
+      res.json({
+        status: "JWT generated successfully",
+        header,
+        payload,
+        jwtLength: clientSecret.length,
+        expectedClientId: process.env.APPLE_CLIENT_ID,
+        expectedTeamId: process.env.APPLE_TEAM_ID,
+        expectedKeyId: process.env.APPLE_KEY_ID,
+      });
+    } catch (e: any) {
+      res.json({
+        status: "JWT generation failed",
+        error: e.message,
+      });
     }
   });
 
