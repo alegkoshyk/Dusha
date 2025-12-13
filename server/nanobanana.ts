@@ -7,6 +7,49 @@ interface GenerateImageResult {
   error?: string;
 }
 
+interface NanoBananaTaskResponse {
+  code: number;
+  msg?: string;
+  data?: {
+    taskId: string;
+  };
+}
+
+interface NanoBananaStatusResponse {
+  code: number;
+  msg?: string;
+  data?: {
+    taskId: string;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    images?: Array<{
+      url: string;
+    }>;
+  };
+}
+
+const NANOBANANA_BASE_URL = 'https://api.nanobananaapi.ai/api/v1/nanobanana';
+
+async function pollForResult(apiKey: string, taskId: string, maxAttempts: number = 60, interval: number = 2000): Promise<NanoBananaStatusResponse> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const response = await fetch(`${NANOBANANA_BASE_URL}/record-info?taskId=${taskId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+
+    const result: NanoBananaStatusResponse = await response.json();
+
+    if (result.data?.status === 'completed' || result.data?.status === 'failed') {
+      return result;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, interval));
+  }
+
+  throw new Error('Timeout waiting for image generation');
+}
+
 export async function generateImageWithNanoBanana(
   encryptedApiKey: string,
   prompt: string,
@@ -26,24 +69,18 @@ export async function generateImageWithNanoBanana(
     : prompt;
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          instances: [{
-            prompt: fullPrompt
-          }],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: "1:1"
-          }
-        })
-      }
-    );
+    const response = await fetch(`${NANOBANANA_BASE_URL}/generate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: fullPrompt,
+        type: 'TEXTTOIAMGE',
+        numImages: 1
+      })
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -58,28 +95,33 @@ export async function generateImageWithNanoBanana(
       
       return {
         success: false,
-        error: `Помилка API: ${errorData.error?.message || response.statusText}`
+        error: `Помилка API: ${errorData.msg || response.statusText}`
       };
     }
 
-    const data = await response.json();
+    const taskData: NanoBananaTaskResponse = await response.json();
     
-    if (data.predictions?.[0]?.bytesBase64Encoded) {
+    if (taskData.code !== 200 || !taskData.data?.taskId) {
+      return {
+        success: false,
+        error: `Помилка створення задачі: ${taskData.msg || 'Невідома помилка'}`
+      };
+    }
+
+    const result = await pollForResult(apiKey, taskData.data.taskId);
+
+    if (result.data?.status === 'failed') {
+      return {
+        success: false,
+        error: "Генерація зображення не вдалася. Спробуйте інший запит."
+      };
+    }
+
+    if (result.data?.images?.[0]?.url) {
       return {
         success: true,
-        imageBase64: `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`
+        imageUrl: result.data.images[0].url
       };
-    }
-
-    if (data.candidates?.[0]?.content?.parts) {
-      for (const part of data.candidates[0].content.parts) {
-        if (part.inlineData?.mimeType?.startsWith('image/')) {
-          return {
-            success: true,
-            imageBase64: `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`
-          };
-        }
-      }
     }
 
     return {
@@ -104,12 +146,24 @@ export async function validateApiKey(encryptedApiKey: string): Promise<boolean> 
   }
 
   try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
-      { method: 'GET' }
-    );
+    const response = await fetch(`${NANOBANANA_BASE_URL}/generate`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt: 'test',
+        type: 'TEXTTOIAMGE',
+        numImages: 1
+      })
+    });
     
-    return response.ok;
+    if (response.status === 401 || response.status === 403) {
+      return false;
+    }
+    
+    return true;
   } catch {
     return false;
   }
