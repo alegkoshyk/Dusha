@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, LogOut, Home, Settings } from "lucide-react";
+import { User, LogOut, Home, Settings, Map, History } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function UserDropdown() {
@@ -44,6 +44,10 @@ export default function UserDropdown() {
         <DropdownMenuItem onClick={handleDashboard} data-testid="menu-dashboard">
           <Home className="mr-2 h-4 w-4" />
           <span>Дашборд</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setLocation("/brand-maps")} data-testid="menu-brand-maps">
+          <Map className="mr-2 h-4 w-4" />
+          <span>Карти брендів</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setLocation("/settings")} data-testid="menu-settings">
           <Settings className="mr-2 h-4 w-4" />

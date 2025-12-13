@@ -435,17 +435,30 @@ export default function BrandBoard() {
         {/* AI Insights Section */}
         <Card className="mt-8 border-indigo-200 dark:border-indigo-800">
           <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <CardTitle className="flex items-center gap-2 text-indigo-800 dark:text-indigo-200">
                 <Sparkles className="w-6 h-6" />
                 AI Аналіз Бренду
               </CardTitle>
-              <Button
-                onClick={() => generateInsightsMutation.mutate()}
-                disabled={generateInsightsMutation.isPending || aiError === 'api_key_missing'}
-                className={`${aiError === 'api_key_missing' ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} text-white`}
-                data-testid="button-generate-ai"
-              >
+              <div className="flex items-center gap-2">
+                {aiAnalysisHistory && aiAnalysisHistory.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAnalysisHistory(true)}
+                    className="text-indigo-600 border-indigo-300 hover:bg-indigo-50 dark:text-indigo-300 dark:border-indigo-700 dark:hover:bg-indigo-900/30"
+                    data-testid="button-view-history"
+                  >
+                    <History className="w-4 h-4 mr-2" />
+                    Історія ({aiAnalysisHistory.length})
+                  </Button>
+                )}
+                <Button
+                  onClick={() => generateInsightsMutation.mutate()}
+                  disabled={generateInsightsMutation.isPending || aiError === 'api_key_missing'}
+                  className={`${aiError === 'api_key_missing' ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} text-white`}
+                  data-testid="button-generate-ai"
+                >
                 {generateInsightsMutation.isPending ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Аналізую...</>
                 ) : aiError === 'api_key_missing' ? (
@@ -453,7 +466,8 @@ export default function BrandBoard() {
                 ) : (
                   <><Sparkles className="w-4 h-4 mr-2" />{aiInsights ? 'Оновити аналіз' : 'Отримати AI аналіз'}</>
                 )}
-              </Button>
+                </Button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="p-6">
