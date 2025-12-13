@@ -494,12 +494,18 @@ export function setupOAuthRoutes(app: Express) {
   app.get("/api/auth/providers", (req: Request, res: Response) => {
     const privateKey = process.env.APPLE_PRIVATE_KEY || "";
     const normalizedKey = privateKey.replace(/\\n/g, '\n');
+    const teamId = process.env.APPLE_TEAM_ID || "";
+    const keyId = process.env.APPLE_KEY_ID || "";
+    const clientId = process.env.APPLE_CLIENT_ID || "";
     
     const appleConfig = {
-      hasClientId: !!process.env.APPLE_CLIENT_ID,
-      hasTeamId: !!process.env.APPLE_TEAM_ID,
-      hasKeyId: !!process.env.APPLE_KEY_ID,
-      hasPrivateKey: !!process.env.APPLE_PRIVATE_KEY,
+      hasClientId: !!clientId,
+      clientIdValue: clientId, // Show actual client ID for debugging
+      hasTeamId: !!teamId,
+      teamIdValue: teamId, // Show actual team ID for debugging
+      hasKeyId: !!keyId,
+      keyIdValue: keyId, // Show actual key ID for debugging
+      hasPrivateKey: !!privateKey,
       privateKeyLength: privateKey.length,
       keyStartsWith: privateKey.substring(0, 30),
       keyHasBeginMarker: normalizedKey.includes('-----BEGIN PRIVATE KEY-----'),
