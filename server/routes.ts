@@ -251,6 +251,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Brand AI Analysis routes
+  app.get("/api/brands/:brandId/ai-analyses", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      const analyses = await storage.getBrandAiAnalyses(brandId);
+      res.json(analyses);
+    } catch (error) {
+      console.error("Get brand AI analyses error:", error);
+      res.status(500).json({ error: "Помилка отримання AI аналізу" });
+    }
+  });
+
+  app.get("/api/brands/:brandId/ai-analyses/latest", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      const analysis = await storage.getLatestBrandAiAnalysis(brandId);
+      res.json(analysis || null);
+    } catch (error) {
+      console.error("Get latest brand AI analysis error:", error);
+      res.status(500).json({ error: "Помилка отримання AI аналізу" });
+    }
+  });
+
+  app.post("/api/brands/:brandId/ai-analyses", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      const analysis = await storage.createBrandAiAnalysis({
+        brandId,
+        userId: currentUser.id,
+        analysisType: req.body.analysisType || 'full',
+        content: req.body.content,
+        score: req.body.score,
+        insights: req.body.insights,
+        recommendations: req.body.recommendations,
+        strengths: req.body.strengths,
+        weaknesses: req.body.weaknesses,
+        provider: req.body.provider,
+        model: req.body.model,
+        tokensUsed: req.body.tokensUsed,
+        generationTimeMs: req.body.generationTimeMs,
+      });
+      
+      res.status(201).json(analysis);
+    } catch (error) {
+      console.error("Create brand AI analysis error:", error);
+      res.status(500).json({ error: "Помилка збереження AI аналізу" });
+    }
+  });
+
   // Game sessions with user auth
   app.get("/api/user/game-sessions", requireAuth, async (req, res) => {
     try {
