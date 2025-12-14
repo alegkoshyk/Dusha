@@ -385,14 +385,40 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
 - Відповідай чітко, конструктивно та українською мовою
 - Пропонуй конкретні кроки та приклади`;
 
-  const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-    { role: "system", content: systemPrompt },
-    ...chatHistory.slice(-10).map(m => ({
-      role: m.role as "user" | "assistant",
-      content: m.content
-    })),
-    { role: "user", content: userMessage }
+  // Build messages array ensuring alternation for Perplexity compatibility
+  const historyMessages = chatHistory.slice(-10).filter(m => m.role !== "system");
+  const allMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+    { role: "system", content: systemPrompt }
   ];
+  
+  // Add history ensuring user/assistant alternation
+  let lastRole: string | null = "system";
+  for (const msg of historyMessages) {
+    // Skip if same role as last (except first after system)
+    if (msg.role === lastRole && lastRole !== "system") {
+      // Merge with previous message of same role
+      const prev = allMessages[allMessages.length - 1];
+      if (prev && prev.role === msg.role) {
+        prev.content += "\n\n" + msg.content;
+        continue;
+      }
+    }
+    allMessages.push({
+      role: msg.role as "user" | "assistant",
+      content: msg.content
+    });
+    lastRole = msg.role;
+  }
+  
+  // Add new user message (merge if last was also user)
+  if (lastRole === "user" && allMessages.length > 1) {
+    const lastMsg = allMessages[allMessages.length - 1];
+    lastMsg.content += "\n\n" + userMessage;
+  } else {
+    allMessages.push({ role: "user", content: userMessage });
+  }
+  
+  const messages = allMessages;
 
   const response = await client.chat.completions.create({
     model: config.model,
