@@ -70,9 +70,11 @@ async function pollForResult(apiKey: string, taskId: string, maxAttempts: number
 export async function generateImageWithNanoBanana(
   encryptedApiKey: string,
   prompt: string,
-  context?: string
+  context?: string,
+  aspectRatio: string = '1:1'
 ): Promise<GenerateImageResult> {
   console.log('NanoBanana: Starting image generation...');
+  console.log('NanoBanana: Aspect ratio:', aspectRatio);
   
   const apiKey = decryptApiKey(encryptedApiKey);
   
@@ -99,7 +101,7 @@ export async function generateImageWithNanoBanana(
       prompt: fullPrompt,
       type: 'TEXTTOIAMGE',
       numImages: 1,
-      image_size: '1:1',
+      image_size: aspectRatio,
       callBackUrl: 'https://example.com/callback' // Required by API but we use polling
     };
     

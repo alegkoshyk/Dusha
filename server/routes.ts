@@ -1722,7 +1722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { prompt } = req.body;
+      const { prompt, aspectRatio = '1:1' } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
@@ -1759,7 +1759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateImageWithNanoBanana } = await import('./nanobanana');
-      const result = await generateImageWithNanoBanana(profile.geminiApiKey, prompt, brandContext);
+      const result = await generateImageWithNanoBanana(profile.geminiApiKey, prompt, brandContext, aspectRatio);
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });
