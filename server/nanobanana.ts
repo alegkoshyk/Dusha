@@ -20,16 +20,19 @@ interface NanoBananaStatusResponse {
   msg?: string;
   data?: {
     taskId: string;
-    status: 'pending' | 'processing' | 'completed' | 'failed';
-    images?: Array<{
-      url: string;
-    }>;
+    successFlag: 0 | 1 | 2 | 3; // 0-generating, 1-success, 2-create task failed, 3-generation failed
+    errorCode?: number;
+    errorMessage?: string;
+    response?: {
+      originImageUrl?: string;
+      resultImageUrl?: string;
+    };
   };
 }
 
 const NANOBANANA_BASE_URL = 'https://api.nanobananaapi.ai/api/v1/nanobanana';
 
-async function pollForResult(apiKey: string, taskId: string, maxAttempts: number = 30, interval: number = 3000): Promise<NanoBananaStatusResponse> {
+async function pollForResult(apiKey: string, taskId: string, maxAttempts: number = 60, interval: number = 3000): Promise<NanoBananaStatusResponse> {
   for (let i = 0; i < maxAttempts; i++) {
     console.log(`NanoBanana: Polling attempt ${i + 1}/${maxAttempts} for task ${taskId}`);
     
@@ -43,12 +46,19 @@ async function pollForResult(apiKey: string, taskId: string, maxAttempts: number
     const result: NanoBananaStatusResponse = await response.json();
     console.log(`NanoBanana: Poll response:`, JSON.stringify(result));
 
-    if (result.code === 200 && result.data?.status === 'completed') {
-      return result;
-    }
-    
-    if (result.code === 200 && result.data?.status === 'failed') {
-      return result;
+    if (result.code === 200 && result.data) {
+      // successFlag: 0-generating, 1-success, 2-create task failed, 3-generation failed
+      if (result.data.successFlag === 1) {
+        console.log('NanoBanana: Task completed successfully');
+        return result;
+      }
+      
+      if (result.data.successFlag === 2 || result.data.successFlag === 3) {
+        console.log('NanoBanana: Task failed with successFlag:', result.data.successFlag);
+        return result;
+      }
+      
+      // successFlag === 0 means still generating, continue polling
     }
 
     await new Promise(resolve => setTimeout(resolve, interval));
@@ -83,17 +93,25 @@ export async function generateImageWithNanoBanana(
   try {
     console.log('NanoBanana: Sending request to:', `${NANOBANANA_BASE_URL}/generate`);
     
+    // According to official docs: callBackUrl is required but we use polling instead
+    // Using a dummy callback URL since we're polling
+    const requestBody = {
+      prompt: fullPrompt,
+      type: 'TEXTTOIAMGE',
+      numImages: 1,
+      image_size: '1:1',
+      callBackUrl: 'https://example.com/callback' // Required by API but we use polling
+    };
+    
+    console.log('NanoBanana: Request body:', JSON.stringify(requestBody));
+    
     const response = await fetch(`${NANOBANANA_BASE_URL}/generate`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        prompt: fullPrompt,
-        type: 'TEXTTOIMAGE',
-        numImages: 1
-      })
+      body: JSON.stringify(requestBody)
     });
 
     console.log('NanoBanana: Response status:', response.status);
@@ -130,22 +148,35 @@ export async function generateImageWithNanoBanana(
     const result = await pollForResult(apiKey, taskData.data.taskId);
     console.log('NanoBanana: Poll result:', JSON.stringify(result));
 
-    if (result.data?.status === 'failed') {
+    if (!result.data) {
       return {
         success: false,
-        error: "Генерація зображення не вдалася. Спробуйте інший запит."
+        error: "API не повернуло дані. Спробуйте ще раз."
       };
     }
 
-    if (result.data?.images?.[0]?.url) {
-      console.log('NanoBanana: Image generated successfully');
+    // Check successFlag: 2 = create task failed, 3 = generation failed
+    if (result.data.successFlag === 2 || result.data.successFlag === 3) {
+      const errorMsg = result.data.errorMessage || "Генерація зображення не вдалася";
+      console.error('NanoBanana: Generation failed:', errorMsg);
+      return {
+        success: false,
+        error: `${errorMsg}. Спробуйте інший запит.`
+      };
+    }
+
+    // successFlag === 1 means success
+    const imageUrl = result.data.response?.resultImageUrl || result.data.response?.originImageUrl;
+    
+    if (imageUrl) {
+      console.log('NanoBanana: Image generated successfully:', imageUrl);
       return {
         success: true,
-        imageUrl: result.data.images[0].url
+        imageUrl: imageUrl
       };
     }
 
-    console.error('NanoBanana: No image in response');
+    console.error('NanoBanana: No image URL in response');
     return {
       success: false,
       error: "API не повернуло зображення. Спробуйте інший запит."
@@ -168,6 +199,7 @@ export async function validateApiKey(encryptedApiKey: string): Promise<boolean> 
   }
 
   try {
+    // Just check if the API key is valid by making a minimal request
     const response = await fetch(`${NANOBANANA_BASE_URL}/generate`, {
       method: 'POST',
       headers: {
@@ -175,9 +207,10 @@ export async function validateApiKey(encryptedApiKey: string): Promise<boolean> 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        prompt: 'test',
-        type: 'TEXTTOIMAGE',
-        numImages: 1
+        prompt: 'test validation',
+        type: 'TEXTTOIAMGE',
+        numImages: 1,
+        callBackUrl: 'https://example.com/callback'
       })
     });
     

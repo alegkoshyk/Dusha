@@ -1,0 +1,153 @@
+index-C3Jn5c8d.js:433 Auth token from OAuth stored
+content_script.js:1 Uncaught TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at elementWasFocused (content_script.js:1:423712)
+    at HTMLDocument.focusInEventHandler (content_script.js:1:423069)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+elementWasFocused @ content_script.js:1
+focusInEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+content_script.js:1 Uncaught (in promise) TypeError: Cannot read properties of undefined (reading 'control')
+    at content_script.js:1:422999
+    at Array.some (<anonymous>)
+    at shouldOfferCompletionListForField (content_script.js:1:422984)
+    at processInputEvent (content_script.js:1:426332)
+(anonymous) @ content_script.js:1
+shouldOfferCompletionListForField @ content_script.js:1
+processInputEvent @ content_script.js:1
+setTimeout
+inputEventHandler @ content_script.js:1
+index-C3Jn5c8d.js:48  POST https://brandsoul.site/api/game-sessions/2e02d270-c689-4535-816f-ac561f974749/generate-image 400 (Bad Request)
+lp @ index-C3Jn5c8d.js:48
+mutationFn @ index-C3Jn5c8d.js:714
+fn @ index-C3Jn5c8d.js:48
+N @ index-C3Jn5c8d.js:48
+start @ index-C3Jn5c8d.js:48
+execute @ index-C3Jn5c8d.js:48
+await in execute
+mutate @ index-C3Jn5c8d.js:48
+(anonymous) @ index-C3Jn5c8d.js:48
+O @ index-C3Jn5c8d.js:714
+Nz @ index-C3Jn5c8d.js:37
+Sz @ index-C3Jn5c8d.js:37
+kz @ index-C3Jn5c8d.js:37
+x3 @ index-C3Jn5c8d.js:37
+AL @ index-C3Jn5c8d.js:37
+(anonymous) @ index-C3Jn5c8d.js:37
+Iw @ index-C3Jn5c8d.js:40
+YT @ index-C3Jn5c8d.js:37
+w1 @ index-C3Jn5c8d.js:37
+ow @ index-C3Jn5c8d.js:37
+zz @ index-C3Jn5c8d.js:37
