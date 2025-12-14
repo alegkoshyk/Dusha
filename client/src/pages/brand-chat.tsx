@@ -42,20 +42,20 @@ const ASPECT_RATIOS = [
 ];
 
 const IMAGE_STYLES = [
-  { value: '', label: 'Без стилю', description: 'Генерувати без додаткових стилістичних вказівок' },
-  { value: 'photorealistic', label: 'Фотореалістичний', description: 'Як справжнє фото, максимальна деталізація' },
-  { value: 'digital-art', label: 'Цифровий арт', description: 'Сучасний цифровий живопис' },
-  { value: 'watercolor', label: 'Акварель', description: 'М\'який акварельний стиль' },
-  { value: 'oil-painting', label: 'Олійний живопис', description: 'Класичний живопис маслом' },
-  { value: 'minimalist', label: 'Мінімалізм', description: 'Простий, чистий дизайн' },
-  { value: 'vintage', label: 'Вінтаж', description: 'Ретро стиль, стара естетика' },
-  { value: 'cartoon', label: 'Мультфільм', description: 'Яскравий мультиплікаційний стиль' },
-  { value: 'anime', label: 'Аніме', description: 'Японський аніме стиль' },
-  { value: 'sketch', label: 'Ескіз', description: 'Олівцевий начерк' },
-  { value: '3d-render', label: '3D рендер', description: 'Об\'ємна 3D графіка' },
-  { value: 'flat-design', label: 'Флет дизайн', description: 'Плоский сучасний дизайн' },
-  { value: 'neon', label: 'Неон', description: 'Яскраві неонові кольори' },
-  { value: 'cinematic', label: 'Кінематографічний', description: 'Як кадр з фільму' },
+  { value: '', label: 'Без стилю', description: 'Генерувати без додаткових стилістичних вказівок', icon: '⚪', color: 'bg-gray-200' },
+  { value: 'photorealistic', label: 'Фотореалістичний', description: 'Як справжнє фото, максимальна деталізація', icon: '📷', color: 'bg-gradient-to-r from-gray-600 to-gray-400' },
+  { value: 'digital-art', label: 'Цифровий арт', description: 'Сучасний цифровий живопис', icon: '🎨', color: 'bg-gradient-to-r from-purple-500 to-pink-500' },
+  { value: 'watercolor', label: 'Акварель', description: 'М\'який акварельний стиль', icon: '💧', color: 'bg-gradient-to-r from-blue-200 to-cyan-200' },
+  { value: 'oil-painting', label: 'Олійний живопис', description: 'Класичний живопис маслом', icon: '🖼️', color: 'bg-gradient-to-r from-amber-600 to-yellow-500' },
+  { value: 'minimalist', label: 'Мінімалізм', description: 'Простий, чистий дизайн', icon: '⬜', color: 'bg-gradient-to-r from-gray-100 to-gray-300' },
+  { value: 'vintage', label: 'Вінтаж', description: 'Ретро стиль, стара естетика', icon: '📜', color: 'bg-gradient-to-r from-amber-200 to-orange-300' },
+  { value: 'cartoon', label: 'Мультфільм', description: 'Яскравий мультиплікаційний стиль', icon: '🎪', color: 'bg-gradient-to-r from-yellow-400 to-red-400' },
+  { value: 'anime', label: 'Аніме', description: 'Японський аніме стиль', icon: '⭐', color: 'bg-gradient-to-r from-pink-400 to-purple-400' },
+  { value: 'sketch', label: 'Ескіз', description: 'Олівцевий начерк', icon: '✏️', color: 'bg-gradient-to-r from-gray-300 to-gray-500' },
+  { value: '3d-render', label: '3D рендер', description: 'Об\'ємна 3D графіка', icon: '🔮', color: 'bg-gradient-to-r from-indigo-500 to-blue-600' },
+  { value: 'flat-design', label: 'Флет дизайн', description: 'Плоский сучасний дизайн', icon: '🔷', color: 'bg-gradient-to-r from-teal-400 to-cyan-500' },
+  { value: 'neon', label: 'Неон', description: 'Яскраві неонові кольори', icon: '💜', color: 'bg-gradient-to-r from-purple-600 to-pink-600' },
+  { value: 'cinematic', label: 'Кінематографічний', description: 'Як кадр з фільму', icon: '🎬', color: 'bg-gradient-to-r from-gray-800 to-gray-600' },
 ];
 
 const STYLE_PROMPTS: Record<string, string> = {
@@ -497,9 +497,14 @@ export default function BrandChat() {
                     <SelectContent>
                       {IMAGE_STYLES.map((style) => (
                         <SelectItem key={style.value} value={style.value || 'none'}>
-                          <div className="flex flex-col">
-                            <span>{style.label}</span>
-                            <span className="text-xs text-gray-500">{style.description}</span>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded flex items-center justify-center text-lg ${style.color}`}>
+                              {style.icon}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{style.label}</span>
+                              <span className="text-xs text-gray-500">{style.description}</span>
+                            </div>
                           </div>
                         </SelectItem>
                       ))}
