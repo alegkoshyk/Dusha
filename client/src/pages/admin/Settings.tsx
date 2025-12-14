@@ -91,7 +91,7 @@ export default function Settings() {
   const [showPerplexityKey, setShowPerplexityKey] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState("openai");
   const [selectedModelOpenAI, setSelectedModelOpenAI] = useState("gpt-4o");
-  const [selectedModelPerplexity, setSelectedModelPerplexity] = useState("llama-3.1-sonar-large-128k-online");
+  const [selectedModelPerplexity, setSelectedModelPerplexity] = useState("sonar-pro");
   const [aiContext, setAiContext] = useState("");
   const [geminiKeyInput, setGeminiKeyInput] = useState("");
   const [showGeminiKey, setShowGeminiKey] = useState(false);
@@ -116,7 +116,7 @@ export default function Settings() {
     if (aiSettings?.settings) {
       setSelectedProvider(aiSettings.settings.provider || 'openai');
       setSelectedModelOpenAI(aiSettings.settings.modelOpenAI || 'gpt-4o');
-      setSelectedModelPerplexity(aiSettings.settings.modelPerplexity || 'llama-3.1-sonar-large-128k-online');
+      setSelectedModelPerplexity(aiSettings.settings.modelPerplexity || 'sonar-pro');
       setAiContext(aiSettings.settings.context || '');
     }
   }, [aiSettings]);
@@ -458,9 +458,10 @@ export default function Settings() {
                             <SelectValue placeholder="Оберіть модель" />
                           </SelectTrigger>
                           <SelectContent className="bg-gray-800 border-gray-700">
-                            <SelectItem value="llama-3.1-sonar-large-128k-online">Llama 3.1 Sonar Large (Online)</SelectItem>
-                            <SelectItem value="llama-3.1-sonar-small-128k-online">Llama 3.1 Sonar Small (Online)</SelectItem>
-                            <SelectItem value="llama-3.1-sonar-huge-128k-online">Llama 3.1 Sonar Huge (Online)</SelectItem>
+                            <SelectItem value="sonar">Sonar (базовий)</SelectItem>
+                            <SelectItem value="sonar-pro">Sonar Pro (рекомендовано)</SelectItem>
+                            <SelectItem value="sonar-reasoning">Sonar Reasoning</SelectItem>
+                            <SelectItem value="sonar-reasoning-pro">Sonar Reasoning Pro</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

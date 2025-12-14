@@ -1273,7 +1273,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         settings: {
           provider: aiProvider?.value || 'openai',
           modelOpenAI: aiModelOpenAI?.value || 'gpt-4o',
-          modelPerplexity: aiModelPerplexity?.value || 'llama-3.1-sonar-large-128k-online',
+          modelPerplexity: aiModelPerplexity?.value || 'sonar-pro',
           context: aiContext?.value || ''
         },
         configured

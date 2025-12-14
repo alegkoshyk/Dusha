@@ -11,7 +11,7 @@ interface AIConfig {
 
 // Default models
 const DEFAULT_OPENAI_MODEL = "gpt-4o";
-const DEFAULT_PERPLEXITY_MODEL = "llama-3.1-sonar-large-128k-online";
+const DEFAULT_PERPLEXITY_MODEL = "sonar-pro";
 
 let aiClient: OpenAI | null = null;
 let cachedConfig: AIConfig | null = null;
