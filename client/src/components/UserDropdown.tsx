@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, LogOut, Home, Settings, Map, History } from "lucide-react";
+import { User, LogOut, Home, Settings, Map, History, Shield } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function UserDropdown() {
@@ -53,6 +53,15 @@ export default function UserDropdown() {
           <Settings className="mr-2 h-4 w-4" />
           <span>Налаштування</span>
         </DropdownMenuItem>
+        {user.role === 'admin' && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
+              <Shield className="mr-2 h-4 w-4" />
+              <span>Адмін</span>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="text-red-600" data-testid="menu-logout">
           <LogOut className="mr-2 h-4 w-4" />
