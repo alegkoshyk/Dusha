@@ -56,9 +56,9 @@ export default function UserDropdown() {
         {user.role === 'admin' && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setLocation("/admin")} data-testid="menu-admin">
+            <DropdownMenuItem onClick={() => setLocation("/rcadmin")} data-testid="menu-admin">
               <Shield className="mr-2 h-4 w-4" />
-              <span>Адмін</span>
+              <span>Адміністрування</span>
             </DropdownMenuItem>
           </>
         )}
