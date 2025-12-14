@@ -1460,6 +1460,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(aiChatMessagesTable.sessionId, sessionId));
   }
 
+  async saveChatMessage(sessionId: string, userId: string, role: string, content: string, imageUrl?: string): Promise<AiChatMessage> {
+    const [created] = await db
+      .insert(aiChatMessagesTable)
+      .values({
+        sessionId,
+        userId,
+        role,
+        content,
+        imageUrl: imageUrl || null,
+      })
+      .returning();
+    return created;
+  }
+
   // Brand AI Analysis operations
   async createBrandAiAnalysis(analysis: InsertBrandAiAnalysis): Promise<BrandAiAnalysis> {
     const [result] = await db

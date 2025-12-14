@@ -517,8 +517,9 @@ export const aiChatMessagesTable = pgTable("ai_chat_messages", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   sessionId: uuid("session_id").notNull().references(() => gameSessionsTable.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
-  role: varchar("role", { length: 20 }).notNull(), // 'user' | 'assistant' | 'system'
+  role: varchar("role", { length: 20 }).notNull(), // 'user' | 'assistant' | 'system' | 'image'
   content: text("content").notNull(),
+  imageUrl: text("image_url"), // URL згенерованого зображення
   metadata: json("metadata"), // Додаткові дані (токени, модель тощо)
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });

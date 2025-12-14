@@ -26,8 +26,9 @@ interface ChatMessage {
   id: string;
   sessionId: string;
   userId: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'image';
   content: string;
+  imageUrl?: string | null;
   metadata?: any;
   createdAt: string;
 }
@@ -165,11 +166,10 @@ export default function BrandChat() {
     generateImageMutation.mutate(prompt, {
       onSuccess: (data) => {
         const imageData = data.imageBase64 || data.imageUrl;
-        setImageMessages(prev => prev.map(msg => 
-          msg.id === tempId 
-            ? { ...msg, imageUrl: imageData, isLoading: false }
-            : msg
-        ));
+        // Remove temporary loading message - image is now saved in database
+        setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+        // Refetch chat to show image from database
+        queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', sessionId, 'chat'] });
         if (imageData) {
           setGeneratedImage(imageData);
         }
@@ -265,45 +265,22 @@ export default function BrandChat() {
             </div>
           ) : (
             <div className="space-y-4">
-              {(() => {
-                type CombinedItem = 
-                  | { type: 'chat'; data: ChatMessage }
-                  | { type: 'image'; data: LocalImageMessage };
-                
-                const combined: CombinedItem[] = [
-                  ...messages.map(msg => ({ type: 'chat' as const, data: msg })),
-                  ...imageMessages.map(img => ({ type: 'image' as const, data: img }))
-                ].sort((a, b) => new Date(a.data.createdAt).getTime() - new Date(b.data.createdAt).getTime());
-                
-                return combined.map((item) => {
-                  if (item.type === 'chat') {
-                    const msg = item.data;
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-                        data-testid={`chat-message-${msg.id}`}
-                      >
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          msg.role === 'user' 
-                            ? 'bg-red-100 dark:bg-red-900' 
-                            : 'bg-blue-100 dark:bg-blue-900'
-                        }`}>
-                          {msg.role === 'user' ? (
-                            <User className="w-4 h-4 text-red-600 dark:text-red-400" />
-                          ) : (
-                            <Bot className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          )}
+              {/* Database messages (including images with role='image') */}
+              {messages.map((msg) => {
+                // Image message from database
+                if (msg.role === 'image' && msg.imageUrl) {
+                  return (
+                    <div key={msg.id} className="space-y-3">
+                      <div className="flex gap-3 flex-row-reverse" data-testid={`image-request-${msg.id}`}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100 dark:bg-red-900">
+                          <User className="w-4 h-4 text-red-600 dark:text-red-400" />
                         </div>
-                        <div className={`max-w-[80%] rounded-lg px-4 py-3 ${
-                          msg.role === 'user'
-                            ? 'bg-red-600 text-white'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
-                        }`}>
-                          <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
-                          <span className={`text-xs mt-1 block ${
-                            msg.role === 'user' ? 'text-red-200' : 'text-gray-400'
-                          }`}>
+                        <div className="max-w-[80%] rounded-lg px-4 py-3 bg-red-600 text-white">
+                          <div className="flex items-center gap-2 text-sm">
+                            <Image className="w-4 h-4" />
+                            <span>Генерація зображення: {msg.content}</span>
+                          </div>
+                          <span className="text-xs mt-1 block text-red-200">
                             {new Date(msg.createdAt).toLocaleTimeString('uk-UA', { 
                               hour: '2-digit', 
                               minute: '2-digit' 
@@ -311,60 +288,103 @@ export default function BrandChat() {
                           </span>
                         </div>
                       </div>
-                    );
-                  } else {
-                    const imgMsg = item.data;
-                    return (
-                      <div key={imgMsg.id} className="space-y-3">
-                        <div className="flex gap-3 flex-row-reverse" data-testid={`image-request-${imgMsg.id}`}>
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100 dark:bg-red-900">
-                            <User className="w-4 h-4 text-red-600 dark:text-red-400" />
-                          </div>
-                          <div className="max-w-[80%] rounded-lg px-4 py-3 bg-red-600 text-white">
-                            <div className="flex items-center gap-2 text-sm">
-                              <Image className="w-4 h-4" />
-                              <span>Генерація зображення: {imgMsg.prompt}</span>
-                            </div>
-                            <span className="text-xs mt-1 block text-red-200">
-                              {new Date(imgMsg.createdAt).toLocaleTimeString('uk-UA', { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                              })}
-                            </span>
-                          </div>
+                      
+                      <div className="flex gap-3" data-testid={`image-response-${msg.id}`}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-purple-100 dark:bg-purple-900">
+                          <Image className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                         </div>
-                        
-                        <div className="flex gap-3" data-testid={`image-response-${imgMsg.id}`}>
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-purple-100 dark:bg-purple-900">
-                            <Image className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                          </div>
-                          <div className="max-w-[80%] rounded-lg px-4 py-3 bg-gray-100 dark:bg-gray-800">
-                            {imgMsg.isLoading ? (
-                              <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                                <span className="text-sm">Генерую зображення...</span>
-                              </div>
-                            ) : imgMsg.imageUrl ? (
-                              <div>
-                                <img 
-                                  src={imgMsg.imageUrl} 
-                                  alt={imgMsg.prompt}
-                                  className="max-w-xs rounded-lg shadow-md cursor-pointer hover:opacity-90 transition-opacity"
-                                  onClick={() => setGeneratedImage(imgMsg.imageUrl)}
-                                  data-testid={`img-chat-${imgMsg.id}`}
-                                />
-                                <p className="text-xs text-gray-500 mt-2">Натисніть для збільшення</p>
-                              </div>
-                            ) : (
-                              <p className="text-sm text-red-500">Не вдалося згенерувати зображення</p>
-                            )}
+                        <div className="max-w-[80%] rounded-lg px-4 py-3 bg-gray-100 dark:bg-gray-800">
+                          <div>
+                            <img 
+                              src={msg.imageUrl} 
+                              alt={msg.content}
+                              className="max-w-xs rounded-lg shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => setGeneratedImage(msg.imageUrl!)}
+                              data-testid={`img-chat-${msg.id}`}
+                            />
+                            <p className="text-xs text-gray-500 mt-2">Натисніть для збільшення</p>
                           </div>
                         </div>
                       </div>
-                    );
-                  }
-                });
-              })()}
+                    </div>
+                  );
+                }
+                
+                // Regular chat message
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+                    data-testid={`chat-message-${msg.id}`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      msg.role === 'user' 
+                        ? 'bg-red-100 dark:bg-red-900' 
+                        : 'bg-blue-100 dark:bg-blue-900'
+                    }`}>
+                      {msg.role === 'user' ? (
+                        <User className="w-4 h-4 text-red-600 dark:text-red-400" />
+                      ) : (
+                        <Bot className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      )}
+                    </div>
+                    <div className={`max-w-[80%] rounded-lg px-4 py-3 ${
+                      msg.role === 'user'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                    }`}>
+                      <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                      <span className={`text-xs mt-1 block ${
+                        msg.role === 'user' ? 'text-red-200' : 'text-gray-400'
+                      }`}>
+                        {new Date(msg.createdAt).toLocaleTimeString('uk-UA', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {/* Local loading images (temporary while generating) */}
+              {imageMessages.map((imgMsg) => (
+                <div key={imgMsg.id} className="space-y-3">
+                  <div className="flex gap-3 flex-row-reverse" data-testid={`image-request-${imgMsg.id}`}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100 dark:bg-red-900">
+                      <User className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div className="max-w-[80%] rounded-lg px-4 py-3 bg-red-600 text-white">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Image className="w-4 h-4" />
+                        <span>Генерація зображення: {imgMsg.prompt}</span>
+                      </div>
+                      <span className="text-xs mt-1 block text-red-200">
+                        {new Date(imgMsg.createdAt).toLocaleTimeString('uk-UA', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3" data-testid={`image-response-${imgMsg.id}`}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-purple-100 dark:bg-purple-900">
+                      <Image className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div className="max-w-[80%] rounded-lg px-4 py-3 bg-gray-100 dark:bg-gray-800">
+                      {imgMsg.isLoading ? (
+                        <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span className="text-sm">Генерую зображення...</span>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-red-500">Не вдалося згенерувати зображення</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
               
               {sendMessageMutation.isPending && (
                 <div className="flex gap-3" data-testid="chat-loading">

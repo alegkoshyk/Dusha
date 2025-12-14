@@ -1763,6 +1763,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: result.error });
       }
 
+      // Save image message to database
+      const imageUrl = result.imageUrl || result.imageBase64;
+      if (imageUrl) {
+        await storage.saveChatMessage(sessionId, userId, 'image', prompt, imageUrl);
+      }
+
       res.json({ 
         success: true, 
         imageBase64: result.imageBase64,
