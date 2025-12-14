@@ -511,18 +511,51 @@ export default function BrandChat() {
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Співвідношення сторін
                   </label>
-                  <Select value={aspectRatio} onValueChange={setAspectRatio}>
-                    <SelectTrigger data-testid="select-aspect-ratio-settings">
-                      <SelectValue placeholder="Розмір" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ASPECT_RATIOS.map((ratio) => (
-                        <SelectItem key={ratio.value} value={ratio.value}>
-                          {ratio.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="flex-shrink-0 bg-gray-200 dark:bg-gray-600 rounded border-2 border-gray-300 dark:border-gray-500 flex items-center justify-center"
+                      style={{
+                        width: aspectRatio === '9:16' || aspectRatio === '3:4' || aspectRatio === '2:3' ? '32px' : 
+                               aspectRatio === '16:9' || aspectRatio === '3:2' ? '56px' : 
+                               aspectRatio === '4:3' ? '48px' : '40px',
+                        height: aspectRatio === '16:9' || aspectRatio === '3:2' ? '32px' : 
+                                aspectRatio === '9:16' ? '56px' : 
+                                aspectRatio === '3:4' || aspectRatio === '2:3' ? '48px' :
+                                aspectRatio === '4:3' ? '36px' : '40px',
+                      }}
+                      data-testid="aspect-ratio-preview"
+                    >
+                      <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                        {aspectRatio}
+                      </span>
+                    </div>
+                    <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                      <SelectTrigger data-testid="select-aspect-ratio-settings" className="flex-1">
+                        <SelectValue placeholder="Розмір" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ASPECT_RATIOS.map((ratio) => (
+                          <SelectItem key={ratio.value} value={ratio.value}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="flex-shrink-0 bg-gray-300 dark:bg-gray-600 rounded"
+                                style={{
+                                  width: ratio.value === '9:16' || ratio.value === '3:4' || ratio.value === '2:3' ? '12px' : 
+                                         ratio.value === '16:9' || ratio.value === '3:2' ? '24px' : 
+                                         ratio.value === '4:3' ? '20px' : '16px',
+                                  height: ratio.value === '16:9' || ratio.value === '3:2' ? '12px' : 
+                                          ratio.value === '9:16' ? '24px' : 
+                                          ratio.value === '3:4' || ratio.value === '2:3' ? '20px' :
+                                          ratio.value === '4:3' ? '15px' : '16px',
+                                }}
+                              />
+                              <span>{ratio.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
               
