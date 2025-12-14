@@ -1577,12 +1577,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         response: r.response
       }));
 
-      // Get chat history
+      // Get chat history (filter out image messages - OpenAI doesn't support role='image')
       const existingMessages = await storage.getAiChatMessages(sessionId);
-      const chatHistory = existingMessages.map(m => ({
-        role: m.role as "user" | "assistant" | "system",
-        content: m.content
-      }));
+      const chatHistory = existingMessages
+        .filter(m => m.role !== 'image')
+        .map(m => ({
+          role: m.role as "user" | "assistant" | "system",
+          content: m.content
+        }));
 
       // Save user message
       await storage.addAiChatMessage({
