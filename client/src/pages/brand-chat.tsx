@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Send, 
   ArrowLeft, 
@@ -15,12 +17,23 @@ import {
   AlertCircle,
   Eye,
   Image,
-  Download
+  Download,
+  X
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, apiRequestJson } from '@/lib/queryClient';
 import type { GameSession, UserBrand } from '@shared/schema';
+
+const ASPECT_RATIOS = [
+  { value: '1:1', label: '1:1 (Квадрат)' },
+  { value: '16:9', label: '16:9 (Широкий)' },
+  { value: '9:16', label: '9:16 (Вертикальний)' },
+  { value: '4:3', label: '4:3 (Класичний)' },
+  { value: '3:4', label: '3:4 (Портрет)' },
+  { value: '3:2', label: '3:2 (Фото)' },
+  { value: '2:3', label: '2:3 (Вертикальне фото)' },
+];
 
 interface ChatMessage {
   id: string;
@@ -47,7 +60,8 @@ export default function BrandChat() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
-  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState('1:1');
+  const [modalImage, setModalImage] = useState<string | null>(null);
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -111,8 +125,8 @@ export default function BrandChat() {
   });
 
   const generateImageMutation = useMutation({
-    mutationFn: async (prompt: string) => {
-      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt });
+    mutationFn: async ({ prompt, aspectRatio }: { prompt: string; aspectRatio: string }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt, aspectRatio });
     },
     onError: (error: any) => {
       toast({
@@ -163,7 +177,7 @@ export default function BrandChat() {
     
     setMessage('');
     
-    generateImageMutation.mutate(prompt, {
+    generateImageMutation.mutate({ prompt, aspectRatio }, {
       onSuccess: (data) => {
         const imageData = data.imageBase64 || data.imageUrl;
         // Remove temporary loading message - image is now saved in database
@@ -171,7 +185,7 @@ export default function BrandChat() {
         // Refetch chat to show image from database
         queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', sessionId, 'chat'] });
         if (imageData) {
-          setGeneratedImage(imageData);
+          setModalImage(imageData);
         }
       },
       onError: () => {
@@ -180,10 +194,11 @@ export default function BrandChat() {
     });
   };
 
-  const handleDownloadImage = () => {
-    if (!generatedImage) return;
+  const handleDownloadImage = (imageUrl?: string) => {
+    const url = imageUrl || modalImage;
+    if (!url) return;
     const link = document.createElement('a');
-    link.href = generatedImage;
+    link.href = url;
     link.download = `brand-image-${Date.now()}.png`;
     link.click();
   };
@@ -299,7 +314,7 @@ export default function BrandChat() {
                               src={msg.imageUrl} 
                               alt={msg.content}
                               className="max-w-xs rounded-lg shadow-md cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => setGeneratedImage(msg.imageUrl!)}
+                              onClick={() => setModalImage(msg.imageUrl!)}
                               data-testid={`img-chat-${msg.id}`}
                             />
                             <p className="text-xs text-gray-500 mt-2">Натисніть для збільшення</p>
@@ -400,40 +415,8 @@ export default function BrandChat() {
           )}
         </ScrollArea>
 
-        {generatedImage && (
-          <div className="p-4 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-            <div className="flex items-start gap-4">
-              <img 
-                src={generatedImage} 
-                alt="Згенероване зображення" 
-                className="max-w-xs rounded-lg shadow-md"
-                data-testid="img-generated"
-              />
-              <div className="flex flex-col gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleDownloadImage}
-                  data-testid="button-download-image"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Завантажити
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => setGeneratedImage(null)}
-                  data-testid="button-close-image"
-                >
-                  Закрити
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
         <form onSubmit={handleSend} className="p-4 border-t dark:border-gray-700">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             <Input
               ref={inputRef}
               value={message}
@@ -443,6 +426,18 @@ export default function BrandChat() {
               className="flex-1"
               data-testid="input-message"
             />
+            <Select value={aspectRatio} onValueChange={setAspectRatio}>
+              <SelectTrigger className="w-[130px]" data-testid="select-aspect-ratio">
+                <SelectValue placeholder="Розмір" />
+              </SelectTrigger>
+              <SelectContent>
+                {ASPECT_RATIOS.map((ratio) => (
+                  <SelectItem key={ratio.value} value={ratio.value}>
+                    {ratio.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button 
               type="button"
               variant="outline"
@@ -471,6 +466,39 @@ export default function BrandChat() {
           </div>
         </form>
       </Card>
+
+      <Dialog open={!!modalImage} onOpenChange={(open) => !open && setModalImage(null)}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90">
+          <DialogTitle className="sr-only">Перегляд зображення</DialogTitle>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 z-10 text-white hover:bg-white/20"
+              onClick={() => setModalImage(null)}
+              data-testid="button-close-modal"
+            >
+              <X className="w-6 h-6" />
+            </Button>
+            <img 
+              src={modalImage || ''} 
+              alt="Згенероване зображення" 
+              className="w-full h-auto max-h-[85vh] object-contain"
+              data-testid="img-modal"
+            />
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+              <Button 
+                variant="secondary" 
+                onClick={() => handleDownloadImage()}
+                data-testid="button-modal-download"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Завантажити
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
