@@ -4,9 +4,11 @@ import { useParams, Link } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   Send, 
   ArrowLeft, 
@@ -18,7 +20,11 @@ import {
   Eye,
   Image,
   Download,
-  X
+  X,
+  Settings2,
+  ChevronUp,
+  ChevronDown,
+  Palette
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +40,39 @@ const ASPECT_RATIOS = [
   { value: '3:2', label: '3:2 (Фото)' },
   { value: '2:3', label: '2:3 (Вертикальне фото)' },
 ];
+
+const IMAGE_STYLES = [
+  { value: '', label: 'Без стилю', description: 'Генерувати без додаткових стилістичних вказівок' },
+  { value: 'photorealistic', label: 'Фотореалістичний', description: 'Як справжнє фото, максимальна деталізація' },
+  { value: 'digital-art', label: 'Цифровий арт', description: 'Сучасний цифровий живопис' },
+  { value: 'watercolor', label: 'Акварель', description: 'М\'який акварельний стиль' },
+  { value: 'oil-painting', label: 'Олійний живопис', description: 'Класичний живопис маслом' },
+  { value: 'minimalist', label: 'Мінімалізм', description: 'Простий, чистий дизайн' },
+  { value: 'vintage', label: 'Вінтаж', description: 'Ретро стиль, стара естетика' },
+  { value: 'cartoon', label: 'Мультфільм', description: 'Яскравий мультиплікаційний стиль' },
+  { value: 'anime', label: 'Аніме', description: 'Японський аніме стиль' },
+  { value: 'sketch', label: 'Ескіз', description: 'Олівцевий начерк' },
+  { value: '3d-render', label: '3D рендер', description: 'Об\'ємна 3D графіка' },
+  { value: 'flat-design', label: 'Флет дизайн', description: 'Плоский сучасний дизайн' },
+  { value: 'neon', label: 'Неон', description: 'Яскраві неонові кольори' },
+  { value: 'cinematic', label: 'Кінематографічний', description: 'Як кадр з фільму' },
+];
+
+const STYLE_PROMPTS: Record<string, string> = {
+  'photorealistic': 'photorealistic, ultra detailed, 8k, professional photography, sharp focus',
+  'digital-art': 'digital art, vibrant colors, detailed illustration, artstation style',
+  'watercolor': 'watercolor painting, soft edges, delicate brushstrokes, artistic',
+  'oil-painting': 'oil painting, classical art style, rich textures, museum quality',
+  'minimalist': 'minimalist design, clean lines, simple shapes, white space',
+  'vintage': 'vintage style, retro aesthetic, old photograph, nostalgic',
+  'cartoon': 'cartoon style, bright colors, bold outlines, playful',
+  'anime': 'anime style, manga art, japanese animation, detailed',
+  'sketch': 'pencil sketch, hand drawn, artistic lines, monochrome',
+  '3d-render': '3D render, octane render, volumetric lighting, realistic materials',
+  'flat-design': 'flat design, vector art, simple shapes, modern UI style',
+  'neon': 'neon lights, cyberpunk, glowing colors, dark background',
+  'cinematic': 'cinematic shot, dramatic lighting, movie scene, film grain',
+};
 
 interface ChatMessage {
   id: string;
@@ -61,6 +100,9 @@ export default function BrandChat() {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
   const [aspectRatio, setAspectRatio] = useState('1:1');
+  const [selectedStyle, setSelectedStyle] = useState('');
+  const [customContext, setCustomContext] = useState('');
+  const [showImageSettings, setShowImageSettings] = useState(false);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -164,12 +206,22 @@ export default function BrandChat() {
       });
       return;
     }
-    const prompt = message.trim();
+    
+    let fullPrompt = message.trim();
+    
+    if (selectedStyle && STYLE_PROMPTS[selectedStyle]) {
+      fullPrompt = `${fullPrompt}, ${STYLE_PROMPTS[selectedStyle]}`;
+    }
+    
+    if (customContext.trim()) {
+      fullPrompt = `${fullPrompt}. Additional context: ${customContext.trim()}`;
+    }
+    
     const tempId = `img-${Date.now()}`;
     
     setImageMessages(prev => [...prev, {
       id: tempId,
-      prompt,
+      prompt: message.trim(),
       imageUrl: null,
       isLoading: true,
       createdAt: new Date().toISOString()
@@ -177,7 +229,7 @@ export default function BrandChat() {
     
     setMessage('');
     
-    generateImageMutation.mutate({ prompt, aspectRatio }, {
+    generateImageMutation.mutate({ prompt: fullPrompt, aspectRatio }, {
       onSuccess: (data) => {
         const imageData = data.imageBase64 || data.imageUrl;
         // Remove temporary loading message - image is now saved in database
@@ -415,6 +467,102 @@ export default function BrandChat() {
           )}
         </ScrollArea>
 
+        <Collapsible open={showImageSettings} onOpenChange={setShowImageSettings}>
+          <CollapsibleContent className="border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <div className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
+                  <Palette className="w-4 h-4" />
+                  Налаштування генерації зображення
+                </h3>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowImageSettings(false)}
+                  data-testid="button-close-settings"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Стиль зображення
+                  </label>
+                  <Select value={selectedStyle} onValueChange={setSelectedStyle}>
+                    <SelectTrigger data-testid="select-style">
+                      <SelectValue placeholder="Виберіть стиль" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {IMAGE_STYLES.map((style) => (
+                        <SelectItem key={style.value} value={style.value || 'none'}>
+                          <div className="flex flex-col">
+                            <span>{style.label}</span>
+                            <span className="text-xs text-gray-500">{style.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Співвідношення сторін
+                  </label>
+                  <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                    <SelectTrigger data-testid="select-aspect-ratio-settings">
+                      <SelectValue placeholder="Розмір" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ASPECT_RATIOS.map((ratio) => (
+                        <SelectItem key={ratio.value} value={ratio.value}>
+                          {ratio.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Додатковий контекст / інструкції
+                </label>
+                <Textarea
+                  value={customContext}
+                  onChange={(e) => setCustomContext(e.target.value)}
+                  placeholder="Наприклад: використовуй кольори бренду, додай логотип в кутку, зроби фон світлим..."
+                  className="min-h-[80px] resize-none"
+                  data-testid="textarea-context"
+                />
+              </div>
+              
+              {(selectedStyle || customContext) && (
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <Settings2 className="w-4 h-4" />
+                  <span>
+                    Активні налаштування: 
+                    {selectedStyle && ` ${IMAGE_STYLES.find(s => s.value === selectedStyle)?.label}`}
+                    {selectedStyle && customContext && ','}
+                    {customContext && ' + власні інструкції'}
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => { setSelectedStyle(''); setCustomContext(''); }}
+                    className="text-xs h-6 px-2"
+                    data-testid="button-clear-settings"
+                  >
+                    Скинути
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
         <form onSubmit={handleSend} className="p-4 border-t dark:border-gray-700">
           <div className="flex gap-2 items-center">
             <Input
@@ -426,18 +574,17 @@ export default function BrandChat() {
               className="flex-1"
               data-testid="input-message"
             />
-            <Select value={aspectRatio} onValueChange={setAspectRatio}>
-              <SelectTrigger className="w-[130px]" data-testid="select-aspect-ratio">
-                <SelectValue placeholder="Розмір" />
-              </SelectTrigger>
-              <SelectContent>
-                {ASPECT_RATIOS.map((ratio) => (
-                  <SelectItem key={ratio.value} value={ratio.value}>
-                    {ratio.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Button
+              type="button"
+              variant={showImageSettings || selectedStyle || customContext ? "default" : "outline"}
+              size="icon"
+              onClick={() => setShowImageSettings(!showImageSettings)}
+              title="Налаштування генерації"
+              data-testid="button-toggle-settings"
+              className={showImageSettings || selectedStyle || customContext ? "bg-purple-600 hover:bg-purple-700" : ""}
+            >
+              <Settings2 className="w-4 h-4" />
+            </Button>
             <Button 
               type="button"
               variant="outline"
