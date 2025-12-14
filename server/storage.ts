@@ -1358,13 +1358,32 @@ export class DatabaseStorage implements IStorage {
     return log;
   }
 
-  async getAIUsageLogs(limit: number = 50, offset: number = 0): Promise<AiUsageLog[]> {
-    return await db
-      .select()
+  async getAIUsageLogs(limit: number = 50, offset: number = 0): Promise<(AiUsageLog & { brandName?: string })[]> {
+    const logs = await db
+      .select({
+        id: aiUsageLogsTable.id,
+        provider: aiUsageLogsTable.provider,
+        model: aiUsageLogsTable.model,
+        tokensInput: aiUsageLogsTable.tokensInput,
+        tokensOutput: aiUsageLogsTable.tokensOutput,
+        costEstimate: aiUsageLogsTable.costEstimate,
+        sessionId: aiUsageLogsTable.sessionId,
+        userId: aiUsageLogsTable.userId,
+        endpoint: aiUsageLogsTable.endpoint,
+        createdAt: aiUsageLogsTable.createdAt,
+        brandName: userBrandsTable.name,
+      })
       .from(aiUsageLogsTable)
+      .leftJoin(gameSessionsTable, eq(aiUsageLogsTable.sessionId, gameSessionsTable.id))
+      .leftJoin(userBrandsTable, eq(gameSessionsTable.brandId, userBrandsTable.id))
       .orderBy(desc(aiUsageLogsTable.createdAt))
       .limit(limit)
       .offset(offset);
+    
+    return logs.map(log => ({
+      ...log,
+      brandName: log.brandName || undefined,
+    }));
   }
 
   async getAIUsageStats(period: 'day' | 'week' | 'month' | 'all' = 'all'): Promise<{

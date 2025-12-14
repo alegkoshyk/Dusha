@@ -65,6 +65,7 @@ interface AIUsageLog {
   costEstimate: string | null;
   endpoint: string | null;
   createdAt: string;
+  brandName?: string;
 }
 
 interface AIUsageStats {
@@ -611,10 +612,15 @@ export default function Settings() {
                             <h4 className="text-sm font-medium text-gray-300 mb-2">Останні запити</h4>
                             <div className="space-y-1 max-h-[200px] overflow-y-auto">
                               {aiUsage.recentLogs.map((log) => (
-                                <div key={log.id} className="flex items-center justify-between bg-gray-900 rounded px-3 py-2 text-sm border border-gray-700">
+                                <div key={log.id} className="flex items-center justify-between bg-gray-900 rounded px-3 py-2 text-sm border border-gray-700" data-testid={`log-entry-${log.id}`}>
                                   <div className="flex items-center gap-3">
                                     <Badge className="bg-blue-600 text-xs">{log.provider}</Badge>
                                     <span className="text-gray-400">{log.endpoint || 'unknown'}</span>
+                                    {log.brandName && (
+                                      <Badge className="bg-purple-600/50 text-purple-200 text-xs" data-testid={`log-brand-${log.id}`}>
+                                        {log.brandName}
+                                      </Badge>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-4 text-gray-400">
                                     <span>{(log.tokensInput || 0) + (log.tokensOutput || 0)} токенів</span>
