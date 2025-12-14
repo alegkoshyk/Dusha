@@ -91,7 +91,7 @@ export async function generateImageWithNanoBanana(
       },
       body: JSON.stringify({
         prompt: fullPrompt,
-        type: 'TEXTTOIAMGE',
+        type: 'TEXTTOIMAGE',
         numImages: 1
       })
     });
@@ -176,7 +176,7 @@ export async function validateApiKey(encryptedApiKey: string): Promise<boolean> 
       },
       body: JSON.stringify({
         prompt: 'test',
-        type: 'TEXTTOIAMGE',
+        type: 'TEXTTOIMAGE',
         numImages: 1
       })
     });
