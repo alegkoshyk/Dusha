@@ -69,6 +69,30 @@ interface BrandInsights {
   nextSteps: string[];
 }
 
+// Normalize AI insights data to handle old format where nextSteps might be objects
+function normalizeInsights(data: any): BrandInsights {
+  return {
+    ...data,
+    nextSteps: Array.isArray(data.nextSteps) 
+      ? data.nextSteps.map((s: any) => typeof s === 'string' ? s : (s.nextStep || s.text || JSON.stringify(s)))
+      : [],
+    levels: Array.isArray(data.levels)
+      ? data.levels.map((level: any) => ({
+          ...level,
+          strengths: Array.isArray(level.strengths) 
+            ? level.strengths.map((s: any) => typeof s === 'string' ? s : (s.text || JSON.stringify(s)))
+            : [],
+          weaknesses: Array.isArray(level.weaknesses)
+            ? level.weaknesses.map((s: any) => typeof s === 'string' ? s : (s.text || JSON.stringify(s)))
+            : [],
+          recommendations: Array.isArray(level.recommendations)
+            ? level.recommendations.map((s: any) => typeof s === 'string' ? s : (s.text || JSON.stringify(s)))
+            : []
+        }))
+      : []
+  };
+}
+
 interface CardOption {
   id: string;
   name: string;
@@ -138,7 +162,7 @@ export default function BrandBoard() {
       return res.json();
     },
     onSuccess: (data: BrandInsights) => {
-      setAiInsights(data);
+      setAiInsights(normalizeInsights(data));
       setAiError(null);
       // Invalidate analyses history to show new saved analysis
       if (sessionData?.brandId) {
@@ -716,15 +740,7 @@ export default function BrandBoard() {
                       className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
                       onClick={() => {
                         if (analysis.content) {
-                          // Normalize data in case of old format
-                          const content = analysis.content as any;
-                          const normalized: BrandInsights = {
-                            ...content,
-                            nextSteps: Array.isArray(content.nextSteps) 
-                              ? content.nextSteps.map((s: any) => typeof s === 'string' ? s : (s.nextStep || s.text || JSON.stringify(s)))
-                              : []
-                          };
-                          setAiInsights(normalized);
+                          setAiInsights(normalizeInsights(analysis.content));
                         }
                       }}
                     >
