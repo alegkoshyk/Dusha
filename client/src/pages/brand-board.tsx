@@ -801,12 +801,15 @@ export default function BrandBoard() {
                         <div className="mt-2">
                           <h5 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Наступні кроки:</h5>
                           <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                            {analysis.insights.slice(0, 2).map((insight: string, i: number) => (
-                              <li key={i} className="flex items-start gap-2">
-                                <Sparkles className="w-3 h-3 text-indigo-500 mt-1 flex-shrink-0" />
-                                <span className="line-clamp-1">{insight}</span>
-                              </li>
-                            ))}
+                            {analysis.insights.slice(0, 2).map((insight: any, i: number) => {
+                              const text = typeof insight === 'string' ? insight : (insight.nextStep || insight.text || JSON.stringify(insight));
+                              return (
+                                <li key={i} className="flex items-start gap-2">
+                                  <Sparkles className="w-3 h-3 text-indigo-500 mt-1 flex-shrink-0" />
+                                  <span className="line-clamp-1">{text}</span>
+                                </li>
+                              );
+                            })}
                             {analysis.insights.length > 2 && (
                               <li className="text-xs text-indigo-500">+{analysis.insights.length - 2} більше...</li>
                             )}
