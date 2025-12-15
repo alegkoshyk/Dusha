@@ -36,7 +36,7 @@ export const brandGameField: GameField = {
       color: "#10B981", // Green
       icon: "💪",
       position: { x: 0, y: 2 },
-      cards: ["body-start", "body-products", "body-channels", "body-tone", "body-visual", "body-action-plan", "body-resources"],
+      cards: ["body-start", "body-products", "body-channels", "body-tone", "body-visual", "body-pricing", "body-metrics", "body-launch", "body-complete"],
       unlockRequirements: {
         previousLevel: "mind",
         cardsCompleted: 6
