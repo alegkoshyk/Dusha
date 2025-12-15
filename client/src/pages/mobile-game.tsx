@@ -243,7 +243,14 @@ export default function MobileGame() {
     const currentCard = getGameCard(currentCardId);
     if (!currentCard) return;
 
-    // For API cards, find next card based on position or next available card
+    // PRIORITY 1: Use nextCards from mobileGameCards definition (most reliable)
+    const nextOptions = getNextCardOptions(currentCardId, playerProgress.responses);
+    if (nextOptions.length > 0) {
+      handleCardSelect(nextOptions[0]);
+      return;
+    }
+
+    // PRIORITY 2: For API cards, find next card based on position
     if (apiCards) {
       if (currentCardId === 'soul-start') {
         // After soul-start, go to soul-values
@@ -254,7 +261,7 @@ export default function MobileGame() {
         }
       }
       
-      // Find next card in the same level
+      // Find next card in the same level (fallback for cards without nextCards)
       const currentIndex = apiCards.findIndex(card => card.id === currentCardId);
       if (currentIndex >= 0 && currentIndex < apiCards.length - 1) {
         const nextCard = apiCards[currentIndex + 1];
@@ -265,40 +272,33 @@ export default function MobileGame() {
       }
     }
     
-    // Fallback: Get next card options based on branching logic (for static data compatibility)
-    const nextOptions = getNextCardOptions(currentCardId, playerProgress.responses);
-    
-    if (nextOptions.length > 0) {
-      handleCardSelect(nextOptions[0]);
-    } else {
-      // No more cards, check if level is complete
-      const levelCards = mobileGameCards.filter(card => card.levelId === currentCard.levelId);
-      const levelCompleted = levelCards.every(card => 
-        playerProgress.completedCards.includes(card.id) || !card.required
-      );
+    // PRIORITY 3: Check if level is complete and move to next level
+    const levelCards = mobileGameCards.filter(card => card.levelId === currentCard.levelId);
+    const levelCompleted = levelCards.every(card => 
+      playerProgress.completedCards.includes(card.id) || !card.required
+    );
 
-      if (levelCompleted) {
-        // Move to next level or complete game
-        if (currentCard.levelId === 'soul') {
-          const firstMindCard = mobileGameCards.find(card => card.levelId === 'mind');
-          if (firstMindCard) {
-            handleCardSelect(firstMindCard.id);
-          }
-        } else if (currentCard.levelId === 'mind') {
-          const firstBodyCard = mobileGameCards.find(card => card.levelId === 'body');
-          if (firstBodyCard) {
-            handleCardSelect(firstBodyCard.id);
-          }
-        } else {
-          // Game complete
-          setViewMode('complete');
-          setLocation(`/game/${activeSessionId}/results`);
+    if (levelCompleted) {
+      // Move to next level or complete game
+      if (currentCard.levelId === 'soul') {
+        const firstMindCard = mobileGameCards.find(card => card.levelId === 'mind');
+        if (firstMindCard) {
+          handleCardSelect(firstMindCard.id);
+        }
+      } else if (currentCard.levelId === 'mind') {
+        const firstBodyCard = mobileGameCards.find(card => card.levelId === 'body');
+        if (firstBodyCard) {
+          handleCardSelect(firstBodyCard.id);
         }
       } else {
-        // Return to field view
-        setViewMode('field');
-        setLocation(`/game/${activeSessionId}`);
+        // Game complete
+        setViewMode('complete');
+        setLocation(`/game/${activeSessionId}/results`);
       }
+    } else {
+      // Return to field view
+      setViewMode('field');
+      setLocation(`/game/${activeSessionId}`);
     }
   };
 
