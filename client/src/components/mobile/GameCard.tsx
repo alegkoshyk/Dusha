@@ -25,6 +25,7 @@ import {
   Timer
 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { apiRequest } from '@/lib/queryClient';
 import type { GameCard as GameCardType, CardProperty } from '@shared/schema';
 
 interface ExtendedGameCard extends GameCardType {
@@ -458,9 +459,15 @@ export function GameCard({
                   {card.id === 'body-complete' && (
                     <div className="flex flex-col gap-3 mt-6">
                       <Button 
-                        onClick={() => {
-                          // Mark card as completed before navigating
+                        onClick={async () => {
+                          // Mark card as completed and mark game as completed
                           onResponse('completed');
+                          try {
+                            await apiRequest('POST', `/api/game-sessions/${activeSessionId}/complete`);
+                            console.log('Game session marked as completed');
+                          } catch (error) {
+                            console.error('Error completing game session:', error);
+                          }
                           setLocation(`/brand-board/${activeSessionId}`);
                         }}
                         className="w-full bg-green-600 hover:bg-green-700 text-white"
@@ -471,9 +478,15 @@ export function GameCard({
                       </Button>
                       <Button 
                         variant="outline"
-                        onClick={() => {
-                          // Mark card as completed before navigating
+                        onClick={async () => {
+                          // Mark card as completed and mark game as completed
                           onResponse('completed');
+                          try {
+                            await apiRequest('POST', `/api/game-sessions/${activeSessionId}/complete`);
+                            console.log('Game session marked as completed');
+                          } catch (error) {
+                            console.error('Error completing game session:', error);
+                          }
                           setLocation('/dashboard');
                         }}
                         className="w-full border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
