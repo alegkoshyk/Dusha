@@ -458,7 +458,11 @@ export function GameCard({
                   {card.id === 'body-complete' && (
                     <div className="flex flex-col gap-3 mt-6">
                       <Button 
-                        onClick={() => setLocation(`/brand-board/${activeSessionId}`)}
+                        onClick={() => {
+                          // Mark card as completed before navigating
+                          onResponse('completed');
+                          setLocation(`/brand-board/${activeSessionId}`);
+                        }}
                         className="w-full bg-green-600 hover:bg-green-700 text-white"
                         data-testid="button-view-brand-board"
                       >
@@ -467,7 +471,11 @@ export function GameCard({
                       </Button>
                       <Button 
                         variant="outline"
-                        onClick={() => setLocation('/dashboard')}
+                        onClick={() => {
+                          // Mark card as completed before navigating
+                          onResponse('completed');
+                          setLocation('/dashboard');
+                        }}
                         className="w-full border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
                         data-testid="button-new-game"
                       >
