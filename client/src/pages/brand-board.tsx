@@ -716,7 +716,15 @@ export default function BrandBoard() {
                       className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
                       onClick={() => {
                         if (analysis.content) {
-                          setAiInsights(analysis.content as BrandInsights);
+                          // Normalize data in case of old format
+                          const content = analysis.content as any;
+                          const normalized: BrandInsights = {
+                            ...content,
+                            nextSteps: Array.isArray(content.nextSteps) 
+                              ? content.nextSteps.map((s: any) => typeof s === 'string' ? s : (s.nextStep || s.text || JSON.stringify(s)))
+                              : []
+                          };
+                          setAiInsights(normalized);
                         }
                       }}
                     >
