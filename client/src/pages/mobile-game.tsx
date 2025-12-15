@@ -241,11 +241,19 @@ export default function MobileGame() {
     if (!currentCardId) return;
 
     const currentCard = getGameCard(currentCardId);
-    if (!currentCard) return;
+    if (!currentCard) {
+      console.log("handleNextCard: currentCard not found for", currentCardId);
+      return;
+    }
+
+    console.log("handleNextCard: currentCardId =", currentCardId, "currentCard.level =", currentCard.level);
 
     // PRIORITY 1: Use nextCards from mobileGameCards definition (most reliable)
     const nextOptions = getNextCardOptions(currentCardId, playerProgress.responses);
+    console.log("handleNextCard: nextOptions =", nextOptions);
+    
     if (nextOptions.length > 0) {
+      console.log("handleNextCard: navigating to", nextOptions[0]);
       handleCardSelect(nextOptions[0]);
       return;
     }
@@ -265,7 +273,8 @@ export default function MobileGame() {
       const currentIndex = apiCards.findIndex(card => card.id === currentCardId);
       if (currentIndex >= 0 && currentIndex < apiCards.length - 1) {
         const nextCard = apiCards[currentIndex + 1];
-        if (nextCard && nextCard.levelId === currentCard.levelId) {
+        // Use currentCard.level (from mobileGameCards) for comparison
+        if (nextCard && nextCard.levelId === currentCard.level) {
           handleCardSelect(nextCard.id);
           return;
         }
@@ -273,20 +282,21 @@ export default function MobileGame() {
     }
     
     // PRIORITY 3: Check if level is complete and move to next level
-    const levelCards = mobileGameCards.filter(card => card.levelId === currentCard.levelId);
+    // Use card.level (not levelId) since mobileGameCards uses "level" field
+    const levelCards = mobileGameCards.filter(card => card.level === currentCard.level);
     const levelCompleted = levelCards.every(card => 
       playerProgress.completedCards.includes(card.id) || !card.required
     );
 
     if (levelCompleted) {
       // Move to next level or complete game
-      if (currentCard.levelId === 'soul') {
-        const firstMindCard = mobileGameCards.find(card => card.levelId === 'mind');
+      if (currentCard.level === 'soul') {
+        const firstMindCard = mobileGameCards.find(card => card.level === 'mind');
         if (firstMindCard) {
           handleCardSelect(firstMindCard.id);
         }
-      } else if (currentCard.levelId === 'mind') {
-        const firstBodyCard = mobileGameCards.find(card => card.levelId === 'body');
+      } else if (currentCard.level === 'mind') {
+        const firstBodyCard = mobileGameCards.find(card => card.level === 'body');
         if (firstBodyCard) {
           handleCardSelect(firstBodyCard.id);
         }
