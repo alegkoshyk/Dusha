@@ -1356,6 +1356,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get NanoBanana usage statistics
+  app.get("/api/admin/nanobanana-usage", requireAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getNanoBananaUsageStats();
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Error fetching NanoBanana usage:", error);
+      res.status(500).json({ error: "Не вдалося отримати статистику NanoBanana" });
+    }
+  });
+
   // Generate AI insights for a game session
   app.post("/api/game-sessions/:sessionId/ai-insights", requireAuth, async (req, res) => {
     try {

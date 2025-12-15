@@ -1457,6 +1457,50 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async getNanoBananaUsageStats(): Promise<{
+    totalImages: number;
+    totalCost: string;
+    recentLogs: (AiUsageLog & { brandName?: string })[];
+  }> {
+    const logs = await db
+      .select({
+        id: aiUsageLogsTable.id,
+        provider: aiUsageLogsTable.provider,
+        model: aiUsageLogsTable.model,
+        tokensInput: aiUsageLogsTable.tokensInput,
+        tokensOutput: aiUsageLogsTable.tokensOutput,
+        costEstimate: aiUsageLogsTable.costEstimate,
+        sessionId: aiUsageLogsTable.sessionId,
+        userId: aiUsageLogsTable.userId,
+        endpoint: aiUsageLogsTable.endpoint,
+        createdAt: aiUsageLogsTable.createdAt,
+        brandName: userBrandsTable.name,
+      })
+      .from(aiUsageLogsTable)
+      .leftJoin(gameSessionsTable, sql`${aiUsageLogsTable.sessionId}::text = ${gameSessionsTable.id}`)
+      .leftJoin(userBrandsTable, eq(gameSessionsTable.brandId, userBrandsTable.id))
+      .where(eq(aiUsageLogsTable.provider, 'nanobanana'))
+      .orderBy(desc(aiUsageLogsTable.createdAt))
+      .limit(20);
+
+    const totalImages = logs.length;
+    let totalCostNum = 0;
+    logs.forEach(log => {
+      if (log.costEstimate) {
+        totalCostNum += parseFloat(log.costEstimate) || 0;
+      }
+    });
+
+    return {
+      totalImages,
+      totalCost: totalCostNum.toFixed(2),
+      recentLogs: logs.map(log => ({
+        ...log,
+        brandName: log.brandName || undefined,
+      })),
+    };
+  }
+
   // AI Chat Messages operations
   async getAiChatMessages(sessionId: string): Promise<AiChatMessage[]> {
     return await db

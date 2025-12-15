@@ -81,6 +81,12 @@ interface AIUsageData {
   recentLogs: AIUsageLog[];
 }
 
+interface NanoBananaUsageData {
+  totalImages: number;
+  totalCost: string;
+  recentLogs: AIUsageLog[];
+}
+
 export default function Settings() {
   const { toast } = useToast();
   const [syncProgress, setSyncProgress] = useState<SyncResult[]>([]);
@@ -110,6 +116,10 @@ export default function Settings() {
 
   const { data: userSettings, refetch: refetchUserSettings } = useQuery<{ hasGeminiApiKey: boolean }>({
     queryKey: ["/api/user/settings"],
+  });
+
+  const { data: nanoBananaUsage, isLoading: isLoadingNanoBananaUsage, refetch: refetchNanoBananaUsage } = useQuery<NanoBananaUsageData>({
+    queryKey: ["/api/admin/nanobanana-usage"],
   });
 
   useEffect(() => {
@@ -958,6 +968,97 @@ export default function Settings() {
                     </div>
                   </CardContent>
                 </Card>
+
+                <Card className="bg-gray-800 border-gray-700">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Статистика використання NanoBanana
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Моніторинг генерації зображень
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingNanoBananaUsage ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                      </div>
+                    ) : nanoBananaUsage ? (
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                            <div className="text-2xl font-bold text-blue-400 flex items-center gap-2">
+                              <Image className="h-5 w-5" />
+                              {nanoBananaUsage.totalImages}
+                            </div>
+                            <div className="text-sm text-gray-400">Згенеровано зображень</div>
+                          </div>
+                          <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                            <div className="text-2xl font-bold text-yellow-400 flex items-center gap-1">
+                              <Coins className="h-5 w-5" />
+                              ${nanoBananaUsage.totalCost}
+                            </div>
+                            <div className="text-sm text-gray-400">Орієнтовна вартість</div>
+                          </div>
+                        </div>
+
+                        {nanoBananaUsage.recentLogs.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-300 mb-2">Останні генерації</h4>
+                            <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                              {nanoBananaUsage.recentLogs.map((log) => (
+                                <div key={log.id} className="flex items-center justify-between bg-gray-900 rounded px-3 py-2 text-sm border border-gray-700" data-testid={`nanobanana-log-${log.id}`}>
+                                  <div className="flex items-center gap-3">
+                                    <Badge className="bg-green-600 text-xs">
+                                      <Image className="h-3 w-3 mr-1" />
+                                      Зображення
+                                    </Badge>
+                                    {log.brandName && (
+                                      <Badge className="bg-purple-600/50 text-purple-200 text-xs">
+                                        {log.brandName}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-4 text-gray-400">
+                                    <span>${log.costEstimate || '0.02'}</span>
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {new Date(log.createdAt).toLocaleString('uk-UA')}
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {nanoBananaUsage.totalImages === 0 && (
+                          <div className="text-center py-8 text-gray-500">
+                            Ще немає згенерованих зображень
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        Не вдалося завантажити статистику
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => refetchNanoBananaUsage()}
+                    disabled={isLoadingNanoBananaUsage}
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                    data-testid="button-refresh-nanobanana-usage"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingNanoBananaUsage ? 'animate-spin' : ''}`} />
+                    Оновити статистику
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
