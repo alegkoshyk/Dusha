@@ -879,6 +879,13 @@ export const getUnlockedCards = (completedCards: string[], responses: Record<str
     }
   }
   
+  // Special check for body-complete: only unlock when ALL body cards except itself are completed
+  const bodyCards = mobileGameCards.filter(card => card.level === 'body' && card.id !== 'body-complete');
+  const allBodyCardsCompleted = bodyCards.every(card => completedCards.includes(card.id));
+  if (!allBodyCardsCompleted) {
+    unlocked.delete('body-complete');
+  }
+  
   return Array.from(unlocked);
 };
 
