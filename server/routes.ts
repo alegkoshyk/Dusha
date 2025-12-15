@@ -1759,7 +1759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateImageWithNanoBanana } = await import('./nanobanana');
-      const result = await generateImageWithNanoBanana(profile.geminiApiKey, prompt, brandContext, aspectRatio);
+      const result = await generateImageWithNanoBanana(profile.geminiApiKey, prompt, brandContext, aspectRatio, sessionId, currentUser.id);
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });

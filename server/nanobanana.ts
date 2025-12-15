@@ -1,4 +1,5 @@
 import { decryptApiKey } from './encryption';
+import { storage } from './storage';
 
 interface GenerateImageResult {
   success: boolean;
@@ -71,7 +72,9 @@ export async function generateImageWithNanoBanana(
   encryptedApiKey: string,
   prompt: string,
   context?: string,
-  aspectRatio: string = '1:1'
+  aspectRatio: string = '1:1',
+  sessionId?: string,
+  userId?: string
 ): Promise<GenerateImageResult> {
   console.log('NanoBanana: Starting image generation...');
   console.log('NanoBanana: Aspect ratio:', aspectRatio);
@@ -172,6 +175,23 @@ export async function generateImageWithNanoBanana(
     
     if (imageUrl) {
       console.log('NanoBanana: Image generated successfully:', imageUrl);
+      
+      // Log usage to database
+      try {
+        await storage.logAIUsage({
+          provider: 'nanobanana',
+          model: 'flux-pro',
+          tokensInput: null,
+          tokensOutput: null,
+          costEstimate: '0.02', // Approximate cost per image
+          sessionId: sessionId || null,
+          userId: userId || null,
+          endpoint: 'generateImage',
+        });
+      } catch (logError) {
+        console.error('Failed to log NanoBanana usage:', logError);
+      }
+      
       return {
         success: true,
         imageUrl: imageUrl

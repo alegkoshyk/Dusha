@@ -1359,6 +1359,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAIUsageLogs(limit: number = 50, offset: number = 0): Promise<(AiUsageLog & { brandName?: string })[]> {
+    // Use raw SQL to handle type mismatch between uuid and varchar in join
     const logs = await db
       .select({
         id: aiUsageLogsTable.id,
@@ -1374,7 +1375,7 @@ export class DatabaseStorage implements IStorage {
         brandName: userBrandsTable.name,
       })
       .from(aiUsageLogsTable)
-      .leftJoin(gameSessionsTable, eq(aiUsageLogsTable.sessionId, gameSessionsTable.id))
+      .leftJoin(gameSessionsTable, sql`${aiUsageLogsTable.sessionId}::text = ${gameSessionsTable.id}`)
       .leftJoin(userBrandsTable, eq(gameSessionsTable.brandId, userBrandsTable.id))
       .orderBy(desc(aiUsageLogsTable.createdAt))
       .limit(limit)
