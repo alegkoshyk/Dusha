@@ -359,7 +359,8 @@ export interface BrandContext {
 export async function sendBrandChatMessage(
   userMessage: string,
   chatHistory: ChatMessage[],
-  brandContext: BrandContext
+  brandContext: BrandContext,
+  sessionId?: string
 ): Promise<{ response: string; tokensUsed?: { input: number; output: number } }> {
   const { client, config } = await getAIClient();
 
@@ -442,6 +443,7 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
       tokensOutput: usage.completion_tokens,
       costEstimate: estimatedCost.toFixed(6),
       endpoint: "brandChat",
+      sessionId: sessionId || null,
     });
   }
 
