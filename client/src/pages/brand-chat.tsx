@@ -584,7 +584,7 @@ export default function BrandChat() {
         </ScrollArea>
 
         <Collapsible open={showImageSettings} onOpenChange={setShowImageSettings}>
-          <CollapsibleContent className="border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 max-h-[60vh] overflow-y-auto">
+          <CollapsibleContent className="border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 max-h-[50vh] overflow-y-auto overscroll-contain touch-pan-y">
             <div className="p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-2">
