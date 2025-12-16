@@ -748,18 +748,9 @@ export default function BrandChat() {
       </Card>
 
       <Dialog open={!!modalImage} onOpenChange={(open) => !open && setModalImage(null)}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90">
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90 [&>button]:text-white [&>button]:hover:bg-white/20">
           <DialogTitle className="sr-only">Перегляд зображення</DialogTitle>
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-2 right-2 z-10 text-white hover:bg-white/20"
-              onClick={() => setModalImage(null)}
-              data-testid="button-close-modal"
-            >
-              <X className="w-6 h-6" />
-            </Button>
+          <div className="relative pt-8">
             <img 
               src={modalImage || ''} 
               alt="Згенероване зображення" 
