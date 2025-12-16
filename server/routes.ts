@@ -312,7 +312,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Allow empty string to remove logo
         if (logo === '') {
-          // Empty string means remove logo - this is valid
+          const updated = await storage.updateUserBrandLogo(id, null);
+          return res.json(updated);
         } else {
           // Validate data URL format and allowed MIME types
           const dataUrlPattern = /^data:image\/(png|jpeg|jpg|svg\+xml);base64,/;
@@ -330,6 +331,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!base64Part || base64Part.length < 10) {
             return res.status(400).json({ error: "Невірний формат лого - пустий вміст" });
           }
+
+          // Try to upload to object storage for public URL
+          let logoUrl = logo; // Default to base64 if upload fails
+          try {
+            const { ObjectStorageService } = await import('./objectStorage');
+            const objectStorage = new ObjectStorageService();
+            logoUrl = await objectStorage.uploadLogoFromBase64(id, logo);
+            console.log('Logo uploaded to object storage:', logoUrl);
+          } catch (uploadError) {
+            console.warn('Object storage upload failed, using base64:', uploadError);
+            // Keep base64 as fallback
+          }
+
+          const updated = await storage.updateUserBrandLogo(id, logoUrl);
+          return res.json(updated);
         }
       }
 
