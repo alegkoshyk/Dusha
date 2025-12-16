@@ -151,9 +151,15 @@ export class ObjectStorageService {
       },
     });
 
-    await file.makePublic();
+    // Generate a long-lived signed URL (7 days) since makePublic is not allowed
+    const signedUrl = await signObjectURL({
+      bucketName,
+      objectName,
+      method: "GET",
+      ttlSec: 7 * 24 * 60 * 60, // 7 days
+    });
 
-    return `https://storage.googleapis.com/${bucketName}/${objectName}`;
+    return signedUrl;
   }
 
   async getPublicUrl(objectPath: string): Promise<string> {
