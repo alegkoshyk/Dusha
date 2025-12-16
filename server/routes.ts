@@ -251,6 +251,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update brand logo
+  app.patch("/api/user/brands/:id/logo", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const { logo } = req.body;
+      
+      // Verify brand belongs to user
+      const brand = await storage.getUserBrand(id);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      // Validate logo format (base64 data URL)
+      if (logo !== null && logo !== undefined) {
+        if (typeof logo !== 'string') {
+          return res.status(400).json({ error: "Невірний формат лого" });
+        }
+        // Allow empty string to remove logo
+        if (logo && !logo.startsWith('data:image/')) {
+          return res.status(400).json({ error: "Лого має бути у форматі PNG, JPG або SVG" });
+        }
+        // Check size limit (~2MB in base64)
+        if (logo.length > 2800000) {
+          return res.status(400).json({ error: "Розмір лого не повинен перевищувати 2MB" });
+        }
+      }
+
+      const updated = await storage.updateUserBrandLogo(id, logo || null);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update brand logo error:", error);
+      res.status(500).json({ error: "Помилка оновлення лого" });
+    }
+  });
+
   // Brand AI Analysis routes
   app.get("/api/brands/:brandId/ai-analyses", requireAuth, async (req, res) => {
     try {

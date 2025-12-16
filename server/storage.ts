@@ -79,6 +79,7 @@ export interface IStorage {
   getUserBrands(userId: string): Promise<UserBrand[]>;
   getUserBrand(id: string): Promise<UserBrand | undefined>;
   updateUserBrand(id: string, updates: Partial<UserBrand>): Promise<UserBrand | undefined>;
+  updateUserBrandLogo(id: string, logo: string | null): Promise<UserBrand | undefined>;
   deleteUserBrand(id: string): Promise<boolean>;
   
   // Game session CRUD operations
@@ -352,6 +353,15 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db
       .update(userBrandsTable)
       .set({ ...updates, updatedAt: new Date() })
+      .where(eq(userBrandsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async updateUserBrandLogo(id: string, logo: string | null): Promise<UserBrand | undefined> {
+    const [updated] = await db
+      .update(userBrandsTable)
+      .set({ logo, updatedAt: new Date() })
       .where(eq(userBrandsTable.id, id))
       .returning();
     return updated;
