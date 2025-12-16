@@ -8,8 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBrands } from "@/hooks/useBrands";
 import { insertUserBrandSchema, type InsertUserBrand, type UserBrand } from "@shared/schema";
-import { Building2, FileText } from "lucide-react";
+import { Building2, FileText, ImagePlus, X } from "lucide-react";
 import { z } from "zod";
+import { useState, useRef } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 const createBrandSchema = insertUserBrandSchema.omit({
   userId: true,
@@ -28,6 +31,18 @@ interface CreateBrandDialogProps {
 
 export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: CreateBrandDialogProps) {
   const { createBrand, isCreatingBrand, createBrandError } = useBrands();
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadLogoMutation = useMutation({
+    mutationFn: async ({ brandId, logo }: { brandId: string; logo: string }) => {
+      const response = await apiRequest("PATCH", `/api/user/brands/${brandId}/logo`, { logo });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user/brands"] });
+    },
+  });
 
   const {
     register,
@@ -38,18 +53,56 @@ export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: Create
     resolver: zodResolver(createBrandSchema),
   });
 
-  const onSubmit = (data: CreateBrandForm) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      alert('Підтримуються тільки PNG, JPG та SVG формати');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Розмір файлу не повинен перевищувати 2MB');
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeLogo = () => {
+    setLogoPreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const onSubmit = async (data: CreateBrandForm) => {
     createBrand(data, {
-      onSuccess: (brand: UserBrand) => {
+      onSuccess: async (brand: UserBrand) => {
+        // If logo was selected, upload it
+        if (logoPreview) {
+          await uploadLogoMutation.mutateAsync({ brandId: brand.id, logo: logoPreview });
+        }
         reset();
+        setLogoPreview(null);
         onBrandCreated(brand);
       },
     });
   };
 
   const handleClose = () => {
-    if (!isCreatingBrand) {
+    if (!isCreatingBrand && !uploadLogoMutation.isPending) {
       reset();
+      setLogoPreview(null);
       onOpenChange(false);
     }
   };
@@ -105,6 +158,51 @@ export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: Create
             )}
           </div>
 
+          <div className="space-y-2">
+            <Label>Логотип (необов'язково)</Label>
+            <div className="flex items-center gap-4">
+              {logoPreview ? (
+                <div className="relative">
+                  <img 
+                    src={logoPreview} 
+                    alt="Logo preview" 
+                    className="w-16 h-16 object-contain rounded-lg border border-gray-200 bg-white"
+                    data-testid="img-logo-preview"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeLogo}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                    data-testid="button-remove-logo"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-16 h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center hover:border-gray-400 transition-colors"
+                  data-testid="button-upload-logo"
+                >
+                  <ImagePlus className="w-6 h-6 text-gray-400" />
+                </button>
+              )}
+              <div className="text-sm text-gray-500">
+                <p>PNG, JPG або SVG</p>
+                <p>Макс. 2MB</p>
+              </div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/svg+xml"
+              onChange={handleFileChange}
+              className="hidden"
+              data-testid="input-logo-file"
+            />
+          </div>
+
           {createBrandError && (
             <Alert variant="destructive" data-testid="create-brand-error">
               <AlertDescription>
@@ -127,10 +225,10 @@ export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: Create
             <Button
               type="submit"
               className="flex-1"
-              disabled={isCreatingBrand}
+              disabled={isCreatingBrand || uploadLogoMutation.isPending}
               data-testid="button-create-brand"
             >
-              {isCreatingBrand ? "Створення..." : "Створити бренд"}
+              {isCreatingBrand || uploadLogoMutation.isPending ? "Створення..." : "Створити бренд"}
             </Button>
           </div>
         </form>
