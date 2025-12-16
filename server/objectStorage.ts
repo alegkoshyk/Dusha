@@ -124,12 +124,14 @@ export class ObjectStorageService {
       throw new Error("PRIVATE_OBJECT_DIR not set");
     }
 
-    const match = base64Data.match(/^data:image\/(\w+);base64,(.+)$/);
+    const match = base64Data.match(/^data:image\/([\w+]+);base64,(.+)$/);
     if (!match) {
       throw new Error("Invalid base64 image format");
     }
 
-    const extension = match[1] === 'svg+xml' ? 'svg' : match[1];
+    let extension = match[1];
+    if (extension === 'svg+xml') extension = 'svg';
+    if (extension === 'jpeg') extension = 'jpg';
     const imageData = match[2];
     const buffer = Buffer.from(imageData, 'base64');
 
