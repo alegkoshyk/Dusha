@@ -324,10 +324,25 @@ export default function Dashboard() {
                     >
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <CardTitle className="text-lg mb-1 group-hover:text-blue-600 transition-colors">
-                              {brand.name}
-                            </CardTitle>
+                          <div className="flex items-start gap-3 flex-1">
+                            {brand.logo ? (
+                              <img 
+                                src={brand.logo} 
+                                alt={`${brand.name} logo`}
+                                className="w-12 h-12 object-contain rounded-lg border border-gray-200 bg-white flex-shrink-0"
+                                data-testid={`brand-logo-${brand.id}`}
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <span className="text-white font-bold text-lg">
+                                  {brand.name.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-lg mb-1 group-hover:text-blue-600 transition-colors truncate">
+                                {brand.name}
+                              </CardTitle>
                             <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
                               {brand.description || 'Опис агентства йосього улюбленого шоку'}
                             </p>
@@ -344,6 +359,7 @@ export default function Dashboard() {
                                   Завершено
                                 </Badge>
                               )}
+                            </div>
                             </div>
                           </div>
                           <Button
