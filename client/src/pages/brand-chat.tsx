@@ -93,6 +93,97 @@ interface LocalImageMessage {
   createdAt: string;
 }
 
+function formatMarkdown(text: string): JSX.Element {
+  const lines = text.split('\n');
+  const elements: JSX.Element[] = [];
+  let listItems: string[] = [];
+  let listType: 'ul' | 'ol' | null = null;
+
+  const processInlineMarkdown = (line: string): JSX.Element[] => {
+    const parts: JSX.Element[] = [];
+    let remaining = line;
+    let key = 0;
+
+    while (remaining.length > 0) {
+      const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+      
+      if (boldMatch && boldMatch.index !== undefined) {
+        if (boldMatch.index > 0) {
+          parts.push(<span key={key++}>{remaining.slice(0, boldMatch.index)}</span>);
+        }
+        parts.push(<strong key={key++} className="font-semibold text-gray-900 dark:text-white">{boldMatch[1]}</strong>);
+        remaining = remaining.slice(boldMatch.index + boldMatch[0].length);
+      } else {
+        parts.push(<span key={key++}>{remaining}</span>);
+        break;
+      }
+    }
+    return parts;
+  };
+
+  const flushList = () => {
+    if (listItems.length > 0 && listType) {
+      const ListTag = listType;
+      elements.push(
+        <ListTag key={elements.length} className={`${listType === 'ol' ? 'list-decimal' : 'list-disc'} ml-4 space-y-1 my-2`}>
+          {listItems.map((item, i) => (
+            <li key={i} className="text-sm">{processInlineMarkdown(item)}</li>
+          ))}
+        </ListTag>
+      );
+      listItems = [];
+      listType = null;
+    }
+  };
+
+  lines.forEach((line, idx) => {
+    const trimmedLine = line.trim();
+
+    if (trimmedLine.match(/^#{1,3}\s/)) {
+      flushList();
+      const level = (trimmedLine.match(/^#+/) || [''])[0].length;
+      const content = trimmedLine.replace(/^#+\s/, '');
+      const className = level === 1 ? 'text-base font-bold mt-3 mb-2' : 
+                        level === 2 ? 'text-sm font-semibold mt-2 mb-1' : 
+                        'text-sm font-medium mt-2 mb-1';
+      elements.push(
+        <div key={idx} className={`${className} text-gray-900 dark:text-white`}>
+          {processInlineMarkdown(content)}
+        </div>
+      );
+    }
+    else if (trimmedLine.match(/^[-•]\s/)) {
+      if (listType !== 'ul') {
+        flushList();
+        listType = 'ul';
+      }
+      listItems.push(trimmedLine.replace(/^[-•]\s/, ''));
+    }
+    else if (trimmedLine.match(/^\d+\.\s/)) {
+      if (listType !== 'ol') {
+        flushList();
+        listType = 'ol';
+      }
+      listItems.push(trimmedLine.replace(/^\d+\.\s/, ''));
+    }
+    else if (trimmedLine === '') {
+      flushList();
+      elements.push(<div key={idx} className="h-2" />);
+    }
+    else {
+      flushList();
+      elements.push(
+        <p key={idx} className="text-sm my-1">
+          {processInlineMarkdown(trimmedLine)}
+        </p>
+      );
+    }
+  });
+
+  flushList();
+  return <div className="space-y-0.5">{elements}</div>;
+}
+
 export default function BrandChat() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const { user } = useAuth();
@@ -400,8 +491,12 @@ export default function BrandChat() {
                         ? 'bg-red-600 text-white'
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
                     }`}>
-                      <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
-                      <span className={`text-xs mt-1 block ${
+                      {msg.role === 'user' ? (
+                        <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                      ) : (
+                        formatMarkdown(msg.content)
+                      )}
+                      <span className={`text-xs mt-2 block ${
                         msg.role === 'user' ? 'text-red-200' : 'text-gray-400'
                       }`}>
                         {new Date(msg.createdAt).toLocaleTimeString('uk-UA', { 
