@@ -19,11 +19,13 @@ import {
   Users,
   TrendingUp,
   BookOpen,
-  Sparkles
+  Sparkles,
+  Pencil
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { CreateBrandDialog } from '@/components/brands/CreateBrandDialog';
+import { EditBrandDialog } from '@/components/brands/EditBrandDialog';
 import { apiRequest, apiRequestJson, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import type { UserBrand, GameSession } from '@shared/schema';
@@ -34,6 +36,8 @@ export default function Dashboard() {
   const { toast } = useToast();
   const queryClientHook = useQueryClient();
   const [createBrandOpen, setCreateBrandOpen] = useState(false);
+  const [editBrandOpen, setEditBrandOpen] = useState(false);
+  const [editingBrand, setEditingBrand] = useState<UserBrand | null>(null);
 
   // Завантаження брендів користувача
   const { data: brands = [], isLoading: brandsLoading } = useQuery<UserBrand[]>({
@@ -362,18 +366,33 @@ export default function Dashboard() {
                             </div>
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteBrand(brand.id, brand.name);
-                            }}
-                            className="text-red-500 hover:text-red-700 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            data-testid={`delete-brand-${brand.id}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingBrand(brand);
+                                setEditBrandOpen(true);
+                              }}
+                              className="text-gray-500 hover:text-blue-600 p-1"
+                              data-testid={`edit-brand-${brand.id}`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteBrand(brand.id, brand.name);
+                              }}
+                              className="text-red-500 hover:text-red-700 p-1"
+                              data-testid={`delete-brand-${brand.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
                       <CardContent className="pt-0 pb-4">
@@ -718,6 +737,23 @@ export default function Dashboard() {
           toast({
             title: "Бренд створено",
             description: `Бренд "${brand.name}" успішно створено`,
+          });
+        }}
+      />
+
+      {/* Edit Brand Dialog */}
+      <EditBrandDialog 
+        brand={editingBrand}
+        open={editBrandOpen} 
+        onOpenChange={(open) => {
+          setEditBrandOpen(open);
+          if (!open) setEditingBrand(null);
+        }}
+        onBrandUpdated={() => {
+          queryClientHook.invalidateQueries({ queryKey: ['/api/user/brands'] });
+          toast({
+            title: "Бренд оновлено",
+            description: "Зміни успішно збережено",
           });
         }}
       />

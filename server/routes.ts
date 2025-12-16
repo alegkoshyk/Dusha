@@ -251,6 +251,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update brand (name, description)
+  app.patch("/api/user/brands/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const { name, description } = req.body;
+      
+      // Verify brand belongs to user
+      const brand = await storage.getUserBrand(id);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      // Validate name
+      if (name !== undefined) {
+        if (typeof name !== 'string' || name.trim().length < 2) {
+          return res.status(400).json({ error: "Назва бренду повинна містити мінімум 2 символи" });
+        }
+      }
+
+      const updates: any = {};
+      if (name !== undefined) updates.name = name.trim();
+      if (description !== undefined) updates.description = description?.trim() || null;
+
+      const updated = await storage.updateUserBrand(id, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update brand error:", error);
+      res.status(500).json({ error: "Помилка оновлення бренду" });
+    }
+  });
+
   // Update brand logo
   app.patch("/api/user/brands/:id/logo", requireAuth, async (req, res) => {
     try {
