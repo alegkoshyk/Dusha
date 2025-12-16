@@ -109,15 +109,15 @@ export async function generateImageWithNanoBanana(
     // Using a dummy callback URL since we're polling
     const requestBody: Record<string, any> = {
       prompt: fullPrompt,
-      type: logoUrl ? 'IMAGETOIMAGE' : 'TEXTTOIAMGE',
+      type: 'TEXTTOIAMGE',
       numImages: 1,
       image_size: aspectRatio,
       callBackUrl: 'https://example.com/callback' // Required by API but we use polling
     };
     
-    // Add logo as origin image for image-to-image generation
+    // Add logo as reference image (logo is included in prompt instructions)
     if (logoUrl) {
-      requestBody.originImageUrl = logoUrl;
+      requestBody.referenceImageUrl = logoUrl;
     }
     
     console.log('NanoBanana: Request body:', JSON.stringify(requestBody));
