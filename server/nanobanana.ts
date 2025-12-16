@@ -33,6 +33,104 @@ interface NanoBananaStatusResponse {
 
 const NANOBANANA_BASE_URL = 'https://api.nanobananaapi.ai/api/v1/nanobanana';
 
+const MERCH_PROMPTS: Record<string, string> = {
+  'tshirt': `Use the provided image as a logo reference.
+
+Generate a premium cotton t-shirt.
+Color: white.
+Place the logo centered on the chest.
+Professional silk screen print texture.
+
+Studio product photography.
+Soft shadows.
+Minimal background.
+Photorealistic.`,
+
+  'hoodie': `Use the provided image as a logo reference.
+
+Generate a black oversized hoodie.
+Place the logo on the chest.
+High-quality fabric texture.
+
+Streetwear style product photography.
+Clean background.
+High realism.`,
+
+  'cap': `Use the provided image as a logo reference.
+
+Generate a black baseball cap.
+Embroidered logo on the front.
+Premium stitching.
+
+Studio lighting.
+Minimal background.
+Photorealistic.`,
+
+  'mug': `Use the provided image as a logo reference.
+
+Generate a ceramic coffee mug.
+Logo printed on the side.
+Glossy surface with realistic reflections.
+
+Product photography.
+Neutral background.
+High detail.`,
+
+  'bag': `Use the provided image as a logo reference.
+
+Generate a cotton tote bag, natural beige color.
+Logo printed on the front center.
+High-quality fabric texture.
+
+Studio product photography.
+Clean minimal background.
+Photorealistic.`,
+
+  'notebook': `Use the provided image as a logo reference.
+
+Generate a hardcover notebook.
+Logo embossed on the cover.
+Premium leather-like texture.
+
+Product photography.
+Neutral background.
+High detail.`,
+
+  'phone-case': `Use the provided image as a logo reference.
+
+Generate a modern smartphone case.
+Logo printed on the back.
+Matte finish texture.
+
+Product photography.
+Clean background.
+Photorealistic.`,
+
+  'poster': `Use the provided image as a logo reference.
+
+Generate a promotional poster design.
+Logo prominently displayed.
+Modern minimalist layout.
+
+High quality print design.
+Clean composition.
+Professional look.`,
+};
+
+const BASE_LOGO_PROMPT = `Use the provided image as a logo reference.
+
+Generate a realistic branded merchandise mockup.
+Place the logo naturally on the product.
+Do not redraw, modify, or distort the logo.
+Keep original proportions, colors, and shape.
+
+Photorealistic product photography.
+Studio lighting.
+Clean minimal background.
+High quality, commercial look.`;
+
+const NEGATIVE_PROMPT = 'distorted logo, modified logo, wrong text, extra symbols, watermark, blurry, low quality, stretched logo';
+
 async function pollForResult(apiKey: string, taskId: string, maxAttempts: number = 60, interval: number = 3000): Promise<NanoBananaStatusResponse> {
   for (let i = 0; i < maxAttempts; i++) {
     console.log(`NanoBanana: Polling attempt ${i + 1}/${maxAttempts} for task ${taskId}`);
@@ -75,11 +173,13 @@ export async function generateImageWithNanoBanana(
   aspectRatio: string = '1:1',
   sessionId?: string,
   userId?: string,
-  logoUrl?: string
+  logoUrl?: string,
+  merchType?: string
 ): Promise<GenerateImageResult> {
   console.log('NanoBanana: Starting image generation...');
   console.log('NanoBanana: Aspect ratio:', aspectRatio);
   console.log('NanoBanana: Logo URL provided:', !!logoUrl);
+  console.log('NanoBanana: Merch type:', merchType || 'none');
   
   const apiKey = decryptApiKey(encryptedApiKey);
   
@@ -93,13 +193,27 @@ export async function generateImageWithNanoBanana(
 
   console.log('NanoBanana: API key decrypted, length:', apiKey.length);
 
-  // If logo is provided, add instruction to incorporate it
-  let fullPrompt = context 
-    ? `Based on this brand context: ${context}\n\nGenerate an image for: ${prompt}`
-    : prompt;
+  let fullPrompt: string;
   
+  // If logo is provided, use specialized merch prompts
   if (logoUrl) {
-    fullPrompt = `${fullPrompt}. Important: Incorporate the brand logo into the generated image, make it visible and recognizable as part of the design.`;
+    if (merchType && MERCH_PROMPTS[merchType]) {
+      // Use specific merch prompt
+      fullPrompt = MERCH_PROMPTS[merchType];
+      // Add user's additional instructions if any
+      if (prompt && prompt.trim()) {
+        fullPrompt = `${fullPrompt}\n\nAdditional instructions: ${prompt}`;
+      }
+    } else {
+      // Use base logo prompt for free generation
+      fullPrompt = `${BASE_LOGO_PROMPT}\n\nGenerate: ${prompt}`;
+    }
+    console.log('NanoBanana: Using logo reference prompt');
+  } else {
+    // Regular prompt without logo
+    fullPrompt = context 
+      ? `Based on this brand context: ${context}\n\nGenerate an image for: ${prompt}`
+      : prompt;
   }
 
   try {
@@ -115,9 +229,13 @@ export async function generateImageWithNanoBanana(
       callBackUrl: 'https://example.com/callback' // Required by API but we use polling
     };
     
-    // Add logo as reference image (logo is included in prompt instructions)
+    // Add logo as reference image with optimized settings
     if (logoUrl) {
       requestBody.referenceImageUrl = logoUrl;
+      requestBody.negative_prompt = NEGATIVE_PROMPT;
+      // Optimized settings for logo preservation
+      requestBody.strength = 0.25;
+      requestBody.guidance_scale = 7;
     }
     
     console.log('NanoBanana: Request body:', JSON.stringify(requestBody));

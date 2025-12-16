@@ -1,0 +1,116 @@
+ЛАВНЫЙ PROMPT (база)
+
+👉 Используй ЭТО как основной prompt в коде:
+
+Use the provided image as a logo reference.
+
+Generate a realistic branded merchandise mockup.
+Place the logo naturally on the product.
+Do not redraw, modify, or distort the logo.
+Keep original proportions, colors, and shape.
+
+Photorealistic product photography.
+Studio lighting.
+Clean minimal background.
+High quality, commercial look.
+
+
+⚠️ Важно: этот prompt всегда должен идти вместе с картинкой-логотипом.
+
+3️⃣ PROMPT под мерч (выбирай тип)
+👕 T-shirt
+Use the provided image as a logo reference.
+
+Generate a premium cotton t-shirt.
+Color: white.
+Place the logo centered on the chest.
+Professional silk screen print texture.
+
+Studio product photography.
+Soft shadows.
+Minimal background.
+Photorealistic.
+
+🧥 Hoodie
+Use the provided image as a logo reference.
+
+Generate a black oversized hoodie.
+Place the logo on the chest.
+High-quality fabric texture.
+
+Streetwear style product photography.
+Clean background.
+High realism.
+
+🧢 Cap
+Use the provided image as a logo reference.
+
+Generate a black baseball cap.
+Embroidered logo on the front.
+Premium stitching.
+
+Studio lighting.
+Minimal background.
+Photorealistic.
+
+☕ Mug
+Use the provided image as a logo reference.
+
+Generate a ceramic coffee mug.
+Logo printed on the side.
+Glossy surface with realistic reflections.
+
+Product photography.
+Neutral background.
+High detail.
+
+4️⃣ NEGATIVE PROMPT (обязательно)
+distorted logo, modified logo, wrong text, extra symbols, watermark, blurry, low quality, stretched logo
+
+5️⃣ РЕКОМЕНДУЕМЫЕ ПАРАМЕТРЫ ДЛЯ API
+{
+  "strength": 0.25,
+  "guidance_scale": 7,
+  "num_outputs": 1
+}
+
+
+📌 Пояснение:
+
+strength 0.2–0.35 → логотип сохраняется чётко
+
+guidance_scale 6–8 → хорошо держит инструкцию
+
+6️⃣ ПРИМЕР ЗАПРОСА (JS / Replit)
+const input = {
+  image: "https://your-logo-url.png",
+  prompt: `
+Use the provided image as a logo reference.
+
+Generate a white cotton t-shirt.
+Place the logo centered on the chest.
+Professional print quality.
+
+Photorealistic product photography.
+Studio lighting.
+`,
+  negative_prompt: "distorted logo, watermark, blurry",
+  strength: 0.25,
+  guidance_scale: 7
+};
+
+7️⃣ ЛУЧШАЯ ПРАКТИКА (очень важно)
+
+✔️ Логотип:
+
+PNG
+
+прозрачный фон
+
+минимум 512×512
+
+✔️ Для мерча:
+
+один тип товара = один prompt
+
+не мешай футболку и кепку в одном запросе

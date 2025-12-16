@@ -76,6 +76,18 @@ const STYLE_PROMPTS: Record<string, string> = {
   'cinematic': 'cinematic shot, dramatic lighting, movie scene, film grain',
 };
 
+const MERCH_TYPES = [
+  { value: '', label: 'Без мерчу', icon: '🎨', description: 'Вільна генерація з логотипом' },
+  { value: 'tshirt', label: 'Футболка', icon: '👕', description: 'Біла футболка з логотипом' },
+  { value: 'hoodie', label: 'Худі', icon: '🧥', description: 'Чорне худі з логотипом' },
+  { value: 'cap', label: 'Кепка', icon: '🧢', description: 'Бейсболка з вишитим логотипом' },
+  { value: 'mug', label: 'Чашка', icon: '☕', description: 'Керамічна чашка з логотипом' },
+  { value: 'bag', label: 'Сумка', icon: '👜', description: 'Тканинна сумка шопер' },
+  { value: 'notebook', label: 'Блокнот', icon: '📓', description: 'Брендований блокнот' },
+  { value: 'phone-case', label: 'Чохол', icon: '📱', description: 'Чохол для телефону' },
+  { value: 'poster', label: 'Постер', icon: '🖼️', description: 'Рекламний постер' },
+];
+
 interface ChatMessage {
   id: string;
   sessionId: string;
@@ -196,6 +208,7 @@ export default function BrandChat() {
   const [selectedStyle, setSelectedStyle] = useState('');
   const [customContext, setCustomContext] = useState('');
   const [useLogo, setUseLogo] = useState(false);
+  const [merchType, setMerchType] = useState('');
   const [showImageSettings, setShowImageSettings] = useState(false);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
@@ -261,8 +274,8 @@ export default function BrandChat() {
   });
 
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio, logoUrl }: { prompt: string; aspectRatio: string; logoUrl?: string }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt, aspectRatio, logoUrl });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl, merchType }: { prompt: string; aspectRatio: string; logoUrl?: string; merchType?: string }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt, aspectRatio, logoUrl, merchType });
     },
     onError: (error: any) => {
       toast({
@@ -326,7 +339,8 @@ export default function BrandChat() {
     generateImageMutation.mutate({ 
       prompt: fullPrompt, 
       aspectRatio,
-      logoUrl: useLogo && brand?.logo ? brand.logo : undefined
+      logoUrl: useLogo && brand?.logo ? brand.logo : undefined,
+      merchType: useLogo && merchType ? merchType : undefined
     }, {
       onSuccess: (data) => {
         const imageData = data.imageBase64 || data.imageUrl;
@@ -681,31 +695,62 @@ export default function BrandChat() {
               
               {/* Logo toggle for image generation */}
               {brand?.logo && (
-                <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-3">
-                    {useLogo && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center gap-3">
                       <img 
                         src={brand.logo} 
                         alt="Brand logo" 
-                        className="w-8 h-8 rounded object-contain bg-gray-100 dark:bg-gray-700"
+                        className="w-10 h-10 rounded object-contain bg-gray-100 dark:bg-gray-700 p-1"
                         data-testid="img-logo-preview"
                       />
-                    )}
-                    <div className="flex flex-col">
-                      <Label htmlFor="use-logo" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Використовувати логотип
-                      </Label>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Логотип буде використано як основу для генерації
-                      </span>
+                      <div className="flex flex-col">
+                        <Label htmlFor="use-logo" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Використовувати логотип
+                        </Label>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          Логотип буде референсом для генерації
+                        </span>
+                      </div>
                     </div>
+                    <Switch
+                      id="use-logo"
+                      checked={useLogo}
+                      onCheckedChange={setUseLogo}
+                      data-testid="switch-use-logo"
+                    />
                   </div>
-                  <Switch
-                    id="use-logo"
-                    checked={useLogo}
-                    onCheckedChange={setUseLogo}
-                    data-testid="switch-use-logo"
-                  />
+
+                  {useLogo && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Тип мерчу / продукту
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {MERCH_TYPES.map((type) => (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => setMerchType(type.value)}
+                            className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all ${
+                              merchType === type.value 
+                                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
+                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                            }`}
+                            data-testid={`merch-type-${type.value || 'none'}`}
+                          >
+                            <span className="text-2xl mb-1">{type.icon}</span>
+                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{type.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      {merchType && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {MERCH_TYPES.find(t => t.value === merchType)?.description}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               
