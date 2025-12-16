@@ -9,6 +9,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { 
   Send, 
   ArrowLeft, 
@@ -193,6 +195,7 @@ export default function BrandChat() {
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [selectedStyle, setSelectedStyle] = useState('');
   const [customContext, setCustomContext] = useState('');
+  const [useLogo, setUseLogo] = useState(false);
   const [showImageSettings, setShowImageSettings] = useState(false);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
@@ -258,8 +261,8 @@ export default function BrandChat() {
   });
 
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio }: { prompt: string; aspectRatio: string }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt, aspectRatio });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl }: { prompt: string; aspectRatio: string; logoUrl?: string }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt, aspectRatio, logoUrl });
     },
     onError: (error: any) => {
       toast({
@@ -320,7 +323,11 @@ export default function BrandChat() {
     
     setMessage('');
     
-    generateImageMutation.mutate({ prompt: fullPrompt, aspectRatio }, {
+    generateImageMutation.mutate({ 
+      prompt: fullPrompt, 
+      aspectRatio,
+      logoUrl: useLogo && brand?.logo ? brand.logo : undefined
+    }, {
       onSuccess: (data) => {
         const imageData = data.imageBase64 || data.imageUrl;
         // Remove temporary loading message - image is now saved in database
@@ -671,6 +678,36 @@ export default function BrandChat() {
                   data-testid="textarea-context"
                 />
               </div>
+              
+              {/* Logo toggle for image generation */}
+              {brand?.logo && (
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-3">
+                    {useLogo && (
+                      <img 
+                        src={brand.logo} 
+                        alt="Brand logo" 
+                        className="w-8 h-8 rounded object-contain bg-gray-100 dark:bg-gray-700"
+                        data-testid="img-logo-preview"
+                      />
+                    )}
+                    <div className="flex flex-col">
+                      <Label htmlFor="use-logo" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Використовувати логотип
+                      </Label>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Логотип буде використано як основу для генерації
+                      </span>
+                    </div>
+                  </div>
+                  <Switch
+                    id="use-logo"
+                    checked={useLogo}
+                    onCheckedChange={setUseLogo}
+                    data-testid="switch-use-logo"
+                  />
+                </div>
+              )}
               
               {(selectedStyle || customContext) && (
                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">

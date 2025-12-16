@@ -74,10 +74,12 @@ export async function generateImageWithNanoBanana(
   context?: string,
   aspectRatio: string = '1:1',
   sessionId?: string,
-  userId?: string
+  userId?: string,
+  logoUrl?: string
 ): Promise<GenerateImageResult> {
   console.log('NanoBanana: Starting image generation...');
   console.log('NanoBanana: Aspect ratio:', aspectRatio);
+  console.log('NanoBanana: Logo URL provided:', !!logoUrl);
   
   const apiKey = decryptApiKey(encryptedApiKey);
   
@@ -91,22 +93,32 @@ export async function generateImageWithNanoBanana(
 
   console.log('NanoBanana: API key decrypted, length:', apiKey.length);
 
-  const fullPrompt = context 
+  // If logo is provided, add instruction to incorporate it
+  let fullPrompt = context 
     ? `Based on this brand context: ${context}\n\nGenerate an image for: ${prompt}`
     : prompt;
+  
+  if (logoUrl) {
+    fullPrompt = `${fullPrompt}. Important: Incorporate the brand logo into the generated image, make it visible and recognizable as part of the design.`;
+  }
 
   try {
     console.log('NanoBanana: Sending request to:', `${NANOBANANA_BASE_URL}/generate`);
     
     // According to official docs: callBackUrl is required but we use polling instead
     // Using a dummy callback URL since we're polling
-    const requestBody = {
+    const requestBody: Record<string, any> = {
       prompt: fullPrompt,
-      type: 'TEXTTOIAMGE',
+      type: logoUrl ? 'IMAGETOIMAGE' : 'TEXTTOIAMGE',
       numImages: 1,
       image_size: aspectRatio,
       callBackUrl: 'https://example.com/callback' // Required by API but we use polling
     };
+    
+    // Add logo as origin image for image-to-image generation
+    if (logoUrl) {
+      requestBody.originImageUrl = logoUrl;
+    }
     
     console.log('NanoBanana: Request body:', JSON.stringify(requestBody));
     
