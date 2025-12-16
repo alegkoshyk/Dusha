@@ -223,19 +223,22 @@ export async function generateImageWithNanoBanana(
     // Using a dummy callback URL since we're polling
     const requestBody: Record<string, any> = {
       prompt: fullPrompt,
-      type: 'TEXTTOIAMGE',
       numImages: 1,
       image_size: aspectRatio,
       callBackUrl: 'https://example.com/callback' // Required by API but we use polling
     };
     
-    // Add logo as reference image with optimized settings
+    // If logo provided, use Image-to-Image mode instead of Text-to-Image
     if (logoUrl) {
-      requestBody.referenceImageUrl = logoUrl;
+      requestBody.type = 'IMAGETOIMAGE'; // Switch to image editing mode
+      requestBody.image_urls = [logoUrl]; // Pass logo as input image
       requestBody.negative_prompt = NEGATIVE_PROMPT;
-      // Optimized settings for logo preservation
-      requestBody.strength = 0.25;
-      requestBody.guidance_scale = 7;
+      // Lower strength preserves more of the original logo
+      requestBody.strength = 0.3;
+      requestBody.guidance_scale = 7.5;
+      console.log('NanoBanana: Using Image-to-Image mode with logo:', logoUrl);
+    } else {
+      requestBody.type = 'TEXTTOIAMGE'; // Text-to-Image mode (note: API uses this spelling)
     }
     
     console.log('NanoBanana: Request body:', JSON.stringify(requestBody));
