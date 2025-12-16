@@ -39,6 +39,13 @@ interface GameSessionData {
   totalXp: number;
 }
 
+interface UserBrandData {
+  id: string;
+  name: string;
+  description: string | null;
+  logo: string | null;
+}
+
 interface LevelInsight {
   level: string;
   levelName: string;
@@ -147,6 +154,13 @@ export default function BrandBoard() {
     queryKey: ['/api/brands', sessionData?.brandId, 'ai-analyses'],
     enabled: !!sessionData?.brandId
   });
+
+  const { data: allBrands } = useQuery<UserBrandData[]>({
+    queryKey: ['/api/user/brands'],
+    enabled: !!sessionData?.brandId
+  });
+  
+  const currentBrand = allBrands?.find(b => b.id === sessionData?.brandId);
 
   const [aiInsights, setAiInsights] = useState<BrandInsights | null>(null);
   const [showAnalysisHistory, setShowAnalysisHistory] = useState(false);
@@ -298,14 +312,30 @@ export default function BrandBoard() {
       <div className="container mx-auto px-4 py-4 md:py-8">
         {/* Mobile-friendly header */}
         <div className="flex flex-col gap-4 mb-6 md:mb-8">
-          {/* Top row: Back button and title */}
+          {/* Top row: Back button, logo and title */}
           <div className="flex items-start gap-3">
             <Button variant="outline" size="sm" onClick={handleBack} data-testid="button-back" className="flex-shrink-0">
               <ArrowLeft className="w-4 h-4 md:mr-2" />
               <span className="hidden md:inline">Назад</span>
             </Button>
+            {currentBrand?.logo ? (
+              <img 
+                src={currentBrand.logo} 
+                alt={`${currentBrand.name} logo`}
+                className="w-12 h-12 md:w-14 md:h-14 object-contain rounded-lg border border-gray-200 bg-white flex-shrink-0"
+                data-testid="brand-board-logo"
+              />
+            ) : currentBrand?.name ? (
+              <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold text-xl">
+                  {currentBrand.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            ) : null}
             <div className="min-w-0">
-              <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white">Дошка Бренду</h1>
+              <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white">
+                {currentBrand?.name || 'Дошка Бренду'}
+              </h1>
               <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 line-clamp-2">Ваша повна карта бренду зібрана в одному місці</p>
             </div>
           </div>

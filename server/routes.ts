@@ -273,13 +273,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (typeof logo !== 'string') {
           return res.status(400).json({ error: "Невірний формат лого" });
         }
+        
         // Allow empty string to remove logo
-        if (logo && !logo.startsWith('data:image/')) {
-          return res.status(400).json({ error: "Лого має бути у форматі PNG, JPG або SVG" });
-        }
-        // Check size limit (~2MB in base64)
-        if (logo.length > 2800000) {
-          return res.status(400).json({ error: "Розмір лого не повинен перевищувати 2MB" });
+        if (logo === '') {
+          // Empty string means remove logo - this is valid
+        } else {
+          // Validate data URL format and allowed MIME types
+          const dataUrlPattern = /^data:image\/(png|jpeg|jpg|svg\+xml);base64,/;
+          if (!dataUrlPattern.test(logo)) {
+            return res.status(400).json({ error: "Лого має бути у форматі PNG, JPG або SVG (data URL)" });
+          }
+          
+          // Check size limit (~2MB in base64, which is ~2.8MB in encoded form)
+          if (logo.length > 2800000) {
+            return res.status(400).json({ error: "Розмір лого не повинен перевищувати 2MB" });
+          }
+          
+          // Validate base64 content exists after the header
+          const base64Part = logo.split(',')[1];
+          if (!base64Part || base64Part.length < 10) {
+            return res.status(400).json({ error: "Невірний формат лого - пустий вміст" });
+          }
         }
       }
 
