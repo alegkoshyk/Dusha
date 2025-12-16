@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, useLocation } from 'wouter';
+import { useParams, useLocation, Link } from 'wouter';
 import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Download, Share, MapPin, Heart, Brain, Dumbbell, Edit2, Save, ChevronRight, Lightbulb, Check, Sparkles, Loader2, AlertCircle, CheckCircle, CircleDot, ArrowRight, TrendingUp, Settings, History, Clock, Star } from 'lucide-react';
+import { ArrowLeft, Download, Share, MapPin, Heart, Brain, Dumbbell, Edit2, Save, ChevronRight, Lightbulb, Check, Sparkles, Loader2, AlertCircle, CheckCircle, CircleDot, ArrowRight, TrendingUp, Settings, History, Clock, Star, MessageCircle } from 'lucide-react';
 import { Header } from '@/components/Header';
 import { useState } from 'react';
 
@@ -711,6 +711,30 @@ export default function BrandBoard() {
                     </CardContent>
                   </Card>
                 )}
+
+                {/* Chat with AI Button */}
+                <Card className="border-indigo-200 dark:border-indigo-800 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center">
+                          <MessageCircle className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900 dark:text-white">Обговорити з AI</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Задайте питання про ваш бренд та отримайте персоналізовані рекомендації</p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => setLocation(`/brand-chat/${sessionId}`)}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Відкрити чат
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </CardContent>
