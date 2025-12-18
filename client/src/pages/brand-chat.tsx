@@ -72,55 +72,64 @@ const LOADING_PHRASES = [
 const MAX_PHRASE_LENGTH = Math.max(...LOADING_PHRASES.map(p => p.length));
 
 function AnimatedLoadingText() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [animatingChars, setAnimatingChars] = useState<number[]>([]);
+  const [displayIndex, setDisplayIndex] = useState(0);
+  const [nextIndex, setNextIndex] = useState(1);
+  const [animatingChars, setAnimatingChars] = useState<Set<number>>(new Set());
+  const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
   
-  const currentPhrase = LOADING_PHRASES[currentIndex].padEnd(MAX_PHRASE_LENGTH, ' ');
-  const nextPhrase = LOADING_PHRASES[(currentIndex + 1) % LOADING_PHRASES.length].padEnd(MAX_PHRASE_LENGTH, ' ');
+  const currentPhrase = LOADING_PHRASES[displayIndex].padEnd(MAX_PHRASE_LENGTH, ' ');
+  const nextPhrase = LOADING_PHRASES[nextIndex].padEnd(MAX_PHRASE_LENGTH, ' ');
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setAnimatingChars([]);
+    const runAnimation = () => {
+      timeoutsRef.current.forEach(t => clearTimeout(t));
+      timeoutsRef.current = [];
+      setAnimatingChars(new Set());
       
       for (let i = 0; i < MAX_PHRASE_LENGTH; i++) {
-        setTimeout(() => {
-          setAnimatingChars(prev => [...prev, i]);
-        }, i * 25);
+        const t = setTimeout(() => {
+          setAnimatingChars(prev => new Set(Array.from(prev).concat(i)));
+        }, i * 20);
+        timeoutsRef.current.push(t);
       }
       
-      setTimeout(() => {
-        setCurrentIndex(prev => (prev + 1) % LOADING_PHRASES.length);
-        setAnimatingChars([]);
-      }, MAX_PHRASE_LENGTH * 25 + 300);
-      
-    }, 3000);
+      const finishTimeout = setTimeout(() => {
+        setDisplayIndex(nextIndex);
+        setNextIndex(prev => (prev + 1) % LOADING_PHRASES.length);
+        setAnimatingChars(new Set());
+      }, MAX_PHRASE_LENGTH * 20 + 250);
+      timeoutsRef.current.push(finishTimeout);
+    };
 
-    return () => clearInterval(interval);
-  }, []);
+    const interval = setInterval(runAnimation, 3000);
+    
+    return () => {
+      clearInterval(interval);
+      timeoutsRef.current.forEach(t => clearTimeout(t));
+    };
+  }, [nextIndex]);
 
   return (
     <span className="text-sm inline-flex" style={{ minWidth: '280px' }}>
       {currentPhrase.split('').map((char, i) => {
-        const isAnimating = animatingChars.includes(i);
+        const isAnimating = animatingChars.has(i);
         const nextChar = nextPhrase[i] || ' ';
         
         return (
           <span 
-            key={i} 
+            key={`${displayIndex}-${i}`}
             className="inline-block h-5 overflow-hidden relative"
-            style={{ width: '0.6em' }}
+            style={{ width: char === ' ' && nextChar === ' ' ? '0.25em' : '0.55em' }}
           >
             <span 
-              className={`absolute inset-0 flex items-center justify-center transition-transform duration-200 ease-out ${
-                isAnimating ? '-translate-y-full' : 'translate-y-0'
-              }`}
+              className="absolute inset-0 flex items-center justify-center transition-transform duration-150 ease-out"
+              style={{ transform: isAnimating ? 'translateY(-100%)' : 'translateY(0)' }}
             >
               {char}
             </span>
             <span 
-              className={`absolute inset-0 flex items-center justify-center transition-transform duration-200 ease-out ${
-                isAnimating ? 'translate-y-0' : 'translate-y-full'
-              }`}
+              className="absolute inset-0 flex items-center justify-center transition-transform duration-150 ease-out"
+              style={{ transform: isAnimating ? 'translateY(0)' : 'translateY(100%)' }}
             >
               {nextChar}
             </span>
