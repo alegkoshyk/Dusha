@@ -26,7 +26,7 @@ export function Header() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
-              <BrandSoulLogo className="h-8 w-auto" />
+              <BrandSoulLogo className="h-10 w-auto" />
             </Link>
           </div>
 
