@@ -1640,6 +1640,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reorder merch types (admin)
+  app.post("/api/admin/merch-types/reorder", requireAdmin, async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds)) {
+        return res.status(400).json({ error: "orderedIds має бути масивом" });
+      }
+      await storage.reorderMerchTypes(orderedIds);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error reordering merch types:", error);
+      res.status(500).json({ error: "Не вдалося змінити порядок типів мерчу" });
+    }
+  });
+
   // Generate AI insights for a game session
   app.post("/api/game-sessions/:sessionId/ai-insights", requireAuth, async (req, res) => {
     try {
@@ -2082,7 +2097,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Save image message to database
       const imageUrl = result.imageUrl || result.imageBase64;
       if (imageUrl) {
-        await storage.saveChatMessage(sessionId, userId, 'image', prompt, imageUrl);
+        // Use user prompt, or description based on merch type/template
+        const messageContent = prompt || 
+          (merchTypeId ? `Generated ${merchTypePrompt.substring(0, 50)}...` : '') ||
+          (templateId ? `Template generation` : 'Image generated');
+        await storage.saveChatMessage(sessionId, userId, 'image', messageContent, imageUrl);
       }
 
       res.json({ 

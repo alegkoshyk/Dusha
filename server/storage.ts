@@ -1669,6 +1669,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(merchTypesTable.id, id));
     return true;
   }
+
+  async reorderMerchTypes(orderedIds: number[]): Promise<void> {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await db
+        .update(merchTypesTable)
+        .set({ sortOrder: i + 1, updatedAt: new Date() })
+        .where(eq(merchTypesTable.id, orderedIds[i]));
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

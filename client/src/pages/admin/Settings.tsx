@@ -15,6 +15,9 @@ import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2,
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface ProviderStatus {
   configured: boolean;
@@ -110,6 +113,70 @@ interface MerchType {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+}
+
+interface SortableMerchTypeItemProps {
+  merchType: MerchType;
+  onEdit: (mt: MerchType) => void;
+  onDelete: (id: number) => void;
+  isDeleting: boolean;
+}
+
+function SortableMerchTypeItem({ merchType, onEdit, onDelete, isDeleting }: SortableMerchTypeItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: merchType.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-4 p-4 bg-gray-900 rounded-lg border border-gray-700"
+      data-testid={`merch-type-item-${merchType.id}`}
+    >
+      <div {...attributes} {...listeners} className="cursor-grab text-gray-500 hover:text-gray-300">
+        <GripVertical className="h-5 w-5" />
+      </div>
+      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center text-2xl">
+        {merchType.emoji}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h4 className="font-medium text-white truncate">{merchType.name}</h4>
+          <Badge className={merchType.isActive ? "bg-green-600" : "bg-gray-600"}>
+            {merchType.isActive ? "Активний" : "Неактивний"}
+          </Badge>
+        </div>
+        <p className="text-xs text-gray-500 mt-1 truncate">
+          Промпт: {merchType.prompt.substring(0, 60)}...
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onEdit(merchType)}
+          className="text-gray-400 hover:text-white hover:bg-gray-700"
+          data-testid={`button-edit-merch-type-${merchType.id}`}
+        >
+          <Edit2 className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onDelete(merchType.id)}
+          disabled={isDeleting}
+          className="text-red-400 hover:text-red-300 hover:bg-gray-700"
+          data-testid={`button-delete-merch-type-${merchType.id}`}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export default function Settings() {
@@ -310,6 +377,35 @@ export default function Settings() {
       toast({ title: "Помилка", description: "Не вдалося видалити тип мерчу", variant: "destructive" });
     },
   });
+
+  const reorderMerchTypesMutation = useMutation({
+    mutationFn: async (orderedIds: number[]) => {
+      const response = await apiRequest("POST", "/api/admin/merch-types/reorder", { orderedIds });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/merch-types"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося змінити порядок", variant: "destructive" });
+    },
+  });
+
+  const merchTypeSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleMerchTypeDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !merchTypes) return;
+
+    const oldIndex = merchTypes.findIndex((mt) => mt.id === active.id);
+    const newIndex = merchTypes.findIndex((mt) => mt.id === over.id);
+    const newOrder = arrayMove(merchTypes, oldIndex, newIndex);
+    const orderedIds = newOrder.map((mt) => mt.id);
+    reorderMerchTypesMutation.mutate(orderedIds);
+  };
 
   const resetMerchTypeForm = () => {
     setMerchTypeForm({
@@ -1316,51 +1412,21 @@ export default function Settings() {
                     <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
                   </div>
                 ) : merchTypes && merchTypes.length > 0 ? (
-                  <div className="space-y-3">
-                    {merchTypes.map((merchType) => (
-                      <div
-                        key={merchType.id}
-                        className="flex items-center gap-4 p-4 bg-gray-900 rounded-lg border border-gray-700"
-                        data-testid={`merch-type-item-${merchType.id}`}
-                      >
-                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center text-2xl">
-                          {merchType.emoji}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium text-white truncate">{merchType.name}</h4>
-                            <Badge className={merchType.isActive ? "bg-green-600" : "bg-gray-600"}>
-                              {merchType.isActive ? "Активний" : "Неактивний"}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-1 truncate">
-                            Промпт: {merchType.prompt.substring(0, 60)}...
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditMerchTypeDialog(merchType)}
-                            className="text-gray-400 hover:text-white hover:bg-gray-700"
-                            data-testid={`button-edit-merch-type-${merchType.id}`}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteMerchTypeMutation.mutate(merchType.id)}
-                            disabled={deleteMerchTypeMutation.isPending}
-                            className="text-red-400 hover:text-red-300 hover:bg-gray-700"
-                            data-testid={`button-delete-merch-type-${merchType.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                  <DndContext sensors={merchTypeSensors} collisionDetection={closestCenter} onDragEnd={handleMerchTypeDragEnd}>
+                    <SortableContext items={merchTypes.map(mt => mt.id)} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-3">
+                        {merchTypes.map((merchType) => (
+                          <SortableMerchTypeItem
+                            key={merchType.id}
+                            merchType={merchType}
+                            onEdit={openEditMerchTypeDialog}
+                            onDelete={(id) => deleteMerchTypeMutation.mutate(id)}
+                            isDeleting={deleteMerchTypeMutation.isPending}
+                          />
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </SortableContext>
+                  </DndContext>
                 ) : (
                   <div className="text-center py-8 text-gray-500">
                     <Sparkles className="h-12 w-12 mx-auto mb-3 text-gray-600" />
