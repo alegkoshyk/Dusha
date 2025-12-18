@@ -47,6 +47,9 @@ import {
   type BrandAiAnalysis,
   type InsertBrandAiAnalysis,
   brandAiAnalysesTable,
+  type GenerationTemplate,
+  type InsertGenerationTemplate,
+  generationTemplatesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte } from "drizzle-orm";
@@ -123,6 +126,13 @@ export interface IStorage {
   createBrandAiAnalysis(analysis: InsertBrandAiAnalysis): Promise<BrandAiAnalysis>;
   getBrandAiAnalyses(brandId: string): Promise<BrandAiAnalysis[]>;
   getLatestBrandAiAnalysis(brandId: string): Promise<BrandAiAnalysis | undefined>;
+  
+  // Generation templates operations
+  getGenerationTemplates(): Promise<GenerationTemplate[]>;
+  getGenerationTemplate(id: number): Promise<GenerationTemplate | undefined>;
+  createGenerationTemplate(template: InsertGenerationTemplate): Promise<GenerationTemplate>;
+  updateGenerationTemplate(id: number, updates: Partial<GenerationTemplate>): Promise<GenerationTemplate | undefined>;
+  deleteGenerationTemplate(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1573,6 +1583,47 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(brandAiAnalysesTable.createdAt))
       .limit(1);
     return result;
+  }
+
+  // Generation templates operations
+  async getGenerationTemplates(): Promise<GenerationTemplate[]> {
+    return await db
+      .select()
+      .from(generationTemplatesTable)
+      .orderBy(generationTemplatesTable.sortOrder);
+  }
+
+  async getGenerationTemplate(id: number): Promise<GenerationTemplate | undefined> {
+    const [result] = await db
+      .select()
+      .from(generationTemplatesTable)
+      .where(eq(generationTemplatesTable.id, id))
+      .limit(1);
+    return result;
+  }
+
+  async createGenerationTemplate(template: InsertGenerationTemplate): Promise<GenerationTemplate> {
+    const [result] = await db
+      .insert(generationTemplatesTable)
+      .values(template)
+      .returning();
+    return result;
+  }
+
+  async updateGenerationTemplate(id: number, updates: Partial<GenerationTemplate>): Promise<GenerationTemplate | undefined> {
+    const [result] = await db
+      .update(generationTemplatesTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(generationTemplatesTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteGenerationTemplate(id: number): Promise<boolean> {
+    const result = await db
+      .delete(generationTemplatesTable)
+      .where(eq(generationTemplatesTable.id, id));
+    return true;
   }
 }
 

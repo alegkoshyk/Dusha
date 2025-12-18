@@ -635,3 +635,25 @@ export const insertCardOptionSetLinkSchema = createInsertSchema(cardOptionSetLin
   id: true,
   createdAt: true,
 });
+
+// Таблиця темплейтів генерації зображень
+export const generationTemplatesTable = pgTable("generation_templates", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  referenceImageUrl: text("reference_image_url"), // URL картинки-референсу
+  prompt: text("prompt").notNull(), // Прихований промпт для генерації
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+export const insertGenerationTemplateSchema = createInsertSchema(generationTemplatesTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type GenerationTemplate = typeof generationTemplatesTable.$inferSelect;
+export type InsertGenerationTemplate = z.infer<typeof insertGenerationTemplateSchema>;
