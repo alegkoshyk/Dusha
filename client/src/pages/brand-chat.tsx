@@ -62,11 +62,11 @@ const IMAGE_STYLES = [
 ];
 
 const LOADING_PHRASES = [
-  'Ідея шукає форму',
-  'Образ ще не тут, але вже існує',
-  'Між думкою й зображенням — одна мить',
-  'Сенс проявляється в деталях…',
-  'Те, що ти побачиш, уже дозріло',
+  "Збираю сенси в образ…",
+  "Кадр народжується. Дай йому мить ✨",
+  "Образ уже в дорозі…",
+  "Трохи тиші — і з'явиться картинка",
+  "Форма знаходить свій зміст…",
 ];
 
 function AnimatedLoadingText() {
@@ -74,26 +74,28 @@ function AnimatedLoadingText() {
   const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
+    if (currentIndex >= LOADING_PHRASES.length - 1) return;
+    
     const interval = setInterval(() => {
       setIsAnimating(true);
       setTimeout(() => {
-        setCurrentIndex(prev => (prev + 1) % LOADING_PHRASES.length);
+        setCurrentIndex(prev => Math.min(prev + 1, LOADING_PHRASES.length - 1));
         setIsAnimating(false);
       }, 500);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [currentIndex]);
 
   const currentPhrase = LOADING_PHRASES[currentIndex];
-  const nextPhrase = LOADING_PHRASES[(currentIndex + 1) % LOADING_PHRASES.length];
+  const nextPhrase = LOADING_PHRASES[Math.min(currentIndex + 1, LOADING_PHRASES.length - 1)];
 
   return (
-    <span className="text-sm inline-block relative overflow-hidden h-5" style={{ minWidth: '280px' }}>
+    <span className="text-sm inline-block relative overflow-hidden h-5" style={{ minWidth: '300px' }}>
       <span 
         className="absolute left-0 whitespace-nowrap transition-all duration-500 ease-out"
         style={{ 
-          transform: isAnimating ? 'translateY(-100%)' : 'translateY(0)',
+          transform: isAnimating ? 'translateY(100%)' : 'translateY(0)',
           opacity: isAnimating ? 0 : 1
         }}
       >
@@ -102,7 +104,7 @@ function AnimatedLoadingText() {
       <span 
         className="absolute left-0 whitespace-nowrap transition-all duration-500 ease-out"
         style={{ 
-          transform: isAnimating ? 'translateY(0)' : 'translateY(100%)',
+          transform: isAnimating ? 'translateY(0)' : 'translateY(-100%)',
           opacity: isAnimating ? 1 : 0
         }}
       >
