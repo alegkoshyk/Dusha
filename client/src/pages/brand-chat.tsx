@@ -69,73 +69,45 @@ const LOADING_PHRASES = [
   'Те, що ти побачиш, уже дозріло',
 ];
 
-const MAX_PHRASE_LENGTH = Math.max(...LOADING_PHRASES.map(p => p.length));
-
 function AnimatedLoadingText() {
-  const [displayIndex, setDisplayIndex] = useState(0);
-  const [nextIndex, setNextIndex] = useState(1);
-  const [animatingChars, setAnimatingChars] = useState<Set<number>>(new Set());
-  const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
-  
-  const currentPhrase = LOADING_PHRASES[displayIndex].padEnd(MAX_PHRASE_LENGTH, ' ');
-  const nextPhrase = LOADING_PHRASES[nextIndex].padEnd(MAX_PHRASE_LENGTH, ' ');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   useEffect(() => {
-    const runAnimation = () => {
-      timeoutsRef.current.forEach(t => clearTimeout(t));
-      timeoutsRef.current = [];
-      setAnimatingChars(new Set());
-      
-      for (let i = 0; i < MAX_PHRASE_LENGTH; i++) {
-        const t = setTimeout(() => {
-          setAnimatingChars(prev => new Set(Array.from(prev).concat(i)));
-        }, i * 20);
-        timeoutsRef.current.push(t);
-      }
-      
-      const finishTimeout = setTimeout(() => {
-        setDisplayIndex(nextIndex);
-        setNextIndex(prev => (prev + 1) % LOADING_PHRASES.length);
-        setAnimatingChars(new Set());
-      }, MAX_PHRASE_LENGTH * 20 + 250);
-      timeoutsRef.current.push(finishTimeout);
-    };
+    const interval = setInterval(() => {
+      setIsAnimating(true);
+      setTimeout(() => {
+        setCurrentIndex(prev => (prev + 1) % LOADING_PHRASES.length);
+        setIsAnimating(false);
+      }, 500);
+    }, 3000);
 
-    const interval = setInterval(runAnimation, 3000);
-    
-    return () => {
-      clearInterval(interval);
-      timeoutsRef.current.forEach(t => clearTimeout(t));
-    };
-  }, [nextIndex]);
+    return () => clearInterval(interval);
+  }, []);
+
+  const currentPhrase = LOADING_PHRASES[currentIndex];
+  const nextPhrase = LOADING_PHRASES[(currentIndex + 1) % LOADING_PHRASES.length];
 
   return (
-    <span className="text-sm inline-flex" style={{ minWidth: '280px' }}>
-      {currentPhrase.split('').map((char, i) => {
-        const isAnimating = animatingChars.has(i);
-        const nextChar = nextPhrase[i] || ' ';
-        
-        return (
-          <span 
-            key={`${displayIndex}-${i}`}
-            className="inline-block h-5 overflow-hidden relative"
-            style={{ width: char === ' ' && nextChar === ' ' ? '0.25em' : '0.55em' }}
-          >
-            <span 
-              className="absolute inset-0 flex items-center justify-center transition-transform duration-150 ease-out"
-              style={{ transform: isAnimating ? 'translateY(-100%)' : 'translateY(0)' }}
-            >
-              {char}
-            </span>
-            <span 
-              className="absolute inset-0 flex items-center justify-center transition-transform duration-150 ease-out"
-              style={{ transform: isAnimating ? 'translateY(0)' : 'translateY(100%)' }}
-            >
-              {nextChar}
-            </span>
-          </span>
-        );
-      })}
+    <span className="text-sm inline-block relative overflow-hidden h-5" style={{ minWidth: '280px' }}>
+      <span 
+        className="absolute left-0 whitespace-nowrap transition-all duration-500 ease-out"
+        style={{ 
+          transform: isAnimating ? 'translateY(-100%)' : 'translateY(0)',
+          opacity: isAnimating ? 0 : 1
+        }}
+      >
+        {currentPhrase}
+      </span>
+      <span 
+        className="absolute left-0 whitespace-nowrap transition-all duration-500 ease-out"
+        style={{ 
+          transform: isAnimating ? 'translateY(0)' : 'translateY(100%)',
+          opacity: isAnimating ? 1 : 0
+        }}
+      >
+        {nextPhrase}
+      </span>
     </span>
   );
 }
