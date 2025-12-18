@@ -1552,6 +1552,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== Merch Types Routes =====
+  
+  // Get all merch types (admin)
+  app.get("/api/admin/merch-types", requireAdmin, async (req, res) => {
+    try {
+      const merchTypes = await storage.getMerchTypes();
+      res.json(merchTypes);
+    } catch (error: any) {
+      console.error("Error fetching merch types:", error);
+      res.status(500).json({ error: "Не вдалося отримати типи мерчу" });
+    }
+  });
+
+  // Get active merch types (user)
+  app.get("/api/merch-types", requireAuth, async (req, res) => {
+    try {
+      const merchTypes = await storage.getMerchTypes();
+      // Filter to active only and return without exposing full prompt
+      const activeMerchTypes = merchTypes
+        .filter(mt => mt.isActive)
+        .map(mt => ({
+          id: mt.id,
+          name: mt.name,
+          emoji: mt.emoji,
+          sortOrder: mt.sortOrder,
+        }));
+      res.json(activeMerchTypes);
+    } catch (error: any) {
+      console.error("Error fetching merch types:", error);
+      res.status(500).json({ error: "Не вдалося отримати типи мерчу" });
+    }
+  });
+
+  // Create merch type (admin)
+  app.post("/api/admin/merch-types", requireAdmin, async (req, res) => {
+    try {
+      const { name, emoji, prompt, isActive, sortOrder } = req.body;
+      if (!name || !emoji || !prompt) {
+        return res.status(400).json({ error: "Назва, емоджі та промпт обов'язкові" });
+      }
+      const merchType = await storage.createMerchType({
+        name,
+        emoji,
+        prompt,
+        isActive: isActive ?? true,
+        sortOrder: sortOrder ?? 0,
+      });
+      res.json(merchType);
+    } catch (error: any) {
+      console.error("Error creating merch type:", error);
+      res.status(500).json({ error: "Не вдалося створити тип мерчу" });
+    }
+  });
+
+  // Update merch type (admin)
+  app.patch("/api/admin/merch-types/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, emoji, prompt, isActive, sortOrder } = req.body;
+      const merchType = await storage.updateMerchType(id, {
+        ...(name !== undefined && { name }),
+        ...(emoji !== undefined && { emoji }),
+        ...(prompt !== undefined && { prompt }),
+        ...(isActive !== undefined && { isActive }),
+        ...(sortOrder !== undefined && { sortOrder }),
+      });
+      if (!merchType) {
+        return res.status(404).json({ error: "Тип мерчу не знайдено" });
+      }
+      res.json(merchType);
+    } catch (error: any) {
+      console.error("Error updating merch type:", error);
+      res.status(500).json({ error: "Не вдалося оновити тип мерчу" });
+    }
+  });
+
+  // Delete merch type (admin)
+  app.delete("/api/admin/merch-types/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteMerchType(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting merch type:", error);
+      res.status(500).json({ error: "Не вдалося видалити тип мерчу" });
+    }
+  });
+
   // Generate AI insights for a game session
   app.post("/api/game-sessions/:sessionId/ai-insights", requireAuth, async (req, res) => {
     try {
@@ -1919,7 +2007,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { prompt, aspectRatio = '1:1', logoUrl, templateId } = req.body;
+      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
@@ -1937,9 +2025,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Either prompt or template is required
-      if (!prompt && !templatePrompt) {
-        return res.status(400).json({ error: "Виберіть шаблон або введіть опис зображення" });
+      // Get merch type if specified
+      let merchTypePrompt = '';
+      if (merchTypeId) {
+        const merchType = await storage.getMerchType(merchTypeId);
+        if (merchType && merchType.isActive) {
+          merchTypePrompt = merchType.prompt;
+        }
+      }
+
+      // Either prompt, template, or merch type is required
+      if (!prompt && !templatePrompt && !merchTypePrompt) {
+        return res.status(400).json({ error: "Виберіть тип мерчу, шаблон або введіть опис зображення" });
       }
 
       const gameSession = await storage.getGameSession(sessionId);
@@ -1967,9 +2064,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Combine user prompt with template prompt
-      let finalPrompt = templatePrompt || prompt;
-      if (templatePrompt && prompt) {
+      // Combine prompts: merch type (primary) + template + user prompt
+      let finalPrompt = merchTypePrompt || templatePrompt || prompt;
+      if (merchTypePrompt && prompt) {
+        finalPrompt = `${merchTypePrompt}. Additional instructions: ${prompt}`;
+      } else if (templatePrompt && prompt) {
         finalPrompt = `${templatePrompt}. Additional context: ${prompt}`;
       }
 

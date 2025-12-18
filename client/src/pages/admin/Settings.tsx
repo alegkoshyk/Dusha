@@ -101,6 +101,17 @@ interface GenerationTemplate {
   updatedAt: string;
 }
 
+interface MerchType {
+  id: number;
+  name: string;
+  emoji: string;
+  prompt: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function Settings() {
   const { toast } = useToast();
   const [syncProgress, setSyncProgress] = useState<SyncResult[]>([]);
@@ -128,6 +139,17 @@ export default function Settings() {
     sortOrder: 0,
   });
 
+  // Merch types state
+  const [isMerchTypeDialogOpen, setIsMerchTypeDialogOpen] = useState(false);
+  const [editingMerchType, setEditingMerchType] = useState<MerchType | null>(null);
+  const [merchTypeForm, setMerchTypeForm] = useState({
+    name: "",
+    emoji: "",
+    prompt: "",
+    isActive: true,
+    sortOrder: 0,
+  });
+
   const { data: comparison, isLoading, refetch, isRefetching } = useQuery<CompareResult>({
     queryKey: ["/api/admin/db-sync/compare"],
   });
@@ -150,6 +172,10 @@ export default function Settings() {
 
   const { data: generationTemplates, isLoading: isLoadingTemplates, refetch: refetchTemplates } = useQuery<GenerationTemplate[]>({
     queryKey: ["/api/admin/generation-templates"],
+  });
+
+  const { data: merchTypes, isLoading: isLoadingMerchTypes, refetch: refetchMerchTypes } = useQuery<MerchType[]>({
+    queryKey: ["/api/admin/merch-types"],
   });
 
   const createTemplateMutation = useMutation({
@@ -234,6 +260,90 @@ export default function Settings() {
       updateTemplateMutation.mutate({ id: editingTemplate.id, data: templateForm });
     } else {
       createTemplateMutation.mutate(templateForm);
+    }
+  };
+
+  // Merch type mutations
+  const createMerchTypeMutation = useMutation({
+    mutationFn: async (data: typeof merchTypeForm) => {
+      const response = await apiRequest("POST", "/api/admin/merch-types", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Тип мерчу створено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/merch-types"] });
+      setIsMerchTypeDialogOpen(false);
+      resetMerchTypeForm();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося створити тип мерчу", variant: "destructive" });
+    },
+  });
+
+  const updateMerchTypeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<typeof merchTypeForm> }) => {
+      const response = await apiRequest("PATCH", `/api/admin/merch-types/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Тип мерчу оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/merch-types"] });
+      setIsMerchTypeDialogOpen(false);
+      setEditingMerchType(null);
+      resetMerchTypeForm();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося оновити тип мерчу", variant: "destructive" });
+    },
+  });
+
+  const deleteMerchTypeMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/admin/merch-types/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Тип мерчу видалено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/merch-types"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити тип мерчу", variant: "destructive" });
+    },
+  });
+
+  const resetMerchTypeForm = () => {
+    setMerchTypeForm({
+      name: "",
+      emoji: "",
+      prompt: "",
+      isActive: true,
+      sortOrder: 0,
+    });
+  };
+
+  const openCreateMerchTypeDialog = () => {
+    setEditingMerchType(null);
+    resetMerchTypeForm();
+    setIsMerchTypeDialogOpen(true);
+  };
+
+  const openEditMerchTypeDialog = (merchType: MerchType) => {
+    setEditingMerchType(merchType);
+    setMerchTypeForm({
+      name: merchType.name,
+      emoji: merchType.emoji,
+      prompt: merchType.prompt,
+      isActive: merchType.isActive,
+      sortOrder: merchType.sortOrder,
+    });
+    setIsMerchTypeDialogOpen(true);
+  };
+
+  const handleMerchTypeSubmit = () => {
+    if (editingMerchType) {
+      updateMerchTypeMutation.mutate({ id: editingMerchType.id, data: merchTypeForm });
+    } else {
+      createMerchTypeMutation.mutate(merchTypeForm);
     }
   };
 
@@ -1177,6 +1287,90 @@ export default function Settings() {
               </CardContent>
             </Card>
 
+            {/* Merch Types Management */}
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-yellow-400" />
+                      Типи мерчу
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Налаштуйте типи мерчандайзу для генерації (футболка, чашка, тощо). Користувачі обиратимуть тип з емоджі.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={openCreateMerchTypeDialog}
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                    data-testid="button-add-merch-type"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Додати тип
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoadingMerchTypes ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                  </div>
+                ) : merchTypes && merchTypes.length > 0 ? (
+                  <div className="space-y-3">
+                    {merchTypes.map((merchType) => (
+                      <div
+                        key={merchType.id}
+                        className="flex items-center gap-4 p-4 bg-gray-900 rounded-lg border border-gray-700"
+                        data-testid={`merch-type-item-${merchType.id}`}
+                      >
+                        <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gray-700 flex items-center justify-center text-2xl">
+                          {merchType.emoji}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-white truncate">{merchType.name}</h4>
+                            <Badge className={merchType.isActive ? "bg-green-600" : "bg-gray-600"}>
+                              {merchType.isActive ? "Активний" : "Неактивний"}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 truncate">
+                            Промпт: {merchType.prompt.substring(0, 60)}...
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditMerchTypeDialog(merchType)}
+                            className="text-gray-400 hover:text-white hover:bg-gray-700"
+                            data-testid={`button-edit-merch-type-${merchType.id}`}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteMerchTypeMutation.mutate(merchType.id)}
+                            disabled={deleteMerchTypeMutation.isPending}
+                            className="text-red-400 hover:text-red-300 hover:bg-gray-700"
+                            data-testid={`button-delete-merch-type-${merchType.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Sparkles className="h-12 w-12 mx-auto mb-3 text-gray-600" />
+                    <p>Ще немає типів мерчу</p>
+                    <p className="text-sm mt-1">Додайте перший тип для генерації зображень</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Generation Templates Management */}
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader>
@@ -1383,6 +1577,99 @@ export default function Settings() {
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
               {editingTemplate ? "Зберегти" : "Створити"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merch Type Create/Edit Dialog */}
+      <Dialog open={isMerchTypeDialogOpen} onOpenChange={setIsMerchTypeDialogOpen}>
+        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {editingMerchType ? "Редагувати тип мерчу" : "Створити тип мерчу"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="merch-name" className="text-gray-300">Назва *</Label>
+              <Input
+                id="merch-name"
+                value={merchTypeForm.name}
+                onChange={(e) => setMerchTypeForm({ ...merchTypeForm, name: e.target.value })}
+                placeholder="Наприклад: Футболка"
+                className="bg-gray-900 border-gray-600 text-white"
+                data-testid="input-merch-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="merch-emoji" className="text-gray-300">Емоджі *</Label>
+              <Input
+                id="merch-emoji"
+                value={merchTypeForm.emoji}
+                onChange={(e) => setMerchTypeForm({ ...merchTypeForm, emoji: e.target.value })}
+                placeholder="👕"
+                className="bg-gray-900 border-gray-600 text-white w-24 text-2xl text-center"
+                data-testid="input-merch-emoji"
+              />
+              <p className="text-xs text-gray-500">Вставте один емоджі для відображення</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="merch-prompt" className="text-gray-300">Промпт для генерації *</Label>
+              <Textarea
+                id="merch-prompt"
+                value={merchTypeForm.prompt}
+                onChange={(e) => setMerchTypeForm({ ...merchTypeForm, prompt: e.target.value })}
+                placeholder="Create a high-quality product mockup of a t-shirt with the brand logo..."
+                className="bg-gray-900 border-gray-600 text-white min-h-[100px]"
+                data-testid="input-merch-prompt"
+              />
+              <p className="text-xs text-gray-500">
+                Цей промпт буде прихований від користувача та використаний для генерації
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="merch-order" className="text-gray-300">Порядок сортування</Label>
+              <Input
+                id="merch-order"
+                type="number"
+                value={merchTypeForm.sortOrder}
+                onChange={(e) => setMerchTypeForm({ ...merchTypeForm, sortOrder: parseInt(e.target.value) || 0 })}
+                className="bg-gray-900 border-gray-600 text-white w-24"
+                data-testid="input-merch-order"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="merch-active"
+                checked={merchTypeForm.isActive}
+                onCheckedChange={(checked) => setMerchTypeForm({ ...merchTypeForm, isActive: checked })}
+                data-testid="switch-merch-active"
+              />
+              <Label htmlFor="merch-active" className="text-gray-300">
+                Активний (видимий для користувачів)
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsMerchTypeDialogOpen(false)}
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              data-testid="button-cancel-merch"
+            >
+              Скасувати
+            </Button>
+            <Button
+              onClick={handleMerchTypeSubmit}
+              disabled={!merchTypeForm.name || !merchTypeForm.emoji || !merchTypeForm.prompt || createMerchTypeMutation.isPending || updateMerchTypeMutation.isPending}
+              className="bg-yellow-600 hover:bg-yellow-700 text-white"
+              data-testid="button-save-merch"
+            >
+              {(createMerchTypeMutation.isPending || updateMerchTypeMutation.isPending) && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              {editingMerchType ? "Зберегти" : "Створити"}
             </Button>
           </DialogFooter>
         </DialogContent>

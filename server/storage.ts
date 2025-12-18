@@ -50,6 +50,9 @@ import {
   type GenerationTemplate,
   type InsertGenerationTemplate,
   generationTemplatesTable,
+  type MerchType,
+  type InsertMerchType,
+  merchTypesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte } from "drizzle-orm";
@@ -1623,6 +1626,47 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(generationTemplatesTable)
       .where(eq(generationTemplatesTable.id, id));
+    return true;
+  }
+
+  // Merch types operations
+  async getMerchTypes(): Promise<MerchType[]> {
+    return await db
+      .select()
+      .from(merchTypesTable)
+      .orderBy(merchTypesTable.sortOrder);
+  }
+
+  async getMerchType(id: number): Promise<MerchType | undefined> {
+    const [result] = await db
+      .select()
+      .from(merchTypesTable)
+      .where(eq(merchTypesTable.id, id))
+      .limit(1);
+    return result;
+  }
+
+  async createMerchType(merchType: InsertMerchType): Promise<MerchType> {
+    const [result] = await db
+      .insert(merchTypesTable)
+      .values(merchType)
+      .returning();
+    return result;
+  }
+
+  async updateMerchType(id: number, updates: Partial<MerchType>): Promise<MerchType | undefined> {
+    const [result] = await db
+      .update(merchTypesTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(merchTypesTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteMerchType(id: number): Promise<boolean> {
+    const result = await db
+      .delete(merchTypesTable)
+      .where(eq(merchTypesTable.id, id));
     return true;
   }
 }

@@ -657,3 +657,24 @@ export const insertGenerationTemplateSchema = createInsertSchema(generationTempl
 
 export type GenerationTemplate = typeof generationTemplatesTable.$inferSelect;
 export type InsertGenerationTemplate = z.infer<typeof insertGenerationTemplateSchema>;
+
+// Таблиця типів мерчу (футболка, чашка і т.п.)
+export const merchTypesTable = pgTable("merch_types", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  emoji: varchar("emoji", { length: 10 }).notNull(), // Емоджі для відображення
+  prompt: text("prompt").notNull(), // Промпт для генерації
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+export const insertMerchTypeSchema = createInsertSchema(merchTypesTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type MerchType = typeof merchTypesTable.$inferSelect;
+export type InsertMerchType = z.infer<typeof insertMerchTypeSchema>;
