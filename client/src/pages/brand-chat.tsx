@@ -76,17 +76,15 @@ const STYLE_PROMPTS: Record<string, string> = {
   'cinematic': 'cinematic shot, dramatic lighting, movie scene, film grain',
 };
 
-const MERCH_TYPES = [
-  { value: '', label: 'Без мерчу', icon: '🎨', description: 'Вільна генерація з логотипом' },
-  { value: 'tshirt', label: 'Футболка', icon: '👕', description: 'Біла футболка з логотипом' },
-  { value: 'hoodie', label: 'Худі', icon: '🧥', description: 'Чорне худі з логотипом' },
-  { value: 'cap', label: 'Кепка', icon: '🧢', description: 'Бейсболка з вишитим логотипом' },
-  { value: 'mug', label: 'Чашка', icon: '☕', description: 'Керамічна чашка з логотипом' },
-  { value: 'bag', label: 'Сумка', icon: '👜', description: 'Тканинна сумка шопер' },
-  { value: 'notebook', label: 'Блокнот', icon: '📓', description: 'Брендований блокнот' },
-  { value: 'phone-case', label: 'Чохол', icon: '📱', description: 'Чохол для телефону' },
-  { value: 'poster', label: 'Постер', icon: '🖼️', description: 'Рекламний постер' },
-];
+// Generation template interface (for user - without hidden prompt)
+interface GenerationTemplate {
+  id: number;
+  name: string;
+  description: string | null;
+  referenceImageUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}
 
 interface ChatMessage {
   id: string;
@@ -208,7 +206,7 @@ export default function BrandChat() {
   const [selectedStyle, setSelectedStyle] = useState('');
   const [customContext, setCustomContext] = useState('');
   const [useLogo, setUseLogo] = useState(false);
-  const [merchType, setMerchType] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [showImageSettings, setShowImageSettings] = useState(false);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
@@ -273,9 +271,14 @@ export default function BrandChat() {
     },
   });
 
+  // Fetch generation templates for user
+  const { data: generationTemplates } = useQuery<GenerationTemplate[]>({
+    queryKey: ['/api/generation-templates'],
+  });
+
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio, logoUrl, merchType }: { prompt: string; aspectRatio: string; logoUrl?: string; merchType?: string }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt, aspectRatio, logoUrl, merchType });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId });
     },
     onError: (error: any) => {
       toast({
@@ -305,30 +308,35 @@ export default function BrandChat() {
   };
 
   const handleGenerateImage = () => {
-    if (!message.trim()) {
+    // If template is selected, prompt is optional
+    const hasTemplate = useLogo && selectedTemplateId;
+    const hasPrompt = message.trim();
+    
+    if (!hasTemplate && !hasPrompt) {
       toast({
-        title: "Введіть опис",
-        description: "Напишіть опис зображення для генерації",
+        title: "Виберіть шаблон або введіть опис",
+        description: "Оберіть шаблон генерації або напишіть опис зображення",
         variant: "destructive",
       });
       return;
     }
     
-    let fullPrompt = message.trim();
+    let fullPrompt = message.trim() || '';
     
-    if (selectedStyle && STYLE_PROMPTS[selectedStyle]) {
+    if (fullPrompt && selectedStyle && STYLE_PROMPTS[selectedStyle]) {
       fullPrompt = `${fullPrompt}, ${STYLE_PROMPTS[selectedStyle]}`;
     }
     
-    if (customContext.trim()) {
+    if (fullPrompt && customContext.trim()) {
       fullPrompt = `${fullPrompt}. Additional context: ${customContext.trim()}`;
     }
     
     const tempId = `img-${Date.now()}`;
+    const selectedTemplate = generationTemplates?.find(t => t.id === selectedTemplateId);
     
     setImageMessages(prev => [...prev, {
       id: tempId,
-      prompt: message.trim(),
+      prompt: message.trim() || selectedTemplate?.name || 'Генерація...',
       imageUrl: null,
       isLoading: true,
       createdAt: new Date().toISOString()
@@ -337,10 +345,10 @@ export default function BrandChat() {
     setMessage('');
     
     generateImageMutation.mutate({ 
-      prompt: fullPrompt, 
+      prompt: fullPrompt || undefined, 
       aspectRatio,
       logoUrl: useLogo && brand?.logo ? brand.logo : undefined,
-      merchType: useLogo && merchType ? merchType : undefined
+      templateId: useLogo && selectedTemplateId ? selectedTemplateId : undefined
     }, {
       onSuccess: (data) => {
         const imageData = data.imageBase64 || data.imageUrl;
@@ -721,32 +729,53 @@ export default function BrandChat() {
                     />
                   </div>
 
-                  {useLogo && (
+                  {useLogo && generationTemplates && generationTemplates.length > 0 && (
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Тип мерчу / продукту
+                        Шаблон генерації (опціонально)
                       </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {MERCH_TYPES.map((type) => (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[200px] overflow-y-auto overscroll-contain touch-pan-y p-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTemplateId(null)}
+                          className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all ${
+                            selectedTemplateId === null 
+                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                          }`}
+                          data-testid="template-none"
+                        >
+                          <span className="text-2xl mb-1">🎨</span>
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Без шаблону</span>
+                        </button>
+                        {generationTemplates.map((template) => (
                           <button
-                            key={type.value}
+                            key={template.id}
                             type="button"
-                            onClick={() => setMerchType(type.value)}
+                            onClick={() => setSelectedTemplateId(template.id)}
                             className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all ${
-                              merchType === type.value 
+                              selectedTemplateId === template.id 
                                 ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
                                 : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                             }`}
-                            data-testid={`merch-type-${type.value || 'none'}`}
+                            data-testid={`template-${template.id}`}
                           >
-                            <span className="text-2xl mb-1">{type.icon}</span>
-                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{type.label}</span>
+                            {template.referenceImageUrl ? (
+                              <img 
+                                src={template.referenceImageUrl} 
+                                alt={template.name}
+                                className="w-12 h-12 object-cover rounded mb-1"
+                              />
+                            ) : (
+                              <span className="text-2xl mb-1">📦</span>
+                            )}
+                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center line-clamp-2">{template.name}</span>
                           </button>
                         ))}
                       </div>
-                      {merchType && (
+                      {selectedTemplateId && (
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {MERCH_TYPES.find(t => t.value === merchType)?.description}
+                          {generationTemplates.find(t => t.id === selectedTemplateId)?.description || 'Шаблон буде використано для генерації'}
                         </p>
                       )}
                     </div>

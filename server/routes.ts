@@ -1919,15 +1919,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { prompt, aspectRatio = '1:1', logoUrl, merchType } = req.body;
+      const { prompt, aspectRatio = '1:1', logoUrl, templateId } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: "Не авторизовано" });
       }
 
-      if (!prompt || typeof prompt !== 'string') {
-        return res.status(400).json({ error: "Опис зображення обов'язковий" });
+      // Get template if specified
+      let templatePrompt = '';
+      let templateReferenceUrl = '';
+      if (templateId) {
+        const template = await storage.getGenerationTemplate(templateId);
+        if (template && template.isActive) {
+          templatePrompt = template.prompt;
+          templateReferenceUrl = template.referenceImageUrl || '';
+        }
+      }
+
+      // Either prompt or template is required
+      if (!prompt && !templatePrompt) {
+        return res.status(400).json({ error: "Виберіть шаблон або введіть опис зображення" });
       }
 
       const gameSession = await storage.getGameSession(sessionId);
@@ -1955,8 +1967,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Combine user prompt with template prompt
+      let finalPrompt = templatePrompt || prompt;
+      if (templatePrompt && prompt) {
+        finalPrompt = `${templatePrompt}. Additional context: ${prompt}`;
+      }
+
       const { generateImageWithNanoBanana } = await import('./nanobanana');
-      const result = await generateImageWithNanoBanana(profile.geminiApiKey, prompt, brandContext, aspectRatio, sessionId, userId, logoUrl, merchType);
+      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, logoUrl, templateReferenceUrl || undefined);
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });

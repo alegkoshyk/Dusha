@@ -174,12 +174,12 @@ export async function generateImageWithNanoBanana(
   sessionId?: string,
   userId?: string,
   logoUrl?: string,
-  merchType?: string
+  referenceImageUrl?: string
 ): Promise<GenerateImageResult> {
   console.log('NanoBanana: Starting image generation...');
   console.log('NanoBanana: Aspect ratio:', aspectRatio);
   console.log('NanoBanana: Logo URL provided:', !!logoUrl);
-  console.log('NanoBanana: Merch type:', merchType || 'none');
+  console.log('NanoBanana: Reference image URL:', referenceImageUrl || 'none');
   
   const apiKey = decryptApiKey(encryptedApiKey);
   
@@ -195,20 +195,11 @@ export async function generateImageWithNanoBanana(
 
   let fullPrompt: string;
   
-  // If logo is provided, use specialized merch prompts
+  // If logo is provided, use image-to-image mode
   if (logoUrl) {
-    if (merchType && MERCH_PROMPTS[merchType]) {
-      // Use specific merch prompt
-      fullPrompt = MERCH_PROMPTS[merchType];
-      // Add user's additional instructions if any
-      if (prompt && prompt.trim()) {
-        fullPrompt = `${fullPrompt}\n\nAdditional instructions: ${prompt}`;
-      }
-    } else {
-      // Use base logo prompt for free generation
-      fullPrompt = `${BASE_LOGO_PROMPT}\n\nGenerate: ${prompt}`;
-    }
-    console.log('NanoBanana: Using logo reference prompt');
+    // Use the prompt directly (it comes from template or user input)
+    fullPrompt = `${BASE_LOGO_PROMPT}\n\n${prompt}`;
+    console.log('NanoBanana: Using logo reference with prompt');
   } else {
     // Regular prompt without logo
     fullPrompt = context 
