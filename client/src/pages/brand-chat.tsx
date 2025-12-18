@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,6 +60,39 @@ const IMAGE_STYLES = [
   { value: 'neon', label: 'Неон', description: 'Яскраві неонові кольори', icon: '💜', color: 'bg-gradient-to-r from-purple-600 to-pink-600' },
   { value: 'cinematic', label: 'Кінематографічний', description: 'Як кадр з фільму', icon: '🎬', color: 'bg-gradient-to-r from-gray-800 to-gray-600' },
 ];
+
+const LOADING_PHRASES = [
+  'Ідея шукає форму',
+  'Образ ще не тут, але вже існує',
+  'Між думкою й зображенням — одна мить',
+  'Сенс проявляється в деталях…',
+  'Те, що ти побачиш, уже дозріло',
+];
+
+function AnimatedLoadingText() {
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsVisible(false);
+      setTimeout(() => {
+        setPhraseIndex((prev) => (prev + 1) % LOADING_PHRASES.length);
+        setIsVisible(true);
+      }, 400);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <span 
+      className={`text-sm transition-opacity duration-400 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+    >
+      {LOADING_PHRASES[phraseIndex]}
+    </span>
+  );
+}
 
 const STYLE_PROMPTS: Record<string, string> = {
   'photorealistic': 'photorealistic, ultra detailed, 8k, professional photography, sharp focus',
@@ -585,7 +618,7 @@ export default function BrandChat() {
                       {imgMsg.isLoading ? (
                         <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
                           <BrandSoulSpinner size={24} />
-                          <span className="text-sm">Генерую зображення...</span>
+                          <AnimatedLoadingText />
                         </div>
                       ) : (
                         <p className="text-sm text-red-500">Не вдалося згенерувати зображення</p>
