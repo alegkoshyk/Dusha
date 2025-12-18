@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info, Eye, EyeOff, Save, Sparkles, BarChart3, Coins, Clock, Image, ExternalLink } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info, Eye, EyeOff, Save, Sparkles, BarChart3, Coins, Clock, Image, ExternalLink, Plus, Trash2, Edit2, GripVertical } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -87,6 +89,18 @@ interface NanoBananaUsageData {
   recentLogs: AIUsageLog[];
 }
 
+interface GenerationTemplate {
+  id: number;
+  name: string;
+  description: string | null;
+  referenceImageUrl: string | null;
+  prompt: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export default function Settings() {
   const { toast } = useToast();
   const [syncProgress, setSyncProgress] = useState<SyncResult[]>([]);
@@ -101,6 +115,18 @@ export default function Settings() {
   const [aiContext, setAiContext] = useState("");
   const [geminiKeyInput, setGeminiKeyInput] = useState("");
   const [showGeminiKey, setShowGeminiKey] = useState(false);
+  
+  // Generation templates state
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<GenerationTemplate | null>(null);
+  const [templateForm, setTemplateForm] = useState({
+    name: "",
+    description: "",
+    referenceImageUrl: "",
+    prompt: "",
+    isActive: true,
+    sortOrder: 0,
+  });
 
   const { data: comparison, isLoading, refetch, isRefetching } = useQuery<CompareResult>({
     queryKey: ["/api/admin/db-sync/compare"],
@@ -121,6 +147,95 @@ export default function Settings() {
   const { data: nanoBananaUsage, isLoading: isLoadingNanoBananaUsage, refetch: refetchNanoBananaUsage } = useQuery<NanoBananaUsageData>({
     queryKey: ["/api/admin/nanobanana-usage"],
   });
+
+  const { data: generationTemplates, isLoading: isLoadingTemplates, refetch: refetchTemplates } = useQuery<GenerationTemplate[]>({
+    queryKey: ["/api/admin/generation-templates"],
+  });
+
+  const createTemplateMutation = useMutation({
+    mutationFn: async (data: typeof templateForm) => {
+      const response = await apiRequest("POST", "/api/admin/generation-templates", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Шаблон створено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/generation-templates"] });
+      setIsTemplateDialogOpen(false);
+      resetTemplateForm();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося створити шаблон", variant: "destructive" });
+    },
+  });
+
+  const updateTemplateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<typeof templateForm> }) => {
+      const response = await apiRequest("PATCH", `/api/admin/generation-templates/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Шаблон оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/generation-templates"] });
+      setIsTemplateDialogOpen(false);
+      setEditingTemplate(null);
+      resetTemplateForm();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося оновити шаблон", variant: "destructive" });
+    },
+  });
+
+  const deleteTemplateMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("DELETE", `/api/admin/generation-templates/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Шаблон видалено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/generation-templates"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити шаблон", variant: "destructive" });
+    },
+  });
+
+  const resetTemplateForm = () => {
+    setTemplateForm({
+      name: "",
+      description: "",
+      referenceImageUrl: "",
+      prompt: "",
+      isActive: true,
+      sortOrder: 0,
+    });
+  };
+
+  const openCreateTemplateDialog = () => {
+    setEditingTemplate(null);
+    resetTemplateForm();
+    setIsTemplateDialogOpen(true);
+  };
+
+  const openEditTemplateDialog = (template: GenerationTemplate) => {
+    setEditingTemplate(template);
+    setTemplateForm({
+      name: template.name,
+      description: template.description || "",
+      referenceImageUrl: template.referenceImageUrl || "",
+      prompt: template.prompt,
+      isActive: template.isActive,
+      sortOrder: template.sortOrder,
+    });
+    setIsTemplateDialogOpen(true);
+  };
+
+  const handleTemplateSubmit = () => {
+    if (editingTemplate) {
+      updateTemplateMutation.mutate({ id: editingTemplate.id, data: templateForm });
+    } else {
+      createTemplateMutation.mutate(templateForm);
+    }
+  };
 
   useEffect(() => {
     if (aiSettings?.settings) {
@@ -1061,9 +1176,217 @@ export default function Settings() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Generation Templates Management */}
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Image className="h-5 w-5 text-purple-400" />
+                      Шаблони генерації
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Налаштуйте шаблони для генерації зображень. Користувачі обиратимуть шаблон, а прихований промпт буде використано для генерації.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    onClick={openCreateTemplateDialog}
+                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    data-testid="button-add-template"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Додати шаблон
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoadingTemplates ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                  </div>
+                ) : generationTemplates && generationTemplates.length > 0 ? (
+                  <div className="space-y-3">
+                    {generationTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="flex items-center gap-4 p-4 bg-gray-900 rounded-lg border border-gray-700"
+                        data-testid={`template-item-${template.id}`}
+                      >
+                        <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-gray-700 flex items-center justify-center overflow-hidden">
+                          {template.referenceImageUrl ? (
+                            <img
+                              src={template.referenceImageUrl}
+                              alt={template.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Image className="h-8 w-8 text-gray-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-white truncate">{template.name}</h4>
+                            <Badge className={template.isActive ? "bg-green-600" : "bg-gray-600"}>
+                              {template.isActive ? "Активний" : "Неактивний"}
+                            </Badge>
+                          </div>
+                          {template.description && (
+                            <p className="text-sm text-gray-400 truncate mt-1">{template.description}</p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1 truncate">
+                            Промпт: {template.prompt.substring(0, 60)}...
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditTemplateDialog(template)}
+                            className="text-gray-400 hover:text-white hover:bg-gray-700"
+                            data-testid={`button-edit-template-${template.id}`}
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteTemplateMutation.mutate(template.id)}
+                            disabled={deleteTemplateMutation.isPending}
+                            className="text-red-400 hover:text-red-300 hover:bg-gray-700"
+                            data-testid={`button-delete-template-${template.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Image className="h-12 w-12 mx-auto mb-3 text-gray-600" />
+                    <p>Ще немає шаблонів генерації</p>
+                    <p className="text-sm mt-1">Додайте перший шаблон для генерації зображень</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Template Create/Edit Dialog */}
+      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+        <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {editingTemplate ? "Редагувати шаблон" : "Створити шаблон"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-name" className="text-gray-300">Назва *</Label>
+              <Input
+                id="template-name"
+                value={templateForm.name}
+                onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
+                placeholder="Наприклад: Футболка з логотипом"
+                className="bg-gray-900 border-gray-600 text-white"
+                data-testid="input-template-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-description" className="text-gray-300">Опис</Label>
+              <Input
+                id="template-description"
+                value={templateForm.description}
+                onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })}
+                placeholder="Короткий опис для користувача"
+                className="bg-gray-900 border-gray-600 text-white"
+                data-testid="input-template-description"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-image" className="text-gray-300">URL референсного зображення</Label>
+              <Input
+                id="template-image"
+                value={templateForm.referenceImageUrl}
+                onChange={(e) => setTemplateForm({ ...templateForm, referenceImageUrl: e.target.value })}
+                placeholder="https://example.com/image.jpg"
+                className="bg-gray-900 border-gray-600 text-white"
+                data-testid="input-template-image"
+              />
+              {templateForm.referenceImageUrl && (
+                <div className="mt-2 w-24 h-24 rounded-lg bg-gray-700 overflow-hidden">
+                  <img
+                    src={templateForm.referenceImageUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-prompt" className="text-gray-300">Промпт для генерації *</Label>
+              <Textarea
+                id="template-prompt"
+                value={templateForm.prompt}
+                onChange={(e) => setTemplateForm({ ...templateForm, prompt: e.target.value })}
+                placeholder="Детальний промпт для генерації зображення..."
+                className="bg-gray-900 border-gray-600 text-white min-h-[100px]"
+                data-testid="input-template-prompt"
+              />
+              <p className="text-xs text-gray-500">
+                Цей промпт буде прихований від користувача та використаний для генерації
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-order" className="text-gray-300">Порядок сортування</Label>
+              <Input
+                id="template-order"
+                type="number"
+                value={templateForm.sortOrder}
+                onChange={(e) => setTemplateForm({ ...templateForm, sortOrder: parseInt(e.target.value) || 0 })}
+                className="bg-gray-900 border-gray-600 text-white w-24"
+                data-testid="input-template-order"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="template-active"
+                checked={templateForm.isActive}
+                onCheckedChange={(checked) => setTemplateForm({ ...templateForm, isActive: checked })}
+                data-testid="switch-template-active"
+              />
+              <Label htmlFor="template-active" className="text-gray-300">
+                Активний (видимий для користувачів)
+              </Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsTemplateDialogOpen(false)}
+              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+              data-testid="button-cancel-template"
+            >
+              Скасувати
+            </Button>
+            <Button
+              onClick={handleTemplateSubmit}
+              disabled={!templateForm.name || !templateForm.prompt || createTemplateMutation.isPending || updateTemplateMutation.isPending}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+              data-testid="button-save-template"
+            >
+              {(createTemplateMutation.isPending || updateTemplateMutation.isPending) && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              {editingTemplate ? "Зберегти" : "Створити"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
