@@ -1473,6 +1473,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generation Templates CRUD
+  app.get("/api/admin/generation-templates", requireAdmin, async (req, res) => {
+    try {
+      const templates = await storage.getGenerationTemplates();
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Error fetching generation templates:", error);
+      res.status(500).json({ error: "Не вдалося отримати шаблони" });
+    }
+  });
+
+  app.get("/api/generation-templates", requireAuth, async (req, res) => {
+    try {
+      const templates = await storage.getGenerationTemplates();
+      // Return only active templates for regular users, without prompts
+      const activeTemplates = templates
+        .filter(t => t.isActive)
+        .map(({ prompt, ...rest }) => rest);
+      res.json(activeTemplates);
+    } catch (error: any) {
+      console.error("Error fetching generation templates:", error);
+      res.status(500).json({ error: "Не вдалося отримати шаблони" });
+    }
+  });
+
+  app.post("/api/admin/generation-templates", requireAdmin, async (req, res) => {
+    try {
+      const { name, description, referenceImageUrl, prompt, isActive, sortOrder } = req.body;
+      if (!name || !prompt) {
+        return res.status(400).json({ error: "Назва та промпт обов'язкові" });
+      }
+      const template = await storage.createGenerationTemplate({
+        name,
+        description: description || null,
+        referenceImageUrl: referenceImageUrl || null,
+        prompt,
+        isActive: isActive ?? true,
+        sortOrder: sortOrder ?? 0,
+      });
+      res.json(template);
+    } catch (error: any) {
+      console.error("Error creating generation template:", error);
+      res.status(500).json({ error: "Не вдалося створити шаблон" });
+    }
+  });
+
+  app.patch("/api/admin/generation-templates/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, description, referenceImageUrl, prompt, isActive, sortOrder } = req.body;
+      const template = await storage.updateGenerationTemplate(id, {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+        ...(referenceImageUrl !== undefined && { referenceImageUrl }),
+        ...(prompt !== undefined && { prompt }),
+        ...(isActive !== undefined && { isActive }),
+        ...(sortOrder !== undefined && { sortOrder }),
+      });
+      if (!template) {
+        return res.status(404).json({ error: "Шаблон не знайдено" });
+      }
+      res.json(template);
+    } catch (error: any) {
+      console.error("Error updating generation template:", error);
+      res.status(500).json({ error: "Не вдалося оновити шаблон" });
+    }
+  });
+
+  app.delete("/api/admin/generation-templates/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteGenerationTemplate(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error deleting generation template:", error);
+      res.status(500).json({ error: "Не вдалося видалити шаблон" });
+    }
+  });
+
   // Generate AI insights for a game session
   app.post("/api/game-sessions/:sessionId/ai-insights", requireAuth, async (req, res) => {
     try {
