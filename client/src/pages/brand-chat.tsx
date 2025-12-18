@@ -70,26 +70,100 @@ const LOADING_PHRASES = [
 ];
 
 function AnimatedLoadingText() {
-  const [phraseIndex, setPhraseIndex] = useState(0);
-  const [isVisible, setIsVisible] = useState(true);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [exitingChars, setExitingChars] = useState<number[]>([]);
+  const [enteringChars, setEnteringChars] = useState<number[]>([]);
+  
+  const currentPhrase = LOADING_PHRASES[currentIndex];
+  const nextPhrase = LOADING_PHRASES[(currentIndex + 1) % LOADING_PHRASES.length];
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setIsVisible(false);
+      setIsAnimating(true);
+      setExitingChars([]);
+      setEnteringChars([]);
+      
+      const maxLen = Math.max(currentPhrase.length, nextPhrase.length);
+      
+      for (let i = 0; i < maxLen; i++) {
+        setTimeout(() => {
+          setExitingChars(prev => [...prev, i]);
+        }, i * 30);
+        
+        setTimeout(() => {
+          setEnteringChars(prev => [...prev, i]);
+        }, i * 30 + 200);
+      }
+      
       setTimeout(() => {
-        setPhraseIndex((prev) => (prev + 1) % LOADING_PHRASES.length);
-        setIsVisible(true);
-      }, 400);
-    }, 3000);
+        setCurrentIndex(prev => (prev + 1) % LOADING_PHRASES.length);
+        setIsAnimating(false);
+        setExitingChars([]);
+        setEnteringChars([]);
+      }, maxLen * 30 + 600);
+      
+    }, 3500);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [currentPhrase.length, nextPhrase.length]);
 
   return (
-    <span 
-      className={`text-sm transition-opacity duration-400 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-    >
-      {LOADING_PHRASES[phraseIndex]}
+    <span className="text-sm relative inline-block h-5 overflow-hidden">
+      <span className="inline-flex">
+        {(isAnimating ? currentPhrase : currentPhrase).split('').map((char, i) => {
+          const isExiting = exitingChars.includes(i);
+          const isEntering = enteringChars.includes(i);
+          const nextChar = nextPhrase[i] || '';
+          
+          return (
+            <span 
+              key={i} 
+              className="inline-block relative h-5 overflow-hidden"
+              style={{ width: char === ' ' ? '0.25em' : 'auto' }}
+            >
+              <span 
+                className={`inline-block transition-transform duration-300 ease-out ${
+                  isExiting ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'
+                }`}
+              >
+                {char}
+              </span>
+              {isAnimating && (
+                <span 
+                  className={`inline-block absolute left-0 transition-transform duration-300 ease-out ${
+                    isEntering ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
+                  }`}
+                  style={{ top: 0 }}
+                >
+                  {nextChar}
+                </span>
+              )}
+            </span>
+          );
+        })}
+        {isAnimating && nextPhrase.length > currentPhrase.length && (
+          nextPhrase.slice(currentPhrase.length).split('').map((char, i) => {
+            const realIndex = currentPhrase.length + i;
+            const isEntering = enteringChars.includes(realIndex);
+            return (
+              <span 
+                key={`extra-${i}`} 
+                className="inline-block relative h-5 overflow-hidden"
+                style={{ width: char === ' ' ? '0.25em' : 'auto' }}
+              >
+                <span 
+                  className={`inline-block transition-transform duration-300 ease-out ${
+                    isEntering ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
+                  }`}
+                >
+                  {char}
+                </span>
+              </span>
+            );
+          })
+        )}
+      </span>
     </span>
   );
 }
