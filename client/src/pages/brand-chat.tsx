@@ -71,98 +71,28 @@ const LOADING_PHRASES = [
 
 function AnimatedLoadingText() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [exitingChars, setExitingChars] = useState<number[]>([]);
-  const [enteringChars, setEnteringChars] = useState<number[]>([]);
-  
-  const currentPhrase = LOADING_PHRASES[currentIndex];
-  const nextPhrase = LOADING_PHRASES[(currentIndex + 1) % LOADING_PHRASES.length];
+  const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setIsAnimating(true);
-      setExitingChars([]);
-      setEnteringChars([]);
-      
-      const maxLen = Math.max(currentPhrase.length, nextPhrase.length);
-      
-      for (let i = 0; i < maxLen; i++) {
-        setTimeout(() => {
-          setExitingChars(prev => [...prev, i]);
-        }, i * 30);
-        
-        setTimeout(() => {
-          setEnteringChars(prev => [...prev, i]);
-        }, i * 30 + 200);
-      }
-      
+      setIsExiting(true);
       setTimeout(() => {
         setCurrentIndex(prev => (prev + 1) % LOADING_PHRASES.length);
-        setIsAnimating(false);
-        setExitingChars([]);
-        setEnteringChars([]);
-      }, maxLen * 30 + 600);
-      
-    }, 3500);
+        setIsExiting(false);
+      }, 400);
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [currentPhrase.length, nextPhrase.length]);
+  }, []);
 
   return (
     <span className="text-sm relative inline-block h-5 overflow-hidden">
-      <span className="inline-flex">
-        {(isAnimating ? currentPhrase : currentPhrase).split('').map((char, i) => {
-          const isExiting = exitingChars.includes(i);
-          const isEntering = enteringChars.includes(i);
-          const nextChar = nextPhrase[i] || '';
-          
-          return (
-            <span 
-              key={i} 
-              className="inline-block relative h-5 overflow-hidden"
-              style={{ width: char === ' ' ? '0.25em' : 'auto' }}
-            >
-              <span 
-                className={`inline-block transition-transform duration-300 ease-out ${
-                  isExiting ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'
-                }`}
-              >
-                {char}
-              </span>
-              {isAnimating && (
-                <span 
-                  className={`inline-block absolute left-0 transition-transform duration-300 ease-out ${
-                    isEntering ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
-                  }`}
-                  style={{ top: 0 }}
-                >
-                  {nextChar}
-                </span>
-              )}
-            </span>
-          );
-        })}
-        {isAnimating && nextPhrase.length > currentPhrase.length && (
-          nextPhrase.slice(currentPhrase.length).split('').map((char, i) => {
-            const realIndex = currentPhrase.length + i;
-            const isEntering = enteringChars.includes(realIndex);
-            return (
-              <span 
-                key={`extra-${i}`} 
-                className="inline-block relative h-5 overflow-hidden"
-                style={{ width: char === ' ' ? '0.25em' : 'auto' }}
-              >
-                <span 
-                  className={`inline-block transition-transform duration-300 ease-out ${
-                    isEntering ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
-                  }`}
-                >
-                  {char}
-                </span>
-              </span>
-            );
-          })
-        )}
+      <span 
+        className={`inline-block transition-all duration-400 ease-out ${
+          isExiting ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'
+        }`}
+      >
+        {LOADING_PHRASES[currentIndex]}
       </span>
     </span>
   );
@@ -411,11 +341,22 @@ export default function BrandChat() {
     },
   });
 
-  useEffect(() => {
+  // Scroll to bottom when messages change or on initial load
+  const scrollToBottom = useCallback(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, imageMessages]);
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, imageMessages, scrollToBottom]);
+
+  // Scroll to bottom on initial page load
+  useEffect(() => {
+    const timer = setTimeout(scrollToBottom, 100);
+    return () => clearTimeout(timer);
+  }, [scrollToBottom]);
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
