@@ -368,9 +368,16 @@ export default function BrandChat() {
     scrollToBottom();
   }, [messages, imageMessages, scrollToBottom]);
 
-  // Scroll to bottom on initial page load
+  // Scroll to bottom when chat data loads
   useEffect(() => {
-    const timer = setTimeout(scrollToBottom, 100);
+    if (messages && messages.length > 0) {
+      setTimeout(scrollToBottom, 50);
+    }
+  }, [messages, scrollToBottom]);
+
+  // Additional scroll after images load
+  useEffect(() => {
+    const timer = setTimeout(scrollToBottom, 300);
     return () => clearTimeout(timer);
   }, [scrollToBottom]);
 
