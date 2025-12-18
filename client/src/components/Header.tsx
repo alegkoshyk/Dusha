@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/button';
-import { User, Home, Gamepad2, LayoutDashboard, CreditCard, Settings, Users, Eye, ChevronDown, List, Package, Map, Cog } from 'lucide-react';
+import { User, Home, LayoutDashboard, CreditCard, Settings, Users, Eye, ChevronDown, List, Package, Map, Cog } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import UserDropdown from './UserDropdown';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { BrandSoulLogo } from './BrandSoulLogo';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -22,11 +23,10 @@ export function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo and Title */}
-          <div className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center space-x-2 text-2xl font-bold text-blue-600 dark:text-blue-400">
-              <Gamepad2 className="w-8 h-8" />
-              <span>Душа Бренду</span>
+          {/* Logo */}
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center">
+              <BrandSoulLogo className="h-8 w-auto" />
             </Link>
           </div>
 
