@@ -69,31 +69,64 @@ const LOADING_PHRASES = [
   'Те, що ти побачиш, уже дозріло',
 ];
 
+const MAX_PHRASE_LENGTH = Math.max(...LOADING_PHRASES.map(p => p.length));
+
 function AnimatedLoadingText() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isExiting, setIsExiting] = useState(false);
+  const [animatingChars, setAnimatingChars] = useState<number[]>([]);
+  
+  const currentPhrase = LOADING_PHRASES[currentIndex].padEnd(MAX_PHRASE_LENGTH, ' ');
+  const nextPhrase = LOADING_PHRASES[(currentIndex + 1) % LOADING_PHRASES.length].padEnd(MAX_PHRASE_LENGTH, ' ');
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setIsExiting(true);
+      setAnimatingChars([]);
+      
+      for (let i = 0; i < MAX_PHRASE_LENGTH; i++) {
+        setTimeout(() => {
+          setAnimatingChars(prev => [...prev, i]);
+        }, i * 25);
+      }
+      
       setTimeout(() => {
         setCurrentIndex(prev => (prev + 1) % LOADING_PHRASES.length);
-        setIsExiting(false);
-      }, 400);
+        setAnimatingChars([]);
+      }, MAX_PHRASE_LENGTH * 25 + 300);
+      
     }, 3000);
 
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <span className="text-sm relative inline-block h-5 overflow-hidden">
-      <span 
-        className={`inline-block transition-all duration-400 ease-out ${
-          isExiting ? '-translate-y-full opacity-0' : 'translate-y-0 opacity-100'
-        }`}
-      >
-        {LOADING_PHRASES[currentIndex]}
-      </span>
+    <span className="text-sm inline-flex" style={{ minWidth: '280px' }}>
+      {currentPhrase.split('').map((char, i) => {
+        const isAnimating = animatingChars.includes(i);
+        const nextChar = nextPhrase[i] || ' ';
+        
+        return (
+          <span 
+            key={i} 
+            className="inline-block h-5 overflow-hidden relative"
+            style={{ width: '0.6em' }}
+          >
+            <span 
+              className={`absolute inset-0 flex items-center justify-center transition-transform duration-200 ease-out ${
+                isAnimating ? '-translate-y-full' : 'translate-y-0'
+              }`}
+            >
+              {char}
+            </span>
+            <span 
+              className={`absolute inset-0 flex items-center justify-center transition-transform duration-200 ease-out ${
+                isAnimating ? 'translate-y-0' : 'translate-y-full'
+              }`}
+            >
+              {nextChar}
+            </span>
+          </span>
+        );
+      })}
     </span>
   );
 }
