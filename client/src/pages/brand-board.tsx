@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Download, Share, MapPin, Heart, Brain, Dumbbell, Edit2, Save, ChevronRight, Lightbulb, Check, Sparkles, Loader2, AlertCircle, CheckCircle, CircleDot, ArrowRight, TrendingUp, Settings, History, Clock, Star, MessageCircle } from 'lucide-react';
 import { Header } from '@/components/Header';
+import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { useState } from 'react';
 
 interface BrandAiAnalysis {
@@ -281,7 +282,7 @@ export default function BrandBoard() {
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <BrandSoulSpinner size={48} className="mx-auto mb-4" />
               <p className="text-gray-600 dark:text-gray-400">Завантаження дошки бренду...</p>
             </div>
           </div>

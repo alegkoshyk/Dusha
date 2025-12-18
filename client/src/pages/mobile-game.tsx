@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Trophy, Home, Download, Eye } from 'lucide-react';
 import UserDropdown from '@/components/UserDropdown';
+import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import type { GameSession, GameLevel } from '@shared/schema';
@@ -348,7 +349,7 @@ export default function MobileGame() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <BrandSoulSpinner size={48} className="mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400">Завантаження гри...</p>
         </div>
       </div>

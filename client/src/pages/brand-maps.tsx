@@ -14,6 +14,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { Link } from 'wouter';
+import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import type { GameSession, UserBrand } from '@shared/schema';
 
@@ -62,7 +63,7 @@ export default function BrandMaps() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+          <BrandSoulSpinner size={48} />
         </div>
       </div>
     );

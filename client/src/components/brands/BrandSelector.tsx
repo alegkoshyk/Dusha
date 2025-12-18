@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Plus, Play, Trash2, Calendar, BarChart3 } from "lucide-react";
 import { useBrands } from "@/hooks/useBrands";
+import { BrandSoulSpinner } from "@/components/BrandSoulSpinner";
 import { CreateBrandDialog } from "@/components/brands/CreateBrandDialog";
 import type { UserBrand } from "@shared/schema";
 
@@ -39,7 +40,7 @@ export function BrandSelector({ onSelectBrand, onCreateNew }: BrandSelectorProps
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <BrandSoulSpinner size={64} className="mx-auto mb-4" />
           <p className="text-gray-600">Завантаження брендів...</p>
         </div>
       </div>
@@ -168,7 +169,7 @@ export function BrandSelector({ onSelectBrand, onCreateNew }: BrandSelectorProps
                       disabled={brandToDelete === brand.id || isDeletingBrand}
                     >
                       {brandToDelete === brand.id ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                        <BrandSoulSpinner size={16} />
                       ) : (
                         <Trash2 className="h-4 w-4" />
                       )}
