@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { Header } from "@/components/Header";
+import { BrandSoulSpinner } from "@/components/BrandSoulSpinner";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
@@ -31,10 +32,10 @@ function Router() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-red-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-red-50 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-red-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Завантаження...</p>
+          <BrandSoulSpinner size={64} className="mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Завантаження...</p>
         </div>
       </div>
     );

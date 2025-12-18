@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, createElement } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import {
   Sparkles,
   Pencil
 } from 'lucide-react';
+import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { CreateBrandDialog } from '@/components/brands/CreateBrandDialog';
@@ -179,7 +180,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <BrandSoulSpinner size={48} className="mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400">Завантаження дашборду...</p>
         </div>
       </div>
@@ -409,7 +410,7 @@ export default function Dashboard() {
                           {/* Current Level Info */}
                           {activeBrandGame && (
                             <div className="flex items-center gap-2">
-                              {React.createElement(getLevelIcon(activeBrandGame.currentLevel || 'soul'), {
+                              {createElement(getLevelIcon(activeBrandGame.currentLevel || 'soul'), {
                                 className: "w-4 h-4"
                               })}
                               <Badge variant="outline" className={getLevelColor(activeBrandGame.currentLevel || 'soul')}>

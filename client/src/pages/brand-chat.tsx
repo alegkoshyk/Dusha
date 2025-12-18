@@ -29,6 +29,7 @@ import {
   Palette
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, apiRequestJson } from '@/lib/queryClient';
 import type { GameSession, UserBrand } from '@shared/schema';
@@ -583,7 +584,7 @@ export default function BrandChat() {
                     <div className="max-w-[80%] rounded-lg px-4 py-3 bg-gray-100 dark:bg-gray-800">
                       {imgMsg.isLoading ? (
                         <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <BrandSoulSpinner size={24} />
                           <span className="text-sm">Генерую зображення...</span>
                         </div>
                       ) : (
@@ -600,7 +601,7 @@ export default function BrandChat() {
                     <Bot className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-3">
-                    <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
+                    <BrandSoulSpinner size={24} />
                   </div>
                 </div>
               )}
