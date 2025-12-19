@@ -221,6 +221,8 @@ export class ObjectStorageService {
       throw new Error("Invalid URL protocol: only HTTP(S) allowed");
     }
 
+    console.log('uploadImageFromUrl: Fetching image from:', imageUrl.substring(0, 100) + '...');
+
     // Fetch with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
@@ -263,10 +265,13 @@ export class ObjectStorageService {
     }
     
     const buffer = Buffer.from(arrayBuffer);
+    console.log('uploadImageFromUrl: Downloaded image, size:', buffer.length);
 
     const objectId = `${folder}/${randomUUID()}.${extension}`;
     const fullPath = `${privateObjectDir}/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    console.log('uploadImageFromUrl: Saving to bucket:', bucketName, 'object:', objectName);
 
     const bucket = objectStorageClient.bucket(bucketName);
     const file = bucket.file(objectName);
@@ -278,13 +283,16 @@ export class ObjectStorageService {
       },
     });
 
+    console.log('uploadImageFromUrl: File saved, getting signed URL...');
+
     const signedUrl = await signObjectURL({
       bucketName,
       objectName,
       method: "GET",
-      ttlSec: 365 * 24 * 60 * 60, // 1 year
+      ttlSec: 7 * 24 * 60 * 60, // 7 days (reduced from 1 year)
     });
 
+    console.log('uploadImageFromUrl: Success');
     return signedUrl;
   }
 }
@@ -327,6 +335,9 @@ async function signObjectURL({
     method,
     expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
   };
+  
+  console.log('signObjectURL: Request:', JSON.stringify(request));
+  
   const response = await fetch(
     `${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`,
     {
@@ -338,6 +349,8 @@ async function signObjectURL({
     }
   );
   if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    console.error('signObjectURL: Error response:', response.status, errorText);
     throw new Error(
       `Failed to sign object URL, errorcode: ${response.status}`
     );
