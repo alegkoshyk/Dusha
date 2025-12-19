@@ -205,6 +205,11 @@ export default function Settings() {
     isActive: true,
     sortOrder: 0,
   });
+  const [generatedReferenceUrl, setGeneratedReferenceUrl] = useState<string | null>(null);
+  const [referencePrompt, setReferencePrompt] = useState("");
+  const [isUploadingReference, setIsUploadingReference] = useState(false);
+  const [isGeneratingReference, setIsGeneratingReference] = useState(false);
+  const [isSavingGenerated, setIsSavingGenerated] = useState(false);
 
   // Merch types state
   const [isMerchTypeDialogOpen, setIsMerchTypeDialogOpen] = useState(false);
@@ -248,7 +253,11 @@ export default function Settings() {
   const createTemplateMutation = useMutation({
     mutationFn: async (data: typeof templateForm) => {
       const response = await apiRequest("POST", "/api/admin/generation-templates", data);
-      return response.json();
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Не вдалося створити шаблон");
+      }
+      return result;
     },
     onSuccess: () => {
       toast({ title: "Успішно", description: "Шаблон створено" });
@@ -256,15 +265,19 @@ export default function Settings() {
       setIsTemplateDialogOpen(false);
       resetTemplateForm();
     },
-    onError: () => {
-      toast({ title: "Помилка", description: "Не вдалося створити шаблон", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ title: "Помилка", description: error.message || "Не вдалося створити шаблон", variant: "destructive" });
     },
   });
 
   const updateTemplateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: Partial<typeof templateForm> }) => {
       const response = await apiRequest("PATCH", `/api/admin/generation-templates/${id}`, data);
-      return response.json();
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Не вдалося оновити шаблон");
+      }
+      return result;
     },
     onSuccess: () => {
       toast({ title: "Успішно", description: "Шаблон оновлено" });
@@ -273,8 +286,8 @@ export default function Settings() {
       setEditingTemplate(null);
       resetTemplateForm();
     },
-    onError: () => {
-      toast({ title: "Помилка", description: "Не вдалося оновити шаблон", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ title: "Помилка", description: error.message || "Не вдалося оновити шаблон", variant: "destructive" });
     },
   });
 
@@ -301,6 +314,89 @@ export default function Settings() {
       isActive: true,
       sortOrder: 0,
     });
+    setGeneratedReferenceUrl(null);
+    setReferencePrompt("");
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+      toast({ title: "Помилка", description: "Дозволені лише JPEG та PNG файли", variant: "destructive" });
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      
+      if (editingTemplate) {
+        // Upload to server if editing existing template
+        setIsUploadingReference(true);
+        try {
+          const response = await apiRequest("POST", `/api/admin/generation-templates/${editingTemplate.id}/upload-image`, { imageData: base64 });
+          const data = await response.json();
+          setTemplateForm({ ...templateForm, referenceImageUrl: data.imageUrl });
+          toast({ title: "Успішно", description: "Зображення завантажено" });
+        } catch (error: any) {
+          toast({ title: "Помилка", description: error.message || "Не вдалося завантажити зображення", variant: "destructive" });
+        } finally {
+          setIsUploadingReference(false);
+        }
+      } else {
+        // Just set the base64 for preview (will be uploaded on create)
+        setTemplateForm({ ...templateForm, referenceImageUrl: base64 });
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleGenerateReference = async () => {
+    if (!referencePrompt.trim()) {
+      toast({ title: "Помилка", description: "Введіть промпт для генерації", variant: "destructive" });
+      return;
+    }
+
+    setIsGeneratingReference(true);
+    try {
+      const response = await apiRequest("POST", "/api/admin/generation-templates/generate-reference", { prompt: referencePrompt });
+      const data = await response.json();
+      setGeneratedReferenceUrl(data.imageUrl);
+      toast({ title: "Успішно", description: "Зображення згенеровано" });
+    } catch (error: any) {
+      toast({ title: "Помилка", description: error.message || "Не вдалося згенерувати зображення", variant: "destructive" });
+    } finally {
+      setIsGeneratingReference(false);
+    }
+  };
+
+  const handleUseGeneratedImage = async () => {
+    if (!generatedReferenceUrl) return;
+
+    if (editingTemplate) {
+      // Save to object storage for existing template
+      setIsSavingGenerated(true);
+      try {
+        const response = await apiRequest("POST", `/api/admin/generation-templates/${editingTemplate.id}/save-generated`, { imageUrl: generatedReferenceUrl });
+        const data = await response.json();
+        setTemplateForm({ ...templateForm, referenceImageUrl: data.imageUrl });
+        setGeneratedReferenceUrl(null);
+        toast({ title: "Успішно", description: "Зображення збережено як референс" });
+      } catch (error: any) {
+        toast({ title: "Помилка", description: error.message || "Не вдалося зберегти зображення", variant: "destructive" });
+      } finally {
+        setIsSavingGenerated(false);
+      }
+    } else {
+      // For new template, just use the URL directly (will be saved on create)
+      setTemplateForm({ ...templateForm, referenceImageUrl: generatedReferenceUrl });
+      setGeneratedReferenceUrl(null);
+      toast({ title: "Успішно", description: "Зображення буде збережено при створенні шаблону" });
+    }
   };
 
   const openCreateTemplateDialog = () => {
@@ -1566,26 +1662,130 @@ export default function Settings() {
                 data-testid="input-template-description"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="template-image" className="text-gray-300">URL референсного зображення</Label>
-              <Input
-                id="template-image"
-                value={templateForm.referenceImageUrl}
-                onChange={(e) => setTemplateForm({ ...templateForm, referenceImageUrl: e.target.value })}
-                placeholder="https://example.com/image.jpg"
-                className="bg-gray-900 border-gray-600 text-white"
-                data-testid="input-template-image"
-              />
+            <div className="space-y-3">
+              <Label className="text-gray-300">Референсне зображення</Label>
+              
+              {/* Current image preview */}
               {templateForm.referenceImageUrl && (
-                <div className="mt-2 w-24 h-24 rounded-lg bg-gray-700 overflow-hidden">
-                  <img
-                    src={templateForm.referenceImageUrl}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                  />
+                <div className="flex items-start gap-3">
+                  <div className="w-24 h-24 rounded-lg bg-gray-700 overflow-hidden flex-shrink-0">
+                    <img
+                      src={templateForm.referenceImageUrl}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTemplateForm({ ...templateForm, referenceImageUrl: "" })}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               )}
+              
+              {/* Upload file button */}
+              <div className="flex gap-2">
+                <label className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/jpg"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    data-testid="input-template-file-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-gray-600 text-gray-300 hover:bg-gray-700"
+                    disabled={isUploadingReference}
+                    asChild
+                  >
+                    <span className="cursor-pointer">
+                      {isUploadingReference ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4 mr-2" />
+                      )}
+                      Завантажити файл (JPEG/PNG)
+                    </span>
+                  </Button>
+                </label>
+              </div>
+
+              {/* Generate with AI section */}
+              <div className="border border-gray-600 rounded-lg p-3 space-y-3">
+                <div className="flex items-center gap-2 text-gray-300">
+                  <Sparkles className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium">Згенерувати AI</span>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={referencePrompt}
+                    onChange={(e) => setReferencePrompt(e.target.value)}
+                    placeholder="Опис зображення для генерації..."
+                    className="bg-gray-900 border-gray-600 text-white flex-1"
+                    data-testid="input-template-generate-prompt"
+                  />
+                  <Button
+                    onClick={handleGenerateReference}
+                    disabled={isGeneratingReference || !referencePrompt.trim()}
+                    className="bg-purple-600 hover:bg-purple-700"
+                    data-testid="button-generate-reference"
+                  >
+                    {isGeneratingReference ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                
+                {/* Generated image preview */}
+                {generatedReferenceUrl && (
+                  <div className="flex items-start gap-3 p-2 bg-gray-900 rounded-lg">
+                    <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
+                      <img
+                        src={generatedReferenceUrl}
+                        alt="Generated"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-2">
+                      <p className="text-xs text-gray-400">Згенероване зображення</p>
+                      <Button
+                        onClick={handleUseGeneratedImage}
+                        disabled={isSavingGenerated}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        data-testid="button-use-generated"
+                      >
+                        {isSavingGenerated ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Check className="h-4 w-4 mr-2" />
+                        )}
+                        Використати
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Manual URL input */}
+              <div className="text-xs text-gray-500 flex items-center gap-2">
+                <span>або вставте URL:</span>
+                <Input
+                  value={templateForm.referenceImageUrl.startsWith('data:') ? '' : templateForm.referenceImageUrl}
+                  onChange={(e) => setTemplateForm({ ...templateForm, referenceImageUrl: e.target.value })}
+                  placeholder="https://example.com/image.jpg"
+                  className="bg-gray-900 border-gray-600 text-white h-7 text-xs flex-1"
+                  data-testid="input-template-image-url"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="template-prompt" className="text-gray-300">Промпт для генерації *</Label>

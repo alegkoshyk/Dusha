@@ -166,6 +166,127 @@ export class ObjectStorageService {
     const { bucketName, objectName } = parseObjectPath(objectPath);
     return `https://storage.googleapis.com/${bucketName}/${objectName}`;
   }
+
+  async uploadTemplateReferenceImage(templateId: number, base64Data: string): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    if (!privateObjectDir) {
+      throw new Error("PRIVATE_OBJECT_DIR not set");
+    }
+
+    const match = base64Data.match(/^data:image\/([\w+]+);base64,(.+)$/);
+    if (!match) {
+      throw new Error("Invalid base64 image format");
+    }
+
+    let extension = match[1];
+    if (extension === 'svg+xml') extension = 'svg';
+    if (extension === 'jpeg') extension = 'jpg';
+    const imageData = match[2];
+    const buffer = Buffer.from(imageData, 'base64');
+
+    const objectId = `templates/${templateId}/${randomUUID()}.${extension}`;
+    const fullPath = `${privateObjectDir}/${objectId}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+
+    const contentType = extension === 'svg' ? 'image/svg+xml' : `image/${extension}`;
+    
+    await file.save(buffer, {
+      metadata: {
+        contentType,
+        cacheControl: 'public, max-age=31536000',
+      },
+    });
+
+    const signedUrl = await signObjectURL({
+      bucketName,
+      objectName,
+      method: "GET",
+      ttlSec: 365 * 24 * 60 * 60, // 1 year
+    });
+
+    return signedUrl;
+  }
+
+  async uploadImageFromUrl(folder: string, imageUrl: string): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    if (!privateObjectDir) {
+      throw new Error("PRIVATE_OBJECT_DIR not set");
+    }
+
+    // Validate URL protocol
+    if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+      throw new Error("Invalid URL protocol: only HTTP(S) allowed");
+    }
+
+    // Fetch with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    let fetchResponse: globalThis.Response;
+    try {
+      fetchResponse = await fetch(imageUrl, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    
+    if (!fetchResponse.ok) {
+      throw new Error(`Failed to fetch image from URL: ${fetchResponse.status}`);
+    }
+
+    // Check content length (max 10MB)
+    const contentLength = fetchResponse.headers.get('content-length');
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (contentLength && parseInt(contentLength) > maxSize) {
+      throw new Error("Image too large: max 10MB allowed");
+    }
+
+    const contentType = fetchResponse.headers.get('content-type') || 'image/png';
+    
+    // Validate content type is an image
+    if (!contentType.startsWith('image/')) {
+      throw new Error("Invalid content type: only images allowed");
+    }
+    
+    let extension = 'png';
+    if (contentType.includes('jpeg') || contentType.includes('jpg')) extension = 'jpg';
+    else if (contentType.includes('png')) extension = 'png';
+    else if (contentType.includes('webp')) extension = 'webp';
+
+    const arrayBuffer = await fetchResponse.arrayBuffer();
+    
+    // Double-check size after download
+    if (arrayBuffer.byteLength > maxSize) {
+      throw new Error("Image too large: max 10MB allowed");
+    }
+    
+    const buffer = Buffer.from(arrayBuffer);
+
+    const objectId = `${folder}/${randomUUID()}.${extension}`;
+    const fullPath = `${privateObjectDir}/${objectId}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    
+    await file.save(buffer, {
+      metadata: {
+        contentType,
+        cacheControl: 'public, max-age=31536000',
+      },
+    });
+
+    const signedUrl = await signObjectURL({
+      bucketName,
+      objectName,
+      method: "GET",
+      ttlSec: 365 * 24 * 60 * 60, // 1 year
+    });
+
+    return signedUrl;
+  }
 }
 
 function parseObjectPath(path: string): {

@@ -1504,14 +1504,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!name || !prompt) {
         return res.status(400).json({ error: "Назва та промпт обов'язкові" });
       }
+      
+      let finalReferenceUrl: string | null = null;
+      
+      // Pre-process the reference image before creating template
+      if (referenceImageUrl && referenceImageUrl.startsWith('data:image/')) {
+        // Will upload after getting template ID
+      } else if (referenceImageUrl && referenceImageUrl.startsWith('http')) {
+        // Will upload after getting template ID
+      }
+      
+      // First create the template to get an ID
       const template = await storage.createGenerationTemplate({
         name,
         description: description || null,
-        referenceImageUrl: referenceImageUrl || null,
+        referenceImageUrl: null, // Will be set after upload
         prompt,
         isActive: isActive ?? true,
         sortOrder: sortOrder ?? 0,
       });
+      
+      // If referenceImageUrl is base64, upload it to object storage
+      if (referenceImageUrl && referenceImageUrl.startsWith('data:image/')) {
+        try {
+          const { ObjectStorageService } = await import('./objectStorage');
+          const objectStorageService = new ObjectStorageService();
+          finalReferenceUrl = await objectStorageService.uploadTemplateReferenceImage(template.id, referenceImageUrl);
+          const updatedTemplate = await storage.updateGenerationTemplate(template.id, { referenceImageUrl: finalReferenceUrl });
+          return res.json(updatedTemplate);
+        } catch (uploadError: any) {
+          console.error('Failed to upload reference image:', uploadError);
+          // Delete the template since image upload failed
+          await storage.deleteGenerationTemplate(template.id);
+          return res.status(422).json({ error: "Не вдалося завантажити зображення: " + (uploadError.message || "невідома помилка") });
+        }
+      } else if (referenceImageUrl && referenceImageUrl.startsWith('http')) {
+        // If it's a URL (e.g., from AI generation), download and upload to storage
+        try {
+          const { ObjectStorageService } = await import('./objectStorage');
+          const objectStorageService = new ObjectStorageService();
+          finalReferenceUrl = await objectStorageService.uploadImageFromUrl(`templates/${template.id}`, referenceImageUrl);
+          const updatedTemplate = await storage.updateGenerationTemplate(template.id, { referenceImageUrl: finalReferenceUrl });
+          return res.json(updatedTemplate);
+        } catch (uploadError: any) {
+          console.error('Failed to save reference image URL:', uploadError);
+          // Delete the template since image upload failed
+          await storage.deleteGenerationTemplate(template.id);
+          return res.status(422).json({ error: "Не вдалося зберегти зображення: " + (uploadError.message || "невідома помилка") });
+        }
+      }
+      
       res.json(template);
     } catch (error: any) {
       console.error("Error creating generation template:", error);
@@ -1522,7 +1564,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/admin/generation-templates/:id", requireAdmin, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { name, description, referenceImageUrl, prompt, isActive, sortOrder } = req.body;
+      let { name, description, referenceImageUrl, prompt, isActive, sortOrder } = req.body;
+      
+      // Handle base64 image upload
+      if (referenceImageUrl && referenceImageUrl.startsWith('data:image/')) {
+        try {
+          const { ObjectStorageService } = await import('./objectStorage');
+          const objectStorageService = new ObjectStorageService();
+          referenceImageUrl = await objectStorageService.uploadTemplateReferenceImage(id, referenceImageUrl);
+        } catch (uploadError: any) {
+          console.error('Failed to upload reference image:', uploadError);
+          // Return error - don't silently fail
+          return res.status(422).json({ error: "Не вдалося завантажити зображення: " + (uploadError.message || "невідома помилка") });
+        }
+      } else if (referenceImageUrl && referenceImageUrl.startsWith('http') && !referenceImageUrl.includes('storage.googleapis.com')) {
+        // If it's an external URL (not already on our storage), download and upload
+        try {
+          const { ObjectStorageService } = await import('./objectStorage');
+          const objectStorageService = new ObjectStorageService();
+          referenceImageUrl = await objectStorageService.uploadImageFromUrl(`templates/${id}`, referenceImageUrl);
+        } catch (uploadError: any) {
+          console.error('Failed to save reference image URL:', uploadError);
+          // Return error - don't silently fail
+          return res.status(422).json({ error: "Не вдалося зберегти зображення: " + (uploadError.message || "невідома помилка") });
+        }
+      }
+      
       const template = await storage.updateGenerationTemplate(id, {
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
@@ -1534,6 +1601,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!template) {
         return res.status(404).json({ error: "Шаблон не знайдено" });
       }
+      
       res.json(template);
     } catch (error: any) {
       console.error("Error updating generation template:", error);
@@ -1549,6 +1617,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error deleting generation template:", error);
       res.status(500).json({ error: "Не вдалося видалити шаблон" });
+    }
+  });
+
+  // Upload reference image for template
+  app.post("/api/admin/generation-templates/:id/upload-image", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { imageData } = req.body;
+      
+      if (!imageData) {
+        return res.status(400).json({ error: "Зображення обов'язкове" });
+      }
+
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      const imageUrl = await objectStorageService.uploadTemplateReferenceImage(id, imageData);
+      
+      // Update the template with new image URL
+      const template = await storage.updateGenerationTemplate(id, { referenceImageUrl: imageUrl });
+      if (!template) {
+        return res.status(404).json({ error: "Шаблон не знайдено" });
+      }
+      
+      res.json({ imageUrl, template });
+    } catch (error: any) {
+      console.error("Error uploading template reference image:", error);
+      res.status(500).json({ error: error.message || "Не вдалося завантажити зображення" });
+    }
+  });
+
+  // Generate reference image for template using AI
+  app.post("/api/admin/generation-templates/generate-reference", requireAdmin, async (req, res) => {
+    try {
+      const { prompt } = req.body;
+      
+      if (!prompt) {
+        return res.status(400).json({ error: "Промпт обов'язковий" });
+      }
+
+      // Get user's Gemini API key from user_profiles table
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Користувач не авторизований" });
+      }
+      
+      const userProfile = await storage.getUserProfile(userId);
+      const apiKey = userProfile?.geminiApiKey;
+      
+      if (!apiKey) {
+        return res.status(400).json({ error: "NanoBanana API ключ не налаштований. Будь ласка, додайте ключ у налаштуваннях." });
+      }
+
+      const { generateImageWithNanoBanana } = await import('./nanobanana');
+      const result = await generateImageWithNanoBanana(prompt, apiKey, "1:1");
+      
+      if (!result.imageUrl) {
+        return res.status(500).json({ error: "Не вдалося згенерувати зображення" });
+      }
+      
+      res.json({ imageUrl: result.imageUrl, prompt });
+    } catch (error: any) {
+      console.error("Error generating reference image:", error);
+      res.status(500).json({ error: error.message || "Не вдалося згенерувати зображення" });
+    }
+  });
+
+  // Save generated image as template reference
+  app.post("/api/admin/generation-templates/:id/save-generated", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { imageUrl } = req.body;
+      
+      if (!imageUrl) {
+        return res.status(400).json({ error: "URL зображення обов'язковий" });
+      }
+
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      // Download the image and upload to object storage
+      const savedUrl = await objectStorageService.uploadImageFromUrl(`templates/${id}`, imageUrl);
+      
+      // Update the template with new image URL
+      const template = await storage.updateGenerationTemplate(id, { referenceImageUrl: savedUrl });
+      if (!template) {
+        return res.status(404).json({ error: "Шаблон не знайдено" });
+      }
+      
+      res.json({ imageUrl: savedUrl, template });
+    } catch (error: any) {
+      console.error("Error saving generated image:", error);
+      res.status(500).json({ error: error.message || "Не вдалося зберегти зображення" });
     }
   });
 
