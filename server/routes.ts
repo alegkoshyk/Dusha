@@ -1670,10 +1670,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { generateImageWithNanoBanana } = await import('./nanobanana');
-      const result = await generateImageWithNanoBanana(prompt, apiKey, "1:1");
+      const result = await generateImageWithNanoBanana(apiKey, prompt, undefined, "1:1");
       
-      if (!result.imageUrl) {
-        return res.status(500).json({ error: "Не вдалося згенерувати зображення" });
+      if (!result.success || !result.imageUrl) {
+        return res.status(500).json({ error: result.error || "Не вдалося згенерувати зображення" });
       }
       
       res.json({ imageUrl: result.imageUrl, prompt });
