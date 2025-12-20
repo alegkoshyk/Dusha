@@ -59,6 +59,9 @@ interface GameCardProps {
   levelProgress?: number;
   completedCardsInLevel?: number;
   totalCardsInLevel?: number;
+  currentCardIndexInLevel?: number;
+  skippedCardsInLevel?: string[];
+  levelCardIds?: string[];
 }
 
 const SKIP_REASONS = [
@@ -82,7 +85,10 @@ export function GameCard({
   totalCards,
   levelProgress = 0,
   completedCardsInLevel = 0,
-  totalCardsInLevel = 1
+  totalCardsInLevel = 1,
+  currentCardIndexInLevel = 0,
+  skippedCardsInLevel = [],
+  levelCardIds = []
 }: GameCardProps) {
   const [, setLocation] = useLocation();
   const activeSessionId = new URLSearchParams(window.location.search).get('sessionId') || window.location.pathname.split('/').pop();
@@ -364,18 +370,27 @@ export function GameCard({
             
             {/* Посекційний прогрес */}
             <div className="grid grid-cols-5 gap-1.5">
-              {Array.from({ length: totalCardsInLevel }, (_, index) => (
-                <div
-                  key={index}
-                  className={`h-2.5 rounded-full transition-all duration-300 ${
-                    index < completedCardsInLevel
-                      ? 'bg-green-500 shadow-sm'
-                      : index === completedCardsInLevel
-                      ? `bg-gradient-to-r ${levelColors.bg} shadow-sm animate-pulse`
-                      : 'bg-gray-200 dark:bg-gray-600'
-                  }`}
-                />
-              ))}
+              {Array.from({ length: totalCardsInLevel }, (_, index) => {
+                const cardId = levelCardIds[index];
+                const isSkipped = cardId && skippedCardsInLevel.includes(cardId);
+                const isCompleted = index < completedCardsInLevel && !isSkipped;
+                const isCurrent = index === currentCardIndexInLevel;
+                
+                return (
+                  <div
+                    key={index}
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                      isCurrent
+                        ? `bg-gradient-to-r ${levelColors.bg} shadow-sm animate-pulse`
+                        : isSkipped
+                        ? 'bg-yellow-400 shadow-sm'
+                        : isCompleted
+                        ? 'bg-green-500 shadow-sm'
+                        : 'bg-gray-200 dark:bg-gray-600'
+                    }`}
+                  />
+                );
+              })}
             </div>
             
             {/* Прогрес категорії */}
@@ -411,6 +426,33 @@ export function GameCard({
                   {card.description}
                 </p>
                 
+                {/* Попередження про пропущену картку */}
+                {response && response.skipped && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
+                  >
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                          Ви пропустили цю картку
+                        </p>
+                        <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                          {response.reason === 'dont_know' && 'Причина: Не знаю відповіді'}
+                          {response.reason === 'no_time' && 'Причина: Не хотів витрачати час'}
+                          {response.reason === 'dont_understand' && 'Причина: Не розумію як це допоможе'}
+                          {response.reason === 'quick_pass' && 'Причина: Хотів швидко пройти гру'}
+                        </p>
+                        <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                          Заповніть відповідь, щоб завершити картку
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 {card.hint && (
                   <div className="mt-4">
                     <Button

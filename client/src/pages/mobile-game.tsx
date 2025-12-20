@@ -493,10 +493,23 @@ export default function MobileGame() {
     
     // Підрахунок прогресу конкретного рівня
     const levelCards = apiCards.filter(card => card.levelId === currentCard.levelId);
-    const completedLevelCards = levelCards.filter(card => playerProgress.completedCards.includes(card.id));
+    const levelCardIds = levelCards.map(card => card.id);
+    const currentCardIndexInLevel = levelCards.findIndex(card => card.id === currentCardId);
+    
+    // Визначаємо пропущені картки (мають responseType: 'skip' або response.skipped)
+    const skippedCardsInLevel = levelCards
+      .filter(card => {
+        const resp = sessionResponses?.[card.id];
+        return resp && (resp.skipped === true || resp.responseType === 'skip');
+      })
+      .map(card => card.id);
+    
+    const completedLevelCards = levelCards.filter(card => 
+      playerProgress.completedCards.includes(card.id) && !skippedCardsInLevel.includes(card.id)
+    );
     const levelProgress = Math.round((completedLevelCards.length / levelCards.length) * 100);
 
-    const canGoBack = cardIndex > 0;
+    const canGoBack = currentCardIndexInLevel > 0;
     
     return (
       <GameCard
@@ -514,6 +527,9 @@ export default function MobileGame() {
         levelProgress={levelProgress}
         completedCardsInLevel={completedLevelCards.length}
         totalCardsInLevel={levelCards.length}
+        currentCardIndexInLevel={currentCardIndexInLevel}
+        skippedCardsInLevel={skippedCardsInLevel}
+        levelCardIds={levelCardIds}
       />
     );
   }
