@@ -427,7 +427,7 @@ export function GameCard({
                 </p>
                 
                 {/* Попередження про пропущену картку */}
-                {response && response.skipped && (
+                {response && response.skipped === true && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -440,10 +440,14 @@ export function GameCard({
                           Ви пропустили цю картку
                         </p>
                         <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                          {response.reason === 'dont_know' && 'Причина: Не знаю відповіді'}
-                          {response.reason === 'no_time' && 'Причина: Не хотів витрачати час'}
-                          {response.reason === 'dont_understand' && 'Причина: Не розумію як це допоможе'}
-                          {response.reason === 'quick_pass' && 'Причина: Хотів швидко пройти гру'}
+                          {(() => {
+                            const reason = response.reason;
+                            if (reason === 'dont_know') return 'Причина: Не знаю відповіді';
+                            if (reason === 'no_time') return 'Причина: Не хотів витрачати час';
+                            if (reason === 'dont_understand') return 'Причина: Не розумію як це допоможе';
+                            if (reason === 'quick_pass') return 'Причина: Хотів швидко пройти гру';
+                            return '';
+                          })()}
                         </p>
                         <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
                           Заповніть відповідь, щоб завершити картку

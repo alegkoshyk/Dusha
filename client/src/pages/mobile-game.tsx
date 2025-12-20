@@ -327,22 +327,30 @@ export default function MobileGame() {
   };
 
   const handlePreviousCard = () => {
-    // Find previous card in the order
-    if (apiCards && currentCardId) {
-      const currentIndex = apiCards.findIndex(c => c.id === currentCardId);
-      if (currentIndex > 0) {
-        const prevCard = apiCards[currentIndex - 1];
-        handleCardSelect(prevCard.id);
-        return;
-      }
+    if (!apiCards || !currentCardId) {
+      setViewMode('field');
+      setLocation(`/game/${activeSessionId}`);
+      return;
     }
     
-    // Fallback to completed cards history
-    const completedCards = playerProgress.completedCards;
-    if (completedCards.length > 0) {
-      const previousCardId = completedCards[completedCards.length - 1];
-      handleCardSelect(previousCardId);
+    // Find current card and its level
+    const currentCard = apiCards.find(c => c.id === currentCardId);
+    if (!currentCard) {
+      setViewMode('field');
+      setLocation(`/game/${activeSessionId}`);
+      return;
+    }
+    
+    // Get cards in the same level
+    const levelCards = apiCards.filter(c => c.levelId === currentCard.levelId);
+    const currentIndexInLevel = levelCards.findIndex(c => c.id === currentCardId);
+    
+    if (currentIndexInLevel > 0) {
+      // Go to previous card in the same level
+      const prevCard = levelCards[currentIndexInLevel - 1];
+      handleCardSelect(prevCard.id);
     } else {
+      // First card in level - return to field
       setViewMode('field');
       setLocation(`/game/${activeSessionId}`);
     }
@@ -358,6 +366,10 @@ export default function MobileGame() {
         response: { skipped: true, reason },
         responseType: 'skip'
       });
+      
+      // Invalidate responses-map to update UI immediately
+      queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", activeSessionId, "responses-map"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", activeSessionId] });
       
       toast({
         title: "Картку пропущено",
@@ -496,11 +508,11 @@ export default function MobileGame() {
     const levelCardIds = levelCards.map(card => card.id);
     const currentCardIndexInLevel = levelCards.findIndex(card => card.id === currentCardId);
     
-    // Визначаємо пропущені картки (мають responseType: 'skip' або response.skipped)
+    // Визначаємо пропущені картки - API повертає response з skipped: true
     const skippedCardsInLevel = levelCards
       .filter(card => {
         const resp = sessionResponses?.[card.id];
-        return resp && (resp.skipped === true || resp.responseType === 'skip');
+        return resp && resp.skipped === true;
       })
       .map(card => card.id);
     
@@ -509,7 +521,17 @@ export default function MobileGame() {
     );
     const levelProgress = Math.round((completedLevelCards.length / levelCards.length) * 100);
 
+    // Can go back if not the first card in this level
     const canGoBack = currentCardIndexInLevel > 0;
+    
+    console.log('Card view debug:', {
+      currentCardId,
+      currentCardIndexInLevel,
+      levelCardIds,
+      skippedCardsInLevel,
+      canGoBack,
+      sessionResponses: sessionResponses ? Object.keys(sessionResponses) : []
+    });
     
     return (
       <GameCard

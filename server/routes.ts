@@ -776,6 +776,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get card responses as a map (cardId -> response) for UI consumption
+  app.get("/api/game-sessions/:id/responses-map", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const responses = await storage.getSessionCardResponses(id);
+      
+      // Convert array to map for easier lookup in UI
+      const responsesMap: Record<string, any> = {};
+      for (const r of responses) {
+        responsesMap[r.cardId] = {
+          response: r.response,
+          responseType: r.responseType,
+          skipped: r.responseType === 'skip' || (r.response && typeof r.response === 'object' && r.response.skipped === true),
+          reason: r.response && typeof r.response === 'object' ? r.response.reason : undefined,
+          timeSpent: r.timeSpent,
+          isWithinTimeLimit: r.isWithinTimeLimit,
+          earnedXP: r.earnedXP
+        };
+      }
+      
+      res.json(responsesMap);
+    } catch (error) {
+      console.error("Error fetching card responses map:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // =============================================================================
   // ADMIN ROUTES - Access restricted to admin role only
   // =============================================================================
