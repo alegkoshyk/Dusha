@@ -563,6 +563,7 @@ export default function MobileGame() {
       playerProgress={playerProgress}
       onCardSelect={handleCardSelect}
       onLevelChange={handleLevelChange}
+      sessionResponses={sessionResponses}
     />
   );
 }

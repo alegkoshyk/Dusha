@@ -16,7 +16,8 @@ import {
   Zap,
   Heart,
   Brain,
-  Dumbbell
+  Dumbbell,
+  AlertCircle
 } from 'lucide-react';
 import type { GameCard, GameLevel, PlayerProgress } from '@shared/schema';
 import { brandGameField, mobileGameCards, getUnlockedCards, calculateTotalXP, getEarnedBadges } from '@/lib/mobileGameData';
@@ -27,6 +28,7 @@ interface GameFieldProps {
   playerProgress: PlayerProgress;
   onCardSelect: (cardId: string) => void;
   onLevelChange: (level: GameLevel) => void;
+  sessionResponses?: Record<string, any>;
 }
 
 const levelIcons = {
@@ -41,7 +43,14 @@ const levelColors = {
   body: 'from-green-500 to-emerald-500'
 };
 
-export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameFieldProps) {
+const SKIP_REASON_LABELS: Record<string, string> = {
+  'dont_know': 'Не знаю відповіді',
+  'no_time': 'Не хотів витрачати час',
+  'dont_understand': 'Не розумію як це допоможе',
+  'quick_pass': 'Хотів швидко пройти'
+};
+
+export function GameField({ playerProgress, onCardSelect, onLevelChange, sessionResponses = {} }: GameFieldProps) {
   const [selectedLevel, setSelectedLevel] = useState<GameLevel>(playerProgress.currentLevel || 'soul');
   const [unlockedCards, setUnlockedCards] = useState<string[]>([]);
   
@@ -61,6 +70,17 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
   const isCardCompleted = (cardId: string) => playerProgress.completedCards.includes(cardId);
   const isCardUnlocked = (cardId: string) => unlockedCards.includes(cardId);
   const isCardCurrent = (cardId: string) => cardId === playerProgress.currentCard;
+  const isCardSkipped = (cardId: string) => {
+    const resp = sessionResponses[cardId];
+    return resp && resp.skipped === true;
+  };
+  const getSkipReason = (cardId: string) => {
+    const resp = sessionResponses[cardId];
+    if (resp && resp.reason) {
+      return SKIP_REASON_LABELS[resp.reason] || resp.reason;
+    }
+    return '';
+  };
 
   const getLevelProgress = (level: GameLevel) => {
     const levelCards = mobileGameCards.filter(card => card.level === level);
@@ -87,6 +107,7 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
   };
 
   const getCardStatusIcon = (card: GameCard) => {
+    if (isCardSkipped(card.id)) return AlertCircle;
     if (isCardCompleted(card.id)) return CheckCircle;
     if (isCardCurrent(card.id)) return Play;
     if (!isCardUnlocked(card.id)) return Lock;
@@ -94,6 +115,7 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
   };
 
   const getCardStatusColor = (card: GameCard) => {
+    if (isCardSkipped(card.id)) return 'text-yellow-500';
     if (isCardCompleted(card.id)) return 'text-green-500';
     if (isCardCurrent(card.id)) return 'text-blue-500';
     if (!isCardUnlocked(card.id)) return 'text-gray-400';
@@ -228,6 +250,8 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
                 const StatusIcon = getCardStatusIcon(card);
                 const statusColor = getCardStatusColor(card);
                 const completed = isCardCompleted(card.id);
+                const skipped = isCardSkipped(card.id);
+                const skipReason = getSkipReason(card.id);
                 const current = isCardCurrent(card.id);
                 const unlocked = isCardUnlocked(card.id);
                 
@@ -243,7 +267,8 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
                       className={`
                         transition-all duration-200 cursor-pointer hover:shadow-lg
                         ${current ? 'ring-2 ring-blue-500 shadow-lg' : ''}
-                        ${completed ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : ''}
+                        ${skipped ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800' : ''}
+                        ${completed && !skipped ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : ''}
                         ${!unlocked ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-50 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:border-blue-700'}
                       `}
                       onClick={() => unlocked && onCardSelect(card.id)}
@@ -251,7 +276,7 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start gap-4">
-                          <div className={`p-2 rounded-lg ${completed ? 'bg-green-100 dark:bg-green-900' : current ? 'bg-blue-100 dark:bg-blue-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                          <div className={`p-2 rounded-lg ${skipped ? 'bg-yellow-100 dark:bg-yellow-900' : completed ? 'bg-green-100 dark:bg-green-900' : current ? 'bg-blue-100 dark:bg-blue-900' : 'bg-gray-100 dark:bg-gray-800'}`}>
                             <StatusIcon className={`w-5 h-5 ${statusColor}`} />
                           </div>
                           
@@ -297,7 +322,7 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
                                 )}
                               </div>
                               
-                              {unlocked && !completed && (
+                              {unlocked && !completed && !skipped && (
                                 <Button 
                                   size="sm" 
                                   variant={current ? "default" : "outline"}
@@ -308,7 +333,19 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange }: GameF
                                 </Button>
                               )}
                               
-                              {completed && (
+                              {skipped && (
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <div className="flex items-center gap-1 text-yellow-600">
+                                    <AlertCircle className="w-4 h-4" />
+                                    <span className="text-xs font-medium">Пропущено</span>
+                                  </div>
+                                  {skipReason && (
+                                    <span className="text-xs text-yellow-500">{skipReason}</span>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {completed && !skipped && (
                                 <div className="flex items-center gap-1 text-green-600">
                                   <CheckCircle className="w-4 h-4" />
                                   <span className="text-xs font-medium">Завершено</span>
