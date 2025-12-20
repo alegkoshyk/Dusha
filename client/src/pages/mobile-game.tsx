@@ -65,9 +65,17 @@ export default function MobileGame() {
   });
 
   // Get cards from API
-  const { data: apiCards = [] } = useQuery<any[]>({
+  const { data: rawApiCards = [] } = useQuery<any[]>({
     queryKey: ["/api/game-cards"],
     enabled: true,
+  });
+  
+  // Sort cards stably by level and position for consistent navigation
+  const apiCards = [...rawApiCards].sort((a, b) => {
+    const levelOrder: Record<string, number> = { 'soul': 0, 'mind': 1, 'body': 2 };
+    const levelDiff = (levelOrder[a.levelId] || 0) - (levelOrder[b.levelId] || 0);
+    if (levelDiff !== 0) return levelDiff;
+    return (a.position || 0) - (b.position || 0);
   });
   
   // Get session responses from API
@@ -497,6 +505,7 @@ export default function MobileGame() {
         onResponse={handleCardResponse}
         onNext={handleNextCard}
         onPrevious={handlePreviousCard}
+        onBackToLevel={handleReturnToField}
         onSkip={handleSkipCard}
         canGoNext={true}
         canGoPrevious={canGoBack}

@@ -50,6 +50,7 @@ interface GameCardProps {
   onResponse: (response: any, timeData?: { timeSpent: number; isWithinTimeLimit: boolean; earnedXP: number }) => void;
   onNext: () => void;
   onPrevious?: () => void;
+  onBackToLevel?: () => void;
   onSkip?: (reason: string) => void;
   canGoNext: boolean;
   canGoPrevious: boolean;
@@ -72,7 +73,8 @@ export function GameCard({
   response, 
   onResponse, 
   onNext, 
-  onPrevious, 
+  onPrevious,
+  onBackToLevel,
   onSkip,
   canGoNext,
   canGoPrevious,
@@ -304,13 +306,14 @@ export function GameCard({
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              {canGoPrevious && (
+              {/* Back to level button - always visible */}
+              {onBackToLevel && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={onPrevious}
+                  onClick={onBackToLevel}
                   className="p-2"
-                  data-testid="button-previous"
+                  data-testid="button-back-to-level"
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </Button>
