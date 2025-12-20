@@ -4,10 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ArrowRight, Lightbulb, Plus, Check } from "lucide-react";
-import type { GameCard } from "@shared/schema";
+import type { StaticGameCard } from "@/lib/gameData";
 
 interface GameCardProps {
-  card: GameCard;
+  card: StaticGameCard;
   responses: Record<string, any>;
   onSubmit: (responses: Record<string, any>) => void;
   onPrevious?: () => void;
@@ -105,7 +105,7 @@ export default function GameCardComponent({
       return textValue.trim().length >= minLength;
     }
     
-    if (card.type === "choice" || card.type === "archetype" || card.type === "audience") {
+    if (card.type === "choice" || card.type === "archetype") {
       return !!formData.choice;
     }
     
@@ -254,7 +254,7 @@ export default function GameCardComponent({
                 </div>
               )}
 
-              {(card.type === "choice" || card.type === "archetype" || card.type === "audience") && card.options && (
+              {(card.type === "choice" || card.type === "archetype") && card.options && (
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-4">
                     Оберіть найбільш підходящий варіант:

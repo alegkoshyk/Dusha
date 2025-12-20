@@ -1,30 +1,30 @@
 import { Heart, Brain, ServerCog } from "lucide-react";
-import type { GameLevel } from "@shared/schema";
+import type { StaticGameLevel } from "@/lib/gameData";
 
 interface LevelNavigationProps {
-  currentLevel: GameLevel;
-  completedLevels: GameLevel[];
+  currentLevel: StaticGameLevel;
+  completedLevels: StaticGameLevel[];
   progress: number;
 }
 
 export default function LevelNavigation({ currentLevel, completedLevels, progress }: LevelNavigationProps) {
   const levels = [
     {
-      id: "soul" as GameLevel,
+      id: "soul" as StaticGameLevel,
       name: "Душа Бренду",
       description: "Місія, цінності та історія",
       icon: Heart,
       colorClass: "soul",
     },
     {
-      id: "mind" as GameLevel,
+      id: "mind" as StaticGameLevel,
       name: "Розум Бренду", 
       description: "Стратегія та позиціонування",
       icon: Brain,
       colorClass: "mind",
     },
     {
-      id: "body" as GameLevel,
+      id: "body" as StaticGameLevel,
       name: "Тіло Бренду",
       description: "Реалізація та дії",
       icon: ServerCog,
@@ -32,13 +32,13 @@ export default function LevelNavigation({ currentLevel, completedLevels, progres
     },
   ];
 
-  const getLevelStatus = (levelId: GameLevel) => {
+  const getLevelStatus = (levelId: StaticGameLevel) => {
     if (completedLevels.includes(levelId)) return "completed";
     if (currentLevel === levelId) return "active";
     return "locked";
   };
 
-  const getLevelProgress = (levelId: GameLevel) => {
+  const getLevelProgress = (levelId: StaticGameLevel) => {
     if (completedLevels.includes(levelId)) return 100;
     if (currentLevel === levelId) return Math.min(progress, 100);
     return 0;

@@ -1,16 +1,22 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, Brain, ServerCog, Expand } from "lucide-react";
-import type { BrandMap, GameLevel } from "@shared/schema";
+import type { StaticGameLevel } from "@/lib/gameData";
+
+interface LocalBrandMap {
+  soul: { values: string[]; mission?: string; story?: string; purpose?: string };
+  mind: { targetAudience?: string; brandIdea?: string; archetype?: string; promise?: string; positioning?: string };
+  body: { products: string[]; channels: string[]; tone?: string; visualStyle?: string };
+}
 
 interface BrandMapPreviewProps {
-  brandMap: BrandMap;
-  currentLevel: GameLevel;
+  brandMap: LocalBrandMap;
+  currentLevel: StaticGameLevel;
 }
 
 export default function BrandMapPreview({ brandMap, currentLevel }: BrandMapPreviewProps) {
-  const getLevelStatus = (level: GameLevel) => {
-    const hasContent = (level: GameLevel) => {
+  const getLevelStatus = (level: StaticGameLevel) => {
+    const hasContent = (level: StaticGameLevel) => {
       switch (level) {
         case "soul":
           return brandMap.soul.values.length > 0 || !!brandMap.soul.mission;
@@ -30,7 +36,7 @@ export default function BrandMapPreview({ brandMap, currentLevel }: BrandMapPrev
 
   const sections = [
     {
-      id: "soul" as GameLevel,
+      id: "soul" as StaticGameLevel,
       title: "Душа",
       icon: Heart,
       colorClass: "soul",
@@ -43,7 +49,7 @@ export default function BrandMapPreview({ brandMap, currentLevel }: BrandMapPrev
       ].filter(item => item.value),
     },
     {
-      id: "mind" as GameLevel,
+      id: "mind" as StaticGameLevel,
       title: "Розум",
       icon: Brain,
       colorClass: "mind", 
@@ -57,7 +63,7 @@ export default function BrandMapPreview({ brandMap, currentLevel }: BrandMapPrev
       ].filter(item => item.value),
     },
     {
-      id: "body" as GameLevel,
+      id: "body" as StaticGameLevel,
       title: "Тіло",
       icon: ServerCog,
       colorClass: "body",
@@ -65,9 +71,8 @@ export default function BrandMapPreview({ brandMap, currentLevel }: BrandMapPrev
       items: [
         { label: "Продукти", value: brandMap.body.products.join(", ") },
         { label: "Канали", value: brandMap.body.channels.join(", ") },
-        { label: "Дії", value: brandMap.body.actions.join(", ") },
         { label: "Стиль", value: brandMap.body.visualStyle },
-        { label: "Тон", value: brandMap.body.toneOfVoice },
+        { label: "Тон", value: brandMap.body.tone },
       ].filter(item => item.value),
     },
   ];

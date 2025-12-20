@@ -1,7 +1,31 @@
-import type { GameCard, GameLevel } from "@shared/schema";
+// Local game card type for static game data
+export type StaticGameLevel = "soul" | "mind" | "body";
+
+export interface StaticGameCard {
+  id: string;
+  level: StaticGameLevel;
+  order: number;
+  title: string;
+  description: string;
+  hint?: string;
+  type: "text" | "choice" | "values" | "reflection" | "completion" | "archetype";
+  required: boolean;
+  validation?: {
+    minLength?: number;
+    maxLength?: number;
+    minSelections?: number;
+    maxSelections?: number;
+  };
+  options?: Array<{
+    id: string;
+    label: string;
+    icon: string;
+    description: string;
+  }>;
+}
 
 // Game cards data based on the Ukrainian brand transformation guide
-export const gameCards: GameCard[] = [
+export const gameCards: StaticGameCard[] = [
   // SOUL LEVEL CARDS (Душа бренду)
   {
     id: "soul-values",
@@ -286,15 +310,19 @@ export const gameCards: GameCard[] = [
 ];
 
 // Helper functions for game logic
-export const getCardsByLevel = (level: GameLevel): GameCard[] => {
+export const getCardsByLevel = (level: StaticGameLevel): StaticGameCard[] => {
   return gameCards.filter(card => card.level === level).sort((a, b) => a.order - b.order);
 };
 
-export const getCardById = (cardId: string): GameCard | undefined => {
+export const getCardById = (cardId: string): StaticGameCard | undefined => {
   return gameCards.find(card => card.id === cardId);
 };
 
-export const getNextCard = (currentCard: GameCard): GameCard | null => {
+export const getCardByLevelAndOrder = (level: StaticGameLevel, order: number): StaticGameCard | undefined => {
+  return gameCards.find(card => card.level === level && card.order === order);
+};
+
+export const getNextCard = (currentCard: StaticGameCard): StaticGameCard | null => {
   const levelCards = getCardsByLevel(currentCard.level);
   const currentIndex = levelCards.findIndex(card => card.id === currentCard.id);
   
@@ -312,7 +340,7 @@ export const getNextCard = (currentCard: GameCard): GameCard | null => {
   return null;
 };
 
-export const getPreviousCard = (currentCard: GameCard): GameCard | null => {
+export const getPreviousCard = (currentCard: StaticGameCard): StaticGameCard | null => {
   const levelCards = getCardsByLevel(currentCard.level);
   const currentIndex = levelCards.findIndex(card => card.id === currentCard.id);
   
@@ -330,7 +358,7 @@ export const getPreviousCard = (currentCard: GameCard): GameCard | null => {
   return null;
 };
 
-export const getNextLevel = (currentLevel: GameLevel): GameLevel | null => {
+export const getNextLevel = (currentLevel: StaticGameLevel): StaticGameLevel | null => {
   switch (currentLevel) {
     case "soul": return "mind";
     case "mind": return "body";
@@ -339,7 +367,7 @@ export const getNextLevel = (currentLevel: GameLevel): GameLevel | null => {
   }
 };
 
-export const getPreviousLevel = (currentLevel: GameLevel): GameLevel | null => {
+export const getPreviousLevel = (currentLevel: StaticGameLevel): StaticGameLevel | null => {
   switch (currentLevel) {
     case "body": return "mind";
     case "mind": return "soul";
@@ -354,7 +382,7 @@ export const calculateProgress = (responses: Record<string, any>): number => {
   return Math.round((completedCards / totalCards) * 100);
 };
 
-export const getLevelProgress = (level: GameLevel, responses: Record<string, any>): number => {
+export const getLevelProgress = (level: StaticGameLevel, responses: Record<string, any>): number => {
   const levelCards = getCardsByLevel(level);
   const completedCards = levelCards.filter(card => responses[card.id]).length;
   return Math.round((completedCards / levelCards.length) * 100);

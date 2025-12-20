@@ -9,8 +9,27 @@ import GameCard from "@/components/game/GameCard";
 import BrandMapPreview from "@/components/game/BrandMapPreview";
 import FloatingActions from "@/components/game/FloatingActions";
 import HelpModal from "@/components/game/HelpModal";
-import { gameCards } from "@/lib/gameData";
-import type { GameSession, GameLevel } from "@shared/schema";
+import { gameCards, getCardById, getCardsByLevel, getNextCard, getPreviousCard, type StaticGameLevel, type StaticGameCard } from "@/lib/gameData";
+
+interface GameSessionData {
+  id: string;
+  currentLevel: StaticGameLevel;
+  currentCard: string;
+  progress: number;
+  completedCards: string[];
+  totalXp: number;
+}
+
+interface CardResponseData {
+  cardId: string;
+  response: any;
+}
+
+interface LocalBrandMap {
+  soul: { values: string[]; mission?: string; story?: string; purpose?: string };
+  mind: { targetAudience?: string; brandIdea?: string; archetype?: string; promise?: string; positioning?: string };
+  body: { products: string[]; channels: string[]; tone?: string; visualStyle?: string };
+}
 
 export default function Game() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -18,24 +37,38 @@ export default function Game() {
   const queryClient = useQueryClient();
   const [helpModalOpen, setHelpModalOpen] = useState(false);
 
-  // Get or create game session
-  const { data: session, isLoading, error } = useQuery<GameSession>({
+  // Get game session
+  const { data: session, isLoading, error } = useQuery<GameSessionData>({
     queryKey: ["/api/game-sessions", sessionId],
     enabled: !!sessionId,
   });
 
+  // Get card responses for session
+  const { data: responsesData = [] } = useQuery<CardResponseData[]>({
+    queryKey: ["/api/game-sessions", sessionId, "responses"],
+    enabled: !!sessionId,
+  });
+
+  // Convert responses array to map
+  const responses: Record<string, any> = {};
+  responsesData.forEach(r => {
+    responses[r.cardId] = r.response;
+  });
+
   // Save card response mutation
   const saveResponseMutation = useMutation({
-    mutationFn: async ({ cardId, responses }: { cardId: string; responses: Record<string, any> }) => {
+    mutationFn: async ({ cardId, response }: { cardId: string; response: Record<string, any> }) => {
       if (!sessionId) throw new Error("No session ID");
-      const response = await apiRequest("POST", `/api/game-sessions/${sessionId}/responses`, {
+      const res = await apiRequest("POST", `/api/game-sessions/${sessionId}/responses`, {
         cardId,
-        responses,
+        response,
+        responseType: "text",
       });
-      return response.json() as Promise<GameSession>;
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", sessionId, "responses"] });
       queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", sessionId, "brand-map"] });
     },
     onError: () => {
@@ -50,17 +83,17 @@ export default function Game() {
   // Update progress mutation
   const updateProgressMutation = useMutation({
     mutationFn: async ({ currentLevel, currentCard, progress }: { 
-      currentLevel: GameLevel; 
-      currentCard: number; 
+      currentLevel: StaticGameLevel; 
+      currentCard: string; 
       progress: number 
     }) => {
       if (!sessionId) throw new Error("No session ID");
-      const response = await apiRequest("POST", `/api/game-sessions/${sessionId}/progress`, {
+      const res = await apiRequest("POST", `/api/game-sessions/${sessionId}/progress`, {
         currentLevel,
         currentCard,
         progress,
       });
-      return response.json() as Promise<GameSession>;
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/game-sessions", sessionId] });
@@ -68,7 +101,7 @@ export default function Game() {
   });
 
   // Get brand map
-  const { data: brandMap } = useQuery<BrandMap>({
+  const { data: brandMap } = useQuery<LocalBrandMap>({
     queryKey: ["/api/game-sessions", sessionId, "brand-map"],
     enabled: !!sessionId,
   });
@@ -96,90 +129,65 @@ export default function Game() {
     );
   }
 
-  const currentLevelCards = gameCards.filter(card => card.level === session.currentLevel);
-  const currentCard = currentLevelCards.find(card => card.order === session.currentCard);
+  // Get current card by ID
+  const currentCard = getCardById(session.currentCard);
+  const currentLevelCards = getCardsByLevel(session.currentLevel);
   const totalCards = gameCards.length;
-  const completedCards = Object.keys(session.responses as Record<string, any> || {}).length;
+  const completedCards = Object.keys(responses).length;
   const progress = Math.round((completedCards / totalCards) * 100);
 
-  const handleCardSubmit = async (cardId: string, responses: Record<string, any>) => {
-    await saveResponseMutation.mutateAsync({ cardId, responses });
+  // Get current card index in level for display
+  const currentCardIndex = currentCard ? currentLevelCards.findIndex(c => c.id === currentCard.id) + 1 : 1;
+
+  const handleCardSubmit = async (cardId: string, cardResponses: Record<string, any>) => {
+    await saveResponseMutation.mutateAsync({ cardId, response: cardResponses });
     
-    // Move to next card or level
-    const nextCard = currentLevelCards.find(card => card.order === session.currentCard + 1);
+    if (!currentCard) return;
+
+    // Move to next card
+    const nextCard = getNextCard(currentCard);
     if (nextCard) {
-      // Move to next card in current level
       await updateProgressMutation.mutateAsync({
-        currentLevel: session.currentLevel as GameLevel,
-        currentCard: session.currentCard + 1,
+        currentLevel: nextCard.level,
+        currentCard: nextCard.id,
         progress: Math.round(((completedCards + 1) / totalCards) * 100),
       });
     } else {
-      // Move to next level
-      let nextLevel: GameLevel | null = null;
-      if (session.currentLevel === "soul") nextLevel = "mind";
-      else if (session.currentLevel === "mind") nextLevel = "body";
-      
-      if (nextLevel) {
-        await updateProgressMutation.mutateAsync({
-          currentLevel: nextLevel,
-          currentCard: 1,
-          progress: Math.round(((completedCards + 1) / totalCards) * 100),
-        });
-      } else {
-        // Game completed
-        await apiRequest("POST", `/api/game-sessions/${sessionId}/complete`);
-        toast({
-          title: "Вітаємо!",
-          description: "Ви завершили гру. Ваша карта бренду готова!",
-        });
-      }
+      // Game completed
+      await apiRequest("POST", `/api/game-sessions/${sessionId}/complete`);
+      toast({
+        title: "Вітаємо!",
+        description: "Ви завершили гру. Ваша карта бренду готова!",
+      });
     }
   };
 
   const handlePreviousCard = async () => {
-    if (session.currentCard > 1) {
-      // Go to previous card in current level
+    if (!currentCard) return;
+
+    const prevCard = getPreviousCard(currentCard);
+    if (prevCard) {
       await updateProgressMutation.mutateAsync({
-        currentLevel: session.currentLevel as GameLevel,
-        currentCard: session.currentCard - 1,
+        currentLevel: prevCard.level,
+        currentCard: prevCard.id,
         progress,
       });
-    } else {
-      // Go to previous level
-      let previousLevel: GameLevel | null = null;
-      let previousCard = 1;
-      
-      if (session.currentLevel === "mind") {
-        previousLevel = "soul";
-        const soulCards = gameCards.filter(card => card.level === "soul");
-        previousCard = soulCards.length;
-      } else if (session.currentLevel === "body") {
-        previousLevel = "mind";
-        const mindCards = gameCards.filter(card => card.level === "mind");
-        previousCard = mindCards.length;
-      }
-      
-      if (previousLevel) {
-        await updateProgressMutation.mutateAsync({
-          currentLevel: previousLevel,
-          currentCard: previousCard,
-          progress,
-        });
-      }
     }
   };
+
+  // Check if we can go back
+  const canGoBack = currentCard ? getPreviousCard(currentCard) !== null : false;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-background">
       <GameHeader 
-        level={session.currentLevel as GameLevel}
+        level={session.currentLevel}
         progress={progress}
         sessionId={sessionId!}
       />
       
       <LevelNavigation 
-        currentLevel={session.currentLevel as GameLevel}
+        currentLevel={session.currentLevel}
         completedLevels={[]}
         progress={progress}
       />
@@ -188,11 +196,11 @@ export default function Game() {
         <div className="level-transition">
           <GameCard
             card={currentCard}
-            responses={(session.responses as Record<string, any>)?.[currentCard.id] || {}}
-            onSubmit={(responses) => handleCardSubmit(currentCard.id, responses)}
-            onPrevious={session.currentCard > 1 || session.currentLevel !== "soul" ? handlePreviousCard : undefined}
+            responses={responses[currentCard.id] || {}}
+            onSubmit={(cardResponses) => handleCardSubmit(currentCard.id, cardResponses)}
+            onPrevious={canGoBack ? handlePreviousCard : undefined}
             isLoading={saveResponseMutation.isPending || updateProgressMutation.isPending}
-            cardNumber={session.currentCard}
+            cardNumber={currentCardIndex}
             totalCards={currentLevelCards.length}
           />
         </div>
@@ -201,7 +209,7 @@ export default function Game() {
       {brandMap && (
         <BrandMapPreview 
           brandMap={brandMap}
-          currentLevel={session.currentLevel as GameLevel}
+          currentLevel={session.currentLevel}
         />
       )}
 

@@ -4,10 +4,10 @@ import { Heart, Clock, Save } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { GameLevel } from "@shared/schema";
+import type { StaticGameLevel } from "@/lib/gameData";
 
 interface GameHeaderProps {
-  level: GameLevel;
+  level: StaticGameLevel;
   progress: number;
   sessionId: string;
 }
@@ -52,7 +52,7 @@ export default function GameHeader({ level, progress, sessionId }: GameHeaderPro
     return `${mins} хв`;
   };
 
-  const getLevelColor = (level: GameLevel) => {
+  const getLevelColor = (level: StaticGameLevel) => {
     switch (level) {
       case "soul": return "from-soul-500 to-soul-600";
       case "mind": return "from-mind-500 to-mind-600";
