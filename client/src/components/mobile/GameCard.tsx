@@ -640,34 +640,50 @@ export function GameCard({
                     <span>{currentResponse.length}/{(card.validation && 'maxLength' in card.validation) ? (card.validation as any).maxLength : '∞'}</span>
                   </div>
                   
-                  {/* AI Асистент */}
+                  {/* AI Асистент та Очистити */}
                   <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAIAssist}
-                      disabled={isAILoading}
-                      className="w-full flex items-center justify-center gap-2 border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20"
-                      data-testid="button-ai-assist"
-                    >
-                      {isAILoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Генерую...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          AI Асистент
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAIAssist}
+                        disabled={isAILoading}
+                        className="flex-1 flex items-center justify-center gap-2 border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                        data-testid="button-ai-assist"
+                      >
+                        {isAILoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="hidden sm:inline">Генерую...</span>
+                            <span className="sm:hidden">...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" />
+                            <span className="hidden sm:inline">AI Асистент</span>
+                            <span className="sm:hidden">AI</span>
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentResponse('')}
+                        disabled={!currentResponse || isAILoading}
+                        className="flex items-center justify-center gap-2 border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800 px-3"
+                        data-testid="button-clear-text"
+                      >
+                        <X className="w-4 h-4" />
+                        <span className="hidden sm:inline">Очистити</span>
+                      </Button>
+                    </div>
                     {aiError && (
                       <p className="text-xs text-red-500 mt-1 text-center">{aiError}</p>
                     )}
                     <p className="text-xs text-gray-400 text-center mt-1">
-                      Допоможе сформулювати відповідь у рамках лімітів
+                      AI допоможе у рамках {(card.validation && 'minLength' in card.validation) ? (card.validation as any).minLength : 50}-{(card.validation && 'maxLength' in card.validation) ? (card.validation as any).maxLength : 500} символів
                     </p>
                   </div>
                 </div>
