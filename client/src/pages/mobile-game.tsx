@@ -186,13 +186,13 @@ export default function MobileGame() {
   const handleCardSelect = (cardId: string) => {
     setCurrentCardId(cardId);
     setViewMode('card');
-    setLocation(`/game/${sessionId}?card=${cardId}`);
+    setLocation(`/game/${activeSessionId}?card=${cardId}`);
   };
 
   const handleGoBack = () => {
     setViewMode('field');
     setCurrentCardId('');
-    setLocation(`/game/${sessionId}`);
+    setLocation(`/game/${activeSessionId}`);
   };
 
   const handleCardResponse = async (response: any, timeData?: { timeSpent: number; isWithinTimeLimit: boolean; earnedXP: number }) => {
