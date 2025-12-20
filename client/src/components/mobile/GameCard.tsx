@@ -62,6 +62,7 @@ interface GameCardProps {
   currentCardIndexInLevel?: number;
   skippedCardsInLevel?: string[];
   levelCardIds?: string[];
+  completedCardIds?: string[];
 }
 
 const SKIP_REASONS = [
@@ -88,7 +89,8 @@ export function GameCard({
   totalCardsInLevel = 1,
   currentCardIndexInLevel = 0,
   skippedCardsInLevel = [],
-  levelCardIds = []
+  levelCardIds = [],
+  completedCardIds = []
 }: GameCardProps) {
   const [, setLocation] = useLocation();
   const activeSessionId = new URLSearchParams(window.location.search).get('sessionId') || window.location.pathname.split('/').pop();
@@ -373,7 +375,7 @@ export function GameCard({
               {Array.from({ length: totalCardsInLevel }, (_, index) => {
                 const cardId = levelCardIds[index];
                 const isSkipped = cardId && skippedCardsInLevel.includes(cardId);
-                const isCompleted = index < completedCardsInLevel && !isSkipped;
+                const isCompleted = cardId && completedCardIds.includes(cardId) && !isSkipped;
                 const isCurrent = index === currentCardIndexInLevel;
                 
                 return (
