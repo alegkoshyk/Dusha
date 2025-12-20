@@ -38,7 +38,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useLocation } from 'wouter';
-import { apiRequest } from '@/lib/queryClient';
+import { apiRequestJson } from '@/lib/queryClient';
 import type { GameCard as GameCardType, CardProperty } from '@shared/schema';
 
 interface ExtendedGameCard extends GameCardType {
@@ -238,7 +238,7 @@ export function GameCard({
       const minLength = validation.minLength || 50;
       const maxLength = validation.maxLength || 500;
       
-      const result = await apiRequest('POST', '/api/ai/assist', {
+      const result = await apiRequestJson<{ text?: string; error?: string }>('POST', '/api/ai/assist', {
         cardTitle: card.title,
         cardDescription: card.description,
         currentText: currentResponse,
