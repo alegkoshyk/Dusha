@@ -406,7 +406,7 @@ export function GameCard({
                 {levelName}
               </span>
               <Badge variant="outline" className="text-xs">
-                {completedCardsInLevel}/{totalCardsInLevel} карток
+                {currentCardIndexInLevel + 1}/{totalCardsInLevel} карток
               </Badge>
             </div>
             
