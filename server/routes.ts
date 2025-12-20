@@ -2177,6 +2177,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Profile endpoints
+  app.get("/api/user/profile", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      let profile = await storage.getUserProfile(userId);
+      if (!profile) {
+        profile = await storage.createUserProfile({ userId } as any);
+      }
+
+      // Don't expose API key
+      const { geminiApiKey, ...safeProfile } = profile;
+      res.json({ ...safeProfile, hasApiKey: !!geminiApiKey });
+    } catch (error: any) {
+      console.error("Get profile error:", error);
+      res.status(500).json({ error: "Не вдалося отримати профіль" });
+    }
+  });
+
+  app.patch("/api/user/profile", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { firstName, lastName, bio, company, position, industry, employeeCount, website } = req.body;
+
+      let profile = await storage.getUserProfile(userId);
+      if (!profile) {
+        profile = await storage.createUserProfile({ 
+          userId, firstName, lastName, bio, company, position, industry, employeeCount, website 
+        } as any);
+      } else {
+        profile = await storage.updateUserProfile(userId, { 
+          firstName, lastName, bio, company, position, industry, employeeCount, website 
+        });
+      }
+
+      res.json(profile);
+    } catch (error: any) {
+      console.error("Update profile error:", error);
+      res.status(500).json({ error: "Не вдалося оновити профіль" });
+    }
+  });
+
+  app.post("/api/user/avatar", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { imageData } = req.body;
+      if (!imageData || !imageData.startsWith('data:image/')) {
+        return res.status(400).json({ error: "Невірний формат зображення" });
+      }
+
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      
+      // Upload avatar to object storage
+      const avatarUrl = await objectStorageService.uploadAvatar(userId, imageData);
+
+      // Update profile
+      await storage.updateUserProfile(userId, { avatarUrl });
+
+      res.json({ avatarUrl });
+    } catch (error: any) {
+      console.error("Upload avatar error:", error);
+      res.status(500).json({ error: error.message || "Не вдалося завантажити аватар" });
+    }
+  });
+
+  app.post("/api/user/onboarding/complete", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { firstName, lastName, company, position, industry, employeeCount, skipped } = req.body;
+
+      let profile = await storage.getUserProfile(userId);
+      if (!profile) {
+        profile = await storage.createUserProfile({ 
+          userId, 
+          firstName, 
+          lastName, 
+          company, 
+          position, 
+          industry, 
+          employeeCount,
+          onboardingCompleted: !skipped,
+          onboardingSkipped: !!skipped
+        } as any);
+      } else {
+        profile = await storage.updateUserProfile(userId, { 
+          ...(firstName && { firstName }),
+          ...(lastName && { lastName }),
+          ...(company && { company }),
+          ...(position && { position }),
+          ...(industry && { industry }),
+          ...(employeeCount && { employeeCount }),
+          onboardingCompleted: !skipped,
+          onboardingSkipped: !!skipped
+        });
+      }
+
+      // Award XP for completing onboarding
+      if (!skipped) {
+        await storage.updateUserProfile(userId, { 
+          totalXp: (profile?.totalXp || 0) + 50 
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Complete onboarding error:", error);
+      res.status(500).json({ error: "Не вдалося завершити онбординг" });
+    }
+  });
+
   // NanoBanana Image Generation
   app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
     try {

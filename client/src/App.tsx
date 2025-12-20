@@ -26,6 +26,7 @@ import Users from "@/pages/admin/Users";
 import DatabaseSync from "@/pages/admin/DatabaseSync";
 import AdminSettings from "@/pages/admin/Settings";
 import UserSettings from "@/pages/settings";
+import Profile from "@/pages/profile";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -68,6 +69,7 @@ function Router() {
           <Route path="/rcadmin/db-sync" component={DatabaseSync} />
           <Route path="/rcadmin/settings" component={AdminSettings} />
           <Route path="/settings" component={UserSettings} />
+          <Route path="/profile" component={Profile} />
           <Route component={NotFound} />
         </Switch>
       </main>

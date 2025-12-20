@@ -41,6 +41,10 @@ export default function UserDropdown() {
           <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
         </div>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setLocation("/profile")} data-testid="menu-profile">
+          <User className="mr-2 h-4 w-4" />
+          <span>Мій профіль</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleDashboard} data-testid="menu-dashboard">
           <Home className="mr-2 h-4 w-4" />
           <span>Дашборд</span>

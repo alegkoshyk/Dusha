@@ -167,6 +167,48 @@ export class ObjectStorageService {
     return `https://storage.googleapis.com/${bucketName}/${objectName}`;
   }
 
+  async uploadAvatar(userId: string, base64Data: string): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    if (!privateObjectDir) {
+      throw new Error("PRIVATE_OBJECT_DIR not set");
+    }
+
+    const match = base64Data.match(/^data:image\/([\w+]+);base64,(.+)$/);
+    if (!match) {
+      throw new Error("Invalid base64 image format");
+    }
+
+    let extension = match[1];
+    if (extension === 'jpeg') extension = 'jpg';
+    const imageData = match[2];
+    const buffer = Buffer.from(imageData, 'base64');
+
+    const objectId = `avatars/${userId}/${randomUUID()}.${extension}`;
+    const fullPath = `${privateObjectDir}/${objectId}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+
+    const contentType = `image/${extension}`;
+    
+    await file.save(buffer, {
+      metadata: {
+        contentType,
+        cacheControl: 'public, max-age=31536000',
+      },
+    });
+
+    const signedUrl = await signObjectURL({
+      bucketName,
+      objectName,
+      method: "GET",
+      ttlSec: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    return signedUrl;
+  }
+
   async uploadTemplateReferenceImage(templateId: number, base64Data: string): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();
     if (!privateObjectDir) {

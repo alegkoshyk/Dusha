@@ -1,0 +1,460 @@
+import { useState, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { 
+  User, Camera, Building2, Briefcase, Globe, Trophy, Star, 
+  ArrowLeft, Save, Loader2, Award, Target, Zap
+} from "lucide-react";
+import type { UserProfile } from "@shared/schema";
+
+const INDUSTRIES = [
+  "IT та технології",
+  "Маркетинг та реклама",
+  "Електронна комерція",
+  "Освіта",
+  "Фінанси та банкінг",
+  "Медицина та здоров'я",
+  "Виробництво",
+  "Нерухомість",
+  "Туризм та гостинність",
+  "Роздрібна торгівля",
+  "Консалтинг",
+  "Медіа та розваги",
+  "Інше"
+];
+
+const EMPLOYEE_COUNTS = [
+  { value: "1", label: "Тільки я" },
+  { value: "2-10", label: "2-10 співробітників" },
+  { value: "11-50", label: "11-50 співробітників" },
+  { value: "51-200", label: "51-200 співробітників" },
+  { value: "201-500", label: "201-500 співробітників" },
+  { value: "500+", label: "Більше 500" }
+];
+
+function getLevelInfo(xp: number) {
+  const level = Math.floor(xp / 100) + 1;
+  const currentLevelXp = xp % 100;
+  const xpToNextLevel = 100;
+  return { level, currentLevelXp, xpToNextLevel };
+}
+
+export default function ProfilePage() {
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    bio: "",
+    company: "",
+    position: "",
+    industry: "",
+    employeeCount: "",
+    website: ""
+  });
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const { data: user } = useQuery<{ id: string; email: string; displayName: string }>({
+    queryKey: ["/api/auth/me"],
+    select: (data: any) => data.user
+  });
+
+  const { data: profile, isLoading: isLoadingProfile } = useQuery<UserProfile>({
+    queryKey: ["/api/user/profile"],
+    enabled: !!user,
+  });
+
+  const { data: stats } = useQuery<{ totalXp: number; totalGames: number; completedGames: number }>({
+    queryKey: ["/api/user/stats"],
+    enabled: !!user,
+  });
+
+  // Initialize form when profile loads
+  useState(() => {
+    if (profile) {
+      setFormData({
+        firstName: profile.firstName || "",
+        lastName: profile.lastName || "",
+        bio: profile.bio || "",
+        company: profile.company || "",
+        position: profile.position || "",
+        industry: profile.industry || "",
+        employeeCount: profile.employeeCount || "",
+        website: profile.website || ""
+      });
+    }
+  });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: async (data: Partial<typeof formData> & { avatarUrl?: string }) => {
+      const response = await apiRequest("PATCH", "/api/user/profile", data);
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Не вдалося оновити профіль");
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Профіль оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+      setIsEditing(false);
+    },
+    onError: (error: any) => {
+      toast({ title: "Помилка", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const reader = new FileReader();
+      return new Promise<string>((resolve, reject) => {
+        reader.onload = async () => {
+          try {
+            const base64 = reader.result as string;
+            const response = await apiRequest("POST", "/api/user/avatar", { imageData: base64 });
+            const result = await response.json();
+            if (!response.ok) {
+              throw new Error(result.error || "Не вдалося завантажити аватар");
+            }
+            resolve(result.avatarUrl);
+          } catch (err: any) {
+            reject(err);
+          }
+        };
+        reader.onerror = () => reject(new Error("Помилка читання файлу"));
+        reader.readAsDataURL(file);
+      });
+    },
+    onSuccess: (avatarUrl) => {
+      toast({ title: "Успішно", description: "Аватар оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/user/profile"] });
+      setAvatarPreview(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Помилка", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: "Помилка", description: "Файл занадто великий (макс. 5MB)", variant: "destructive" });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      uploadAvatarMutation.mutate(file);
+    }
+  };
+
+  const handleSave = () => {
+    updateProfileMutation.mutate(formData);
+  };
+
+  const levelInfo = getLevelInfo(stats?.totalXp || profile?.totalXp || 0);
+
+  if (isLoadingProfile) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const displayName = profile?.firstName && profile?.lastName 
+    ? `${profile.firstName} ${profile.lastName}` 
+    : user?.displayName || user?.email?.split("@")[0] || "Користувач";
+
+  const initials = displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container max-w-4xl mx-auto py-8 px-4">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate("/")}
+          className="mb-6"
+          data-testid="button-back"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Назад
+        </Button>
+
+        <div className="grid gap-6">
+          {/* Header Card */}
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+            <CardContent className="pt-6">
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                {/* Avatar */}
+                <div className="relative">
+                  <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
+                    <AvatarImage src={avatarPreview || profile?.avatarUrl || undefined} />
+                    <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadAvatarMutation.isPending}
+                    data-testid="button-change-avatar"
+                  >
+                    {uploadAvatarMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Camera className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleAvatarChange}
+                  />
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 text-center md:text-left">
+                  <h1 className="text-2xl font-bold" data-testid="text-display-name">{displayName}</h1>
+                  <p className="text-muted-foreground">{user?.email}</p>
+                  {profile?.position && profile?.company && (
+                    <p className="text-sm mt-1">
+                      {profile.position} @ {profile.company}
+                    </p>
+                  )}
+                </div>
+
+                {/* Level Badge */}
+                <div className="text-center">
+                  <div className="inline-flex items-center gap-2 bg-primary/20 rounded-full px-4 py-2">
+                    <Trophy className="h-5 w-5 text-primary" />
+                    <span className="font-bold text-lg">Рівень {levelInfo.level}</span>
+                  </div>
+                  <div className="mt-2 w-32">
+                    <Progress value={(levelInfo.currentLevelXp / levelInfo.xpToNextLevel) * 100} className="h-2" />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {levelInfo.currentLevelXp}/{levelInfo.xpToNextLevel} XP
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Zap className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
+                <p className="text-3xl font-bold">{stats?.totalXp || profile?.totalXp || 0}</p>
+                <p className="text-sm text-muted-foreground">Всього XP</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Target className="h-8 w-8 mx-auto text-blue-500 mb-2" />
+                <p className="text-3xl font-bold">{stats?.totalGames || 0}</p>
+                <p className="text-sm text-muted-foreground">Ігор розпочато</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <Award className="h-8 w-8 mx-auto text-green-500 mb-2" />
+                <p className="text-3xl font-bold">{stats?.completedGames || 0}</p>
+                <p className="text-sm text-muted-foreground">Ігор завершено</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Profile Form */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Особиста інформація</CardTitle>
+                  <CardDescription>Ваш профіль та дані про компанію</CardDescription>
+                </div>
+                {!isEditing ? (
+                  <Button onClick={() => setIsEditing(true)} data-testid="button-edit-profile">
+                    Редагувати
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setIsEditing(false)}>
+                      Скасувати
+                    </Button>
+                    <Button 
+                      onClick={handleSave} 
+                      disabled={updateProfileMutation.isPending}
+                      data-testid="button-save-profile"
+                    >
+                      {updateProfileMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      Зберегти
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="personal">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="personal">
+                    <User className="h-4 w-4 mr-2" />
+                    Особисте
+                  </TabsTrigger>
+                  <TabsTrigger value="company">
+                    <Building2 className="h-4 w-4 mr-2" />
+                    Компанія
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="personal" className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="firstName">Ім'я</Label>
+                      <Input
+                        id="firstName"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                        disabled={!isEditing}
+                        placeholder="Ваше ім'я"
+                        data-testid="input-first-name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastName">Прізвище</Label>
+                      <Input
+                        id="lastName"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        disabled={!isEditing}
+                        placeholder="Ваше прізвище"
+                        data-testid="input-last-name"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="bio">Про себе</Label>
+                    <Textarea
+                      id="bio"
+                      value={formData.bio}
+                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                      disabled={!isEditing}
+                      placeholder="Коротко про себе та свій досвід..."
+                      rows={3}
+                      data-testid="input-bio"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="website">Вебсайт</Label>
+                    <Input
+                      id="website"
+                      type="url"
+                      value={formData.website}
+                      onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                      disabled={!isEditing}
+                      placeholder="https://example.com"
+                      data-testid="input-website"
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="company" className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="company">Назва компанії</Label>
+                      <Input
+                        id="company"
+                        value={formData.company}
+                        onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                        disabled={!isEditing}
+                        placeholder="Назва вашої компанії"
+                        data-testid="input-company"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="position">Посада</Label>
+                      <Input
+                        id="position"
+                        value={formData.position}
+                        onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                        disabled={!isEditing}
+                        placeholder="Ваша посада"
+                        data-testid="input-position"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="industry">Сфера діяльності</Label>
+                      <Select 
+                        value={formData.industry} 
+                        onValueChange={(value) => setFormData({ ...formData, industry: value })}
+                        disabled={!isEditing}
+                      >
+                        <SelectTrigger data-testid="select-industry">
+                          <SelectValue placeholder="Оберіть сферу" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INDUSTRIES.map((ind) => (
+                            <SelectItem key={ind} value={ind}>{ind}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="employeeCount">Кількість співробітників</Label>
+                      <Select 
+                        value={formData.employeeCount} 
+                        onValueChange={(value) => setFormData({ ...formData, employeeCount: value })}
+                        disabled={!isEditing}
+                      >
+                        <SelectTrigger data-testid="select-employee-count">
+                          <SelectValue placeholder="Оберіть розмір" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {EMPLOYEE_COUNTS.map((ec) => (
+                            <SelectItem key={ec.value} value={ec.value}>{ec.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -56,16 +56,29 @@ export const userBrandsTable = pgTable("user_brands", {
 export const userProfilesTable = pgTable("user_profiles", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  // Базова інформація
+  firstName: varchar("first_name", { length: 100 }),
+  lastName: varchar("last_name", { length: 100 }),
+  avatarUrl: text("avatar_url"),
   bio: text("bio"),
+  // Інформація про компанію (онбординг)
   company: varchar("company", { length: 200 }),
   position: varchar("position", { length: 200 }),
+  industry: varchar("industry", { length: 100 }), // сфера діяльності
+  employeeCount: varchar("employee_count", { length: 50 }), // кількість співробітників: "1", "2-10", "11-50", "51-200", "201-500", "500+"
   website: text("website"),
+  // Соціальні посилання та навички
   socialLinks: json("social_links").default(sql`'{}'`),
   skills: json("skills").default(sql`'[]'`),
   interests: json("interests").default(sql`'[]'`),
   achievements: json("achievements").default(sql`'[]'`),
+  // Гейміфікація
   totalXp: integer("total_xp").notNull().default(0),
   level: integer("level").notNull().default(1),
+  // Онбординг статус
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+  onboardingSkipped: boolean("onboarding_skipped").notNull().default(false),
+  // API ключі
   geminiApiKey: text("gemini_api_key"), // NanoBanana (Gemini) API key for image generation
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),

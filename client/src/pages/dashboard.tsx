@@ -1,4 +1,4 @@
-import { useState, createElement } from 'react';
+import { useState, createElement, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,9 +27,10 @@ import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { CreateBrandDialog } from '@/components/brands/CreateBrandDialog';
 import { EditBrandDialog } from '@/components/brands/EditBrandDialog';
+import { OnboardingModal } from '@/components/OnboardingModal';
 import { apiRequest, apiRequestJson, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import type { UserBrand, GameSession } from '@shared/schema';
+import type { UserBrand, GameSession, UserProfile } from '@shared/schema';
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -39,6 +40,20 @@ export default function Dashboard() {
   const [createBrandOpen, setCreateBrandOpen] = useState(false);
   const [editBrandOpen, setEditBrandOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<UserBrand | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Завантаження профілю користувача для перевірки онбордингу
+  const { data: profile, isLoading: profileLoading } = useQuery<UserProfile & { hasApiKey: boolean }>({
+    queryKey: ['/api/user/profile'],
+    enabled: !!user,
+  });
+
+  // Показати онбординг якщо не завершено і не пропущено
+  useEffect(() => {
+    if (profile && !profile.onboardingCompleted && !profile.onboardingSkipped) {
+      setShowOnboarding(true);
+    }
+  }, [profile]);
 
   // Завантаження брендів користувача
   const { data: brands = [], isLoading: brandsLoading } = useQuery<UserBrand[]>({
@@ -757,6 +772,12 @@ export default function Dashboard() {
             description: "Зміни успішно збережено",
           });
         }}
+      />
+
+      {/* Onboarding Modal */}
+      <OnboardingModal 
+        open={showOnboarding}
+        onComplete={() => setShowOnboarding(false)}
       />
     </div>
   );
