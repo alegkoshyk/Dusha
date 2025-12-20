@@ -21,7 +21,7 @@ import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
-import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage } from "./openai";
+import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured } from "./openai";
 
 // Admin middleware
 const requireAdmin = async (req: any, res: any, next: any) => {
@@ -1983,6 +1983,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Level AI Insights error:", error);
       res.status(500).json({ error: error.message || "Помилка аналізу рівня" });
+    }
+  });
+
+  // AI Assist - Generate card response
+  app.post("/api/ai/assist", requireAuth, async (req, res) => {
+    try {
+      const isConfigured = await isAIConfigured();
+      if (!isConfigured) {
+        return res.status(400).json({ error: "AI API не налаштовано. Зверніться до адміністратора." });
+      }
+
+      const { cardTitle, cardDescription, currentText, minLength, maxLength, brandName, previousResponses } = req.body;
+
+      if (!cardTitle || !cardDescription) {
+        return res.status(400).json({ error: "Необхідно вказати назву та опис картки" });
+      }
+
+      const result = await generateCardResponse({
+        cardTitle,
+        cardDescription,
+        currentText: currentText || "",
+        minLength: minLength || 50,
+        maxLength: maxLength || 500,
+        brandName,
+        previousResponses
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("AI Assist error:", error);
+      res.status(500).json({ error: error.message || "Помилка генерації тексту" });
     }
   });
 

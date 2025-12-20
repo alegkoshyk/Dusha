@@ -460,3 +460,85 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
     } : undefined
   };
 }
+
+export interface AIAssistRequest {
+  cardTitle: string;
+  cardDescription: string;
+  currentText: string;
+  minLength: number;
+  maxLength: number;
+  brandName?: string;
+  previousResponses?: { cardTitle: string; response: string }[];
+}
+
+export async function generateCardResponse(request: AIAssistRequest): Promise<{ text: string }> {
+  const { client, config } = await getAIClient();
+
+  const contextResponses = request.previousResponses?.slice(-5).map(r => 
+    `- ${r.cardTitle}: ${r.response}`
+  ).join('\n') || '';
+
+  const prompt = `Ти - експерт з брендингу. Допоможи сформулювати відповідь для картки "${request.cardTitle}".
+
+📌 Завдання: ${request.cardDescription}
+
+${request.brandName ? `🏷️ Бренд: ${request.brandName}` : ''}
+
+${contextResponses ? `📋 Попередні відповіді користувача:\n${contextResponses}` : ''}
+
+${request.currentText ? `✏️ Поточний текст користувача: "${request.currentText}"` : ''}
+
+⚠️ ВАЖЛИВО:
+- Відповідь має бути ${request.minLength}-${request.maxLength} символів
+- Писати українською мовою
+- Бути конкретним та практичним
+- ${request.currentText ? 'Покращити та доповнити текст користувача' : 'Запропонувати приклад відповіді'}
+
+Напиши ТІЛЬКИ текст відповіді, без пояснень чи коментарів.`;
+
+  const response = await client.chat.completions.create({
+    model: config.model,
+    messages: [
+      {
+        role: "system",
+        content: "Ти - експерт з брендингу. Пиши коротко, чітко та українською мовою. Відповідай тільки текстом без коментарів."
+      },
+      { role: "user", content: prompt }
+    ],
+    max_tokens: 512,
+    temperature: 0.8
+  });
+
+  const usage = response.usage;
+  if (usage) {
+    const costRates = config.provider === "perplexity"
+      ? { input: 0.000001, output: 0.000001 }
+      : { input: 0.00001, output: 0.00003 };
+    
+    const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
+    
+    await storage.logAIUsage({
+      provider: config.provider,
+      model: config.model,
+      tokensInput: usage.prompt_tokens,
+      tokensOutput: usage.completion_tokens,
+      costEstimate: estimatedCost.toFixed(6),
+      endpoint: "generateCardResponse",
+    });
+  }
+
+  let text = response.choices[0].message.content || "";
+  
+  // Обрізаємо до maxLength якщо потрібно
+  if (text.length > request.maxLength) {
+    text = text.substring(0, request.maxLength - 3) + "...";
+  }
+  
+  // Перевіряємо minLength - якщо текст занадто короткий, додаємо пояснення
+  if (text.length < request.minLength && text.length > 0) {
+    // Текст занадто короткий, повертаємо як є - користувач може доповнити
+    console.log(`AI response length (${text.length}) is below minLength (${request.minLength})`);
+  }
+
+  return { text };
+}

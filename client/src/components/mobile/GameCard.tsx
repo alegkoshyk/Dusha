@@ -26,7 +26,9 @@ import {
   SkipForward,
   HelpCircle,
   FastForward,
-  X
+  X,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import {
   Dialog,
@@ -99,6 +101,10 @@ export function GameCard({
   const [showHint, setShowHint] = useState(false);
   const [validation, setValidation] = useState<{ isValid: boolean; message?: string }>({ isValid: true });
   const [showSkipModal, setShowSkipModal] = useState(false);
+  
+  // AI Асистент
+  const [isAILoading, setIsAILoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   
   // Таймер логіка
   const [timeLeft, setTimeLeft] = useState((card.estimatedTime || 3) * 60); // Конвертуємо хвилини в секунди
@@ -221,6 +227,40 @@ export function GameCard({
     const earnedXP = isWithinTimeLimit ? baseXP : 0;
     
     return { timeSpent, isWithinTimeLimit, earnedXP };
+  };
+
+  const handleAIAssist = async () => {
+    setIsAILoading(true);
+    setAiError(null);
+    
+    try {
+      const validation = card.validation as any || {};
+      const minLength = validation.minLength || 50;
+      const maxLength = validation.maxLength || 500;
+      
+      const result = await apiRequest('POST', '/api/ai/assist', {
+        cardTitle: card.title,
+        cardDescription: card.description,
+        currentText: currentResponse,
+        minLength,
+        maxLength
+      });
+      
+      // Валідуємо відповідь
+      if (result && typeof result === 'object' && 'text' in result && typeof result.text === 'string') {
+        setCurrentResponse(result.text);
+      } else if (result && typeof result === 'object' && 'error' in result) {
+        setAiError(String(result.error));
+      } else {
+        setAiError('Невідома помилка AI');
+      }
+    } catch (error: any) {
+      console.error('AI Assist error:', error);
+      const errorMessage = error?.message || error?.error || 'Помилка AI. Спробуйте пізніше.';
+      setAiError(typeof errorMessage === 'string' ? errorMessage : 'Помилка AI');
+    } finally {
+      setIsAILoading(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -593,11 +633,42 @@ export function GameCard({
                       data-testid="input-response"
                     />
                   )}
-                  <div className="flex justify-between text-xs text-gray-500">
+                  <div className="flex justify-between items-center text-xs text-gray-500">
                     <span>
                       {card.validation && 'minLength' in card.validation && `Мінімум ${(card.validation as any).minLength} символів`}
                     </span>
                     <span>{currentResponse.length}/{(card.validation && 'maxLength' in card.validation) ? (card.validation as any).maxLength : '∞'}</span>
+                  </div>
+                  
+                  {/* AI Асистент */}
+                  <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAIAssist}
+                      disabled={isAILoading}
+                      className="w-full flex items-center justify-center gap-2 border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20"
+                      data-testid="button-ai-assist"
+                    >
+                      {isAILoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Генерую...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          AI Асистент
+                        </>
+                      )}
+                    </Button>
+                    {aiError && (
+                      <p className="text-xs text-red-500 mt-1 text-center">{aiError}</p>
+                    )}
+                    <p className="text-xs text-gray-400 text-center mt-1">
+                      Допоможе сформулювати відповідь у рамках лімітів
+                    </p>
                   </div>
                 </div>
               )}
