@@ -11,6 +11,7 @@ interface GameCardProps {
   responses: Record<string, any>;
   onSubmit: (responses: Record<string, any>) => void;
   onPrevious?: () => void;
+  onSkip?: () => void;
   isLoading: boolean;
   cardNumber: number;
   totalCards: number;
@@ -21,6 +22,7 @@ export default function GameCardComponent({
   responses, 
   onSubmit, 
   onPrevious, 
+  onSkip,
   isLoading, 
   cardNumber, 
   totalCards 
@@ -313,7 +315,8 @@ export default function GameCardComponent({
             <div className="flex items-center space-x-4">
               <Button
                 variant="outline"
-                disabled={isLoading}
+                onClick={onSkip}
+                disabled={!onSkip || isLoading}
                 data-testid="button-skip"
               >
                 Пропустити

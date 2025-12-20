@@ -65,9 +65,15 @@ export default function MobileGame() {
   });
 
   // Get cards from API
-  const { data: apiCards } = useQuery({
+  const { data: apiCards = [] } = useQuery<any[]>({
     queryKey: ["/api/game-cards"],
     enabled: true,
+  });
+  
+  // Get session responses from API
+  const { data: sessionResponses = {} } = useQuery<Record<string, any>>({
+    queryKey: ["/api/game-sessions", activeSessionId, "responses-map"],
+    enabled: !!activeSessionId,
   });
 
   // Get card parameter from URL
@@ -97,7 +103,7 @@ export default function MobileGame() {
         currentCard: session.currentCard || 'soul-start',
         completedCards,
         unlockedCards,
-        responses: session.responses || {},
+        responses: sessionResponses || {},
         achievements: getEarnedBadges(completedCards),
         totalXP: calculateTotalXP(completedCards),
         levelProgress: {
@@ -247,7 +253,8 @@ export default function MobileGame() {
       return;
     }
 
-    console.log("handleNextCard: currentCardId =", currentCardId, "currentCard.level =", currentCard.level);
+    const cardLevel = (currentCard as any).level || (currentCard as any).levelId;
+    console.log("handleNextCard: currentCardId =", currentCardId, "currentCard.level =", cardLevel);
 
     // PRIORITY 1: Use nextCards from mobileGameCards definition (most reliable)
     const nextOptions = getNextCardOptions(currentCardId, playerProgress.responses);
@@ -274,8 +281,7 @@ export default function MobileGame() {
       const currentIndex = apiCards.findIndex(card => card.id === currentCardId);
       if (currentIndex >= 0 && currentIndex < apiCards.length - 1) {
         const nextCard = apiCards[currentIndex + 1];
-        // Use currentCard.level (from mobileGameCards) for comparison
-        if (nextCard && nextCard.levelId === currentCard.level) {
+        if (nextCard && nextCard.levelId === cardLevel) {
           handleCardSelect(nextCard.id);
           return;
         }
@@ -283,21 +289,20 @@ export default function MobileGame() {
     }
     
     // PRIORITY 3: Check if level is complete and move to next level
-    // Use card.level (not levelId) since mobileGameCards uses "level" field
-    const levelCards = mobileGameCards.filter(card => card.level === currentCard.level);
+    const levelCards = mobileGameCards.filter(card => (card as any).level === cardLevel);
     const levelCompleted = levelCards.every(card => 
       playerProgress.completedCards.includes(card.id) || !card.required
     );
 
     if (levelCompleted) {
       // Move to next level or complete game
-      if (currentCard.level === 'soul') {
-        const firstMindCard = mobileGameCards.find(card => card.level === 'mind');
+      if (cardLevel === 'soul') {
+        const firstMindCard = mobileGameCards.find(card => (card as any).level === 'mind');
         if (firstMindCard) {
           handleCardSelect(firstMindCard.id);
         }
-      } else if (currentCard.level === 'mind') {
-        const firstBodyCard = mobileGameCards.find(card => card.level === 'body');
+      } else if (cardLevel === 'mind') {
+        const firstBodyCard = mobileGameCards.find(card => (card as any).level === 'body');
         if (firstBodyCard) {
           handleCardSelect(firstBodyCard.id);
         }
@@ -447,7 +452,7 @@ export default function MobileGame() {
     return (
       <GameCard
         card={currentCard}
-        response={session?.responses ? session.responses[currentCardId] : undefined}
+        response={sessionResponses ? sessionResponses[currentCardId] : undefined}
         onResponse={handleCardResponse}
         onNext={handleNextCard}
         onPrevious={handleGoBack}

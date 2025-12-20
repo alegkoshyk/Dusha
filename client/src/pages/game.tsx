@@ -175,8 +175,27 @@ export default function Game() {
     }
   };
 
+  const handleSkipCard = async () => {
+    if (!currentCard) return;
+
+    const nextCard = getNextCard(currentCard);
+    if (nextCard) {
+      await updateProgressMutation.mutateAsync({
+        currentLevel: nextCard.level,
+        currentCard: nextCard.id,
+        progress,
+      });
+    } else {
+      toast({
+        title: "Останняя картка",
+        description: "Це остання картка. Завершіть її, щоб отримати карту бренду.",
+      });
+    }
+  };
+
   // Check if we can go back
   const canGoBack = currentCard ? getPreviousCard(currentCard) !== null : false;
+  const canSkip = currentCard ? getNextCard(currentCard) !== null : false;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-background">
@@ -199,6 +218,7 @@ export default function Game() {
             responses={responses[currentCard.id] || {}}
             onSubmit={(cardResponses) => handleCardSubmit(currentCard.id, cardResponses)}
             onPrevious={canGoBack ? handlePreviousCard : undefined}
+            onSkip={canSkip ? handleSkipCard : undefined}
             isLoading={saveResponseMutation.isPending || updateProgressMutation.isPending}
             cardNumber={currentCardIndex}
             totalCards={currentLevelCards.length}
