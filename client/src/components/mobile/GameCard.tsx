@@ -885,39 +885,13 @@ export function GameCard({
                 </motion.div>
               )}
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-6 border-t">
-                <div className="flex gap-2">
-                  {canGoPrevious && onPrevious && (
-                    <Button
-                      variant="outline"
-                      onClick={onPrevious}
-                      className="flex items-center gap-2"
-                      data-testid="button-previous-bottom"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Назад
-                    </Button>
-                  )}
-                  
-                  {onSkip && card.type !== 'info' && card.id !== 'soul-start' && card.id !== 'mind-start' && card.id !== 'body-start' && card.id !== 'body-complete' && (
-                    <Button
-                      variant="ghost"
-                      onClick={() => setShowSkipModal(true)}
-                      className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
-                      data-testid="button-skip"
-                    >
-                      <SkipForward className="w-4 h-4" />
-                      Пропустити
-                    </Button>
-                  )}
-                </div>
-                
+              {/* Action Buttons - Mobile Optimized */}
+              <div className="flex flex-col gap-3 pt-6 border-t">
+                {/* Main action button - always on top for mobile */}
                 {card.id !== 'body-complete' && (
                   <Button
                     onClick={(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.type === 'info') ? 
                       () => { 
-                        // Mark info cards as completed
                         if (card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.type === 'info') {
                           handleSubmit();
                         } else {
@@ -931,34 +905,33 @@ export function GameCard({
                           selectedOptions.length < (card.validation as any).minSelections)) : 
                         (!currentResponse || currentResponse.trim().length === 0)
                     }
-                    className="flex items-center gap-2 min-w-[120px]"
+                    className="w-full flex items-center justify-center gap-2 py-3"
                     data-testid="button-next"
                   >
                   {(card.id === 'soul-start' || card.id === 'mind-start' || card.id === 'body-start' || card.type === 'info') ? (
                     <>
-                      {card.id === 'soul-start' ? 'Почати гру' : card.type === 'info' ? 'Почати рівень' : 'Почати рівень'}
+                      {card.id === 'soul-start' ? 'Почати гру' : 'Почати рівень'}
                       <ArrowRight className="w-4 h-4" />
                     </>
                   ) : (
-                    // Логіка для різних типів карт
                     (card.type === 'values' || card.type === 'choice' || card.type === 'archetype') ? 
                       (selectedOptions.length > 0 && 
                        (!card.validation || !('minSelections' in card.validation) || 
                         selectedOptions.length >= (card.validation as any).minSelections) ? (
                         <>
-                          Зберегти відповідь
+                          Зберегти
                           <ArrowRight className="w-4 h-4" />
                         </>
                       ) : (
                         <>
                           {selectedOptions.length === 0 ? 'Оберіть варіанти' : 
-                           `Оберіть ще ${(card.validation as any)?.minSelections - selectedOptions.length} варіант(и)`}
+                           `Ще ${(card.validation as any)?.minSelections - selectedOptions.length}`}
                           <AlertCircle className="w-4 h-4" />
                         </>
                       )) :
                       (currentResponse && currentResponse.trim().length > 0) ? (
                         <>
-                          Зберегти відповідь
+                          Зберегти
                           <ArrowRight className="w-4 h-4" />
                         </>
                       ) : (
@@ -970,6 +943,33 @@ export function GameCard({
                   )}
                   </Button>
                 )}
+                
+                {/* Secondary buttons row */}
+                <div className="flex items-center justify-between gap-2">
+                  {canGoPrevious && onPrevious ? (
+                    <Button
+                      variant="outline"
+                      onClick={onPrevious}
+                      className="flex items-center gap-1 px-3"
+                      data-testid="button-previous-bottom"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span className="hidden sm:inline">Назад</span>
+                    </Button>
+                  ) : <div />}
+                  
+                  {onSkip && card.type !== 'info' && card.id !== 'soul-start' && card.id !== 'mind-start' && card.id !== 'body-start' && card.id !== 'body-complete' && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => setShowSkipModal(true)}
+                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700 px-3"
+                      data-testid="button-skip"
+                    >
+                      <SkipForward className="w-4 h-4" />
+                      <span className="hidden sm:inline">Пропустити</span>
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
