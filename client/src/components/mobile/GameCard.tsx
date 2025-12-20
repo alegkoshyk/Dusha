@@ -22,8 +22,19 @@ import {
   Trophy,
   Eye,
   Plus,
-  Timer
+  Timer,
+  SkipForward,
+  HelpCircle,
+  FastForward,
+  X
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useLocation } from 'wouter';
 import { apiRequest } from '@/lib/queryClient';
 import type { GameCard as GameCardType, CardProperty } from '@shared/schema';
@@ -39,6 +50,7 @@ interface GameCardProps {
   onResponse: (response: any, timeData?: { timeSpent: number; isWithinTimeLimit: boolean; earnedXP: number }) => void;
   onNext: () => void;
   onPrevious?: () => void;
+  onSkip?: (reason: string) => void;
   canGoNext: boolean;
   canGoPrevious: boolean;
   progress: number;
@@ -48,12 +60,20 @@ interface GameCardProps {
   totalCardsInLevel?: number;
 }
 
+const SKIP_REASONS = [
+  { id: 'dont_know', label: 'Не знаю', icon: <HelpCircle className="w-4 h-4" /> },
+  { id: 'no_time', label: 'Не хочу витрачати на це час', icon: <Clock className="w-4 h-4" /> },
+  { id: 'dont_understand', label: 'Не розумію як це допоможе', icon: <AlertCircle className="w-4 h-4" /> },
+  { id: 'quick_pass', label: 'Хочу швидко пройти гру', icon: <FastForward className="w-4 h-4" /> },
+];
+
 export function GameCard({ 
   card, 
   response, 
   onResponse, 
   onNext, 
   onPrevious, 
+  onSkip,
   canGoNext,
   canGoPrevious,
   progress,
@@ -68,6 +88,7 @@ export function GameCard({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [showHint, setShowHint] = useState(false);
   const [validation, setValidation] = useState<{ isValid: boolean; message?: string }>({ isValid: true });
+  const [showSkipModal, setShowSkipModal] = useState(false);
   
   // Таймер логіка
   const [timeLeft, setTimeLeft] = useState((card.estimatedTime || 3) * 60); // Конвертуємо хвилини в секунди
@@ -728,8 +749,8 @@ export function GameCard({
 
               {/* Action Buttons */}
               <div className="flex items-center justify-between pt-6 border-t">
-                <div>
-                  {canGoPrevious && (
+                <div className="flex gap-2">
+                  {canGoPrevious && onPrevious && (
                     <Button
                       variant="outline"
                       onClick={onPrevious}
@@ -738,6 +759,18 @@ export function GameCard({
                     >
                       <ArrowLeft className="w-4 h-4" />
                       Назад
+                    </Button>
+                  )}
+                  
+                  {onSkip && card.type !== 'info' && card.id !== 'soul-start' && card.id !== 'mind-start' && card.id !== 'body-start' && card.id !== 'body-complete' && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => setShowSkipModal(true)}
+                      className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
+                      data-testid="button-skip"
+                    >
+                      <SkipForward className="w-4 h-4" />
+                      Пропустити
                     </Button>
                   )}
                 </div>
@@ -804,6 +837,51 @@ export function GameCard({
           </CardContent>
         </Card>
       </div>
+
+      {/* Skip Reason Modal */}
+      <Dialog open={showSkipModal} onOpenChange={setShowSkipModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SkipForward className="w-5 h-5 text-gray-500" />
+              Чому пропускаєте?
+            </DialogTitle>
+            <DialogDescription>
+              Оберіть причину, щоб ми могли покращити гру
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3 py-4">
+            {SKIP_REASONS.map((reason) => (
+              <Button
+                key={reason.id}
+                variant="outline"
+                onClick={() => {
+                  if (onSkip) {
+                    onSkip(reason.id);
+                  }
+                  setShowSkipModal(false);
+                }}
+                className="w-full justify-start gap-3 h-auto py-3 px-4 text-left"
+                data-testid={`skip-reason-${reason.id}`}
+              >
+                {reason.icon}
+                <span>{reason.label}</span>
+              </Button>
+            ))}
+          </div>
+          
+          <Button
+            variant="ghost"
+            onClick={() => setShowSkipModal(false)}
+            className="w-full"
+            data-testid="button-cancel-skip"
+          >
+            <X className="w-4 h-4 mr-2" />
+            Скасувати
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

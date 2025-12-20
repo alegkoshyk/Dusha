@@ -319,6 +319,17 @@ export default function MobileGame() {
   };
 
   const handlePreviousCard = () => {
+    // Find previous card in the order
+    if (apiCards && currentCardId) {
+      const currentIndex = apiCards.findIndex(c => c.id === currentCardId);
+      if (currentIndex > 0) {
+        const prevCard = apiCards[currentIndex - 1];
+        handleCardSelect(prevCard.id);
+        return;
+      }
+    }
+    
+    // Fallback to completed cards history
     const completedCards = playerProgress.completedCards;
     if (completedCards.length > 0) {
       const previousCardId = completedCards[completedCards.length - 1];
@@ -326,6 +337,34 @@ export default function MobileGame() {
     } else {
       setViewMode('field');
       setLocation(`/game/${activeSessionId}`);
+    }
+  };
+
+  const handleSkipCard = async (reason: string) => {
+    if (!currentCardId || !activeSessionId) return;
+    
+    try {
+      // Save skip reason to session
+      await apiRequest('POST', `/api/game-sessions/${activeSessionId}/responses`, {
+        cardId: currentCardId,
+        response: { skipped: true, reason },
+        responseType: 'skip'
+      });
+      
+      toast({
+        title: "Картку пропущено",
+        description: "Ви можете повернутися до неї пізніше",
+      });
+      
+      // Navigate to next card
+      handleNextCard();
+    } catch (error) {
+      console.error('Error skipping card:', error);
+      toast({
+        title: "Помилка",
+        description: "Не вдалося пропустити картку",
+        variant: "destructive",
+      });
     }
   };
 
@@ -449,15 +488,18 @@ export default function MobileGame() {
     const completedLevelCards = levelCards.filter(card => playerProgress.completedCards.includes(card.id));
     const levelProgress = Math.round((completedLevelCards.length / levelCards.length) * 100);
 
+    const canGoBack = cardIndex > 0;
+    
     return (
       <GameCard
         card={currentCard}
         response={sessionResponses ? sessionResponses[currentCardId] : undefined}
         onResponse={handleCardResponse}
         onNext={handleNextCard}
-        onPrevious={handleGoBack}
+        onPrevious={handlePreviousCard}
+        onSkip={handleSkipCard}
         canGoNext={true}
-        canGoPrevious={true}
+        canGoPrevious={canGoBack}
         progress={cardProgress}
         totalCards={apiCards.length}
         levelProgress={levelProgress}
