@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -85,7 +85,7 @@ export default function ProfilePage() {
   });
 
   // Initialize form when profile loads
-  useState(() => {
+  useEffect(() => {
     if (profile) {
       setFormData({
         firstName: profile.firstName || "",
@@ -97,8 +97,11 @@ export default function ProfilePage() {
         employeeCount: profile.employeeCount || "",
         website: profile.website || ""
       });
+      if (profile.avatarUrl) {
+        setAvatarPreview(profile.avatarUrl);
+      }
     }
-  });
+  }, [profile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: Partial<typeof formData> & { avatarUrl?: string }) => {
