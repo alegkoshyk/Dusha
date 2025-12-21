@@ -1864,6 +1864,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update card response (admin only)
+  app.patch("/api/admin/card-responses/:sessionId/:cardId", requireAdmin, async (req, res) => {
+    try {
+      const { sessionId, cardId } = req.params;
+      const { response } = req.body;
+      
+      if (response === undefined) {
+        return res.status(400).json({ error: "Відповідь обов'язкова" });
+      }
+      
+      const updated = await storage.updateCardResponse(sessionId, cardId, response);
+      if (!updated) {
+        return res.status(404).json({ error: "Відповідь не знайдено" });
+      }
+      
+      res.json({ success: true, response: updated });
+    } catch (error: any) {
+      console.error("Error updating card response:", error);
+      res.status(500).json({ error: "Не вдалося оновити відповідь" });
+    }
+  });
+
   // Generate AI insights for a game session
   app.post("/api/game-sessions/:sessionId/ai-insights", requireAuth, async (req, res) => {
     try {

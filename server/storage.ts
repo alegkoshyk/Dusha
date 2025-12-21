@@ -901,6 +901,26 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async updateCardResponse(sessionId: string, cardId: string, response: any): Promise<any> {
+    try {
+      const result = await db
+        .update(cardResponsesTable)
+        .set({ response })
+        .where(
+          and(
+            eq(cardResponsesTable.sessionId, sessionId),
+            eq(cardResponsesTable.cardId, cardId)
+          )
+        )
+        .returning();
+      
+      return result[0] || null;
+    } catch (error) {
+      console.error("Error updating card response:", error);
+      return null;
+    }
+  }
+
   // =============================================================================
   // ADMIN METHODS - Only for admin users
   // =============================================================================
