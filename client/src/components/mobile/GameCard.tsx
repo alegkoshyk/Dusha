@@ -410,8 +410,8 @@ export function GameCard({
               </Badge>
             </div>
             
-            {/* Посекційний прогрес */}
-            <div className="grid grid-cols-5 gap-1.5">
+            {/* Посекційний прогрес - всі сегменти в один рядок */}
+            <div className="flex gap-1">
               {Array.from({ length: totalCardsInLevel }, (_, index) => {
                 const cardId = levelCardIds[index];
                 const isSkipped = cardId && skippedCardsInLevel.includes(cardId);
@@ -421,7 +421,7 @@ export function GameCard({
                 return (
                   <div
                     key={index}
-                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                    className={`flex-1 h-2.5 rounded-full transition-all duration-300 ${
                       isCurrent
                         ? `bg-gradient-to-r ${levelColors.bg} shadow-sm animate-pulse`
                         : isSkipped
