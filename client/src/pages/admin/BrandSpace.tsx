@@ -224,7 +224,7 @@ export default function BrandSpace() {
     setSelectedSessionId(sessionId);
   };
   
-  const filteredSessions = sessions?.filter(s => s.brandId === selectedBrandId) || [];
+  const filteredSessions = sessions?.filter(s => s.brandId === selectedBrandId && s.completed) || [];
   
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -283,8 +283,7 @@ export default function BrandSpace() {
                     <SelectContent className="bg-gray-700 border-gray-600">
                       {filteredSessions.map(session => (
                         <SelectItem key={session.id} value={session.id} className="text-white hover:bg-gray-600">
-                          {new Date(session.createdAt).toLocaleDateString('uk-UA')}
-                          {session.completed && ' ✓'}
+                          {new Date(session.createdAt).toLocaleDateString('uk-UA')} ✓
                         </SelectItem>
                       ))}
                     </SelectContent>
