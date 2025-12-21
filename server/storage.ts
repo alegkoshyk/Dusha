@@ -87,6 +87,8 @@ export interface IStorage {
   updateUserBrand(id: string, updates: Partial<UserBrand>): Promise<UserBrand | undefined>;
   updateUserBrandLogo(id: string, logo: string | null): Promise<UserBrand | undefined>;
   deleteUserBrand(id: string): Promise<boolean>;
+  getAllBrands(): Promise<UserBrand[]>;
+  getGameSessionsByBrand(brandId: string): Promise<GameSession[]>;
   
   // Game session CRUD operations
   createGameSession(session: InsertGameSession): Promise<GameSession>;
@@ -415,6 +417,21 @@ export class DatabaseStorage implements IStorage {
       console.error("Error in deleteUserBrand:", error);
       throw error;
     }
+  }
+
+  async getAllBrands(): Promise<UserBrand[]> {
+    return await db
+      .select()
+      .from(userBrandsTable)
+      .orderBy(desc(userBrandsTable.createdAt));
+  }
+
+  async getGameSessionsByBrand(brandId: string): Promise<GameSession[]> {
+    return await db
+      .select()
+      .from(gameSessionsTable)
+      .where(eq(gameSessionsTable.brandId, brandId))
+      .orderBy(desc(gameSessionsTable.createdAt));
   }
 
   // Game session CRUD operations

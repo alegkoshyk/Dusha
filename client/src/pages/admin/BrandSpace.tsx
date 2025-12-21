@@ -191,17 +191,17 @@ export default function BrandSpace() {
   });
   
   const { data: sessions, isLoading: sessionsLoading } = useQuery<GameSession[]>({
-    queryKey: ['/api/admin/brand-sessions', selectedBrandId],
+    queryKey: [`/api/admin/brand-sessions/${selectedBrandId}`],
     enabled: !!selectedBrandId,
   });
   
   const { data: brandMap, isLoading: mapLoading } = useQuery<BrandMapData>({
-    queryKey: ['/api/game-sessions', selectedSessionId, 'brand-map'],
+    queryKey: [`/api/game-sessions/${selectedSessionId}/brand-map`],
     enabled: !!selectedSessionId,
   });
   
   const { data: responsesMap } = useQuery<Record<string, any>>({
-    queryKey: ['/api/game-sessions', selectedSessionId, 'responses-map'],
+    queryKey: [`/api/game-sessions/${selectedSessionId}/responses-map`],
     enabled: !!selectedSessionId,
   });
   

@@ -1841,6 +1841,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all brands for admin Brand Space visualization
+  app.get("/api/admin/brands", requireAdmin, async (req, res) => {
+    try {
+      const brands = await storage.getAllBrands();
+      res.json(brands);
+    } catch (error: any) {
+      console.error("Error fetching brands:", error);
+      res.status(500).json({ error: "Не вдалося отримати бренди" });
+    }
+  });
+
+  // Get game sessions for a specific brand (admin)
+  app.get("/api/admin/brand-sessions/:brandId", requireAdmin, async (req, res) => {
+    try {
+      const { brandId } = req.params;
+      const sessions = await storage.getGameSessionsByBrand(brandId);
+      res.json(sessions);
+    } catch (error: any) {
+      console.error("Error fetching brand sessions:", error);
+      res.status(500).json({ error: "Не вдалося отримати сесії бренду" });
+    }
+  });
+
   // Generate AI insights for a game session
   app.post("/api/game-sessions/:sessionId/ai-insights", requireAuth, async (req, res) => {
     try {
