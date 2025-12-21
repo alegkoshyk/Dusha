@@ -496,10 +496,8 @@ export default function MobileGame() {
     const cardIndex = apiCards.findIndex(card => card.id === currentCardId);
     const cardProgress = ((cardIndex + 1) / apiCards.length) * 100;
     
-    // Підрахунок прогресу конкретного рівня (відсортовані за positionY)
-    const levelCards = apiCards
-      .filter(card => card.levelId === currentCard.levelId)
-      .sort((a, b) => (a.positionY ?? 0) - (b.positionY ?? 0));
+    // Підрахунок прогресу конкретного рівня (apiCards вже відсортовані)
+    const levelCards = apiCards.filter(card => card.levelId === currentCard.levelId);
     const levelCardIds = levelCards.map(card => card.id);
     const currentCardIndexInLevel = levelCards.findIndex(card => card.id === currentCardId);
     
