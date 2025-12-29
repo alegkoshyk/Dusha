@@ -26,7 +26,8 @@ import {
   Settings2,
   ChevronUp,
   ChevronDown,
-  Palette
+  Palette,
+  Save
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
@@ -468,6 +469,33 @@ export default function BrandChat() {
     link.click();
   };
 
+  const [savingImageId, setSavingImageId] = useState<string | null>(null);
+  
+  const saveToLibraryMutation = useMutation({
+    mutationFn: async ({ imageUrl, altText }: { imageUrl: string; altText?: string }) => {
+      return apiRequestJson('POST', '/api/media/save-chat-image', { 
+        imageUrl, 
+        imageBase64: imageUrl.startsWith('data:') ? imageUrl : undefined,
+        brandId: brand?.id,
+        altText 
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Зображення збережено в бібліотеку" });
+      queryClient.invalidateQueries({ queryKey: ['/api/media'] });
+      setSavingImageId(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Помилка збереження", description: error.message, variant: "destructive" });
+      setSavingImageId(null);
+    }
+  });
+
+  const handleSaveToLibrary = (messageId: string, imageUrl: string, altText?: string) => {
+    setSavingImageId(messageId);
+    saveToLibraryMutation.mutate({ imageUrl, altText });
+  };
+
   if (sessionLoading || messagesLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -582,7 +610,34 @@ export default function BrandChat() {
                               onClick={() => setModalImage(msg.imageUrl!)}
                               data-testid={`img-chat-${msg.id}`}
                             />
-                            <p className="text-xs text-gray-500 mt-2">Натисніть для збільшення</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <p className="text-xs text-gray-500 flex-1">Натисніть для збільшення</p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => handleDownloadImage(msg.imageUrl!)}
+                                data-testid={`download-image-${msg.id}`}
+                              >
+                                <Download className="w-3 h-3 mr-1" />
+                                Завантажити
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => handleSaveToLibrary(msg.id, msg.imageUrl!, msg.content)}
+                                disabled={savingImageId === msg.id}
+                                data-testid={`save-image-${msg.id}`}
+                              >
+                                {savingImageId === msg.id ? (
+                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                ) : (
+                                  <Save className="w-3 h-3 mr-1" />
+                                )}
+                                Зберегти
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1010,6 +1065,19 @@ export default function BrandChat() {
               >
                 <Download className="w-4 h-4 mr-2" />
                 Завантажити
+              </Button>
+              <Button 
+                variant="secondary" 
+                onClick={() => modalImage && handleSaveToLibrary('modal', modalImage, 'Chat image')}
+                disabled={saveToLibraryMutation.isPending}
+                data-testid="button-modal-save"
+              >
+                {saveToLibraryMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Зберегти в бібліотеку
               </Button>
             </div>
           </div>
