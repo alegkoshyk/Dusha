@@ -2370,16 +2370,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Невірний формат зображення" });
       }
 
+      // Check quota before upload
+      const base64Data = imageData.split(',')[1] || imageData;
+      const estimatedSize = Math.ceil(base64Data.length * 0.75);
+      const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
+      if (!hasQuota) {
+        return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+      }
+
       const { ObjectStorageService } = await import('./objectStorage');
       const objectStorageService = new ObjectStorageService();
       
-      // Upload avatar to object storage
-      const avatarUrl = await objectStorageService.uploadAvatar(userId, imageData);
+      // Upload avatar to object storage using new media system
+      const uploadResult = await objectStorageService.uploadMediaAsset({
+        userId,
+        assetType: 'avatar',
+        base64Data: imageData
+      });
+
+      // Create media asset record
+      await storage.createMediaAsset({
+        userId,
+        brandId: null,
+        assetType: 'avatar',
+        storageKey: uploadResult.storageKey,
+        publicUrl: uploadResult.publicUrl,
+        filename: 'avatar',
+        mimeType: uploadResult.mimeType,
+        sizeBytes: uploadResult.sizeBytes,
+        altText: 'User avatar',
+      });
 
       // Update profile
-      await storage.updateUserProfile(userId, { avatarUrl });
+      await storage.updateUserProfile(userId, { avatarUrl: uploadResult.publicUrl });
 
-      res.json({ avatarUrl });
+      res.json({ avatarUrl: uploadResult.publicUrl });
     } catch (error: any) {
       console.error("Upload avatar error:", error);
       res.status(500).json({ error: error.message || "Не вдалося завантажити аватар" });
