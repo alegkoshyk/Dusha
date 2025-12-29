@@ -29,6 +29,7 @@ import BrandSpace from "@/pages/admin/BrandSpace";
 import VisualMap from "@/pages/admin/VisualMap";
 import UserSettings from "@/pages/settings";
 import Profile from "@/pages/profile";
+import MediaLibrary from "@/pages/media-library";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -74,6 +75,7 @@ function Router() {
           <Route path="/rcadmin/visual-map" component={VisualMap} />
           <Route path="/settings" component={UserSettings} />
           <Route path="/profile" component={Profile} />
+          <Route path="/media" component={MediaLibrary} />
           <Route component={NotFound} />
         </Switch>
       </main>
