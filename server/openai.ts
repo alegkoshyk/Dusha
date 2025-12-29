@@ -1,9 +1,10 @@
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { storage } from "./storage";
 
 // AI Configuration interface
 interface AIConfig {
-  provider: "openai" | "perplexity";
+  provider: "openai" | "perplexity" | "claude";
   model: string;
   context: string;
   apiKey: string;
@@ -12,8 +13,10 @@ interface AIConfig {
 // Default models
 const DEFAULT_OPENAI_MODEL = "gpt-4o";
 const DEFAULT_PERPLEXITY_MODEL = "sonar-pro";
+const DEFAULT_CLAUDE_MODEL = "claude-sonnet-4-20250514";
 
 let aiClient: OpenAI | null = null;
+let claudeClient: Anthropic | null = null;
 let cachedConfig: AIConfig | null = null;
 
 async function getAIConfig(): Promise<AIConfig> {
@@ -21,19 +24,23 @@ async function getAIConfig(): Promise<AIConfig> {
     providerSetting,
     modelOpenAISetting,
     modelPerplexitySetting,
+    modelClaudeSetting,
     contextSetting,
     openaiKeySetting,
-    perplexityKeySetting
+    perplexityKeySetting,
+    claudeKeySetting
   ] = await Promise.all([
     storage.getAppSetting("AI_PROVIDER"),
     storage.getAppSetting("AI_MODEL_OPENAI"),
     storage.getAppSetting("AI_MODEL_PERPLEXITY"),
+    storage.getAppSetting("AI_MODEL_CLAUDE"),
     storage.getAppSetting("AI_CONTEXT"),
     storage.getAppSetting("OPENAI_API_KEY"),
-    storage.getAppSetting("PERPLEXITY_API_KEY")
+    storage.getAppSetting("PERPLEXITY_API_KEY"),
+    storage.getAppSetting("ANTHROPIC_API_KEY")
   ]);
 
-  const provider = (providerSetting?.value as "openai" | "perplexity") || "openai";
+  const provider = (providerSetting?.value as "openai" | "perplexity" | "claude") || "openai";
   
   let model: string;
   let apiKey: string;
@@ -41,6 +48,9 @@ async function getAIConfig(): Promise<AIConfig> {
   if (provider === "perplexity") {
     model = modelPerplexitySetting?.value || DEFAULT_PERPLEXITY_MODEL;
     apiKey = perplexityKeySetting?.value || process.env.PERPLEXITY_API_KEY || "";
+  } else if (provider === "claude") {
+    model = modelClaudeSetting?.value || DEFAULT_CLAUDE_MODEL;
+    apiKey = claudeKeySetting?.value || process.env.ANTHROPIC_API_KEY || "";
   } else {
     model = modelOpenAISetting?.value || DEFAULT_OPENAI_MODEL;
     apiKey = openaiKeySetting?.value || process.env.OPENAI_API_KEY || "";
@@ -54,21 +64,22 @@ async function getAIConfig(): Promise<AIConfig> {
   };
 }
 
-async function getAIClient(): Promise<{ client: OpenAI; config: AIConfig }> {
+async function getOpenAIClient(): Promise<{ client: OpenAI; config: AIConfig }> {
   const config = await getAIConfig();
   
-  // Reset client if config changed
   const configKey = `${config.provider}-${config.apiKey}`;
   const cachedKey = cachedConfig ? `${cachedConfig.provider}-${cachedConfig.apiKey}` : null;
   
   if (configKey !== cachedKey) {
     aiClient = null;
+    claudeClient = null;
     cachedConfig = config;
   }
   
   if (!aiClient) {
     if (!config.apiKey) {
-      throw new Error(`${config.provider === "perplexity" ? "Perplexity" : "OpenAI"} API ключ не налаштовано`);
+      const providerName = config.provider === "perplexity" ? "Perplexity" : "OpenAI";
+      throw new Error(`${providerName} API ключ не налаштовано`);
     }
     
     const baseURL = config.provider === "perplexity" 
@@ -82,6 +93,35 @@ async function getAIClient(): Promise<{ client: OpenAI; config: AIConfig }> {
   }
   
   return { client: aiClient, config };
+}
+
+async function getClaudeClient(): Promise<{ client: Anthropic; config: AIConfig }> {
+  const config = await getAIConfig();
+  
+  const configKey = `${config.provider}-${config.apiKey}`;
+  const cachedKey = cachedConfig ? `${cachedConfig.provider}-${cachedConfig.apiKey}` : null;
+  
+  if (configKey !== cachedKey) {
+    aiClient = null;
+    claudeClient = null;
+    cachedConfig = config;
+  }
+  
+  if (!claudeClient) {
+    if (!config.apiKey) {
+      throw new Error("Anthropic API ключ не налаштовано");
+    }
+    
+    claudeClient = new Anthropic({ 
+      apiKey: config.apiKey
+    });
+  }
+  
+  return { client: claudeClient, config };
+}
+
+async function getAIClient(): Promise<{ client: OpenAI; config: AIConfig }> {
+  return getOpenAIClient();
 }
 
 export async function isAIConfigured(): Promise<boolean> {
@@ -362,7 +402,7 @@ export async function sendBrandChatMessage(
   brandContext: BrandContext,
   sessionId?: string
 ): Promise<{ response: string; tokensUsed?: { input: number; output: number } }> {
-  const { client, config } = await getAIClient();
+  const config = await getAIConfig();
 
   const systemPrompt = `Ти - експертний консультант з брендингу та маркетингу. Ти допомагаєш підприємцям розвивати їхні бренди.
 
@@ -386,18 +426,81 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
 - Відповідай чітко, конструктивно та українською мовою
 - Пропонуй конкретні кроки та приклади`;
 
-  // Build messages array ensuring alternation for Perplexity compatibility
+  // Build messages array ensuring alternation
   const historyMessages = chatHistory.slice(-10).filter(m => m.role !== "system");
+  
+  // For Claude, we need to handle messages differently
+  if (config.provider === "claude") {
+    const { client: claude } = await getClaudeClient();
+    
+    const claudeMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
+    let lastRole: string | null = null;
+    
+    for (const msg of historyMessages) {
+      if (msg.role === "user" || msg.role === "assistant") {
+        if (msg.role === lastRole && claudeMessages.length > 0) {
+          claudeMessages[claudeMessages.length - 1].content += "\n\n" + msg.content;
+        } else {
+          claudeMessages.push({ role: msg.role, content: msg.content });
+          lastRole = msg.role;
+        }
+      }
+    }
+    
+    // Add new user message
+    if (lastRole === "user" && claudeMessages.length > 0) {
+      claudeMessages[claudeMessages.length - 1].content += "\n\n" + userMessage;
+    } else {
+      claudeMessages.push({ role: "user", content: userMessage });
+    }
+    
+    const response = await claude.messages.create({
+      model: config.model,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: claudeMessages
+    });
+    
+    const usage = response.usage;
+    if (usage) {
+      const costRates = { input: 0.000003, output: 0.000015 }; // Claude Sonnet pricing
+      const estimatedCost = (usage.input_tokens * costRates.input) + (usage.output_tokens * costRates.output);
+      
+      await storage.logAIUsage({
+        provider: config.provider,
+        model: config.model,
+        tokensInput: usage.input_tokens,
+        tokensOutput: usage.output_tokens,
+        costEstimate: estimatedCost.toFixed(6),
+        endpoint: "brandChat",
+        sessionId: sessionId || null,
+      });
+    }
+    
+    const content = response.content[0];
+    if (!content || content.type !== "text") {
+      throw new Error("Пуста відповідь від Claude");
+    }
+    
+    return {
+      response: content.text,
+      tokensUsed: usage ? {
+        input: usage.input_tokens,
+        output: usage.output_tokens
+      } : undefined
+    };
+  }
+  
+  // OpenAI / Perplexity path
+  const { client } = await getOpenAIClient();
+  
   const allMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
     { role: "system", content: systemPrompt }
   ];
   
-  // Add history ensuring user/assistant alternation
   let lastRole: string | null = "system";
   for (const msg of historyMessages) {
-    // Skip if same role as last (except first after system)
     if (msg.role === lastRole && lastRole !== "system") {
-      // Merge with previous message of same role
       const prev = allMessages[allMessages.length - 1];
       if (prev && prev.role === msg.role) {
         prev.content += "\n\n" + msg.content;
@@ -411,19 +514,16 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
     lastRole = msg.role;
   }
   
-  // Add new user message (merge if last was also user)
   if (lastRole === "user" && allMessages.length > 1) {
     const lastMsg = allMessages[allMessages.length - 1];
     lastMsg.content += "\n\n" + userMessage;
   } else {
     allMessages.push({ role: "user", content: userMessage });
   }
-  
-  const messages = allMessages;
 
   const response = await client.chat.completions.create({
     model: config.model,
-    messages,
+    messages: allMessages,
     max_tokens: 2048,
     temperature: 0.7
   });
