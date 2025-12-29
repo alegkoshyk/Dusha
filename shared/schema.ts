@@ -691,3 +691,67 @@ export const insertMerchTypeSchema = createInsertSchema(merchTypesTable).omit({
 
 export type MerchType = typeof merchTypesTable.$inferSelect;
 export type InsertMerchType = z.infer<typeof insertMerchTypeSchema>;
+
+// Таблиця медіа-файлів (централізоване сховище для всіх зображень)
+export const mediaAssetsTable = pgTable("media_assets", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  brandId: uuid("brand_id").references(() => userBrandsTable.id, { onDelete: "set null" }),
+  // Тип медіа: logo, avatar, chat_user, chat_ai, merch, attachment
+  assetType: varchar("asset_type", { length: 50 }).notNull(),
+  // Шлях у Object Storage
+  storageKey: text("storage_key").notNull(),
+  // Публічний URL для доступу
+  publicUrl: text("public_url").notNull(),
+  // Оптимізована версія (thumbnail)
+  thumbnailKey: text("thumbnail_key"),
+  thumbnailUrl: text("thumbnail_url"),
+  // Метадані файлу
+  filename: varchar("filename", { length: 255 }),
+  mimeType: varchar("mime_type", { length: 100 }),
+  sizeBytes: integer("size_bytes"),
+  width: integer("width"),
+  height: integer("height"),
+  // Опціональний опис/alt текст
+  altText: text("alt_text"),
+  // Зв'язок з чат-повідомленням (якщо з чату)
+  chatMessageId: uuid("chat_message_id").references(() => aiChatMessagesTable.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  userIdIdx: index("media_assets_user_id_idx").on(table.userId),
+  brandIdIdx: index("media_assets_brand_id_idx").on(table.brandId),
+  assetTypeIdx: index("media_assets_asset_type_idx").on(table.assetType),
+}));
+
+export const insertMediaAssetSchema = createInsertSchema(mediaAssetsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type MediaAsset = typeof mediaAssetsTable.$inferSelect;
+export type InsertMediaAsset = z.infer<typeof insertMediaAssetSchema>;
+
+// Таблиця квот користувачів на медіа
+export const userMediaQuotasTable = pgTable("user_media_quotas", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }).unique(),
+  // Ліміти в байтах
+  maxTotalBytes: integer("max_total_bytes").notNull().default(104857600), // 100MB за замовчуванням
+  usedBytes: integer("used_bytes").notNull().default(0),
+  // Ліміти за кількістю файлів
+  maxFiles: integer("max_files").notNull().default(100),
+  usedFiles: integer("used_files").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+export const insertUserMediaQuotaSchema = createInsertSchema(userMediaQuotasTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserMediaQuota = typeof userMediaQuotasTable.$inferSelect;
+export type InsertUserMediaQuota = z.infer<typeof insertUserMediaQuotaSchema>;
