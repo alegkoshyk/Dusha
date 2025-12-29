@@ -53,6 +53,12 @@ import {
   type MerchType,
   type InsertMerchType,
   merchTypesTable,
+  type MediaAsset,
+  type InsertMediaAsset,
+  mediaAssetsTable,
+  type UserMediaQuota,
+  type InsertUserMediaQuota,
+  userMediaQuotasTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte } from "drizzle-orm";
@@ -138,6 +144,20 @@ export interface IStorage {
   createGenerationTemplate(template: InsertGenerationTemplate): Promise<GenerationTemplate>;
   updateGenerationTemplate(id: number, updates: Partial<GenerationTemplate>): Promise<GenerationTemplate | undefined>;
   deleteGenerationTemplate(id: number): Promise<boolean>;
+  
+  // Media assets operations
+  createMediaAsset(asset: InsertMediaAsset): Promise<MediaAsset>;
+  getMediaAsset(id: string): Promise<MediaAsset | undefined>;
+  getUserMediaAssets(userId: string, assetType?: string): Promise<MediaAsset[]>;
+  getBrandMediaAssets(brandId: string): Promise<MediaAsset[]>;
+  updateMediaAsset(id: string, updates: Partial<MediaAsset>): Promise<MediaAsset | undefined>;
+  deleteMediaAsset(id: string): Promise<boolean>;
+  
+  // Media quotas operations
+  getUserMediaQuota(userId: string): Promise<UserMediaQuota | undefined>;
+  createOrUpdateUserMediaQuota(userId: string, updates: Partial<UserMediaQuota>): Promise<UserMediaQuota>;
+  updateQuotaUsage(userId: string, bytesChange: number, filesChange: number): Promise<UserMediaQuota | undefined>;
+  checkQuotaAvailable(userId: string, bytesToAdd: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1714,6 +1734,149 @@ export class DatabaseStorage implements IStorage {
         .set({ sortOrder: i + 1, updatedAt: new Date() })
         .where(eq(merchTypesTable.id, orderedIds[i]));
     }
+  }
+
+  // Media assets operations
+  async createMediaAsset(asset: InsertMediaAsset): Promise<MediaAsset> {
+    const [result] = await db
+      .insert(mediaAssetsTable)
+      .values(asset)
+      .returning();
+    
+    // Update quota usage
+    if (asset.sizeBytes) {
+      await this.updateQuotaUsage(asset.userId, asset.sizeBytes, 1);
+    }
+    
+    return result;
+  }
+
+  async getMediaAsset(id: string): Promise<MediaAsset | undefined> {
+    const [result] = await db
+      .select()
+      .from(mediaAssetsTable)
+      .where(eq(mediaAssetsTable.id, id))
+      .limit(1);
+    return result;
+  }
+
+  async getUserMediaAssets(userId: string, assetType?: string): Promise<MediaAsset[]> {
+    if (assetType) {
+      return db
+        .select()
+        .from(mediaAssetsTable)
+        .where(and(
+          eq(mediaAssetsTable.userId, userId),
+          eq(mediaAssetsTable.assetType, assetType)
+        ))
+        .orderBy(desc(mediaAssetsTable.createdAt));
+    }
+    return db
+      .select()
+      .from(mediaAssetsTable)
+      .where(eq(mediaAssetsTable.userId, userId))
+      .orderBy(desc(mediaAssetsTable.createdAt));
+  }
+
+  async getBrandMediaAssets(brandId: string): Promise<MediaAsset[]> {
+    return db
+      .select()
+      .from(mediaAssetsTable)
+      .where(eq(mediaAssetsTable.brandId, brandId))
+      .orderBy(desc(mediaAssetsTable.createdAt));
+  }
+
+  async updateMediaAsset(id: string, updates: Partial<MediaAsset>): Promise<MediaAsset | undefined> {
+    const [result] = await db
+      .update(mediaAssetsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(mediaAssetsTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteMediaAsset(id: string): Promise<boolean> {
+    // Get asset first to update quota
+    const asset = await this.getMediaAsset(id);
+    if (asset) {
+      await db
+        .delete(mediaAssetsTable)
+        .where(eq(mediaAssetsTable.id, id));
+      
+      // Update quota usage (negative to reduce)
+      if (asset.sizeBytes) {
+        await this.updateQuotaUsage(asset.userId, -asset.sizeBytes, -1);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // Media quotas operations
+  async getUserMediaQuota(userId: string): Promise<UserMediaQuota | undefined> {
+    const [result] = await db
+      .select()
+      .from(userMediaQuotasTable)
+      .where(eq(userMediaQuotasTable.userId, userId))
+      .limit(1);
+    return result;
+  }
+
+  async createOrUpdateUserMediaQuota(userId: string, updates: Partial<UserMediaQuota>): Promise<UserMediaQuota> {
+    const existing = await this.getUserMediaQuota(userId);
+    
+    if (existing) {
+      const [result] = await db
+        .update(userMediaQuotasTable)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(userMediaQuotasTable.userId, userId))
+        .returning();
+      return result;
+    }
+    
+    const [result] = await db
+      .insert(userMediaQuotasTable)
+      .values({ userId, ...updates })
+      .returning();
+    return result;
+  }
+
+  async updateQuotaUsage(userId: string, bytesChange: number, filesChange: number): Promise<UserMediaQuota | undefined> {
+    let quota = await this.getUserMediaQuota(userId);
+    
+    if (!quota) {
+      // Create default quota for new user
+      quota = await this.createOrUpdateUserMediaQuota(userId, {});
+    }
+    
+    const newUsedBytes = Math.max(0, (quota.usedBytes || 0) + bytesChange);
+    const newUsedFiles = Math.max(0, (quota.usedFiles || 0) + filesChange);
+    
+    const [result] = await db
+      .update(userMediaQuotasTable)
+      .set({
+        usedBytes: newUsedBytes,
+        usedFiles: newUsedFiles,
+        updatedAt: new Date()
+      })
+      .where(eq(userMediaQuotasTable.userId, userId))
+      .returning();
+    
+    return result;
+  }
+
+  async checkQuotaAvailable(userId: string, bytesToAdd: number): Promise<boolean> {
+    let quota = await this.getUserMediaQuota(userId);
+    
+    if (!quota) {
+      // Create default quota for new user
+      quota = await this.createOrUpdateUserMediaQuota(userId, {});
+    }
+    
+    const hasSpaceBytes = (quota.usedBytes || 0) + bytesToAdd <= (quota.maxTotalBytes || 104857600);
+    const hasSpaceFiles = (quota.usedFiles || 0) + 1 <= (quota.maxFiles || 100);
+    
+    return hasSpaceBytes && hasSpaceFiles;
   }
 }
 
