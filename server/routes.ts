@@ -2742,6 +2742,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save chat image to user's media library
+  app.post("/api/media/save-chat-image", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { imageUrl, imageBase64, brandId, altText } = req.body;
+
+      if (!imageUrl && !imageBase64) {
+        return res.status(400).json({ error: "Необхідне imageUrl або imageBase64" });
+      }
+
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+
+      let uploadResult;
+
+      if (imageBase64) {
+        // Direct base64 upload
+        const estimatedSize = Math.ceil(imageBase64.length * 0.75);
+        const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
+        if (!hasQuota) {
+          return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+        }
+
+        uploadResult = await objectStorageService.uploadMediaAsset({
+          userId: currentUser.id,
+          assetType: 'merch',
+          brandId,
+          base64Data: imageBase64
+        });
+      } else if (imageUrl.startsWith('data:image/')) {
+        // Base64 data URL
+        const base64Data = imageUrl.split(',')[1] || imageUrl;
+        const estimatedSize = Math.ceil(base64Data.length * 0.75);
+        const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
+        if (!hasQuota) {
+          return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+        }
+
+        uploadResult = await objectStorageService.uploadMediaAsset({
+          userId: currentUser.id,
+          assetType: 'merch',
+          brandId,
+          base64Data: imageUrl
+        });
+      } else {
+        // URL to download and save - skip for now, return error
+        return res.status(400).json({ error: "URL зображення не підтримується. Використовуйте base64." });
+      }
+
+      // Create media asset record
+      const mediaAsset = await storage.createMediaAsset({
+        userId: currentUser.id,
+        brandId: brandId || null,
+        assetType: 'merch',
+        storageKey: uploadResult.storageKey,
+        publicUrl: uploadResult.publicUrl,
+        filename: `chat-image-${Date.now()}`,
+        mimeType: uploadResult.mimeType,
+        sizeBytes: uploadResult.sizeBytes,
+        altText: altText || 'Chat generated image',
+      });
+
+      res.json(mediaAsset);
+    } catch (error: any) {
+      console.error("Save chat image error:", error);
+      res.status(500).json({ error: "Не вдалося зберегти зображення" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
