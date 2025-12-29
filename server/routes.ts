@@ -332,16 +332,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(400).json({ error: "Невірний формат лого - пустий вміст" });
           }
 
-          // Try to upload to object storage for public URL
-          let logoUrl = logo; // Default to base64 if upload fails
+          // Check quota before upload
+          const estimatedSize = Math.ceil(base64Part.length * 0.75);
+          const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
+          if (!hasQuota) {
+            return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+          }
+
+          // Upload to object storage using new media system
+          let logoUrl = logo;
           try {
             const { ObjectStorageService } = await import('./objectStorage');
-            const objectStorage = new ObjectStorageService();
-            logoUrl = await objectStorage.uploadLogoFromBase64(id, logo);
+            const objectStorageService = new ObjectStorageService();
+            const uploadResult = await objectStorageService.uploadMediaAsset({
+              userId: currentUser.id,
+              assetType: 'logo',
+              brandId: id,
+              base64Data: logo
+            });
+            
+            logoUrl = uploadResult.publicUrl;
             console.log('Logo uploaded to object storage:', logoUrl);
+
+            // Create media asset record
+            await storage.createMediaAsset({
+              userId: currentUser.id,
+              brandId: id,
+              assetType: 'logo',
+              storageKey: uploadResult.storageKey,
+              publicUrl: uploadResult.publicUrl,
+              filename: 'brand-logo',
+              mimeType: uploadResult.mimeType,
+              sizeBytes: uploadResult.sizeBytes,
+              altText: 'Brand logo',
+            });
           } catch (uploadError) {
             console.warn('Object storage upload failed, using base64:', uploadError);
-            // Keep base64 as fallback
           }
 
           const updated = await storage.updateUserBrandLogo(id, logoUrl);
