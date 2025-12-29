@@ -2532,6 +2532,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============= Media Assets API =============
+
+  // Upload media asset
+  app.post("/api/media/upload", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { base64Data, assetType, brandId, altText, filename } = req.body;
+
+      if (!base64Data || !assetType) {
+        return res.status(400).json({ error: "Необхідні base64Data та assetType" });
+      }
+
+      // Validate asset type
+      const validTypes = ['logo', 'avatar', 'chat_user', 'chat_ai', 'merch', 'attachment'];
+      if (!validTypes.includes(assetType)) {
+        return res.status(400).json({ error: "Некоректний тип медіа" });
+      }
+
+      // Check size limit (~5MB in base64)
+      if (base64Data.length > 7000000) {
+        return res.status(400).json({ error: "Файл занадто великий (макс. 5MB)" });
+      }
+
+      // Check quota
+      const estimatedSize = Math.ceil(base64Data.length * 0.75); // Approx decoded size
+      const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
+      if (!hasQuota) {
+        return res.status(400).json({ error: "Досягнуто ліміт зберігання. Видаліть деякі файли або зверніться до адміністратора." });
+      }
+
+      // Upload to object storage
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      const uploadResult = await objectStorageService.uploadMediaAsset({
+        userId: currentUser.id,
+        assetType: assetType as 'logo' | 'avatar' | 'chat_user' | 'chat_ai' | 'merch' | 'attachment',
+        brandId,
+        base64Data
+      });
+
+      // Save to database
+      const mediaAsset = await storage.createMediaAsset({
+        userId: currentUser.id,
+        brandId: brandId || null,
+        assetType,
+        storageKey: uploadResult.storageKey,
+        publicUrl: uploadResult.publicUrl,
+        filename: filename || null,
+        mimeType: uploadResult.mimeType,
+        sizeBytes: uploadResult.sizeBytes,
+        altText: altText || null,
+      });
+
+      res.json(mediaAsset);
+    } catch (error: any) {
+      console.error("Media upload error:", error);
+      res.status(500).json({ error: "Не вдалося завантажити медіа" });
+    }
+  });
+
+  // Get user's media assets
+  app.get("/api/media", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const assetType = req.query.type as string | undefined;
+      const assets = await storage.getUserMediaAssets(currentUser.id, assetType);
+      res.json(assets);
+    } catch (error: any) {
+      console.error("Get media error:", error);
+      res.status(500).json({ error: "Не вдалося отримати медіа" });
+    }
+  });
+
+  // Get user's media quota
+  app.get("/api/media/quota", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      let quota = await storage.getUserMediaQuota(currentUser.id);
+      if (!quota) {
+        quota = await storage.createOrUpdateUserMediaQuota(currentUser.id, {});
+      }
+
+      res.json({
+        ...quota,
+        usedPercentBytes: Math.round((quota.usedBytes / quota.maxTotalBytes) * 100),
+        usedPercentFiles: Math.round((quota.usedFiles / quota.maxFiles) * 100),
+      });
+    } catch (error: any) {
+      console.error("Get quota error:", error);
+      res.status(500).json({ error: "Не вдалося отримати квоту" });
+    }
+  });
+
+  // Delete media asset
+  app.delete("/api/media/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      
+      // Verify ownership
+      const asset = await storage.getMediaAsset(id);
+      if (!asset) {
+        return res.status(404).json({ error: "Медіа не знайдено" });
+      }
+      if (asset.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await storage.deleteMediaAsset(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete media error:", error);
+      res.status(500).json({ error: "Не вдалося видалити медіа" });
+    }
+  });
+
+  // Get brand's media assets
+  app.get("/api/brands/:brandId/media", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      
+      // Verify brand ownership
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+      if (brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const assets = await storage.getBrandMediaAssets(brandId);
+      res.json(assets);
+    } catch (error: any) {
+      console.error("Get brand media error:", error);
+      res.status(500).json({ error: "Не вдалося отримати медіа бренду" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

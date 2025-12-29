@@ -167,6 +167,84 @@ export class ObjectStorageService {
     return `https://storage.googleapis.com/${bucketName}/${objectName}`;
   }
 
+  // Generic method for uploading media assets with structured paths
+  async uploadMediaAsset(params: {
+    userId: string;
+    assetType: 'logo' | 'avatar' | 'chat_user' | 'chat_ai' | 'merch' | 'attachment';
+    brandId?: string;
+    base64Data: string;
+  }): Promise<{ publicUrl: string; storageKey: string; sizeBytes: number; mimeType: string }> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    if (!privateObjectDir) {
+      throw new Error("PRIVATE_OBJECT_DIR not set");
+    }
+
+    const match = params.base64Data.match(/^data:image\/([\w+]+);base64,(.+)$/);
+    if (!match) {
+      throw new Error("Invalid base64 image format");
+    }
+
+    let extension = match[1];
+    if (extension === 'svg+xml') extension = 'svg';
+    if (extension === 'jpeg') extension = 'jpg';
+    const imageData = match[2];
+    const buffer = Buffer.from(imageData, 'base64');
+    const sizeBytes = buffer.length;
+
+    // Build path based on asset type
+    let pathPrefix: string;
+    switch (params.assetType) {
+      case 'logo':
+        pathPrefix = `logos/${params.brandId || params.userId}`;
+        break;
+      case 'avatar':
+        pathPrefix = `avatars/${params.userId}`;
+        break;
+      case 'chat_user':
+      case 'chat_ai':
+        pathPrefix = `chat/${params.userId}`;
+        break;
+      case 'merch':
+        pathPrefix = `merch/${params.brandId || params.userId}`;
+        break;
+      case 'attachment':
+        pathPrefix = `attachments/${params.userId}`;
+        break;
+      default:
+        pathPrefix = `misc/${params.userId}`;
+    }
+
+    const objectId = `${pathPrefix}/${randomUUID()}.${extension}`;
+    const fullPath = `${privateObjectDir}/${objectId}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+
+    const contentType = extension === 'svg' ? 'image/svg+xml' : `image/${extension}`;
+    
+    await file.save(buffer, {
+      metadata: {
+        contentType,
+        cacheControl: 'public, max-age=31536000',
+      },
+    });
+
+    const signedUrl = await signObjectURL({
+      bucketName,
+      objectName,
+      method: "GET",
+      ttlSec: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    return {
+      publicUrl: signedUrl,
+      storageKey: objectId,
+      sizeBytes,
+      mimeType: contentType
+    };
+  }
+
   async uploadAvatar(userId: string, base64Data: string): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();
     if (!privateObjectDir) {
