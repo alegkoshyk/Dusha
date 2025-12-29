@@ -30,12 +30,14 @@ interface AISettings {
   provider: string;
   modelOpenAI: string;
   modelPerplexity: string;
+  modelClaude: string;
   context: string;
 }
 
 interface AISettingsData {
   openai: ProviderStatus;
   perplexity: ProviderStatus;
+  claude: ProviderStatus;
   settings: AISettings;
   configured: boolean;
 }
@@ -185,11 +187,14 @@ export default function Settings() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [openaiKeyInput, setOpenaiKeyInput] = useState("");
   const [perplexityKeyInput, setPerplexityKeyInput] = useState("");
+  const [claudeKeyInput, setClaudeKeyInput] = useState("");
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
   const [showPerplexityKey, setShowPerplexityKey] = useState(false);
+  const [showClaudeKey, setShowClaudeKey] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState("openai");
   const [selectedModelOpenAI, setSelectedModelOpenAI] = useState("gpt-4o");
   const [selectedModelPerplexity, setSelectedModelPerplexity] = useState("sonar-pro");
+  const [selectedModelClaude, setSelectedModelClaude] = useState("claude-sonnet-4-20250514");
   const [aiContext, setAiContext] = useState("");
   const [geminiKeyInput, setGeminiKeyInput] = useState("");
   const [showGeminiKey, setShowGeminiKey] = useState(false);
@@ -544,6 +549,7 @@ export default function Settings() {
       setSelectedProvider(aiSettings.settings.provider || 'openai');
       setSelectedModelOpenAI(aiSettings.settings.modelOpenAI || 'gpt-4o');
       setSelectedModelPerplexity(aiSettings.settings.modelPerplexity || 'sonar-pro');
+      setSelectedModelClaude(aiSettings.settings.modelClaude || 'claude-sonnet-4-20250514');
       setAiContext(aiSettings.settings.context || '');
     }
   }, [aiSettings]);
@@ -554,14 +560,21 @@ export default function Settings() {
       return response.json();
     },
     onSuccess: (_, { provider }) => {
+      const providerNames: Record<string, string> = {
+        openai: 'OpenAI',
+        perplexity: 'Perplexity',
+        claude: 'Claude (Anthropic)'
+      };
       toast({
         title: "Успішно збережено",
-        description: `${provider === 'perplexity' ? 'Perplexity' : 'OpenAI'} API ключ успішно збережено`,
+        description: `${providerNames[provider] || provider} API ключ успішно збережено`,
       });
       if (provider === 'openai') {
         setOpenaiKeyInput("");
-      } else {
+      } else if (provider === 'perplexity') {
         setPerplexityKeyInput("");
+      } else if (provider === 'claude') {
+        setClaudeKeyInput("");
       }
       refetchAI();
     },
@@ -575,7 +588,7 @@ export default function Settings() {
   });
 
   const saveConfigMutation = useMutation({
-    mutationFn: async (config: { provider?: string; modelOpenAI?: string; modelPerplexity?: string; context?: string }) => {
+    mutationFn: async (config: { provider?: string; modelOpenAI?: string; modelPerplexity?: string; modelClaude?: string; context?: string }) => {
       const response = await apiRequest("POST", "/api/admin/ai-settings/config", config);
       return response.json();
     },
@@ -678,6 +691,7 @@ export default function Settings() {
       provider: selectedProvider,
       modelOpenAI: selectedModelOpenAI,
       modelPerplexity: selectedModelPerplexity,
+      modelClaude: selectedModelClaude,
       context: aiContext,
     });
   };
@@ -703,19 +717,31 @@ export default function Settings() {
   const totalTables = comparison?.comparison.length || 0;
 
   const renderProviderKeySection = (
-    provider: 'openai' | 'perplexity',
+    provider: 'openai' | 'perplexity' | 'claude',
     status: ProviderStatus | undefined,
     keyInput: string,
     setKeyInput: (val: string) => void,
     showKey: boolean,
     setShowKey: (val: boolean) => void
   ) => {
-    const isOpenAI = provider === 'openai';
-    const title = isOpenAI ? 'OpenAI' : 'Perplexity';
-    const placeholder = isOpenAI ? 'sk-...' : 'pplx-...';
-    const helpUrl = isOpenAI 
-      ? 'https://platform.openai.com/api-keys'
-      : 'https://www.perplexity.ai/settings/api';
+    const titles: Record<string, string> = {
+      openai: 'OpenAI',
+      perplexity: 'Perplexity',
+      claude: 'Claude (Anthropic)'
+    };
+    const placeholders: Record<string, string> = {
+      openai: 'sk-...',
+      perplexity: 'pplx-...',
+      claude: 'sk-ant-...'
+    };
+    const helpUrls: Record<string, string> = {
+      openai: 'https://platform.openai.com/api-keys',
+      perplexity: 'https://www.perplexity.ai/settings/api',
+      claude: 'https://console.anthropic.com/settings/keys'
+    };
+    const title = titles[provider];
+    const placeholder = placeholders[provider];
+    const helpUrl = helpUrls[provider];
 
     return (
       <Card className="bg-gray-900 border-gray-700">
@@ -859,6 +885,7 @@ export default function Settings() {
                           <SelectContent className="bg-gray-800 border-gray-700">
                             <SelectItem value="openai">OpenAI</SelectItem>
                             <SelectItem value="perplexity">Perplexity</SelectItem>
+                            <SelectItem value="claude">Claude (Anthropic)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -889,6 +916,23 @@ export default function Settings() {
                             <SelectItem value="sonar-pro">Sonar Pro (рекомендовано)</SelectItem>
                             <SelectItem value="sonar-reasoning">Sonar Reasoning</SelectItem>
                             <SelectItem value="sonar-reasoning-pro">Sonar Reasoning Pro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-gray-300">Модель Claude</Label>
+                        <Select value={selectedModelClaude} onValueChange={setSelectedModelClaude}>
+                          <SelectTrigger className="bg-gray-900 border-gray-600 text-white" data-testid="select-model-claude">
+                            <SelectValue placeholder="Оберіть модель" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-gray-800 border-gray-700">
+                            <SelectItem value="claude-sonnet-4-20250514">Claude Sonnet 4 (рекомендовано)</SelectItem>
+                            <SelectItem value="claude-opus-4-20250514">Claude Opus 4 (потужніший)</SelectItem>
+                            <SelectItem value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet</SelectItem>
+                            <SelectItem value="claude-3-haiku-20240307">Claude 3 Haiku (швидкий)</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -926,7 +970,7 @@ export default function Settings() {
                   </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {renderProviderKeySection(
                     'openai',
                     aiSettings?.openai,
@@ -942,6 +986,14 @@ export default function Settings() {
                     setPerplexityKeyInput,
                     showPerplexityKey,
                     setShowPerplexityKey
+                  )}
+                  {renderProviderKeySection(
+                    'claude',
+                    aiSettings?.claude,
+                    claudeKeyInput,
+                    setClaudeKeyInput,
+                    showClaudeKey,
+                    setShowClaudeKey
                   )}
                 </div>
 

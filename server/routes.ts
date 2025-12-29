@@ -1383,11 +1383,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const configured = await isOpenAIConfigured();
       const openaiDbSetting = await storage.getAppSetting("OPENAI_API_KEY");
       const perplexityDbSetting = await storage.getAppSetting("PERPLEXITY_API_KEY");
+      const claudeDbSetting = await storage.getAppSetting("ANTHROPIC_API_KEY");
       
       // Get AI configuration settings
       const aiProvider = await storage.getAppSetting("AI_PROVIDER");
       const aiModelOpenAI = await storage.getAppSetting("AI_MODEL_OPENAI");
       const aiModelPerplexity = await storage.getAppSetting("AI_MODEL_PERPLEXITY");
+      const aiModelClaude = await storage.getAppSetting("AI_MODEL_CLAUDE");
       const aiContext = await storage.getAppSetting("AI_CONTEXT");
       
       res.json({
@@ -1403,10 +1405,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           hasEnvKey: !!process.env.PERPLEXITY_API_KEY,
           keySource: perplexityDbSetting?.value ? 'database' : (process.env.PERPLEXITY_API_KEY ? 'environment' : 'none')
         },
+        claude: {
+          configured: !!claudeDbSetting?.value || !!process.env.ANTHROPIC_API_KEY,
+          hasDbKey: !!claudeDbSetting?.value,
+          hasEnvKey: !!process.env.ANTHROPIC_API_KEY,
+          keySource: claudeDbSetting?.value ? 'database' : (process.env.ANTHROPIC_API_KEY ? 'environment' : 'none')
+        },
         settings: {
           provider: aiProvider?.value || 'openai',
           modelOpenAI: aiModelOpenAI?.value || 'gpt-4o',
           modelPerplexity: aiModelPerplexity?.value || 'sonar-pro',
+          modelClaude: aiModelClaude?.value || 'claude-sonnet-4-20250514',
           context: aiContext?.value || ''
         },
         configured
@@ -1416,7 +1425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Save AI API key to database (OpenAI or Perplexity)
+  // Save AI API key to database (OpenAI, Perplexity or Claude)
   app.post("/api/admin/ai-settings", requireAdmin, async (req, res) => {
     try {
       const { apiKey, provider = 'openai' } = req.body;
@@ -1425,21 +1434,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Некоректний API ключ" });
       }
 
-      const keyName = provider === 'perplexity' ? 'PERPLEXITY_API_KEY' : 'OPENAI_API_KEY';
-      const description = provider === 'perplexity' 
-        ? 'Perplexity API ключ для AI аналізу брендів'
-        : 'OpenAI API ключ для AI аналізу брендів';
+      const keyNames: Record<string, string> = {
+        openai: 'OPENAI_API_KEY',
+        perplexity: 'PERPLEXITY_API_KEY',
+        claude: 'ANTHROPIC_API_KEY'
+      };
+      const descriptions: Record<string, string> = {
+        openai: 'OpenAI API ключ для AI аналізу брендів',
+        perplexity: 'Perplexity API ключ для AI аналізу брендів',
+        claude: 'Anthropic Claude API ключ для AI аналізу брендів'
+      };
+      const providerNames: Record<string, string> = {
+        openai: 'OpenAI',
+        perplexity: 'Perplexity',
+        claude: 'Claude (Anthropic)'
+      };
+
+      const keyName = keyNames[provider] || 'OPENAI_API_KEY';
+      const description = descriptions[provider] || 'API ключ для AI аналізу брендів';
 
       await storage.setAppSetting(keyName, apiKey.trim(), true, description);
 
-      if (provider === 'openai') {
-        const { resetOpenAIClient } = await import("./openai");
-        resetOpenAIClient();
-      }
+      // Reset AI client cache when any key is updated
+      const { resetAIClient } = await import("./openai");
+      resetAIClient();
 
       res.json({ 
         success: true, 
-        message: `${provider === 'perplexity' ? 'Perplexity' : 'OpenAI'} API ключ успішно збережено` 
+        message: `${providerNames[provider] || provider} API ключ успішно збережено` 
       });
     } catch (error: any) {
       console.error("Error saving API key:", error);
@@ -1450,10 +1472,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Save AI configuration settings
   app.post("/api/admin/ai-settings/config", requireAdmin, async (req, res) => {
     try {
-      const { provider, modelOpenAI, modelPerplexity, context } = req.body;
+      const { provider, modelOpenAI, modelPerplexity, modelClaude, context } = req.body;
 
       if (provider) {
-        await storage.setAppSetting("AI_PROVIDER", provider, false, "Активний AI провайдер (openai/perplexity)");
+        await storage.setAppSetting("AI_PROVIDER", provider, false, "Активний AI провайдер (openai/perplexity/claude)");
       }
       if (modelOpenAI) {
         await storage.setAppSetting("AI_MODEL_OPENAI", modelOpenAI, false, "Модель OpenAI для використання");
@@ -1461,9 +1483,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (modelPerplexity) {
         await storage.setAppSetting("AI_MODEL_PERPLEXITY", modelPerplexity, false, "Модель Perplexity для використання");
       }
+      if (modelClaude) {
+        await storage.setAppSetting("AI_MODEL_CLAUDE", modelClaude, false, "Модель Claude для використання");
+      }
       if (context !== undefined) {
         await storage.setAppSetting("AI_CONTEXT", context, false, "Додатковий контекст для AI промптів");
       }
+      
+      // Reset AI client cache when config changes
+      const { resetAIClient } = await import("./openai");
+      resetAIClient();
 
       res.json({ success: true, message: "Налаштування успішно збережено" });
     } catch (error: any) {
