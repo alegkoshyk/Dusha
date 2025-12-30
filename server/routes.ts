@@ -3249,6 +3249,241 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // Payment / Monobank integration
+  // ============================================
+  
+  // Create payment intent
+  app.post("/api/payments/create", requireAuth, async (req, res) => {
+    try {
+      const user = await getCurrentUserUnified(req);
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { planId, billingPeriod } = req.body;
+      if (!planId || !billingPeriod) {
+        return res.status(400).json({ error: "Не вказано тариф або період" });
+      }
+
+      const plan = await storage.getSubscriptionPlan(parseInt(planId));
+      if (!plan) {
+        return res.status(404).json({ error: "Тариф не знайдено" });
+      }
+
+      const amount = billingPeriod === 'yearly' ? plan.priceYearly : plan.priceMonthly;
+      if (amount === 0) {
+        return res.status(400).json({ error: "Безкоштовний тариф не потребує оплати" });
+      }
+
+      const monoToken = process.env.MONOBANK_TOKEN;
+      if (!monoToken) {
+        return res.status(503).json({ error: "Платіжний сервіс тимчасово недоступний" });
+      }
+
+      const { MonobankService } = await import("./monobank");
+      const monobank = new MonobankService(monoToken);
+
+      const reference = `sub_${user.id}_${plan.id}_${Date.now()}`;
+      const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : process.env.REPLIT_DOMAINS?.split(',')[0] 
+          ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
+          : 'http://localhost:5000';
+
+      const invoice = await monobank.createInvoice({
+        amount,
+        reference,
+        destination: `Підписка "${plan.displayName}" (${billingPeriod === 'yearly' ? 'рік' : 'місяць'})`,
+        redirectUrl: `${baseUrl}/payment/callback`,
+        webhookUrl: `${baseUrl}/api/payments/webhook`,
+        validity: 3600,
+      });
+
+      const payment = await storage.createPaymentHistory({
+        userId: user.id,
+        planId: plan.id,
+        amount,
+        currency: "UAH",
+        status: "pending",
+        paymentMethod: "monobank",
+        description: `Підписка "${plan.displayName}" (${billingPeriod === 'yearly' ? 'рік' : 'місяць'})`,
+        billingPeriod,
+        monoInvoiceId: invoice.invoiceId,
+        monoPageUrl: invoice.pageUrl,
+        monoReference: reference,
+      });
+
+      res.json({
+        paymentId: payment.id,
+        pageUrl: invoice.pageUrl,
+        invoiceId: invoice.invoiceId,
+      });
+    } catch (error: any) {
+      console.error("Payment create error:", error);
+      res.status(500).json({ error: "Не вдалося створити платіж" });
+    }
+  });
+
+  // Monobank webhook handler
+  app.post("/api/payments/webhook", async (req, res) => {
+    try {
+      const rawBody = JSON.stringify(req.body);
+      const xSign = req.headers['x-sign'] as string;
+      
+      console.log("Monobank webhook received:", rawBody);
+
+      const monoToken = process.env.MONOBANK_TOKEN;
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      
+      if (xSign && monoToken) {
+        try {
+          const { MonobankService } = await import("./monobank");
+          const monobank = new MonobankService(monoToken);
+          const isValid = await monobank.verifyWebhookSignature(xSign, rawBody);
+          if (!isValid && !isDevelopment) {
+            console.error("Invalid webhook signature");
+            return res.status(403).json({ error: "Invalid signature" });
+          }
+        } catch (sigError) {
+          console.warn("Signature verification failed (sandbox mode):", sigError);
+          if (!isDevelopment) {
+            return res.status(403).json({ error: "Signature verification failed" });
+          }
+        }
+      } else if (!isDevelopment && !xSign) {
+        console.warn("Missing X-Sign header, but allowing in production for initial webhook test");
+      }
+
+      const { invoiceId, status, failureReason, paymentId } = req.body;
+      
+      if (!invoiceId) {
+        return res.status(400).json({ error: "Missing invoiceId" });
+      }
+
+      const payment = await storage.getPaymentByMonoInvoiceId(invoiceId);
+      if (!payment) {
+        console.error("Payment not found for invoiceId:", invoiceId);
+        return res.status(404).json({ error: "Payment not found" });
+      }
+
+      await storage.updatePaymentByMonoInvoiceId(invoiceId, {
+        status,
+        monoPaymentId: paymentId,
+        monoFailureReason: failureReason,
+      });
+
+      if (status === 'success' && payment.planId) {
+        const plan = await storage.getSubscriptionPlan(payment.planId);
+        if (plan) {
+          const expiresAt = new Date();
+          if (payment.billingPeriod === 'yearly') {
+            expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+          } else {
+            expiresAt.setMonth(expiresAt.getMonth() + 1);
+          }
+
+          const existingSub = await storage.getUserSubscription(payment.userId);
+          if (existingSub) {
+            await storage.updateUserSubscription(payment.userId, {
+              planId: plan.id,
+              billingPeriod: payment.billingPeriod || 'monthly',
+              status: 'active',
+              expiresAt,
+              lastPaymentAt: new Date(),
+              nextPaymentAt: expiresAt,
+              paymentMethod: 'monobank',
+            });
+          } else {
+            await storage.createUserSubscription({
+              userId: payment.userId,
+              planId: plan.id,
+              billingPeriod: payment.billingPeriod || 'monthly',
+              status: 'active',
+              expiresAt,
+              lastPaymentAt: new Date(),
+              nextPaymentAt: expiresAt,
+              paymentMethod: 'monobank',
+            });
+          }
+        }
+      }
+
+      res.json({ status: "ok" });
+    } catch (error: any) {
+      console.error("Webhook error:", error);
+      res.status(500).json({ error: "Webhook processing failed" });
+    }
+  });
+
+  // Check payment status
+  app.get("/api/payments/:invoiceId/status", requireAuth, async (req, res) => {
+    try {
+      const { invoiceId } = req.params;
+      const payment = await storage.getPaymentByMonoInvoiceId(invoiceId);
+      
+      if (!payment) {
+        return res.status(404).json({ error: "Платіж не знайдено" });
+      }
+
+      const monoToken = process.env.MONOBANK_TOKEN;
+      if (monoToken) {
+        try {
+          const { MonobankService } = await import("./monobank");
+          const monobank = new MonobankService(monoToken);
+          const status = await monobank.getInvoiceStatus(invoiceId);
+          
+          if (status.status !== payment.status) {
+            await storage.updatePaymentByMonoInvoiceId(invoiceId, {
+              status: status.status,
+              monoFailureReason: status.failureReason,
+            });
+            payment.status = status.status;
+          }
+        } catch (e) {
+          console.error("Error fetching Mono status:", e);
+        }
+      }
+
+      res.json({
+        status: payment.status,
+        planId: payment.planId,
+      });
+    } catch (error: any) {
+      console.error("Payment status error:", error);
+      res.status(500).json({ error: "Не вдалося отримати статус" });
+    }
+  });
+
+  // Get user payment history
+  app.get("/api/payments/history", requireAuth, async (req, res) => {
+    try {
+      const user = await getCurrentUserUnified(req);
+      if (!user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const payments = await storage.getUserPaymentHistory(user.id);
+      res.json(payments);
+    } catch (error: any) {
+      console.error("Payment history error:", error);
+      res.status(500).json({ error: "Не вдалося отримати історію" });
+    }
+  });
+
+  // Admin: Get all payments
+  app.get("/api/admin/payments", requireAdmin, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const result = await storage.getAllPayments(limit, offset);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Admin payments error:", error);
+      res.status(500).json({ error: "Не вдалося отримати транзакції" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

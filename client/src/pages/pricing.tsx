@@ -61,21 +61,25 @@ export default function PricingPage() {
 
   const checkoutMutation = useMutation({
     mutationFn: async ({ planId, billingPeriod }: { planId: number; billingPeriod: string }) => {
-      const response = await apiRequest('POST', '/api/subscriptions/checkout', { planId, billingPeriod });
+      const response = await apiRequest('POST', '/api/payments/create', { planId, billingPeriod });
       return response.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: "Успішно!",
-        description: data.message,
-      });
-      queryClient.invalidateQueries({ queryKey: ['/api/subscriptions/current'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/subscriptions/quotas'] });
+      if (data.pageUrl) {
+        window.location.href = data.pageUrl;
+      } else {
+        toast({
+          title: "Успішно!",
+          description: "Підписку оформлено",
+        });
+        queryClient.invalidateQueries({ queryKey: ['/api/subscriptions/current'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/subscriptions/quotas'] });
+      }
     },
     onError: (error: any) => {
       toast({
         title: "Помилка",
-        description: error.message || "Не вдалося оформити підписку",
+        description: error.message || "Не вдалося створити платіж",
         variant: "destructive",
       });
     },

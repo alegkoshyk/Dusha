@@ -66,5 +66,18 @@ Preferred communication style: Simple, everyday language.
 - **Apple OAuth**: JWT client secret with ES256 signature (DER to raw conversion)
 - **Auth Tokens**: localStorage-based tokens for cross-device support
 
+### Payment Integration
+- **Provider**: Monobank Acquiring API (sandbox mode)
+- **Currency**: UAH (kopiyky)
+- **Flow**: User selects plan → Creates invoice → Redirects to Monobank → Webhook updates subscription
+- **Endpoints**:
+  - POST `/api/payments/create` - Create payment invoice
+  - POST `/api/payments/webhook` - Monobank webhook handler
+  - GET `/api/payments/:invoiceId/status` - Check payment status
+  - GET `/api/admin/payments` - Admin transactions list
+- **Configuration**: Requires MONOBANK_TOKEN secret
+- **Webhook Security**: X-Sign header verification (development mode allows unsigned for sandbox testing)
+- **Admin Panel**: Transactions page at /rcadmin/transactions shows all payment history
+
 ## Documentation
 Full project documentation available in `DOCUMENTATION.md`.

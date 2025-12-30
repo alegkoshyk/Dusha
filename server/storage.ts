@@ -194,6 +194,9 @@ export interface IStorage {
   // Payment history operations
   createPaymentHistory(payment: InsertPaymentHistory): Promise<PaymentHistory>;
   getUserPaymentHistory(userId: string): Promise<PaymentHistory[]>;
+  getPaymentByMonoInvoiceId(invoiceId: string): Promise<PaymentHistory | undefined>;
+  updatePaymentByMonoInvoiceId(invoiceId: string, updates: Partial<PaymentHistory>): Promise<PaymentHistory | undefined>;
+  getAllPayments(limit?: number, offset?: number): Promise<{ payments: PaymentHistory[]; total: number }>;
   
   // Premium features operations
   getPremiumFeatures(activeOnly?: boolean): Promise<PremiumFeature[]>;
@@ -2129,6 +2132,39 @@ export class DatabaseStorage implements IStorage {
       .from(paymentHistoryTable)
       .where(eq(paymentHistoryTable.userId, userId))
       .orderBy(desc(paymentHistoryTable.createdAt));
+  }
+
+  async getPaymentByMonoInvoiceId(invoiceId: string): Promise<PaymentHistory | undefined> {
+    const [result] = await db
+      .select()
+      .from(paymentHistoryTable)
+      .where(eq(paymentHistoryTable.monoInvoiceId, invoiceId))
+      .limit(1);
+    return result;
+  }
+
+  async updatePaymentByMonoInvoiceId(invoiceId: string, updates: Partial<PaymentHistory>): Promise<PaymentHistory | undefined> {
+    const [result] = await db
+      .update(paymentHistoryTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(paymentHistoryTable.monoInvoiceId, invoiceId))
+      .returning();
+    return result;
+  }
+
+  async getAllPayments(limit: number = 50, offset: number = 0): Promise<{ payments: PaymentHistory[]; total: number }> {
+    const payments = await db
+      .select()
+      .from(paymentHistoryTable)
+      .orderBy(desc(paymentHistoryTable.createdAt))
+      .limit(limit)
+      .offset(offset);
+    
+    const [{ count }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(paymentHistoryTable);
+    
+    return { payments, total: count };
   }
 
   // ============================================

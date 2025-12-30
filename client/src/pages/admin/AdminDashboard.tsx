@@ -221,6 +221,20 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
+
+          <Card className="bg-gray-800 border-gray-700 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-green-500" onClick={() => navigate('/rcadmin/transactions')} data-testid="card-transactions">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-900 rounded-lg">
+                  <CreditCard className="h-5 w-5 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white text-sm">Транзакції</h3>
+                  <p className="text-xs text-gray-400">Історія платежів</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
