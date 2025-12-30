@@ -2969,6 +2969,268 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============= Subscription Plans API =============
+
+  // Get all subscription plans (public)
+  app.get("/api/subscriptions/plans", async (req, res) => {
+    try {
+      const plans = await storage.getSubscriptionPlans(true);
+      res.json(plans);
+    } catch (error: any) {
+      console.error("Get plans error:", error);
+      res.status(500).json({ error: "Не вдалося отримати тарифи" });
+    }
+  });
+
+  // Get current user's subscription
+  app.get("/api/subscriptions/current", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const subWithPlan = await storage.getUserSubscriptionWithPlan(currentUser.id);
+      res.json(subWithPlan || null);
+    } catch (error: any) {
+      console.error("Get subscription error:", error);
+      res.status(500).json({ error: "Не вдалося отримати підписку" });
+    }
+  });
+
+  // Get user's quotas
+  app.get("/api/subscriptions/quotas", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const quotas = await storage.getUserQuotas(currentUser.id);
+      res.json(quotas);
+    } catch (error: any) {
+      console.error("Get quotas error:", error);
+      res.status(500).json({ error: "Не вдалося отримати квоти" });
+    }
+  });
+
+  // Mock checkout - simulate payment
+  app.post("/api/subscriptions/checkout", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { planId, billingPeriod } = req.body;
+      
+      if (!planId) {
+        return res.status(400).json({ error: "Необхідно вказати planId" });
+      }
+
+      const plan = await storage.getSubscriptionPlan(planId);
+      if (!plan || !plan.isActive) {
+        return res.status(404).json({ error: "Тариф не знайдено" });
+      }
+
+      // Calculate price
+      const period = billingPeriod === 'yearly' ? 'yearly' : 'monthly';
+      const price = period === 'yearly' ? plan.priceYearly : plan.priceMonthly;
+
+      // Calculate expiration date
+      let expiresAt: Date | null = null;
+      let nextPaymentAt: Date | null = null;
+      if (price > 0) {
+        expiresAt = new Date();
+        if (period === 'yearly') {
+          expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        } else {
+          expiresAt.setMonth(expiresAt.getMonth() + 1);
+        }
+        nextPaymentAt = expiresAt;
+      }
+
+      // Create subscription
+      const subscription = await storage.createUserSubscription({
+        userId: currentUser.id,
+        planId: plan.id,
+        billingPeriod: period,
+        status: 'active',
+        expiresAt,
+        nextPaymentAt,
+        paymentMethod: 'mock',
+        lastPaymentAt: new Date(),
+      });
+
+      // Log mock payment
+      if (price > 0) {
+        await storage.createPaymentHistory({
+          userId: currentUser.id,
+          subscriptionId: subscription.id,
+          planId: plan.id,
+          amount: price,
+          currency: plan.currency,
+          status: 'completed',
+          paymentMethod: 'mock',
+          description: `Mock payment for ${plan.displayName} (${period})`,
+        });
+      }
+
+      res.json({
+        success: true,
+        subscription,
+        plan,
+        message: price > 0 
+          ? `Успішно оформлено підписку "${plan.displayName}" (mock-оплата)` 
+          : `Активовано безкоштовний тариф "${plan.displayName}"`
+      });
+    } catch (error: any) {
+      console.error("Checkout error:", error);
+      res.status(500).json({ error: "Не вдалося оформити підписку" });
+    }
+  });
+
+  // Cancel subscription
+  app.post("/api/subscriptions/cancel", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const subscription = await storage.cancelUserSubscription(currentUser.id);
+      
+      // Switch to free plan
+      const defaultPlan = await storage.getDefaultSubscriptionPlan();
+      if (defaultPlan) {
+        await storage.createUserSubscription({
+          userId: currentUser.id,
+          planId: defaultPlan.id,
+          billingPeriod: 'monthly',
+          status: 'active',
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Підписку скасовано. Ви переведені на безкоштовний тариф."
+      });
+    } catch (error: any) {
+      console.error("Cancel subscription error:", error);
+      res.status(500).json({ error: "Не вдалося скасувати підписку" });
+    }
+  });
+
+  // Get payment history
+  app.get("/api/subscriptions/payments", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const payments = await storage.getUserPaymentHistory(currentUser.id);
+      res.json(payments);
+    } catch (error: any) {
+      console.error("Get payments error:", error);
+      res.status(500).json({ error: "Не вдалося отримати історію платежів" });
+    }
+  });
+
+  // ============= Admin Subscription Management =============
+
+  // Get all plans (admin)
+  app.get("/api/admin/subscriptions/plans", requireAdmin, async (req, res) => {
+    try {
+      const plans = await storage.getSubscriptionPlans(false);
+      res.json(plans);
+    } catch (error: any) {
+      console.error("Admin get plans error:", error);
+      res.status(500).json({ error: "Не вдалося отримати тарифи" });
+    }
+  });
+
+  // Create plan (admin)
+  app.post("/api/admin/subscriptions/plans", requireAdmin, async (req, res) => {
+    try {
+      const plan = await storage.createSubscriptionPlan(req.body);
+      res.json(plan);
+    } catch (error: any) {
+      console.error("Admin create plan error:", error);
+      res.status(500).json({ error: "Не вдалося створити тариф" });
+    }
+  });
+
+  // Update plan (admin)
+  app.patch("/api/admin/subscriptions/plans/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const plan = await storage.updateSubscriptionPlan(id, req.body);
+      res.json(plan);
+    } catch (error: any) {
+      console.error("Admin update plan error:", error);
+      res.status(500).json({ error: "Не вдалося оновити тариф" });
+    }
+  });
+
+  // Delete plan (admin)
+  app.delete("/api/admin/subscriptions/plans/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteSubscriptionPlan(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Admin delete plan error:", error);
+      res.status(500).json({ error: "Не вдалося видалити тариф" });
+    }
+  });
+
+  // Get premium features (admin)
+  app.get("/api/admin/subscriptions/features", requireAdmin, async (req, res) => {
+    try {
+      const features = await storage.getPremiumFeatures(false);
+      res.json(features);
+    } catch (error: any) {
+      console.error("Admin get features error:", error);
+      res.status(500).json({ error: "Не вдалося отримати фічі" });
+    }
+  });
+
+  // Create premium feature (admin)
+  app.post("/api/admin/subscriptions/features", requireAdmin, async (req, res) => {
+    try {
+      const feature = await storage.createPremiumFeature(req.body);
+      res.json(feature);
+    } catch (error: any) {
+      console.error("Admin create feature error:", error);
+      res.status(500).json({ error: "Не вдалося створити фічу" });
+    }
+  });
+
+  // Update premium feature (admin)
+  app.patch("/api/admin/subscriptions/features/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const feature = await storage.updatePremiumFeature(id, req.body);
+      res.json(feature);
+    } catch (error: any) {
+      console.error("Admin update feature error:", error);
+      res.status(500).json({ error: "Не вдалося оновити фічу" });
+    }
+  });
+
+  // Delete premium feature (admin)
+  app.delete("/api/admin/subscriptions/features/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deletePremiumFeature(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Admin delete feature error:", error);
+      res.status(500).json({ error: "Не вдалося видалити фічу" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
