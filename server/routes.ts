@@ -2790,9 +2790,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
           brandId,
           base64Data: imageUrl
         });
+      } else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+        // External URL - fetch and convert to base64
+        try {
+          const response = await fetch(imageUrl);
+          if (!response.ok) {
+            return res.status(400).json({ error: "Не вдалося завантажити зображення за URL" });
+          }
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const base64Data = buffer.toString('base64');
+          const contentType = response.headers.get('content-type') || 'image/png';
+          const fullBase64 = `data:${contentType};base64,${base64Data}`;
+          
+          const estimatedSize = buffer.length;
+          const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
+          if (!hasQuota) {
+            return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+          }
+
+          uploadResult = await objectStorageService.uploadMediaAsset({
+            userId: currentUser.id,
+            assetType: 'merch',
+            brandId,
+            base64Data: fullBase64
+          });
+        } catch (fetchError) {
+          console.error("Error fetching image URL:", fetchError);
+          return res.status(400).json({ error: "Не вдалося завантажити зображення за URL" });
+        }
       } else {
-        // URL to download and save - skip for now, return error
-        return res.status(400).json({ error: "URL зображення не підтримується. Використовуйте base64." });
+        return res.status(400).json({ error: "Невірний формат URL зображення" });
       }
 
       // Create media asset record
