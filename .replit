@@ -43,3 +43,11 @@ integrations = ["javascript_database:1.0.0", "javascript_mem_db:1.0.0", "javascr
 
 [objectStorage]
 defaultBucketID = "replit-objstore-41fb9241-8594-4686-a2a8-3c78141d07d2"
+
+[userenv]
+
+[userenv.production]
+PAYMENT_SANDBOX_MODE = "false"
+
+[userenv.development]
+PAYMENT_SANDBOX_MODE = "true"
