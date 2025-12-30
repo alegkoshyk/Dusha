@@ -755,3 +755,134 @@ export const insertUserMediaQuotaSchema = createInsertSchema(userMediaQuotasTabl
 
 export type UserMediaQuota = typeof userMediaQuotasTable.$inferSelect;
 export type InsertUserMediaQuota = z.infer<typeof insertUserMediaQuotaSchema>;
+
+// ============================================
+// Тарифні плани та підписки
+// ============================================
+
+// Таблиця тарифних планів
+export const subscriptionPlansTable = pgTable("subscription_plans", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(), // "free", "basic", "pro"
+  displayName: varchar("display_name", { length: 200 }).notNull(), // "Безкоштовний", "Базовий", "Професійний"
+  description: text("description"),
+  // Ціни
+  priceMonthly: integer("price_monthly").notNull().default(0), // в центах (EUR)
+  priceYearly: integer("price_yearly").notNull().default(0), // в центах (EUR)
+  currency: varchar("currency", { length: 3 }).notNull().default("EUR"),
+  // Квоти
+  maxBrands: integer("max_brands").notNull().default(1),
+  maxGamesPerBrand: integer("max_games_per_brand").notNull().default(1),
+  maxTotalGames: integer("max_total_games").notNull().default(1),
+  // Квоти медіа (перезаписують дефолтні)
+  maxStorageBytes: integer("max_storage_bytes").notNull().default(104857600), // 100MB
+  maxMediaFiles: integer("max_media_files").notNull().default(100),
+  // Преміум фічі (JSON масив назв фіч)
+  features: json("features").default(sql`'[]'`),
+  // Статус плану
+  isDefault: boolean("is_default").notNull().default(false), // план за замовчуванням для нових користувачів
+  isActive: boolean("is_active").notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  // Стилі для відображення
+  color: varchar("color", { length: 20 }).default("#6366f1"),
+  icon: varchar("icon", { length: 50 }).default("star"),
+  badge: varchar("badge", { length: 50 }), // "popular", "best_value", etc.
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlansTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type SubscriptionPlan = typeof subscriptionPlansTable.$inferSelect;
+export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
+
+// Таблиця підписок користувачів
+export const userSubscriptionsTable = pgTable("user_subscriptions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  planId: integer("plan_id").notNull().references(() => subscriptionPlansTable.id),
+  // Період оплати
+  billingPeriod: varchar("billing_period", { length: 20 }).notNull().default("monthly"), // "monthly", "yearly"
+  // Статус підписки
+  status: varchar("status", { length: 20 }).notNull().default("active"), // "active", "cancelled", "expired", "pending"
+  // Дати
+  startedAt: timestamp("started_at").default(sql`now()`).notNull(),
+  expiresAt: timestamp("expires_at"), // null для безкоштовного плану
+  cancelledAt: timestamp("cancelled_at"),
+  // Пробний період
+  trialEndsAt: timestamp("trial_ends_at"),
+  // Платіжна інформація (mock)
+  paymentMethod: varchar("payment_method", { length: 50 }), // "card", "paypal", "mock"
+  lastPaymentAt: timestamp("last_payment_at"),
+  nextPaymentAt: timestamp("next_payment_at"),
+  // Метадані транзакцій (для майбутньої інтеграції Stripe)
+  stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+  metadata: json("metadata").default(sql`'{}'`),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  userIdIdx: index("user_subscriptions_user_id_idx").on(table.userId),
+  planIdIdx: index("user_subscriptions_plan_id_idx").on(table.planId),
+  statusIdx: index("user_subscriptions_status_idx").on(table.status),
+}));
+
+export const insertUserSubscriptionSchema = createInsertSchema(userSubscriptionsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserSubscription = typeof userSubscriptionsTable.$inferSelect;
+export type InsertUserSubscription = z.infer<typeof insertUserSubscriptionSchema>;
+
+// Таблиця історії платежів (для логування mock-транзакцій та майбутньої інтеграції)
+export const paymentHistoryTable = pgTable("payment_history", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  subscriptionId: uuid("subscription_id").references(() => userSubscriptionsTable.id, { onDelete: "set null" }),
+  planId: integer("plan_id").references(() => subscriptionPlansTable.id),
+  // Деталі платежу
+  amount: integer("amount").notNull(), // в центах
+  currency: varchar("currency", { length: 3 }).notNull().default("EUR"),
+  status: varchar("status", { length: 20 }).notNull(), // "completed", "pending", "failed", "refunded"
+  paymentMethod: varchar("payment_method", { length: 50 }).notNull(), // "card", "paypal", "mock"
+  description: text("description"),
+  // Для майбутньої інтеграції
+  stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
+  metadata: json("metadata").default(sql`'{}'`),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const insertPaymentHistorySchema = createInsertSchema(paymentHistoryTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type PaymentHistory = typeof paymentHistoryTable.$inferSelect;
+export type InsertPaymentHistory = z.infer<typeof insertPaymentHistorySchema>;
+
+// Таблиця преміум фіч (налаштовувані в адмінці)
+export const premiumFeaturesTable = pgTable("premium_features", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 100 }).notNull().unique(), // "ai_chat", "image_generation", "export_pdf", etc.
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  icon: varchar("icon", { length: 50 }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+export const insertPremiumFeatureSchema = createInsertSchema(premiumFeaturesTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type PremiumFeature = typeof premiumFeaturesTable.$inferSelect;
+export type InsertPremiumFeature = z.infer<typeof insertPremiumFeatureSchema>;
