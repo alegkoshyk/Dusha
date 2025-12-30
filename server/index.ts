@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { storage } from "./storage";
 
 const app = express();
 
@@ -44,6 +45,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Seed subscription plans if they don't exist
+  try {
+    await storage.seedSubscriptionPlans();
+  } catch (error) {
+    console.error('Failed to seed subscription plans:', error);
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

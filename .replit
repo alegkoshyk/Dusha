@@ -47,7 +47,7 @@ defaultBucketID = "replit-objstore-41fb9241-8594-4686-a2a8-3c78141d07d2"
 [userenv]
 
 [userenv.production]
-PAYMENT_SANDBOX_MODE = "false"
+PAYMENT_SANDBOX_MODE = "true"
 
 [userenv.development]
 PAYMENT_SANDBOX_MODE = "true"

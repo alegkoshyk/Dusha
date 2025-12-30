@@ -2204,6 +2204,83 @@ export class DatabaseStorage implements IStorage {
       .where(eq(premiumFeaturesTable.id, id));
     return true;
   }
+
+  async seedSubscriptionPlans(): Promise<void> {
+    const existingPlans = await this.getSubscriptionPlans(false);
+    if (existingPlans.length > 0) {
+      console.log(`Subscription plans already exist (${existingPlans.length} plans), skipping seed`);
+      return;
+    }
+
+    console.log('Seeding subscription plans...');
+
+    const defaultPlans: InsertSubscriptionPlan[] = [
+      {
+        name: 'free',
+        displayName: 'Безкоштовний',
+        description: 'Ідеально для знайомства з платформою',
+        priceMonthly: 0,
+        priceYearly: 0,
+        currency: 'UAH',
+        maxBrands: 1,
+        maxGamesPerBrand: 1,
+        maxTotalGames: 1,
+        maxStorageBytes: 52428800, // 50MB
+        maxMediaFiles: 50,
+        features: ['basic_game'],
+        isDefault: true,
+        isActive: true,
+        sortOrder: 0,
+        color: '#6b7280',
+        icon: 'gift',
+      },
+      {
+        name: 'basic',
+        displayName: 'Базовий',
+        description: 'Для початківців та малого бізнесу',
+        priceMonthly: 29900, // 299 UAH
+        priceYearly: 299000, // 2990 UAH
+        currency: 'UAH',
+        maxBrands: 5,
+        maxGamesPerBrand: 10,
+        maxTotalGames: 50,
+        maxStorageBytes: 209715200, // 200MB
+        maxMediaFiles: 200,
+        features: ['basic_game', 'ai_chat', 'export_pdf', 'Мерч-генератор'],
+        isDefault: false,
+        isActive: true,
+        sortOrder: 1,
+        color: '#3b82f6',
+        icon: 'zap',
+      },
+      {
+        name: 'pro',
+        displayName: 'Професійний',
+        description: 'Повний доступ до всіх можливостей',
+        priceMonthly: 59900, // 599 UAH
+        priceYearly: 599000, // 5990 UAH
+        currency: 'UAH',
+        maxBrands: 25,
+        maxGamesPerBrand: 10,
+        maxTotalGames: 100,
+        maxStorageBytes: 524288000, // 500MB
+        maxMediaFiles: 500,
+        features: ['basic_game', 'ai_chat', 'export_pdf', 'image_generation', 'priority_support'],
+        isDefault: false,
+        isActive: true,
+        sortOrder: 2,
+        color: '#8b5cf6',
+        icon: 'crown',
+        badge: 'popular',
+      },
+    ];
+
+    for (const plan of defaultPlans) {
+      await this.createSubscriptionPlan(plan);
+    }
+
+    console.log(`Seeded ${defaultPlans.length} subscription plans`);
+  }
 }
 
 export const storage = new DatabaseStorage();
