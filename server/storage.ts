@@ -59,6 +59,18 @@ import {
   type UserMediaQuota,
   type InsertUserMediaQuota,
   userMediaQuotasTable,
+  type SubscriptionPlan,
+  type InsertSubscriptionPlan,
+  subscriptionPlansTable,
+  type UserSubscription,
+  type InsertUserSubscription,
+  userSubscriptionsTable,
+  type PaymentHistory,
+  type InsertPaymentHistory,
+  paymentHistoryTable,
+  type PremiumFeature,
+  type InsertPremiumFeature,
+  premiumFeaturesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte } from "drizzle-orm";
@@ -158,6 +170,36 @@ export interface IStorage {
   createOrUpdateUserMediaQuota(userId: string, updates: Partial<UserMediaQuota>): Promise<UserMediaQuota>;
   updateQuotaUsage(userId: string, bytesChange: number, filesChange: number): Promise<UserMediaQuota | undefined>;
   checkQuotaAvailable(userId: string, bytesToAdd: number): Promise<boolean>;
+  
+  // Subscription plans operations
+  getSubscriptionPlans(activeOnly?: boolean): Promise<SubscriptionPlan[]>;
+  getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined>;
+  getDefaultSubscriptionPlan(): Promise<SubscriptionPlan | undefined>;
+  createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan>;
+  updateSubscriptionPlan(id: number, updates: Partial<SubscriptionPlan>): Promise<SubscriptionPlan | undefined>;
+  deleteSubscriptionPlan(id: number): Promise<boolean>;
+  
+  // User subscriptions operations
+  getUserSubscription(userId: string): Promise<UserSubscription | undefined>;
+  getUserSubscriptionWithPlan(userId: string): Promise<{ subscription: UserSubscription; plan: SubscriptionPlan } | undefined>;
+  createUserSubscription(subscription: InsertUserSubscription): Promise<UserSubscription>;
+  updateUserSubscription(userId: string, updates: Partial<UserSubscription>): Promise<UserSubscription | undefined>;
+  cancelUserSubscription(userId: string): Promise<UserSubscription | undefined>;
+  
+  // Quota checking for subscriptions
+  getUserQuotas(userId: string): Promise<{ maxBrands: number; maxTotalGames: number; usedBrands: number; usedGames: number }>;
+  canCreateBrand(userId: string): Promise<boolean>;
+  canCreateGame(userId: string): Promise<boolean>;
+  
+  // Payment history operations
+  createPaymentHistory(payment: InsertPaymentHistory): Promise<PaymentHistory>;
+  getUserPaymentHistory(userId: string): Promise<PaymentHistory[]>;
+  
+  // Premium features operations
+  getPremiumFeatures(activeOnly?: boolean): Promise<PremiumFeature[]>;
+  createPremiumFeature(feature: InsertPremiumFeature): Promise<PremiumFeature>;
+  updatePremiumFeature(id: number, updates: Partial<PremiumFeature>): Promise<PremiumFeature | undefined>;
+  deletePremiumFeature(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1877,6 +1919,254 @@ export class DatabaseStorage implements IStorage {
     const hasSpaceFiles = (quota.usedFiles || 0) + 1 <= (quota.maxFiles || 100);
     
     return hasSpaceBytes && hasSpaceFiles;
+  }
+
+  // ============================================
+  // Subscription plans operations
+  // ============================================
+  
+  async getSubscriptionPlans(activeOnly: boolean = true): Promise<SubscriptionPlan[]> {
+    if (activeOnly) {
+      return await db
+        .select()
+        .from(subscriptionPlansTable)
+        .where(eq(subscriptionPlansTable.isActive, true))
+        .orderBy(subscriptionPlansTable.sortOrder);
+    }
+    return await db
+      .select()
+      .from(subscriptionPlansTable)
+      .orderBy(subscriptionPlansTable.sortOrder);
+  }
+
+  async getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined> {
+    const [result] = await db
+      .select()
+      .from(subscriptionPlansTable)
+      .where(eq(subscriptionPlansTable.id, id))
+      .limit(1);
+    return result;
+  }
+
+  async getDefaultSubscriptionPlan(): Promise<SubscriptionPlan | undefined> {
+    const [result] = await db
+      .select()
+      .from(subscriptionPlansTable)
+      .where(and(
+        eq(subscriptionPlansTable.isDefault, true),
+        eq(subscriptionPlansTable.isActive, true)
+      ))
+      .limit(1);
+    return result;
+  }
+
+  async createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
+    const [result] = await db
+      .insert(subscriptionPlansTable)
+      .values(plan)
+      .returning();
+    return result;
+  }
+
+  async updateSubscriptionPlan(id: number, updates: Partial<SubscriptionPlan>): Promise<SubscriptionPlan | undefined> {
+    const [result] = await db
+      .update(subscriptionPlansTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(subscriptionPlansTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteSubscriptionPlan(id: number): Promise<boolean> {
+    const result = await db
+      .delete(subscriptionPlansTable)
+      .where(eq(subscriptionPlansTable.id, id));
+    return true;
+  }
+
+  // ============================================
+  // User subscriptions operations
+  // ============================================
+  
+  async getUserSubscription(userId: string): Promise<UserSubscription | undefined> {
+    const [result] = await db
+      .select()
+      .from(userSubscriptionsTable)
+      .where(and(
+        eq(userSubscriptionsTable.userId, userId),
+        eq(userSubscriptionsTable.status, 'active')
+      ))
+      .orderBy(desc(userSubscriptionsTable.createdAt))
+      .limit(1);
+    return result;
+  }
+
+  async getUserSubscriptionWithPlan(userId: string): Promise<{ subscription: UserSubscription; plan: SubscriptionPlan } | undefined> {
+    const subscription = await this.getUserSubscription(userId);
+    if (!subscription) {
+      // If no subscription, return default plan
+      const defaultPlan = await this.getDefaultSubscriptionPlan();
+      if (defaultPlan) {
+        // Create subscription on default plan
+        const newSub = await this.createUserSubscription({
+          userId,
+          planId: defaultPlan.id,
+          billingPeriod: 'monthly',
+          status: 'active',
+        });
+        return { subscription: newSub, plan: defaultPlan };
+      }
+      return undefined;
+    }
+    
+    const plan = await this.getSubscriptionPlan(subscription.planId);
+    if (!plan) return undefined;
+    
+    return { subscription, plan };
+  }
+
+  async createUserSubscription(subscription: InsertUserSubscription): Promise<UserSubscription> {
+    // Cancel any existing active subscription first
+    await db
+      .update(userSubscriptionsTable)
+      .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
+      .where(and(
+        eq(userSubscriptionsTable.userId, subscription.userId),
+        eq(userSubscriptionsTable.status, 'active')
+      ));
+    
+    const [result] = await db
+      .insert(userSubscriptionsTable)
+      .values(subscription)
+      .returning();
+    
+    // Update media quota based on plan
+    const plan = await this.getSubscriptionPlan(subscription.planId);
+    if (plan) {
+      await this.createOrUpdateUserMediaQuota(subscription.userId, {
+        maxTotalBytes: plan.maxStorageBytes,
+        maxFiles: plan.maxMediaFiles,
+      });
+    }
+    
+    return result;
+  }
+
+  async updateUserSubscription(userId: string, updates: Partial<UserSubscription>): Promise<UserSubscription | undefined> {
+    const [result] = await db
+      .update(userSubscriptionsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(
+        eq(userSubscriptionsTable.userId, userId),
+        eq(userSubscriptionsTable.status, 'active')
+      ))
+      .returning();
+    return result;
+  }
+
+  async cancelUserSubscription(userId: string): Promise<UserSubscription | undefined> {
+    const [result] = await db
+      .update(userSubscriptionsTable)
+      .set({
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(and(
+        eq(userSubscriptionsTable.userId, userId),
+        eq(userSubscriptionsTable.status, 'active')
+      ))
+      .returning();
+    return result;
+  }
+
+  // ============================================
+  // Quota checking for subscriptions
+  // ============================================
+  
+  async getUserQuotas(userId: string): Promise<{ maxBrands: number; maxTotalGames: number; usedBrands: number; usedGames: number }> {
+    const subWithPlan = await this.getUserSubscriptionWithPlan(userId);
+    
+    const maxBrands = subWithPlan?.plan?.maxBrands || 1;
+    const maxTotalGames = subWithPlan?.plan?.maxTotalGames || 1;
+    
+    // Count user's brands
+    const brands = await this.getUserBrands(userId);
+    const usedBrands = brands.length;
+    
+    // Count user's games across all brands
+    const sessions = await this.getUserGameSessions(userId);
+    const usedGames = sessions.length;
+    
+    return { maxBrands, maxTotalGames, usedBrands, usedGames };
+  }
+
+  async canCreateBrand(userId: string): Promise<boolean> {
+    const quotas = await this.getUserQuotas(userId);
+    return quotas.usedBrands < quotas.maxBrands;
+  }
+
+  async canCreateGame(userId: string): Promise<boolean> {
+    const quotas = await this.getUserQuotas(userId);
+    return quotas.usedGames < quotas.maxTotalGames;
+  }
+
+  // ============================================
+  // Payment history operations
+  // ============================================
+  
+  async createPaymentHistory(payment: InsertPaymentHistory): Promise<PaymentHistory> {
+    const [result] = await db
+      .insert(paymentHistoryTable)
+      .values(payment)
+      .returning();
+    return result;
+  }
+
+  async getUserPaymentHistory(userId: string): Promise<PaymentHistory[]> {
+    return await db
+      .select()
+      .from(paymentHistoryTable)
+      .where(eq(paymentHistoryTable.userId, userId))
+      .orderBy(desc(paymentHistoryTable.createdAt));
+  }
+
+  // ============================================
+  // Premium features operations
+  // ============================================
+  
+  async getPremiumFeatures(activeOnly: boolean = true): Promise<PremiumFeature[]> {
+    if (activeOnly) {
+      return await db
+        .select()
+        .from(premiumFeaturesTable)
+        .where(eq(premiumFeaturesTable.isActive, true));
+    }
+    return await db.select().from(premiumFeaturesTable);
+  }
+
+  async createPremiumFeature(feature: InsertPremiumFeature): Promise<PremiumFeature> {
+    const [result] = await db
+      .insert(premiumFeaturesTable)
+      .values(feature)
+      .returning();
+    return result;
+  }
+
+  async updatePremiumFeature(id: number, updates: Partial<PremiumFeature>): Promise<PremiumFeature | undefined> {
+    const [result] = await db
+      .update(premiumFeaturesTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(premiumFeaturesTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deletePremiumFeature(id: number): Promise<boolean> {
+    await db
+      .delete(premiumFeaturesTable)
+      .where(eq(premiumFeaturesTable.id, id));
+    return true;
   }
 }
 
