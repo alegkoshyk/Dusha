@@ -840,23 +840,35 @@ export const insertUserSubscriptionSchema = createInsertSchema(userSubscriptions
 export type UserSubscription = typeof userSubscriptionsTable.$inferSelect;
 export type InsertUserSubscription = z.infer<typeof insertUserSubscriptionSchema>;
 
-// Таблиця історії платежів (для логування mock-транзакцій та майбутньої інтеграції)
+// Таблиця історії платежів (Monobank інтеграція)
 export const paymentHistoryTable = pgTable("payment_history", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   subscriptionId: uuid("subscription_id").references(() => userSubscriptionsTable.id, { onDelete: "set null" }),
   planId: integer("plan_id").references(() => subscriptionPlansTable.id),
   // Деталі платежу
-  amount: integer("amount").notNull(), // в центах
-  currency: varchar("currency", { length: 3 }).notNull().default("EUR"),
-  status: varchar("status", { length: 20 }).notNull(), // "completed", "pending", "failed", "refunded"
-  paymentMethod: varchar("payment_method", { length: 50 }).notNull(), // "card", "paypal", "mock"
+  amount: integer("amount").notNull(), // в копійках (UAH)
+  currency: varchar("currency", { length: 3 }).notNull().default("UAH"),
+  status: varchar("status", { length: 30 }).notNull(), // "pending", "processing", "success", "failure", "expired", "reversed"
+  paymentMethod: varchar("payment_method", { length: 50 }).notNull().default("monobank"), // "monobank", "mock"
   description: text("description"),
-  // Для майбутньої інтеграції
+  billingPeriod: varchar("billing_period", { length: 20 }), // "monthly", "yearly"
+  // Monobank інтеграція
+  monoInvoiceId: varchar("mono_invoice_id", { length: 100 }),
+  monoPaymentId: varchar("mono_payment_id", { length: 100 }),
+  monoPageUrl: text("mono_page_url"),
+  monoReference: varchar("mono_reference", { length: 100 }),
+  monoFailureReason: text("mono_failure_reason"),
+  // Для інших провайдерів
   stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }),
   metadata: json("metadata").default(sql`'{}'`),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
-});
+  updatedAt: timestamp("updated_at").default(sql`now()`),
+}, (table) => ({
+  userIdIdx: index("payment_history_user_id_idx").on(table.userId),
+  monoInvoiceIdx: index("payment_history_mono_invoice_idx").on(table.monoInvoiceId),
+  statusIdx: index("payment_history_status_idx").on(table.status),
+}));
 
 export const insertPaymentHistorySchema = createInsertSchema(paymentHistoryTable).omit({
   id: true,
