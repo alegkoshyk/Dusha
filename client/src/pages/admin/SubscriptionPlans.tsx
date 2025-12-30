@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Edit, Trash2, Loader2, Crown, Zap, Sparkles, ArrowLeft, X, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Crown, Zap, Sparkles, ArrowLeft } from "lucide-react";
 
 interface SubscriptionPlan {
   id: number;
@@ -286,33 +286,10 @@ function PlanForm({
   });
   
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>(plan?.features || []);
-  const [featureSearch, setFeatureSearch] = useState('');
   
   const { data: premiumFeatures } = useQuery<PremiumFeature[]>({
     queryKey: ['/api/admin/premium-features'],
   });
-
-  const filteredFeatures = useMemo(() => {
-    if (!premiumFeatures) return [];
-    const search = featureSearch.toLowerCase();
-    return premiumFeatures
-      .filter(f => f.isActive)
-      .filter(f => 
-        !selectedFeatures.includes(f.name) &&
-        (f.name.toLowerCase().includes(search) || 
-         f.key.toLowerCase().includes(search) ||
-         f.description?.toLowerCase().includes(search))
-      );
-  }, [premiumFeatures, featureSearch, selectedFeatures]);
-
-  const addFeature = (feature: PremiumFeature) => {
-    setSelectedFeatures([...selectedFeatures, feature.name]);
-    setFeatureSearch('');
-  };
-
-  const removeFeature = (featureName: string) => {
-    setSelectedFeatures(selectedFeatures.filter(f => f !== featureName));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -431,58 +408,35 @@ function PlanForm({
       <div>
         <Label>Функції тарифу</Label>
         
-        {selectedFeatures.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2 mb-3">
-            {selectedFeatures.map((feature) => (
-              <Badge 
-                key={feature} 
-                variant="secondary" 
-                className="pl-3 pr-1 py-1 flex items-center gap-1 bg-primary/20 text-primary-foreground"
-              >
-                {feature}
-                <button
-                  type="button"
-                  onClick={() => removeFeature(feature)}
-                  className="ml-1 p-0.5 rounded-full hover:bg-red-500/20"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
-          </div>
-        )}
-        
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            value={featureSearch}
-            onChange={(e) => setFeatureSearch(e.target.value)}
-            placeholder="Пошук функцій..."
-            className="bg-gray-800 border-gray-600 pl-9"
-          />
-        </div>
-        
-        {featureSearch && filteredFeatures.length > 0 && (
-          <div className="mt-2 border border-gray-700 rounded-md bg-gray-800 max-h-32 overflow-y-auto">
-            {filteredFeatures.map((feature) => (
-              <button
+        {premiumFeatures && premiumFeatures.filter(f => f.isActive).length > 0 ? (
+          <div className="mt-2 border border-gray-700 rounded-md bg-gray-800 max-h-48 overflow-y-auto">
+            {premiumFeatures.filter(f => f.isActive).map((feature) => (
+              <div
                 key={feature.id}
-                type="button"
-                onClick={() => addFeature(feature)}
-                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-700 flex justify-between items-center"
+                className="px-3 py-2 flex items-center justify-between border-b border-gray-700 last:border-b-0"
               >
-                <span>{feature.name}</span>
-                {feature.icon && (
-                  <span className="text-xs text-gray-500">{feature.icon}</span>
-                )}
-              </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{feature.name}</span>
+                  {feature.description && (
+                    <span className="text-xs text-gray-500">({feature.key})</span>
+                  )}
+                </div>
+                <Switch
+                  checked={selectedFeatures.includes(feature.name)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedFeatures([...selectedFeatures, feature.name]);
+                    } else {
+                      setSelectedFeatures(selectedFeatures.filter(f => f !== feature.name));
+                    }
+                  }}
+                />
+              </div>
             ))}
           </div>
-        )}
-        
-        {featureSearch && filteredFeatures.length === 0 && (
+        ) : (
           <p className="text-sm text-gray-500 mt-2">
-            Нічого не знайдено. Додайте функції в розділі "Преміум функції".
+            Немає доступних функцій. Додайте їх у розділі "Преміум функції".
           </p>
         )}
       </div>
