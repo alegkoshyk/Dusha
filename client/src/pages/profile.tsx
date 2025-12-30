@@ -15,9 +15,13 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   User, Camera, Building2, Briefcase, Globe, Trophy, Star, 
-  ArrowLeft, Save, Loader2, Award, Target, Zap
+  ArrowLeft, Save, Loader2, Award, Target, Zap, CreditCard, 
+  Receipt, Crown, Check, Calendar, ExternalLink, Clock
 } from "lucide-react";
-import type { UserProfile } from "@shared/schema";
+import { Link } from "wouter";
+import type { UserProfile, SubscriptionPlan, UserSubscription, PaymentHistory } from "@shared/schema";
+import { format } from "date-fns";
+import { uk } from "date-fns/locale";
 
 const INDUSTRIES = [
   "IT та технології",
@@ -81,6 +85,21 @@ export default function ProfilePage() {
 
   const { data: stats } = useQuery<{ totalXp: number; totalGames: number; completedGames: number }>({
     queryKey: ["/api/user/stats"],
+    enabled: !!user,
+  });
+
+  const { data: subscriptionData } = useQuery<{ subscription: UserSubscription; plan: SubscriptionPlan }>({
+    queryKey: ["/api/subscriptions/current"],
+    enabled: !!user,
+  });
+
+  const { data: allPlans } = useQuery<SubscriptionPlan[]>({
+    queryKey: ["/api/subscriptions/plans"],
+    enabled: !!user,
+  });
+
+  const { data: paymentHistory } = useQuery<PaymentHistory[]>({
+    queryKey: ["/api/subscriptions/payments"],
     enabled: !!user,
   });
 
@@ -326,7 +345,7 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="personal">
-                <TabsList className="mb-4">
+                <TabsList className="mb-4 flex-wrap">
                   <TabsTrigger value="personal">
                     <User className="h-4 w-4 mr-2" />
                     Особисте
@@ -334,6 +353,14 @@ export default function ProfilePage() {
                   <TabsTrigger value="company">
                     <Building2 className="h-4 w-4 mr-2" />
                     Компанія
+                  </TabsTrigger>
+                  <TabsTrigger value="subscription">
+                    <Crown className="h-4 w-4 mr-2" />
+                    Підписка
+                  </TabsTrigger>
+                  <TabsTrigger value="payments">
+                    <Receipt className="h-4 w-4 mr-2" />
+                    Платежі
                   </TabsTrigger>
                 </TabsList>
 
@@ -452,6 +479,209 @@ export default function ProfilePage() {
                       </Select>
                     </div>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="subscription" className="space-y-6">
+                  {/* Current Plan */}
+                  {subscriptionData?.plan && (() => {
+                    const planColor = subscriptionData.plan.color || '#6b7280';
+                    const planFeatures = Array.isArray(subscriptionData.plan.features) ? subscriptionData.plan.features as string[] : [];
+                    return (
+                    <div className="p-6 rounded-lg border-2" style={{ borderColor: planColor }}>
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="p-3 rounded-full" 
+                            style={{ backgroundColor: `${planColor}20` }}
+                          >
+                            <Crown className="h-6 w-6" style={{ color: planColor }} />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold">{subscriptionData.plan.displayName}</h3>
+                            <p className="text-sm text-muted-foreground">{subscriptionData.plan.description}</p>
+                          </div>
+                        </div>
+                        {subscriptionData.plan.badge && (
+                          <Badge style={{ backgroundColor: planColor }}>
+                            {subscriptionData.plan.badge}
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                        <div className="text-center p-3 bg-muted/50 rounded-lg">
+                          <p className="text-2xl font-bold">{subscriptionData.plan.maxBrands}</p>
+                          <p className="text-xs text-muted-foreground">Брендів</p>
+                        </div>
+                        <div className="text-center p-3 bg-muted/50 rounded-lg">
+                          <p className="text-2xl font-bold">{subscriptionData.plan.maxTotalGames}</p>
+                          <p className="text-xs text-muted-foreground">Ігор</p>
+                        </div>
+                        <div className="text-center p-3 bg-muted/50 rounded-lg">
+                          <p className="text-2xl font-bold">{Math.round((subscriptionData.plan.maxStorageBytes || 0) / 1024 / 1024)}MB</p>
+                          <p className="text-xs text-muted-foreground">Сховище</p>
+                        </div>
+                        <div className="text-center p-3 bg-muted/50 rounded-lg">
+                          <p className="text-2xl font-bold">{subscriptionData.plan.maxMediaFiles}</p>
+                          <p className="text-xs text-muted-foreground">Медіа</p>
+                        </div>
+                      </div>
+
+                      {planFeatures.length > 0 && (
+                        <div className="mb-6">
+                          <h4 className="text-sm font-medium mb-2">Включені функції:</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {planFeatures.map((feature: string, i: number) => (
+                              <Badge key={i} variant="secondary" className="text-xs">
+                                <Check className="h-3 w-3 mr-1" />
+                                {feature}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          {subscriptionData.plan.priceMonthly > 0 ? (
+                            <p className="text-lg font-semibold">
+                              {(subscriptionData.plan.priceMonthly / 100).toFixed(0)} {subscriptionData.plan.currency}/міс
+                            </p>
+                          ) : (
+                            <p className="text-lg font-semibold text-green-600">Безкоштовно</p>
+                          )}
+                          {subscriptionData.subscription.expiresAt && (
+                            <p className="text-xs text-muted-foreground">
+                              <Calendar className="h-3 w-3 inline mr-1" />
+                              Діє до: {format(new Date(subscriptionData.subscription.expiresAt), "d MMMM yyyy", { locale: uk })}
+                            </p>
+                          )}
+                        </div>
+                        <Link href="/pricing">
+                          <Button data-testid="button-change-plan">
+                            Змінити тариф
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                    );
+                  })()}
+
+                  {/* Available Plans */}
+                  {allPlans && allPlans.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Доступні тарифи</h3>
+                      <div className="grid gap-4">
+                        {allPlans.filter(p => p.id !== subscriptionData?.plan?.id).map((plan) => {
+                          const color = plan.color || '#6b7280';
+                          return (
+                          <div 
+                            key={plan.id} 
+                            className="flex items-center justify-between p-4 rounded-lg border hover:border-primary/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="p-2 rounded-full" 
+                                style={{ backgroundColor: `${color}20` }}
+                              >
+                                <Crown className="h-4 w-4" style={{ color }} />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium">{plan.displayName}</h4>
+                                  {plan.badge && (
+                                    <Badge variant="secondary" className="text-xs">{plan.badge}</Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {plan.maxBrands} брендів • {plan.maxTotalGames} ігор
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <p className="font-semibold">
+                                {plan.priceMonthly > 0 ? `${(plan.priceMonthly / 100).toFixed(0)} ${plan.currency}/міс` : 'Безкоштовно'}
+                              </p>
+                              <Link href="/pricing">
+                                <Button variant="outline" size="sm" data-testid={`button-select-plan-${plan.id}`}>
+                                  Обрати
+                                </Button>
+                              </Link>
+                            </div>
+                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="payments" className="space-y-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold">Історія платежів</h3>
+                  </div>
+
+                  {paymentHistory && paymentHistory.length > 0 ? (
+                    <div className="space-y-3">
+                      {paymentHistory.map((payment) => (
+                        <div 
+                          key={payment.id} 
+                          className="flex items-center justify-between p-4 rounded-lg border"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-full ${
+                              payment.status === 'success' ? 'bg-green-100 dark:bg-green-900' :
+                              payment.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900' :
+                              'bg-red-100 dark:bg-red-900'
+                            }`}>
+                              {payment.status === 'success' ? (
+                                <Check className="h-4 w-4 text-green-600" />
+                              ) : payment.status === 'pending' ? (
+                                <Clock className="h-4 w-4 text-yellow-600" />
+                              ) : (
+                                <CreditCard className="h-4 w-4 text-red-600" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium">{payment.description}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(payment.createdAt), "d MMMM yyyy, HH:mm", { locale: uk })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">
+                              {(payment.amount / 100).toFixed(2)} {payment.currency}
+                            </p>
+                            <Badge 
+                              variant={payment.status === 'success' ? 'default' : payment.status === 'pending' ? 'secondary' : 'destructive'}
+                              className="text-xs"
+                            >
+                              {payment.status === 'success' ? 'Сплачено' : 
+                               payment.status === 'pending' ? 'Очікує' : 
+                               payment.status === 'failure' ? 'Помилка' : payment.status}
+                            </Badge>
+                            {payment.monoPageUrl && payment.status === 'pending' && (
+                              <a 
+                                href={payment.monoPageUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-primary hover:underline flex items-center gap-1 mt-1 justify-end"
+                              >
+                                Оплатити <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Receipt className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>Історія платежів порожня</p>
+                      <p className="text-sm mt-1">Тут з'являться ваші платежі після оплати тарифу</p>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
