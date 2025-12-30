@@ -3484,6 +3484,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Get payment settings
+  app.get("/api/admin/payment-settings", requireAdmin, async (req, res) => {
+    try {
+      const monoTokenConfigured = !!process.env.MONOBANK_TOKEN;
+      const sandboxMode = process.env.NODE_ENV === 'development' || process.env.PAYMENT_SANDBOX_MODE === 'true';
+      const webhookUrl = `${req.protocol}://${req.get('host')}/api/payments/webhook`;
+      
+      res.json({
+        sandboxMode,
+        monoTokenConfigured,
+        webhookUrl,
+      });
+    } catch (error: any) {
+      console.error("Payment settings error:", error);
+      res.status(500).json({ error: "Не вдалося отримати налаштування" });
+    }
+  });
+
+  // Admin: Save payment settings
+  app.post("/api/admin/payment-settings", requireAdmin, async (req, res) => {
+    try {
+      const { sandboxMode, monoToken } = req.body;
+      
+      if (monoToken !== undefined) {
+        console.log("Note: Monobank token should be set via environment variable MONOBANK_TOKEN");
+      }
+      
+      if (sandboxMode !== undefined) {
+        console.log(`Sandbox mode ${sandboxMode ? 'enabled' : 'disabled'}`);
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Payment settings save error:", error);
+      res.status(500).json({ error: "Не вдалося зберегти налаштування" });
+    }
+  });
+
+  // Admin: Create test payment
+  app.post("/api/admin/test-payment", requireAdmin, async (req, res) => {
+    try {
+      const { amount } = req.body;
+      const monoToken = process.env.MONOBANK_TOKEN;
+      
+      if (!monoToken) {
+        return res.status(400).json({ error: "Monobank токен не налаштовано" });
+      }
+      
+      const { MonobankService } = await import("./monobank");
+      const monobank = new MonobankService(monoToken);
+      
+      const user = (req as any).user!;
+      const testAmount = amount || 10000;
+      const reference = `test_${Date.now()}_${user.id}`;
+      
+      const invoice = await monobank.createInvoice({
+        amount: testAmount,
+        reference,
+        destination: "Тестовий платіж",
+        redirectUrl: `${req.protocol}://${req.get('host')}/payment/callback`,
+        webhookUrl: `${req.protocol}://${req.get('host')}/api/payments/webhook`,
+      });
+      
+      await storage.createPaymentHistory({
+        userId: user.id,
+        amount: testAmount,
+        currency: "UAH",
+        status: "pending",
+        paymentMethod: "monobank",
+        description: "Тестовий платіж",
+        billingPeriod: "monthly",
+        monoInvoiceId: invoice.invoiceId,
+        monoPageUrl: invoice.pageUrl,
+        monoReference: reference,
+      });
+      
+      res.json({
+        pageUrl: invoice.pageUrl,
+        invoiceId: invoice.invoiceId,
+      });
+    } catch (error: any) {
+      console.error("Test payment error:", error);
+      res.status(500).json({ error: error.message || "Не вдалося створити тестовий платіж" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

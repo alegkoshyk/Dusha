@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info, Eye, EyeOff, Save, Sparkles, BarChart3, Coins, Clock, Image, ExternalLink, Plus, Trash2, Edit2, GripVertical } from "lucide-react";
+import { ArrowLeft, Database, RefreshCw, Upload, Check, X, AlertCircle, Loader2, Settings as SettingsIcon, Brain, Key, Info, Eye, EyeOff, Save, Sparkles, BarChart3, Coins, Clock, Image, ExternalLink, Plus, Trash2, Edit2, GripVertical, CreditCard, TestTube, Zap, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -227,6 +227,12 @@ export default function Settings() {
     sortOrder: 0,
   });
 
+  // Payment settings state
+  const [monoTokenInput, setMonoTokenInput] = useState("");
+  const [showMonoToken, setShowMonoToken] = useState(false);
+  const [testPaymentAmount, setTestPaymentAmount] = useState("100");
+  const [isSimulating, setIsSimulating] = useState(false);
+
   const { data: comparison, isLoading, refetch, isRefetching } = useQuery<CompareResult>({
     queryKey: ["/api/admin/db-sync/compare"],
   });
@@ -253,6 +259,45 @@ export default function Settings() {
 
   const { data: merchTypes, isLoading: isLoadingMerchTypes, refetch: refetchMerchTypes } = useQuery<MerchType[]>({
     queryKey: ["/api/admin/merch-types"],
+  });
+
+  const { data: paymentSettings, isLoading: isLoadingPaymentSettings, refetch: refetchPaymentSettings } = useQuery<{
+    sandboxMode: boolean;
+    monoTokenConfigured: boolean;
+    webhookUrl: string;
+  }>({
+    queryKey: ["/api/admin/payment-settings"],
+  });
+
+  const savePaymentSettingsMutation = useMutation({
+    mutationFn: async (settings: { sandboxMode?: boolean; monoToken?: string }) => {
+      const response = await apiRequest("POST", "/api/admin/payment-settings", settings);
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Налаштування платежів збережено" });
+      setMonoTokenInput("");
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payment-settings"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Помилка", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const simulateWebhookMutation = useMutation({
+    mutationFn: async (data: { invoiceId: string; status: string }) => {
+      const response = await apiRequest("POST", "/api/admin/simulate-webhook", data);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Webhook симульовано", 
+        description: data.message || "Статус оновлено успішно" 
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: "Помилка", description: error.message, variant: "destructive" });
+    },
   });
 
   const createTemplateMutation = useMutation({
@@ -854,6 +899,10 @@ export default function Settings() {
             <TabsTrigger value="nanobanana" className="data-[state=active]:bg-gray-700 text-gray-300" data-testid="tab-nanobanana">
               <Image className="h-4 w-4 mr-2" />
               NanoBanana
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="data-[state=active]:bg-gray-700 text-gray-300" data-testid="tab-payments">
+              <CreditCard className="h-4 w-4 mr-2" />
+              Платежі
             </TabsTrigger>
           </TabsList>
 
@@ -1677,6 +1726,246 @@ export default function Settings() {
                     <p className="text-sm mt-1">Додайте перший шаблон для генерації зображень</p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="payments" className="space-y-6 mt-6">
+            <Card className="bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Налаштування платежів
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Конфігурація Monobank API для обробки платежів
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-gray-900 rounded-lg border border-gray-700">
+                  <div className="flex items-center gap-3">
+                    <TestTube className="h-5 w-5 text-yellow-400" />
+                    <div>
+                      <h4 className="font-medium text-white">Режим тестування (Sandbox)</h4>
+                      <p className="text-sm text-gray-400">
+                        В sandbox режимі платежі не списуються з картки
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge className={paymentSettings?.sandboxMode ? "bg-yellow-600" : "bg-green-600"}>
+                      {paymentSettings?.sandboxMode ? "Sandbox" : "Production"}
+                    </Badge>
+                    <Switch
+                      checked={paymentSettings?.sandboxMode ?? true}
+                      onCheckedChange={(checked) => savePaymentSettingsMutation.mutate({ sandboxMode: checked })}
+                      disabled={savePaymentSettingsMutation.isPending}
+                      data-testid="switch-sandbox-mode"
+                    />
+                  </div>
+                </div>
+
+                {paymentSettings?.sandboxMode && (
+                  <div className="flex gap-3 p-3 rounded-lg bg-yellow-900/30 border border-yellow-700">
+                    <AlertTriangle className="h-5 w-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="font-medium text-yellow-300 text-sm">Sandbox режим активний</h4>
+                      <p className="text-xs text-yellow-200">
+                        Всі платежі обробляються в тестовому середовищі. Реальні кошти не списуються.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <Card className="bg-gray-900 border-gray-700">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-white text-base flex items-center gap-2">
+                        <Key className="h-4 w-4" />
+                        Monobank API токен
+                      </CardTitle>
+                      <Badge className={paymentSettings?.monoTokenConfigured ? "bg-green-600" : "bg-gray-600"} data-testid="badge-mono-status">
+                        {paymentSettings?.monoTokenConfigured ? (
+                          <><Check className="h-3 w-3 mr-1" /> Налаштовано</>
+                        ) : (
+                          <><X className="h-3 w-3 mr-1" /> Не налаштовано</>
+                        )}
+                      </Badge>
+                    </div>
+                    <CardDescription className="text-gray-400">
+                      {paymentSettings?.monoTokenConfigured 
+                        ? "Токен налаштовано через змінну середовища MONOBANK_TOKEN"
+                        : "Введіть токен Monobank Acquiring для обробки платежів"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="mono-token" className="text-gray-300">Токен</Label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            id="mono-token"
+                            type={showMonoToken ? "text" : "password"}
+                            value={monoTokenInput}
+                            onChange={(e) => setMonoTokenInput(e.target.value)}
+                            placeholder="Monobank Acquiring токен"
+                            className="bg-gray-800 border-gray-600 text-white pr-10"
+                            data-testid="input-mono-token"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-gray-400"
+                            onClick={() => setShowMonoToken(!showMonoToken)}
+                            data-testid="button-toggle-mono-token-visibility"
+                          >
+                            {showMonoToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                        <Button
+                          onClick={() => savePaymentSettingsMutation.mutate({ monoToken: monoTokenInput })}
+                          disabled={!monoTokenInput || monoTokenInput.length < 10 || savePaymentSettingsMutation.isPending}
+                          className="bg-green-600 hover:bg-green-700"
+                          data-testid="button-save-mono-token"
+                        >
+                          {savePaymentSettingsMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4 mr-2" />
+                          )}
+                          Зберегти
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 p-3 rounded-lg bg-blue-900/30 border border-blue-700">
+                      <Info className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <h4 className="font-medium text-blue-300 text-sm">Як отримати токен</h4>
+                        <p className="text-xs text-blue-200">
+                          Перейдіть до{" "}
+                          <a 
+                            href="https://web.monobank.ua/acquiring" 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="underline hover:text-white inline-flex items-center gap-1"
+                          >
+                            Monobank Acquiring
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                          {" "}та створіть токен для вашого магазину
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gray-900 border-gray-700">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white text-base flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      Webhook URL
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Додайте цей URL в налаштування Monobank для отримання сповіщень про платежі
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-2">
+                      <Input
+                        value={paymentSettings?.webhookUrl || `${window.location.origin}/api/payments/webhook`}
+                        readOnly
+                        className="bg-gray-800 border-gray-600 text-white font-mono text-sm"
+                        data-testid="input-webhook-url"
+                      />
+                      <Button
+                        variant="outline"
+                        className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                        onClick={() => {
+                          navigator.clipboard.writeText(paymentSettings?.webhookUrl || `${window.location.origin}/api/payments/webhook`);
+                          toast({ title: "Скопійовано", description: "Webhook URL скопійовано в буфер обміну" });
+                        }}
+                        data-testid="button-copy-webhook"
+                      >
+                        Копіювати
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gray-900 border-gray-700">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-white text-base flex items-center gap-2">
+                      <TestTube className="h-4 w-4" />
+                      Тестовий платіж
+                    </CardTitle>
+                    <CardDescription className="text-gray-400">
+                      Створіть тестовий платіж для перевірки інтеграції
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-gray-300">Сума (UAH)</Label>
+                        <Input
+                          type="number"
+                          value={testPaymentAmount}
+                          onChange={(e) => setTestPaymentAmount(e.target.value)}
+                          placeholder="100"
+                          className="bg-gray-800 border-gray-600 text-white"
+                          data-testid="input-test-amount"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <Button
+                          onClick={async () => {
+                            setIsSimulating(true);
+                            try {
+                              const response = await apiRequest("POST", "/api/admin/test-payment", {
+                                amount: parseInt(testPaymentAmount) * 100
+                              });
+                              const data = await response.json();
+                              if (data.pageUrl) {
+                                window.open(data.pageUrl, '_blank');
+                                toast({ title: "Тестовий платіж створено", description: "Сторінка оплати відкрита в новому вікні" });
+                              }
+                            } catch (error: any) {
+                              toast({ title: "Помилка", description: error.message, variant: "destructive" });
+                            } finally {
+                              setIsSimulating(false);
+                            }
+                          }}
+                          disabled={isSimulating || !paymentSettings?.monoTokenConfigured}
+                          className="bg-yellow-600 hover:bg-yellow-700 w-full"
+                          data-testid="button-create-test-payment"
+                        >
+                          {isSimulating ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <CreditCard className="h-4 w-4 mr-2" />
+                          )}
+                          Створити тестовий платіж
+                        </Button>
+                      </div>
+                    </div>
+
+                    {!paymentSettings?.monoTokenConfigured && (
+                      <p className="text-xs text-gray-500">
+                        Спочатку налаштуйте Monobank токен для створення тестових платежів
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="flex justify-end">
+                  <Link href="/rcadmin/transactions">
+                    <Button variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700" data-testid="button-view-transactions">
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Переглянути транзакції
+                    </Button>
+                  </Link>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
