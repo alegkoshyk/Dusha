@@ -95,7 +95,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Access Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Card className="bg-gray-800 border-gray-700 hover:shadow-lg transition-shadow cursor-pointer border-l-4 border-blue-500" onClick={() => navigate('/rcadmin/cards')}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
