@@ -2490,7 +2490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId } = req.body;
+      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
@@ -2555,8 +2555,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         finalPrompt = `${templatePrompt}. Additional context: ${prompt}`;
       }
 
+      // Combine template reference and user-uploaded references
+      const referenceUrl = templateReferenceUrl || (referenceUrls && referenceUrls.length > 0 ? referenceUrls[0] : undefined);
+      
       const { generateImageWithNanoBanana } = await import('./nanobanana');
-      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, logoUrl, templateReferenceUrl || undefined);
+      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, logoUrl, referenceUrl);
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });
@@ -2580,6 +2583,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Image generation error:", error);
       res.status(500).json({ error: "Не вдалося згенерувати зображення" });
+    }
+  });
+
+  // OpenAI DALL-E Image Generation
+  app.post("/api/game-sessions/:sessionId/generate-dalle", requireAuth, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { prompt, size = '1024x1024', quality = 'standard', style = 'vivid' } = req.body;
+      const userId = req.session?.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      if (!prompt) {
+        return res.status(400).json({ error: "Введіть опис зображення" });
+      }
+
+      const gameSession = await storage.getGameSession(sessionId);
+      if (!gameSession) {
+        return res.status(404).json({ error: "Гру не знайдено" });
+      }
+
+      if (gameSession.userId !== userId) {
+        return res.status(403).json({ error: "Немає доступу до цієї гри" });
+      }
+
+      // Get brand context for enhanced prompts
+      let brandContext = '';
+      if (gameSession.brandId) {
+        const brand = await storage.getUserBrand(gameSession.brandId);
+        if (brand) {
+          brandContext = `For brand "${brand.name}". ${brand.description || ''}`;
+        }
+      }
+
+      const finalPrompt = brandContext ? `${prompt}. ${brandContext}` : prompt;
+
+      const { generateImageWithDALLE } = await import('./openai');
+      const result = await generateImageWithDALLE(finalPrompt, size, quality, style);
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      // Save image message to database
+      if (result.imageUrl) {
+        await storage.saveChatMessage(sessionId, userId, 'image', prompt, result.imageUrl);
+      }
+
+      res.json({ 
+        success: true, 
+        imageUrl: result.imageUrl
+      });
+    } catch (error: any) {
+      console.error("DALL-E generation error:", error);
+      res.status(500).json({ error: "Не вдалося згенерувати зображення" });
+    }
+  });
+
+  // Upload reference image for chat
+  app.post("/api/game-sessions/:sessionId/upload-reference", requireAuth, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { imageData, filename } = req.body;
+      const userId = req.session?.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      if (!imageData || !imageData.startsWith('data:image/')) {
+        return res.status(400).json({ error: "Невірний формат зображення" });
+      }
+
+      const gameSession = await storage.getGameSession(sessionId);
+      if (!gameSession) {
+        return res.status(404).json({ error: "Гру не знайдено" });
+      }
+
+      if (gameSession.userId !== userId) {
+        return res.status(403).json({ error: "Немає доступу до цієї гри" });
+      }
+
+      // Check quota before upload
+      const base64Data = imageData.split(',')[1] || imageData;
+      const estimatedSize = Math.ceil(base64Data.length * 0.75);
+      const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
+      if (!hasQuota) {
+        return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+      }
+
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+
+      const uploadResult = await objectStorageService.uploadMediaAsset({
+        userId,
+        assetType: 'attachment',
+        brandId: gameSession.brandId || undefined,
+        base64Data: imageData
+      });
+
+      // Create media asset record
+      const mediaAsset = await storage.createMediaAsset({
+        userId,
+        brandId: gameSession.brandId || null,
+        assetType: 'attachment',
+        storageKey: uploadResult.storageKey,
+        publicUrl: uploadResult.publicUrl,
+        filename: filename || `reference-${Date.now()}`,
+        mimeType: uploadResult.mimeType,
+        sizeBytes: uploadResult.sizeBytes,
+        altText: 'Reference image for chat',
+      });
+
+      res.json({
+        success: true,
+        url: uploadResult.publicUrl,
+        assetId: mediaAsset.id
+      });
+    } catch (error: any) {
+      console.error("Reference upload error:", error);
+      res.status(500).json({ error: "Не вдалося завантажити зображення" });
     }
   });
 

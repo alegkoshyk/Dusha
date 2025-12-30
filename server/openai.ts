@@ -642,3 +642,56 @@ ${request.currentText ? `✏️ Поточний текст користувач
 
   return { text };
 }
+
+// DALL-E image generation
+export async function generateImageWithDALLE(
+  prompt: string, 
+  size: "1024x1024" | "1792x1024" | "1024x1792" = "1024x1024",
+  quality: "standard" | "hd" = "standard",
+  style: "vivid" | "natural" = "vivid"
+): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
+  try {
+    const config = await getAIConfig();
+    
+    // Only works with OpenAI provider
+    if (config.provider !== "openai") {
+      return { success: false, error: "DALL-E доступний тільки з OpenAI провайдером" };
+    }
+    
+    if (!config.apiKey) {
+      return { success: false, error: "OpenAI API ключ не налаштовано" };
+    }
+    
+    const client = new OpenAI({ apiKey: config.apiKey });
+    
+    const response = await client.images.generate({
+      model: "dall-e-3",
+      prompt,
+      n: 1,
+      size,
+      quality,
+      style
+    });
+    
+    const imageUrl = response.data[0]?.url;
+    if (!imageUrl) {
+      return { success: false, error: "Не вдалося отримати зображення" };
+    }
+    
+    // Log usage - DALL-E pricing
+    const costEstimate = quality === "hd" ? 0.08 : 0.04; // approx pricing per image
+    await storage.logAIUsage({
+      provider: "openai",
+      model: "dall-e-3",
+      tokensInput: 0,
+      tokensOutput: 0,
+      costEstimate: costEstimate.toFixed(6),
+      endpoint: "generateImageWithDALLE",
+    });
+    
+    return { success: true, imageUrl };
+  } catch (error: any) {
+    console.error("DALL-E generation error:", error);
+    return { success: false, error: error.message || "Помилка генерації зображення" };
+  }
+}

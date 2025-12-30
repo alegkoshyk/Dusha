@@ -27,7 +27,9 @@ import {
   ChevronUp,
   ChevronDown,
   Palette,
-  Save
+  Save,
+  Upload,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
@@ -274,8 +276,12 @@ export default function BrandChat() {
   const [showImageSettings, setShowImageSettings] = useState(false);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
+  const [imageGenerator, setImageGenerator] = useState<'nanobanana' | 'dalle'>('nanobanana');
+  const [referenceImages, setReferenceImages] = useState<{ url: string; filename: string }[]>([]);
+  const [uploadingReference, setUploadingReference] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: session, isLoading: sessionLoading } = useQuery<GameSession>({
     queryKey: ['/api/game-sessions', sessionId],
@@ -346,8 +352,8 @@ export default function BrandChat() {
   });
 
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[] }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls });
     },
     onError: (error: any) => {
       toast({
@@ -357,6 +363,76 @@ export default function BrandChat() {
       });
     },
   });
+
+  // DALL-E image generation mutation
+  const generateDalleMutation = useMutation({
+    mutationFn: async ({ prompt, size, quality, style }: { prompt: string; size?: string; quality?: string; style?: string }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-dalle`, { prompt, size, quality, style });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Помилка DALL-E",
+        description: error.message || "Не вдалося згенерувати зображення через DALL-E",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reference image upload
+  const handleReferenceUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingReference(true);
+    
+    const uploadPromises = Array.from(files).map(file => {
+      return new Promise<void>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const imageData = e.target?.result as string;
+            
+            const response = await apiRequestJson('POST', `/api/game-sessions/${sessionId}/upload-reference`, {
+              imageData,
+              filename: file.name
+            });
+            
+            if (response.success) {
+              setReferenceImages(prev => [...prev, { url: response.url, filename: file.name }]);
+              toast({ title: "Зображення додано як референс" });
+            }
+          } catch (error: any) {
+            toast({
+              title: "Помилка завантаження",
+              description: error.message || "Не вдалося завантажити референс",
+              variant: "destructive",
+            });
+          }
+          resolve();
+        };
+        reader.onerror = () => {
+          toast({
+            title: "Помилка читання файлу",
+            description: file.name,
+            variant: "destructive",
+          });
+          resolve();
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+    
+    await Promise.all(uploadPromises);
+    
+    setUploadingReference(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeReference = (url: string) => {
+    setReferenceImages(prev => prev.filter(img => img.url !== url));
+  };
 
   // Scroll to bottom when messages change or on initial load
   const scrollToBottom = useCallback(() => {
@@ -437,27 +513,51 @@ export default function BrandChat() {
     
     setMessage('');
     
-    generateImageMutation.mutate({ 
-      prompt: fullPrompt || undefined, 
-      aspectRatio,
-      logoUrl: useLogo && brand?.logo ? brand.logo : undefined,
-      templateId: useLogo && selectedTemplateId ? selectedTemplateId : undefined,
-      merchTypeId: useLogo && selectedMerchTypeId ? selectedMerchTypeId : undefined
-    }, {
-      onSuccess: (data) => {
-        const imageData = data.imageBase64 || data.imageUrl;
-        // Remove temporary loading message - image is now saved in database
-        setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
-        // Refetch chat to show image from database
-        queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', sessionId, 'chat'] });
-        if (imageData) {
-          setModalImage(imageData);
+    // Choose generator based on selection
+    if (imageGenerator === 'dalle') {
+      // DALL-E generation
+      const dalleSize = aspectRatio === '16:9' ? '1792x1024' : aspectRatio === '9:16' ? '1024x1792' : '1024x1024';
+      
+      generateDalleMutation.mutate({ 
+        prompt: fullPrompt, 
+        size: dalleSize,
+        quality: 'standard',
+        style: 'vivid'
+      }, {
+        onSuccess: (data) => {
+          setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+          queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', sessionId, 'chat'] });
+          if (data.imageUrl) {
+            setModalImage(data.imageUrl);
+          }
+        },
+        onError: () => {
+          setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
         }
-      },
-      onError: () => {
-        setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
-      }
-    });
+      });
+    } else {
+      // NanoBanana generation - pass reference URLs for style inspiration
+      generateImageMutation.mutate({ 
+        prompt: fullPrompt || undefined, 
+        aspectRatio,
+        logoUrl: useLogo && brand?.logo ? brand.logo : undefined,
+        templateId: useLogo && selectedTemplateId ? selectedTemplateId : undefined,
+        merchTypeId: useLogo && selectedMerchTypeId ? selectedMerchTypeId : undefined,
+        referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined
+      }, {
+        onSuccess: (data) => {
+          const imageData = data.imageBase64 || data.imageUrl;
+          setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+          queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', sessionId, 'chat'] });
+          if (imageData) {
+            setModalImage(imageData);
+          }
+        },
+        onError: () => {
+          setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+        }
+      });
+    }
   };
 
   const handleDownloadImage = (imageUrl?: string) => {
@@ -757,6 +857,98 @@ export default function BrandChat() {
                 </Button>
               </div>
               
+              {/* Image Generator Selection */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Генератор зображень
+                </label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={imageGenerator === 'nanobanana' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setImageGenerator('nanobanana')}
+                    className={imageGenerator === 'nanobanana' ? 'bg-orange-600 hover:bg-orange-700' : ''}
+                    data-testid="button-generator-nanobanana"
+                  >
+                    🍌 NanoBanana
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={imageGenerator === 'dalle' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setImageGenerator('dalle')}
+                    className={imageGenerator === 'dalle' ? 'bg-green-600 hover:bg-green-700' : ''}
+                    data-testid="button-generator-dalle"
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    DALL-E 3
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {imageGenerator === 'dalle' 
+                    ? 'OpenAI DALL-E 3 - найкраща якість (референси не підтримуються напряму)' 
+                    : 'NanoBanana - підтримує референси як URL для стилю, логотипи та мерч генерацію'}
+                </p>
+              </div>
+
+              {/* Reference Images Upload */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Референс-зображення
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleReferenceUpload}
+                    className="hidden"
+                    data-testid="input-reference-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingReference}
+                    data-testid="button-upload-reference"
+                  >
+                    {uploadingReference ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4 mr-2" />
+                    )}
+                    Завантажити референс
+                  </Button>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {referenceImages.length > 0 ? `${referenceImages.length} зображ.` : 'Для стилю та натхнення'}
+                  </span>
+                </div>
+                {referenceImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {referenceImages.map((ref, idx) => (
+                      <div key={idx} className="relative group">
+                        <img 
+                          src={ref.url} 
+                          alt={ref.filename}
+                          className="w-16 h-16 object-cover rounded border border-gray-200 dark:border-gray-600"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeReference(ref.url)}
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          data-testid={`button-remove-ref-${idx}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1003,7 +1195,7 @@ export default function BrandChat() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Напишіть повідомлення або опис зображення..."
-              disabled={sendMessageMutation.isPending || generateImageMutation.isPending}
+              disabled={sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
               className="flex-1"
               data-testid="input-message"
             />
@@ -1022,19 +1214,21 @@ export default function BrandChat() {
               type="button"
               variant="outline"
               onClick={handleGenerateImage}
-              disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || sendMessageMutation.isPending}
-              title="Згенерувати зображення"
+              disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || generateDalleMutation.isPending || sendMessageMutation.isPending}
+              title={imageGenerator === 'dalle' ? "Згенерувати через DALL-E" : "Згенерувати через NanoBanana"}
               data-testid="button-generate-image"
             >
-              {generateImageMutation.isPending ? (
+              {(generateImageMutation.isPending || generateDalleMutation.isPending) ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
+              ) : imageGenerator === 'dalle' ? (
+                <Sparkles className="w-4 h-4" />
               ) : (
                 <Image className="w-4 h-4" />
               )}
             </Button>
             <Button 
               type="submit" 
-              disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending}
+              disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
               data-testid="button-send"
             >
               {sendMessageMutation.isPending ? (
