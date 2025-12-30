@@ -1,17 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Edit, Trash2, Loader2, Crown, Zap, Sparkles, ArrowLeft } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Crown, Zap, Sparkles, ArrowLeft, X, Search } from "lucide-react";
 
 interface SubscriptionPlan {
   id: number;
@@ -29,6 +28,15 @@ interface SubscriptionPlan {
   isDefault: boolean;
   isActive: boolean;
   sortOrder: number;
+}
+
+interface PremiumFeature {
+  id: number;
+  key: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  isActive: boolean;
 }
 
 export default function SubscriptionPlans() {
@@ -272,22 +280,50 @@ function PlanForm({
     maxTotalGames: plan?.maxTotalGames || 1,
     maxStorageBytes: plan?.maxStorageBytes || 52428800,
     maxMediaFiles: plan?.maxMediaFiles || 25,
-    features: plan?.features?.join('\n') || '',
     isDefault: plan?.isDefault || false,
     isActive: plan?.isActive ?? true,
     sortOrder: plan?.sortOrder || 1,
   });
+  
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(plan?.features || []);
+  const [featureSearch, setFeatureSearch] = useState('');
+  
+  const { data: premiumFeatures } = useQuery<PremiumFeature[]>({
+    queryKey: ['/api/admin/premium-features'],
+  });
+
+  const filteredFeatures = useMemo(() => {
+    if (!premiumFeatures) return [];
+    const search = featureSearch.toLowerCase();
+    return premiumFeatures
+      .filter(f => f.isActive)
+      .filter(f => 
+        !selectedFeatures.includes(f.name) &&
+        (f.name.toLowerCase().includes(search) || 
+         f.key.toLowerCase().includes(search) ||
+         f.description?.toLowerCase().includes(search))
+      );
+  }, [premiumFeatures, featureSearch, selectedFeatures]);
+
+  const addFeature = (feature: PremiumFeature) => {
+    setSelectedFeatures([...selectedFeatures, feature.name]);
+    setFeatureSearch('');
+  };
+
+  const removeFeature = (featureName: string) => {
+    setSelectedFeatures(selectedFeatures.filter(f => f !== featureName));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
       ...formData,
-      features: formData.features.split('\n').filter(Boolean),
+      features: selectedFeatures,
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>Системна назва</Label>
@@ -393,14 +429,62 @@ function PlanForm({
       </div>
 
       <div>
-        <Label>Функції (по одній на рядок)</Label>
-        <Textarea
-          value={formData.features}
-          onChange={(e) => setFormData({ ...formData, features: e.target.value })}
-          placeholder="AI-аналіз&#10;Експорт PDF&#10;Чат з AI"
-          className="bg-gray-800 border-gray-600"
-          rows={4}
-        />
+        <Label>Функції тарифу</Label>
+        
+        {selectedFeatures.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2 mb-3">
+            {selectedFeatures.map((feature) => (
+              <Badge 
+                key={feature} 
+                variant="secondary" 
+                className="pl-3 pr-1 py-1 flex items-center gap-1 bg-primary/20 text-primary-foreground"
+              >
+                {feature}
+                <button
+                  type="button"
+                  onClick={() => removeFeature(feature)}
+                  className="ml-1 p-0.5 rounded-full hover:bg-red-500/20"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+        
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            value={featureSearch}
+            onChange={(e) => setFeatureSearch(e.target.value)}
+            placeholder="Пошук функцій..."
+            className="bg-gray-800 border-gray-600 pl-9"
+          />
+        </div>
+        
+        {featureSearch && filteredFeatures.length > 0 && (
+          <div className="mt-2 border border-gray-700 rounded-md bg-gray-800 max-h-32 overflow-y-auto">
+            {filteredFeatures.map((feature) => (
+              <button
+                key={feature.id}
+                type="button"
+                onClick={() => addFeature(feature)}
+                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-700 flex justify-between items-center"
+              >
+                <span>{feature.name}</span>
+                {feature.icon && (
+                  <span className="text-xs text-gray-500">{feature.icon}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {featureSearch && filteredFeatures.length === 0 && (
+          <p className="text-sm text-gray-500 mt-2">
+            Нічого не знайдено. Додайте функції в розділі "Преміум функції".
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-4">
