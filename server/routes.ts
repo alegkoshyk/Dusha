@@ -210,6 +210,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Не авторизовано" });
       }
 
+      // Check brand quota
+      const canCreate = await storage.canCreateBrand(currentUser.id);
+      if (!canCreate) {
+        return res.status(403).json({ 
+          error: "Досягнуто ліміт брендів для вашого тарифу", 
+          code: "BRAND_QUOTA_EXCEEDED"
+        });
+      }
+
       const validatedData = insertUserBrandSchema.parse({
         ...req.body,
         userId: currentUser.id,
@@ -503,6 +512,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const currentUser = getCurrentUserUnified(req);
       if (!currentUser) {
         return res.status(401).json({ error: "Authentication required" });
+      }
+
+      // Check game quota
+      const canCreate = await storage.canCreateGame(currentUser.id);
+      if (!canCreate) {
+        return res.status(403).json({ 
+          error: "Досягнуто ліміт ігор для вашого тарифу", 
+          code: "GAME_QUOTA_EXCEEDED"
+        });
       }
 
       const validatedData = insertGameSessionSchema.parse({
