@@ -288,7 +288,7 @@ function PlanForm({
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>(plan?.features || []);
   
   const { data: premiumFeatures } = useQuery<PremiumFeature[]>({
-    queryKey: ['/api/admin/premium-features'],
+    queryKey: ['/api/admin/subscriptions/features'],
   });
 
   const handleSubmit = (e: React.FormEvent) => {
