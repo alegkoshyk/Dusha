@@ -27,9 +27,11 @@ import DatabaseSync from "@/pages/admin/DatabaseSync";
 import AdminSettings from "@/pages/admin/Settings";
 import BrandSpace from "@/pages/admin/BrandSpace";
 import VisualMap from "@/pages/admin/VisualMap";
+import SubscriptionPlans from "@/pages/admin/SubscriptionPlans";
 import UserSettings from "@/pages/settings";
 import Profile from "@/pages/profile";
 import MediaLibrary from "@/pages/media-library";
+import Pricing from "@/pages/pricing";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -73,9 +75,11 @@ function Router() {
           <Route path="/rcadmin/settings" component={AdminSettings} />
           <Route path="/rcadmin/brand-space" component={BrandSpace} />
           <Route path="/rcadmin/visual-map" component={VisualMap} />
+          <Route path="/rcadmin/subscriptions" component={SubscriptionPlans} />
           <Route path="/settings" component={UserSettings} />
           <Route path="/profile" component={Profile} />
           <Route path="/media" component={MediaLibrary} />
+          <Route path="/pricing" component={Pricing} />
           <Route component={NotFound} />
         </Switch>
       </main>
