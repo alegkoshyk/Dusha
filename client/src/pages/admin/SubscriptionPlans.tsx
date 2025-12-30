@@ -146,15 +146,15 @@ export default function SubscriptionPlans() {
           <div className="grid md:grid-cols-3 gap-6">
             {plans?.sort((a, b) => a.sortOrder - b.sortOrder).map((plan) => (
               <Card key={plan.id} className="bg-gray-900 border-gray-700" data-testid={`card-admin-plan-${plan.id}`}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       {getPlanIcon(plan.name)}
-                      <CardTitle className="text-white">{plan.displayName}</CardTitle>
+                      <CardTitle className="text-white truncate">{plan.displayName}</CardTitle>
                     </div>
-                    <div className="flex gap-1">
-                      {plan.isDefault && <Badge variant="outline">За замовч.</Badge>}
-                      {!plan.isActive && <Badge variant="destructive">Неактивний</Badge>}
+                    <div className="flex gap-1 flex-shrink-0">
+                      {plan.isDefault && <Badge variant="outline" className="text-xs whitespace-nowrap">За замовч.</Badge>}
+                      {!plan.isActive && <Badge variant="destructive" className="text-xs whitespace-nowrap">Неактивний</Badge>}
                     </div>
                   </div>
                 </CardHeader>
