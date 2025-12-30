@@ -624,33 +624,34 @@ export default function BrandChat() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl h-[calc(100vh-6rem)] flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-4">
+    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl h-[calc(100vh-5rem)] sm:h-[calc(100vh-6rem)] flex flex-col">
+      <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
           <Link href="/brand-maps">
-            <Button variant="ghost" size="icon" data-testid="button-back">
+            <Button variant="ghost" size="icon" className="shrink-0" data-testid="button-back">
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white" data-testid="text-brand-name">
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white truncate" data-testid="text-brand-name">
               {brand?.name || 'Бренд'}
             </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
               AI-консультант з брендингу
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1 sm:gap-2 shrink-0">
           <Link href={`/brand-board/${sessionId}`}>
-            <Button variant="outline" size="sm" data-testid="button-view-map">
-              <Eye className="w-4 h-4 mr-2" />
-              Карта
+            <Button variant="outline" size="sm" className="px-2 sm:px-3" data-testid="button-view-map">
+              <Eye className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Карта</span>
             </Button>
           </Link>
           <Button 
             variant="ghost" 
             size="sm" 
+            className="px-2"
             onClick={handleClearChat}
             disabled={messages.length === 0 && imageMessages.length === 0}
             data-testid="button-clear-chat"
@@ -683,10 +684,10 @@ export default function BrandChat() {
                         <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-red-100 dark:bg-red-900">
                           <User className="w-4 h-4 text-red-600 dark:text-red-400" />
                         </div>
-                        <div className="max-w-[80%] rounded-lg px-4 py-3 bg-red-600 text-white">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Image className="w-4 h-4" />
-                            <span>Генерація зображення: {msg.content}</span>
+                        <div className="max-w-[85%] sm:max-w-[80%] rounded-lg px-3 sm:px-4 py-2 sm:py-3 bg-red-600 text-white">
+                          <div className="flex items-start gap-2 text-xs sm:text-sm">
+                            <Image className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span className="break-words">Генерація зображення: {msg.content}</span>
                           </div>
                           <span className="text-xs mt-1 block text-red-200">
                             {new Date(msg.createdAt).toLocaleTimeString('uk-UA', { 
@@ -697,21 +698,21 @@ export default function BrandChat() {
                         </div>
                       </div>
                       
-                      <div className="flex gap-3" data-testid={`image-response-${msg.id}`}>
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-purple-100 dark:bg-purple-900">
-                          <Image className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <div className="flex gap-2 sm:gap-3" data-testid={`image-response-${msg.id}`}>
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-purple-100 dark:bg-purple-900">
+                          <Image className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600 dark:text-purple-400" />
                         </div>
-                        <div className="max-w-[80%] rounded-lg px-4 py-3 bg-gray-100 dark:bg-gray-800">
-                          <div>
+                        <div className="max-w-[calc(100%-3rem)] sm:max-w-[80%] rounded-lg px-3 sm:px-4 py-2 sm:py-3 bg-gray-100 dark:bg-gray-800">
+                          <div className="w-full">
                             <img 
                               src={msg.imageUrl} 
                               alt={msg.content}
-                              className="max-w-xs rounded-lg shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                              className="w-full max-w-[280px] sm:max-w-xs rounded-lg shadow-md cursor-pointer hover:opacity-90 transition-opacity"
                               onClick={() => setModalImage(msg.imageUrl!)}
                               data-testid={`img-chat-${msg.id}`}
                             />
-                            <div className="flex items-center gap-2 mt-2">
-                              <p className="text-xs text-gray-500 flex-1">Натисніть для збільшення</p>
+                            <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-2">
+                              <p className="text-xs text-gray-500 hidden sm:block flex-1">Натисніть для збільшення</p>
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -719,8 +720,8 @@ export default function BrandChat() {
                                 onClick={() => handleDownloadImage(msg.imageUrl!)}
                                 data-testid={`download-image-${msg.id}`}
                               >
-                                <Download className="w-3 h-3 mr-1" />
-                                Завантажити
+                                <Download className="w-3 h-3 sm:mr-1" />
+                                <span className="hidden sm:inline">Завантажити</span>
                               </Button>
                               <Button
                                 size="sm"
@@ -731,11 +732,11 @@ export default function BrandChat() {
                                 data-testid={`save-image-${msg.id}`}
                               >
                                 {savingImageId === msg.id ? (
-                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                  <Loader2 className="w-3 h-3 sm:mr-1 animate-spin" />
                                 ) : (
-                                  <Save className="w-3 h-3 mr-1" />
+                                  <Save className="w-3 h-3 sm:mr-1" />
                                 )}
-                                Зберегти
+                                <span className="hidden sm:inline">Зберегти</span>
                               </Button>
                             </div>
                           </div>
@@ -1188,15 +1189,15 @@ export default function BrandChat() {
           </CollapsibleContent>
         </Collapsible>
 
-        <form onSubmit={handleSend} className="p-4 border-t dark:border-gray-700">
-          <div className="flex gap-2 items-center">
+        <form onSubmit={handleSend} className="p-2 sm:p-4 border-t dark:border-gray-700">
+          <div className="flex gap-1 sm:gap-2 items-center">
             <Input
               ref={inputRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Напишіть повідомлення або опис зображення..."
+              placeholder="Напишіть повідом..."
               disabled={sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
-              className="flex-1"
+              className="flex-1 min-w-0 text-sm sm:text-base"
               data-testid="input-message"
             />
             <Button
@@ -1206,16 +1207,18 @@ export default function BrandChat() {
               onClick={() => setShowImageSettings(!showImageSettings)}
               title="Налаштування генерації"
               data-testid="button-toggle-settings"
-              className={showImageSettings || selectedStyle || customContext ? "bg-purple-600 hover:bg-purple-700" : ""}
+              className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 ${showImageSettings || selectedStyle || customContext ? "bg-purple-600 hover:bg-purple-700" : ""}`}
             >
               <Settings2 className="w-4 h-4" />
             </Button>
             <Button 
               type="button"
               variant="outline"
+              size="icon"
               onClick={handleGenerateImage}
               disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || generateDalleMutation.isPending || sendMessageMutation.isPending}
               title={imageGenerator === 'dalle' ? "Згенерувати через DALL-E" : "Згенерувати через NanoBanana"}
+              className="shrink-0 w-9 h-9 sm:w-10 sm:h-10"
               data-testid="button-generate-image"
             >
               {(generateImageMutation.isPending || generateDalleMutation.isPending) ? (
@@ -1227,8 +1230,10 @@ export default function BrandChat() {
               )}
             </Button>
             <Button 
-              type="submit" 
+              type="submit"
+              size="icon"
               disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
+              className="shrink-0 w-9 h-9 sm:w-10 sm:h-10"
               data-testid="button-send"
             >
               {sendMessageMutation.isPending ? (
