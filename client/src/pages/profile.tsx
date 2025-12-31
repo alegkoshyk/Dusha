@@ -16,8 +16,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   User, Camera, Building2, Briefcase, Globe, Trophy, Star, 
   ArrowLeft, Save, Loader2, Award, Target, Zap, CreditCard, 
-  Receipt, Crown, Check, Calendar, ExternalLink, Clock
+  Receipt, Crown, Check, Calendar, ExternalLink, Clock, AlertTriangle, RefreshCw
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link } from "wouter";
 import type { UserProfile, SubscriptionPlan, UserSubscription, PaymentHistory } from "@shared/schema";
 import { format } from "date-fns";
@@ -101,6 +102,43 @@ export default function ProfilePage() {
   const { data: paymentHistory } = useQuery<PaymentHistory[]>({
     queryKey: ["/api/subscriptions/payments"],
     enabled: !!user,
+  });
+
+  interface BillingStatus {
+    status: string;
+    planName: string;
+    hasBillingIssue: boolean;
+    isInGracePeriod: boolean;
+    graceDaysRemaining: number;
+    graceUntil: string | null;
+    lastBillingError: string | null;
+    billingRetryCount: number;
+    nextPaymentAt: string | null;
+    amount: number;
+    currency: string;
+  }
+
+  const { data: billingStatus } = useQuery<BillingStatus>({
+    queryKey: ["/api/billing/status"],
+    enabled: !!user,
+  });
+
+  const retryPaymentMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("/api/payments/retry", { method: "POST" });
+    },
+    onSuccess: (data: any) => {
+      if (data.pageUrl) {
+        window.location.href = data.pageUrl;
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Помилка",
+        description: error.message || "Не вдалося повторити платіж",
+        variant: "destructive",
+      });
+    },
   });
 
   // Initialize form when profile loads
@@ -488,6 +526,60 @@ export default function ProfilePage() {
                 </TabsContent>
 
                 <TabsContent value="subscription" className="space-y-6">
+                  {/* Billing Alert for Grace Period */}
+                  {billingStatus?.hasBillingIssue && (
+                    <Alert variant="destructive" className="border-orange-500 bg-orange-500/10">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        <div className="flex flex-col gap-3">
+                          <div>
+                            <p className="font-semibold">Проблема з оплатою</p>
+                            <p className="text-sm">
+                              {billingStatus.isInGracePeriod ? (
+                                <>
+                                  Не вдалося списати кошти за підписку. 
+                                  У вас є <strong>{billingStatus.graceDaysRemaining} {billingStatus.graceDaysRemaining === 1 ? 'день' : 'дні'}</strong> щоб оновити спосіб оплати.
+                                </>
+                              ) : (
+                                "Ваша підписка буде понижена до безкоштовного тарифу."
+                              )}
+                            </p>
+                            {billingStatus.lastBillingError && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Помилка: {billingStatus.lastBillingError}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => retryPaymentMutation.mutate()}
+                              disabled={retryPaymentMutation.isPending}
+                              data-testid="button-retry-payment"
+                            >
+                              {retryPaymentMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4 mr-2" />
+                              )}
+                              Повторити оплату
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => retryPaymentMutation.mutate()}
+                              disabled={retryPaymentMutation.isPending}
+                              data-testid="button-change-payment-method"
+                            >
+                              <CreditCard className="h-4 w-4 mr-2" />
+                              Змінити спосіб оплати
+                            </Button>
+                          </div>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   {/* Current Plan */}
                   {subscriptionData?.plan && (() => {
                     const planColor = subscriptionData.plan.color || '#6b7280';
