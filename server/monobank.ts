@@ -167,6 +167,62 @@ export class MonobankService {
       body: JSON.stringify(payload),
     });
   }
+
+  async createSubscription(params: {
+    amount: number;
+    ccy?: number;
+    redirectUrl: string;
+    webHookUrl: string;
+    interval: string;
+    reference?: string;
+  }): Promise<MonobankSubscriptionResponse> {
+    const payload = {
+      amount: params.amount,
+      ccy: params.ccy || 980,
+      redirectUrl: params.redirectUrl,
+      webHookUrl: params.webHookUrl,
+      merchantPaymInfo: {
+        reference: params.reference,
+      },
+      recurring: {
+        interval: params.interval,
+      },
+    };
+
+    console.log('Creating Monobank subscription:', JSON.stringify(payload, null, 2));
+
+    return this.request<MonobankSubscriptionResponse>('/api/merchant/subscription/create', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getSubscriptionStatus(subscriptionId: string): Promise<MonobankSubscriptionStatus> {
+    return this.request<MonobankSubscriptionStatus>(
+      `/api/merchant/subscription/status?subscriptionId=${encodeURIComponent(subscriptionId)}`
+    );
+  }
+
+  async cancelSubscription(subscriptionId: string): Promise<{ status: string }> {
+    return this.request<{ status: string }>('/api/merchant/subscription/cancel', {
+      method: 'POST',
+      body: JSON.stringify({ subscriptionId }),
+    });
+  }
+}
+
+interface MonobankSubscriptionResponse {
+  subscriptionId: string;
+  pageUrl: string;
+}
+
+interface MonobankSubscriptionStatus {
+  subscriptionId: string;
+  status: 'active' | 'cancelled' | 'expired' | 'pending';
+  amount: number;
+  ccy: number;
+  interval: string;
+  nextPaymentDate?: string;
 }
 
 export function createMonobankService(): MonobankService | null {

@@ -3321,13 +3321,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
           : 'http://localhost:5000';
 
-      const invoice = await monobank.createInvoice({
+      const interval = billingPeriod === 'yearly' ? '1y' : '1m';
+
+      const subscription = await monobank.createSubscription({
         amount,
-        reference,
-        destination: `Підписка "${plan.displayName}" (${billingPeriod === 'yearly' ? 'рік' : 'місяць'})`,
         redirectUrl: `${baseUrl}/payment/callback`,
-        webhookUrl: `${baseUrl}/api/payments/webhook`,
-        validity: 3600,
+        webHookUrl: `${baseUrl}/api/payments/webhook`,
+        interval,
+        reference,
       });
 
       const payment = await storage.createPaymentHistory({
@@ -3339,15 +3340,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentMethod: "monobank",
         description: `Підписка "${plan.displayName}" (${billingPeriod === 'yearly' ? 'рік' : 'місяць'})`,
         billingPeriod,
-        monoInvoiceId: invoice.invoiceId,
-        monoPageUrl: invoice.pageUrl,
+        monoInvoiceId: subscription.subscriptionId,
+        monoPageUrl: subscription.pageUrl,
         monoReference: reference,
+        metadata: { isSubscription: true, monoSubscriptionId: subscription.subscriptionId },
       });
 
       res.json({
         paymentId: payment.id,
-        pageUrl: invoice.pageUrl,
-        invoiceId: invoice.invoiceId,
+        pageUrl: subscription.pageUrl,
+        subscriptionId: subscription.subscriptionId,
       });
     } catch (error: any) {
       console.error("Payment create error:", error);
@@ -3385,19 +3387,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.warn("Missing X-Sign header, but allowing in production for initial webhook test");
       }
 
-      const { invoiceId, status, failureReason, paymentId } = req.body;
+      const { invoiceId, subscriptionId, status, failureReason, paymentId, reference } = req.body;
       
-      if (!invoiceId) {
-        return res.status(400).json({ error: "Missing invoiceId" });
+      let payment = null;
+      
+      if (invoiceId) {
+        payment = await storage.getPaymentByMonoInvoiceId(invoiceId);
       }
-
-      const payment = await storage.getPaymentByMonoInvoiceId(invoiceId);
+      
+      if (!payment && subscriptionId) {
+        payment = await storage.getPaymentByMonoInvoiceId(subscriptionId);
+      }
+      
+      if (!payment && reference) {
+        payment = await storage.getPaymentByMonoReference(reference);
+      }
+      
+      if (!invoiceId && !subscriptionId && !reference) {
+        return res.status(400).json({ error: "Missing invoiceId, subscriptionId or reference" });
+      }
       if (!payment) {
-        console.error("Payment not found for invoiceId:", invoiceId);
+        console.error("Payment not found for invoiceId/subscriptionId/reference:", invoiceId, subscriptionId, reference);
         return res.status(404).json({ error: "Payment not found" });
       }
 
-      await storage.updatePaymentByMonoInvoiceId(invoiceId, {
+      await storage.updatePaymentById(payment.id, {
         status,
         monoPaymentId: paymentId,
         monoFailureReason: failureReason,
@@ -3413,6 +3427,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             expiresAt.setMonth(expiresAt.getMonth() + 1);
           }
 
+          const metadata = payment.metadata as Record<string, any> || {};
+          const monoSubscriptionId = metadata.monoSubscriptionId || null;
+
           const existingSub = await storage.getUserSubscription(payment.userId);
           if (existingSub) {
             await storage.updateUserSubscription(payment.userId, {
@@ -3423,6 +3440,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lastPaymentAt: new Date(),
               nextPaymentAt: expiresAt,
               paymentMethod: 'monobank',
+              monoSubscriptionId,
+              billingRetryCount: 0,
+              billingGraceUntil: null,
+              lastBillingError: null,
             });
           } else {
             await storage.createUserSubscription({
@@ -3434,6 +3455,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lastPaymentAt: new Date(),
               nextPaymentAt: expiresAt,
               paymentMethod: 'monobank',
+              monoSubscriptionId,
+            });
+          }
+        }
+      } else if (status === 'failure' && payment.planId) {
+        const metadata = payment.metadata as Record<string, any> || {};
+        if (metadata.isSubscription) {
+          const existingSub = await storage.getUserSubscription(payment.userId);
+          if (existingSub) {
+            const graceUntil = new Date();
+            graceUntil.setDate(graceUntil.getDate() + 2);
+            
+            await storage.updateUserSubscription(payment.userId, {
+              status: 'past_due',
+              billingGraceUntil: graceUntil,
+              lastBillingError: failureReason || 'Payment failed',
+              billingRetryCount: (existingSub.billingRetryCount || 0) + 1,
             });
           }
         }

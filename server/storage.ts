@@ -189,6 +189,7 @@ export interface IStorage {
   // Recurring billing operations
   getSubscriptionsDueForBilling(): Promise<UserSubscription[]>;
   getExpiredGracePeriodSubscriptions(): Promise<UserSubscription[]>;
+  getActiveMonobankSubscriptions(): Promise<UserSubscription[]>;
   updateSubscriptionBillingAttempt(subscriptionId: string, updates: Partial<UserSubscription>): Promise<UserSubscription | undefined>;
   updateSubscription(subscriptionId: string, updates: Partial<UserSubscription>): Promise<UserSubscription | undefined>;
   getDefaultFreePlan(): Promise<SubscriptionPlan | undefined>;
@@ -203,7 +204,9 @@ export interface IStorage {
   createPaymentHistory(payment: InsertPaymentHistory): Promise<PaymentHistory>;
   getUserPaymentHistory(userId: string): Promise<PaymentHistory[]>;
   getPaymentByMonoInvoiceId(invoiceId: string): Promise<PaymentHistory | undefined>;
+  getPaymentByMonoReference(reference: string): Promise<PaymentHistory | undefined>;
   updatePaymentByMonoInvoiceId(invoiceId: string, updates: Partial<PaymentHistory>): Promise<PaymentHistory | undefined>;
+  updatePaymentById(id: string, updates: Partial<PaymentHistory>): Promise<PaymentHistory | undefined>;
   getAllPayments(limit?: number, offset?: number): Promise<{ payments: PaymentHistory[]; total: number }>;
   
   // Premium features operations
@@ -2151,11 +2154,29 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getPaymentByMonoReference(reference: string): Promise<PaymentHistory | undefined> {
+    const [result] = await db
+      .select()
+      .from(paymentHistoryTable)
+      .where(eq(paymentHistoryTable.monoReference, reference))
+      .limit(1);
+    return result;
+  }
+
   async updatePaymentByMonoInvoiceId(invoiceId: string, updates: Partial<PaymentHistory>): Promise<PaymentHistory | undefined> {
     const [result] = await db
       .update(paymentHistoryTable)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(paymentHistoryTable.monoInvoiceId, invoiceId))
+      .returning();
+    return result;
+  }
+
+  async updatePaymentById(id: string, updates: Partial<PaymentHistory>): Promise<PaymentHistory | undefined> {
+    const [result] = await db
+      .update(paymentHistoryTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(paymentHistoryTable.id, id))
       .returning();
     return result;
   }
@@ -2315,6 +2336,16 @@ export class DatabaseStorage implements IStorage {
         eq(userSubscriptionsTable.status, 'past_due'),
         lte(userSubscriptionsTable.billingGraceUntil, now),
         isNotNull(userSubscriptionsTable.billingGraceUntil)
+      ));
+  }
+
+  async getActiveMonobankSubscriptions(): Promise<UserSubscription[]> {
+    return await db
+      .select()
+      .from(userSubscriptionsTable)
+      .where(and(
+        eq(userSubscriptionsTable.status, 'active'),
+        isNotNull(userSubscriptionsTable.monoSubscriptionId)
       ));
   }
 

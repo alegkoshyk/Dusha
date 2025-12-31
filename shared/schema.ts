@@ -828,8 +828,9 @@ export const userSubscriptionsTable = pgTable("user_subscriptions", {
   // Метадані транзакцій (для майбутньої інтеграції Stripe)
   stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
-  // Monobank card token for recurring payments
+  // Monobank subscription for recurring payments
   monoCardToken: varchar("mono_card_token", { length: 255 }),
+  monoSubscriptionId: varchar("mono_subscription_id", { length: 255 }),
   metadata: json("metadata").default(sql`'{}'`),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
