@@ -52,6 +52,10 @@ app.use((req, res, next) => {
     console.error('Failed to seed subscription plans:', error);
   }
 
+  // Start billing scheduler for recurring payments
+  const { startBillingScheduler } = await import('./billingScheduler');
+  startBillingScheduler();
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

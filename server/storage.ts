@@ -73,7 +73,7 @@ import {
   premiumFeaturesTable,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, count, sql, and, isNotNull, or, inArray, desc, gte } from "drizzle-orm";
+import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
 export interface IStorage {
@@ -185,6 +185,14 @@ export interface IStorage {
   createUserSubscription(subscription: InsertUserSubscription): Promise<UserSubscription>;
   updateUserSubscription(userId: string, updates: Partial<UserSubscription>): Promise<UserSubscription | undefined>;
   cancelUserSubscription(userId: string): Promise<UserSubscription | undefined>;
+  
+  // Recurring billing operations
+  getSubscriptionsDueForBilling(): Promise<UserSubscription[]>;
+  getExpiredGracePeriodSubscriptions(): Promise<UserSubscription[]>;
+  updateSubscriptionBillingAttempt(subscriptionId: string, updates: Partial<UserSubscription>): Promise<UserSubscription | undefined>;
+  updateSubscription(subscriptionId: string, updates: Partial<UserSubscription>): Promise<UserSubscription | undefined>;
+  getDefaultFreePlan(): Promise<SubscriptionPlan | undefined>;
+  getUser(userId: string): Promise<User | undefined>;
   
   // Quota checking for subscriptions
   getUserQuotas(userId: string): Promise<{ maxBrands: number; maxTotalGames: number; usedBrands: number; usedGames: number }>;
@@ -2280,6 +2288,68 @@ export class DatabaseStorage implements IStorage {
     }
 
     console.log(`Seeded ${defaultPlans.length} subscription plans`);
+  }
+
+  // ============================================
+  // Recurring billing operations
+  // ============================================
+
+  async getSubscriptionsDueForBilling(): Promise<UserSubscription[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(userSubscriptionsTable)
+      .where(and(
+        eq(userSubscriptionsTable.status, 'active'),
+        lte(userSubscriptionsTable.nextPaymentAt, now),
+        isNotNull(userSubscriptionsTable.nextPaymentAt)
+      ));
+  }
+
+  async getExpiredGracePeriodSubscriptions(): Promise<UserSubscription[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(userSubscriptionsTable)
+      .where(and(
+        eq(userSubscriptionsTable.status, 'past_due'),
+        lte(userSubscriptionsTable.billingGraceUntil, now),
+        isNotNull(userSubscriptionsTable.billingGraceUntil)
+      ));
+  }
+
+  async updateSubscriptionBillingAttempt(subscriptionId: string, updates: Partial<UserSubscription>): Promise<UserSubscription | undefined> {
+    const [result] = await db
+      .update(userSubscriptionsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(userSubscriptionsTable.id, subscriptionId))
+      .returning();
+    return result;
+  }
+
+  async updateSubscription(subscriptionId: string, updates: Partial<UserSubscription>): Promise<UserSubscription | undefined> {
+    const [result] = await db
+      .update(userSubscriptionsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(userSubscriptionsTable.id, subscriptionId))
+      .returning();
+    return result;
+  }
+
+  async getDefaultFreePlan(): Promise<SubscriptionPlan | undefined> {
+    const [result] = await db
+      .select()
+      .from(subscriptionPlansTable)
+      .where(and(
+        eq(subscriptionPlansTable.priceMonthly, 0),
+        eq(subscriptionPlansTable.isActive, true)
+      ))
+      .limit(1);
+    return result;
+  }
+
+  async getUser(userId: string): Promise<User | undefined> {
+    return this.getUserById(userId);
   }
 }
 

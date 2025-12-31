@@ -816,13 +816,20 @@ export const userSubscriptionsTable = pgTable("user_subscriptions", {
   cancelledAt: timestamp("cancelled_at"),
   // Пробний період
   trialEndsAt: timestamp("trial_ends_at"),
-  // Платіжна інформація (mock)
-  paymentMethod: varchar("payment_method", { length: 50 }), // "card", "paypal", "mock"
+  // Платіжна інформація
+  paymentMethod: varchar("payment_method", { length: 50 }), // "card", "monobank", "mock"
   lastPaymentAt: timestamp("last_payment_at"),
   nextPaymentAt: timestamp("next_payment_at"),
+  // Recurring billing fields
+  billingRetryCount: integer("billing_retry_count").notNull().default(0), // How many retry attempts
+  billingGraceUntil: timestamp("billing_grace_until"), // Grace period deadline (2 days after first failure)
+  lastBillingError: text("last_billing_error"), // Last billing error message
+  lastBillingAttempt: timestamp("last_billing_attempt"), // Last auto-charge attempt
   // Метадані транзакцій (для майбутньої інтеграції Stripe)
   stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+  // Monobank card token for recurring payments
+  monoCardToken: varchar("mono_card_token", { length: 255 }),
   metadata: json("metadata").default(sql`'{}'`),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
