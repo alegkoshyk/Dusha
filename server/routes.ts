@@ -3600,6 +3600,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User: Retry failed payment
+  app.post("/api/payments/retry", requireAuth, async (req, res) => {
+    try {
+      const user = await getCurrentUserUnified(req);
+      if (!user) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const subscription = await storage.getUserSubscription(user.id);
+      if (!subscription) {
+        return res.status(404).json({ error: "Підписку не знайдено" });
+      }
+
+      if (subscription.status !== 'past_due') {
+        return res.status(400).json({ error: "Немає прострочених платежів" });
+      }
+
+      const plan = await storage.getSubscriptionPlan(subscription.planId);
+      if (!plan) {
+        return res.status(404).json({ error: "Тариф не знайдено" });
+      }
+
+      const monoToken = process.env.MONOBANK_TOKEN;
+      if (!monoToken) {
+        return res.status(400).json({ error: "Платіжна система не налаштована" });
+      }
+
+      const { MonobankService } = await import("./monobank");
+      const monobank = new MonobankService(monoToken);
+
+      const baseUrl = process.env.REPLIT_DOMAINS?.split(",")[0] || `${req.protocol}://${req.get('host')}`.replace(/https?:\/\//, '');
+      const protocol = baseUrl.includes("localhost") ? "http" : "https";
+
+      const amount = subscription.billingPeriod === "yearly" ? plan.priceYearly : plan.priceMonthly;
+      const reference = `RETRY-${subscription.id}-${Date.now()}`;
+
+      const invoice = await monobank.createInvoice({
+        amount: amount || 0,
+        reference,
+        destination: `Повторна оплата підписки "${plan.displayName}"`,
+        redirectUrl: `${protocol}://${baseUrl}/profile?tab=subscription&billing=success`,
+        webhookUrl: `${protocol}://${baseUrl}/api/payments/webhook`,
+        validity: 3600,
+      });
+
+      await storage.createPaymentHistory({
+        userId: user.id,
+        subscriptionId: subscription.id,
+        planId: plan.id,
+        amount: amount || 0,
+        currency: plan.currency,
+        status: "pending",
+        paymentMethod: "monobank",
+        description: `Повторна оплата підписки "${plan.displayName}"`,
+        billingPeriod: subscription.billingPeriod,
+        monoInvoiceId: invoice.invoiceId,
+        monoPageUrl: invoice.pageUrl,
+        monoReference: reference,
+        metadata: { isRetry: true, subscriptionId: subscription.id },
+      });
+
+      res.json({
+        pageUrl: invoice.pageUrl,
+        invoiceId: invoice.invoiceId,
+      });
+    } catch (error: any) {
+      console.error("Payment retry error:", error);
+      res.status(500).json({ error: error.message || "Не вдалося повторити платіж" });
+    }
+  });
+
+  // User: Get billing status
+  app.get("/api/billing/status", requireAuth, async (req, res) => {
+    try {
+      const user = await getCurrentUserUnified(req);
+      if (!user) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const subWithPlan = await storage.getUserSubscriptionWithPlan(user.id);
+      if (!subWithPlan) {
+        return res.json({
+          status: 'none',
+          hasBillingIssue: false,
+        });
+      }
+
+      const { subscription, plan } = subWithPlan;
+      const now = new Date();
+      const graceUntil = subscription.billingGraceUntil ? new Date(subscription.billingGraceUntil) : null;
+      const isInGracePeriod = graceUntil && graceUntil > now;
+      const graceDaysRemaining = graceUntil 
+        ? Math.max(0, Math.ceil((graceUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+        : 0;
+
+      res.json({
+        status: subscription.status,
+        planName: plan.displayName,
+        hasBillingIssue: subscription.status === 'past_due',
+        isInGracePeriod,
+        graceDaysRemaining,
+        graceUntil: graceUntil?.toISOString(),
+        lastBillingError: subscription.lastBillingError,
+        billingRetryCount: subscription.billingRetryCount,
+        nextPaymentAt: subscription.nextPaymentAt?.toISOString(),
+        amount: subscription.billingPeriod === 'yearly' ? plan.priceYearly : plan.priceMonthly,
+        currency: plan.currency,
+      });
+    } catch (error: any) {
+      console.error("Billing status error:", error);
+      res.status(500).json({ error: "Не вдалося отримати статус оплати" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
