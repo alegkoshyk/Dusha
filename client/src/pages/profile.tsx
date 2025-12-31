@@ -345,24 +345,30 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="personal">
-                <TabsList className="mb-4 flex-wrap">
-                  <TabsTrigger value="personal">
-                    <User className="h-4 w-4 mr-2" />
-                    Особисте
-                  </TabsTrigger>
-                  <TabsTrigger value="company">
-                    <Building2 className="h-4 w-4 mr-2" />
-                    Компанія
-                  </TabsTrigger>
-                  <TabsTrigger value="subscription">
-                    <Crown className="h-4 w-4 mr-2" />
-                    Підписка
-                  </TabsTrigger>
-                  <TabsTrigger value="payments">
-                    <Receipt className="h-4 w-4 mr-2" />
-                    Платежі
-                  </TabsTrigger>
-                </TabsList>
+                <div className="overflow-x-auto -mx-2 px-2 mb-4">
+                  <TabsList className="w-full md:w-auto inline-flex">
+                    <TabsTrigger value="personal" className="text-xs md:text-sm">
+                      <User className="h-4 w-4 mr-1 md:mr-2" />
+                      <span className="hidden sm:inline">Особисте</span>
+                      <span className="sm:hidden">Особ.</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="company" className="text-xs md:text-sm">
+                      <Building2 className="h-4 w-4 mr-1 md:mr-2" />
+                      <span className="hidden sm:inline">Компанія</span>
+                      <span className="sm:hidden">Комп.</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="subscription" className="text-xs md:text-sm">
+                      <Crown className="h-4 w-4 mr-1 md:mr-2" />
+                      <span className="hidden sm:inline">Підписка</span>
+                      <span className="sm:hidden">Підп.</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="payments" className="text-xs md:text-sm">
+                      <Receipt className="h-4 w-4 mr-1 md:mr-2" />
+                      <span className="hidden sm:inline">Платежі</span>
+                      <span className="sm:hidden">Плат.</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
                 <TabsContent value="personal" className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -541,7 +547,7 @@ export default function ProfilePage() {
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
                           {subscriptionData.plan.priceMonthly > 0 ? (
                             <p className="text-lg font-semibold">
@@ -558,7 +564,7 @@ export default function ProfilePage() {
                           )}
                         </div>
                         <Link href="/pricing">
-                          <Button data-testid="button-change-plan">
+                          <Button data-testid="button-change-plan" className="w-full sm:w-auto">
                             Змінити тариф
                           </Button>
                         </Link>
@@ -571,23 +577,23 @@ export default function ProfilePage() {
                   {allPlans && allPlans.length > 0 && (
                     <div>
                       <h3 className="text-lg font-semibold mb-4">Доступні тарифи</h3>
-                      <div className="grid gap-4">
+                      <div className="grid gap-3">
                         {allPlans.filter(p => p.id !== subscriptionData?.plan?.id).map((plan) => {
                           const color = plan.color || '#6b7280';
                           return (
                           <div 
                             key={plan.id} 
-                            className="flex items-center justify-between p-4 rounded-lg border hover:border-primary/50 transition-colors"
+                            className="p-4 rounded-lg border hover:border-primary/50 transition-colors"
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-start gap-3 mb-3">
                               <div 
-                                className="p-2 rounded-full" 
+                                className="p-2 rounded-full shrink-0" 
                                 style={{ backgroundColor: `${color}20` }}
                               >
                                 <Crown className="h-4 w-4" style={{ color }} />
                               </div>
-                              <div>
-                                <div className="flex items-center gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <h4 className="font-medium">{plan.displayName}</h4>
                                   {plan.badge && (
                                     <Badge variant="secondary" className="text-xs">{plan.badge}</Badge>
@@ -598,7 +604,7 @@ export default function ProfilePage() {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center justify-between gap-3">
                               <p className="font-semibold">
                                 {plan.priceMonthly > 0 ? `${(plan.priceMonthly / 100).toFixed(0)} ${plan.currency}/міс` : 'Безкоштовно'}
                               </p>
@@ -616,20 +622,18 @@ export default function ProfilePage() {
                   )}
                 </TabsContent>
 
-                <TabsContent value="payments" className="space-y-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Історія платежів</h3>
-                  </div>
+                <TabsContent value="payments" className="space-y-4">
+                  <h3 className="text-lg font-semibold">Історія платежів</h3>
 
                   {paymentHistory && paymentHistory.length > 0 ? (
                     <div className="space-y-3">
                       {paymentHistory.map((payment) => (
                         <div 
                           key={payment.id} 
-                          className="flex items-center justify-between p-4 rounded-lg border"
+                          className="p-4 rounded-lg border"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className={`p-2 rounded-full ${
+                          <div className="flex items-start gap-3 mb-2">
+                            <div className={`p-2 rounded-full shrink-0 ${
                               payment.status === 'success' ? 'bg-green-100 dark:bg-green-900' :
                               payment.status === 'pending' ? 'bg-yellow-100 dark:bg-yellow-900' :
                               'bg-red-100 dark:bg-red-900'
@@ -642,44 +646,45 @@ export default function ProfilePage() {
                                 <CreditCard className="h-4 w-4 text-red-600" />
                               )}
                             </div>
-                            <div>
-                              <p className="font-medium">{payment.description}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {format(new Date(payment.createdAt), "d MMMM yyyy, HH:mm", { locale: uk })}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{payment.description}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(payment.createdAt), "d MMM yyyy, HH:mm", { locale: uk })}
                               </p>
                             </div>
                           </div>
-                          <div className="text-right">
+                          <div className="flex items-center justify-between gap-2">
                             <p className="font-semibold">
-                              {(payment.amount / 100).toFixed(2)} {payment.currency}
+                              {(payment.amount / 100).toFixed(0)} {payment.currency}
                             </p>
-                            <Badge 
-                              variant={payment.status === 'success' ? 'default' : payment.status === 'pending' ? 'secondary' : 'destructive'}
-                              className="text-xs"
-                            >
-                              {payment.status === 'success' ? 'Сплачено' : 
-                               payment.status === 'pending' ? 'Очікує' : 
-                               payment.status === 'failure' ? 'Помилка' : payment.status}
-                            </Badge>
-                            {payment.monoPageUrl && payment.status === 'pending' && (
-                              <a 
-                                href={payment.monoPageUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-xs text-primary hover:underline flex items-center gap-1 mt-1 justify-end"
+                            <div className="flex items-center gap-2">
+                              <Badge 
+                                variant={payment.status === 'success' ? 'default' : payment.status === 'pending' ? 'secondary' : 'destructive'}
+                                className="text-xs"
                               >
-                                Оплатити <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
+                                {payment.status === 'success' ? 'Сплачено' : 
+                                 payment.status === 'pending' ? 'Очікує' : 
+                                 payment.status === 'failure' ? 'Помилка' : payment.status}
+                              </Badge>
+                              {payment.monoPageUrl && payment.status === 'pending' && (
+                                <a 
+                                  href={payment.monoPageUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                                >
+                                  Оплатити <ExternalLink className="h-3 w-3" />
+                                </a>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Receipt className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p>Історія платежів порожня</p>
-                      <p className="text-sm mt-1">Тут з'являться ваші платежі після оплати тарифу</p>
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Receipt className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Історія платежів порожня</p>
                     </div>
                   )}
                 </TabsContent>
