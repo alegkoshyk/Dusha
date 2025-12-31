@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { registerUserSchema, type RegisterUser, type SubscriptionPlan } from "@shared/schema";
-import { Eye, EyeOff, Mail, Lock, User, Crown, Check, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, Crown, Check, ArrowRight, Loader2 } from "lucide-react";
 import { SiGoogle, SiApple } from "react-icons/si";
 
 interface RegisterFormProps {
@@ -19,11 +19,12 @@ interface RegisterFormProps {
   onSwitchToLogin?: () => void;
 }
 
-type RegistrationStep = "plan" | "details";
+type RegistrationStep = "details" | "plan";
 
 export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
-  const [step, setStep] = useState<RegistrationStep>("plan");
+  const [step, setStep] = useState<RegistrationStep>("details");
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
+  const [formData, setFormData] = useState<RegisterUser | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { register: registerUser, isRegisterPending, registerError } = useAuth();
@@ -31,6 +32,8 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
   const { data: plans, isLoading: isLoadingPlans } = useQuery<SubscriptionPlan[]>({
     queryKey: ["/api/subscription-plans"],
   });
+
+  const freePlan = plans?.find(p => p.priceMonthly === 0);
 
   const {
     register,
@@ -40,28 +43,35 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
     resolver: zodResolver(registerUserSchema),
   });
 
-  const onSubmit = (data: RegisterUser) => {
-    registerUser({ ...data, selectedPlanId: selectedPlanId || undefined }, {
+  const handleDetailsSubmit = (data: RegisterUser) => {
+    setFormData(data);
+    setStep("plan");
+  };
+
+  const handleFinalSubmit = (planId: number | null) => {
+    if (!formData) return;
+    
+    const finalPlanId = planId || freePlan?.id;
+    
+    registerUser({ ...formData, selectedPlanId: finalPlanId || undefined }, {
       onSuccess: () => {
         onSuccess?.();
       },
     });
   };
 
-  const selectedPlan = plans?.find(p => p.id === selectedPlanId);
-
   const handlePlanSelect = (planId: number) => {
     setSelectedPlanId(planId);
   };
 
-  const handleContinueToDetails = () => {
-    if (selectedPlanId) {
-      setStep("details");
-    }
+  const handleSkip = () => {
+    handleFinalSubmit(freePlan?.id || null);
   };
 
-  const handleBackToPlan = () => {
-    setStep("plan");
+  const handleContinueWithPlan = () => {
+    if (selectedPlanId) {
+      handleFinalSubmit(selectedPlanId);
+    }
   };
 
   if (step === "plan") {
@@ -86,6 +96,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                 const isSelected = selectedPlanId === plan.id;
                 const planColor = plan.color || '#6b7280';
                 const features = Array.isArray(plan.features) ? plan.features as string[] : [];
+                const isFree = plan.priceMonthly === 0;
                 
                 return (
                   <button
@@ -140,7 +151,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                         )}
                       </div>
                       <div className="text-right shrink-0">
-                        {plan.priceMonthly > 0 ? (
+                        {!isFree ? (
                           <>
                             <p className="text-lg font-bold text-white">
                               {(plan.priceMonthly / 100).toFixed(0)}
@@ -161,29 +172,42 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
           <Button
             type="button"
             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
-            disabled={!selectedPlanId}
-            onClick={handleContinueToDetails}
-            data-testid="button-continue-to-details"
+            disabled={!selectedPlanId || isRegisterPending}
+            onClick={handleContinueWithPlan}
+            data-testid="button-select-plan"
           >
-            Продовжити
-            <ArrowRight className="ml-2 h-4 w-4" />
+            {isRegisterPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Реєстрація...
+              </>
+            ) : (
+              <>
+                Обрати тариф
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
 
-          {onSwitchToLogin && (
-            <div className="text-center pt-2">
-              <p className="text-sm text-gray-400">
-                Вже маєте акаунт?{" "}
-                <button
-                  type="button"
-                  onClick={onSwitchToLogin}
-                  className="text-purple-400 hover:text-purple-300 hover:underline font-medium"
-                  data-testid="link-login-from-plan"
-                >
-                  Увійти
-                </button>
-              </p>
-            </div>
+          {registerError && (
+            <Alert variant="destructive" data-testid="register-error">
+              <AlertDescription>
+                {registerError.message || "Помилка реєстрації"}
+              </AlertDescription>
+            </Alert>
           )}
+
+          <div className="text-center pt-2">
+            <button
+              type="button"
+              onClick={handleSkip}
+              disabled={isRegisterPending}
+              className="text-sm text-gray-500 hover:text-gray-400 transition-colors underline-offset-2 hover:underline"
+              data-testid="button-skip-plan"
+            >
+              Пропустити (безкоштовний тариф)
+            </button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -192,27 +216,15 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
   return (
     <Card className="w-full max-w-md mx-auto bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl" data-testid="register-form">
       <CardHeader className="space-y-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleBackToPlan}
-            className="p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
-            data-testid="button-back-to-plan"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="flex-1">
-            <CardTitle className="text-2xl font-bold text-white">
-              Створити акаунт
-            </CardTitle>
-            <CardDescription className="text-gray-300">
-              Обраний тариф: <span className="text-purple-400 font-medium">{selectedPlan?.displayName}</span>
-            </CardDescription>
-          </div>
-        </div>
+        <CardTitle className="text-2xl font-bold text-center text-white">
+          Створити акаунт
+        </CardTitle>
+        <CardDescription className="text-center text-gray-300">
+          Зареєструйтесь для гри "Душа бренду"
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(handleDetailsSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName" className="text-gray-200">Ім'я</Label>
@@ -329,21 +341,13 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             )}
           </div>
 
-          {registerError && (
-            <Alert variant="destructive" data-testid="register-error">
-              <AlertDescription>
-                {registerError.message || "Помилка реєстрації"}
-              </AlertDescription>
-            </Alert>
-          )}
-
           <Button 
             type="submit" 
             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0" 
-            disabled={isRegisterPending}
-            data-testid="button-register"
+            data-testid="button-continue"
           >
-            {isRegisterPending ? "Реєстрація..." : "Зареєструватись"}
+            Продовжити
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </form>
 
@@ -365,7 +369,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             type="button"
             variant="outline"
             className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-            onClick={() => window.location.href = `/api/auth/google?planId=${selectedPlanId}`}
+            onClick={() => window.location.href = '/api/auth/google'}
             data-testid="button-google-register"
           >
             <SiGoogle className="mr-2 h-4 w-4" />
@@ -375,7 +379,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             type="button"
             variant="outline"
             className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-            onClick={() => window.location.href = `/api/auth/apple?planId=${selectedPlanId}`}
+            onClick={() => window.location.href = '/api/auth/apple'}
             data-testid="button-apple-register"
           >
             <SiApple className="mr-2 h-4 w-4" />
