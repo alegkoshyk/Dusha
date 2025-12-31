@@ -16,9 +16,10 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   User, Camera, Building2, Briefcase, Globe, Trophy, Star, 
   ArrowLeft, Save, Loader2, Award, Target, Zap, CreditCard, 
-  Receipt, Crown, Check, Calendar, ExternalLink, Clock, AlertTriangle, RefreshCw
+  Receipt, Crown, Check, Calendar, ExternalLink, Clock, AlertTriangle, RefreshCw, XCircle
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Link } from "wouter";
 import type { UserProfile, SubscriptionPlan, UserSubscription, PaymentHistory } from "@shared/schema";
 import { format } from "date-fns";
@@ -125,7 +126,12 @@ export default function ProfilePage() {
 
   const retryPaymentMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("/api/payments/retry", { method: "POST" });
+      const response = await apiRequest("POST", "/api/payments/retry", {});
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Не вдалося повторити платіж");
+      }
+      return result;
     },
     onSuccess: (data: any) => {
       if (data.pageUrl) {
@@ -136,6 +142,35 @@ export default function ProfilePage() {
       toast({
         title: "Помилка",
         description: error.message || "Не вдалося повторити платіж",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+
+  const cancelSubscriptionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/subscriptions/cancel", {});
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Не вдалося скасувати підписку");
+      }
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Підписку скасовано",
+        description: "Ви переведені на безкоштовний тариф",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscriptions/current"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/billing/status"] });
+      setShowCancelDialog(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Помилка",
+        description: error.message || "Не вдалося скасувати підписку",
         variant: "destructive",
       });
     },
@@ -655,11 +690,53 @@ export default function ProfilePage() {
                             </p>
                           )}
                         </div>
-                        <Link href="/pricing">
-                          <Button data-testid="button-change-plan" className="w-full sm:w-auto">
-                            Змінити тариф
-                          </Button>
-                        </Link>
+                        <div className="flex gap-2 flex-wrap">
+                          <Link href="/pricing">
+                            <Button data-testid="button-change-plan" className="w-full sm:w-auto">
+                              Змінити тариф
+                            </Button>
+                          </Link>
+                          {subscriptionData.plan.priceMonthly > 0 && (
+                            <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                              <AlertDialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  className="w-full sm:w-auto text-destructive hover:text-destructive"
+                                  data-testid="button-cancel-subscription"
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Скасувати
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Скасувати підписку?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Ви впевнені, що хочете скасувати підписку "{subscriptionData.plan.displayName}"? 
+                                    Ви втратите доступ до преміум-функцій і будете переведені на безкоштовний тариф.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Ні, залишити</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => cancelSubscriptionMutation.mutate()}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    disabled={cancelSubscriptionMutation.isPending}
+                                  >
+                                    {cancelSubscriptionMutation.isPending ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Скасування...
+                                      </>
+                                    ) : (
+                                      "Так, скасувати"
+                                    )}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </div>
                     </div>
                     );

@@ -3146,6 +3146,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Не авторизовано" });
       }
 
+      // Get current subscription to cancel Monobank subscription if exists
+      const currentSubscription = await storage.getUserSubscription(currentUser.id);
+      
+      // Cancel Monobank subscription if active
+      const monoToken = process.env.MONOBANK_TOKEN;
+      if (currentSubscription?.monoSubscriptionId && monoToken) {
+        try {
+          const { MonobankService } = await import("./monobank");
+          const monobank = new MonobankService(monoToken);
+          await monobank.cancelSubscription(currentSubscription.monoSubscriptionId);
+          console.log('Cancelled Monobank subscription:', currentSubscription.monoSubscriptionId);
+        } catch (monoError) {
+          console.error('Error cancelling Monobank subscription:', monoError);
+        }
+      }
+
       const subscription = await storage.cancelUserSubscription(currentUser.id);
       
       // Switch to free plan
