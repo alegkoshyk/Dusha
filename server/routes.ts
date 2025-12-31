@@ -60,6 +60,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/register", async (req, res) => {
     try {
       const validatedData = registerUserSchema.parse(req.body);
+      
+      if (!validatedData.email) {
+        return res.status(400).json({ error: "Email обов'язковий" });
+      }
+      
       const existingUser = await storage.getUserByEmail(validatedData.email);
       
       if (existingUser) {
@@ -70,10 +75,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const user = await storage.createUser({
         email: validatedData.email,
-        firstName: validatedData.firstName,
-        lastName: validatedData.lastName,
+        firstName: validatedData.firstName || undefined,
+        lastName: validatedData.lastName || undefined,
         password: validatedData.password,
       });
+
+      // If a plan was selected during registration, create subscription
+      if (validatedData.selectedPlanId) {
+        const plan = await storage.getSubscriptionPlan(validatedData.selectedPlanId);
+        if (plan) {
+          // Check if user already has a subscription
+          const existingSub = await storage.getUserSubscription(user.id);
+          if (existingSub) {
+            // Update to the selected plan
+            await storage.updateUserSubscription(existingSub.id, {
+              planId: plan.id,
+              status: plan.priceMonthly > 0 ? 'pending_payment' : 'active',
+            });
+          } else {
+            // Create new subscription with the selected plan
+            await storage.createUserSubscription({
+              userId: user.id,
+              planId: plan.id,
+              billingPeriod: 'monthly',
+              status: plan.priceMonthly > 0 ? 'pending_payment' : 'active',
+              startedAt: new Date(),
+            });
+          }
+        }
+      }
 
       setUserInSession(req, user);
       

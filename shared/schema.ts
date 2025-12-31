@@ -375,6 +375,7 @@ export const registerUserSchema = insertUserSchema.omit({
 }).extend({
   password: z.string().min(8, "Пароль повинен містити мінімум 8 символів"),
   confirmPassword: z.string(),
+  selectedPlanId: z.number().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Паролі не співпадають",
   path: ["confirmPassword"],

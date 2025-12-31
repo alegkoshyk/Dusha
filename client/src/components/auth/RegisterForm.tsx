@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { registerUserSchema, type RegisterUser } from "@shared/schema";
-import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
+import { registerUserSchema, type RegisterUser, type SubscriptionPlan } from "@shared/schema";
+import { Eye, EyeOff, Mail, Lock, User, Crown, Check, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { SiGoogle, SiApple } from "react-icons/si";
 
 interface RegisterFormProps {
@@ -17,10 +19,18 @@ interface RegisterFormProps {
   onSwitchToLogin?: () => void;
 }
 
+type RegistrationStep = "plan" | "details";
+
 export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
+  const [step, setStep] = useState<RegistrationStep>("plan");
+  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { register: registerUser, isRegisterPending, registerError } = useAuth();
+
+  const { data: plans, isLoading: isLoadingPlans } = useQuery<SubscriptionPlan[]>({
+    queryKey: ["/api/subscription-plans"],
+  });
 
   const {
     register,
@@ -31,22 +41,175 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
   });
 
   const onSubmit = (data: RegisterUser) => {
-    registerUser(data, {
+    registerUser({ ...data, selectedPlanId: selectedPlanId || undefined }, {
       onSuccess: () => {
         onSuccess?.();
       },
     });
   };
 
+  const selectedPlan = plans?.find(p => p.id === selectedPlanId);
+
+  const handlePlanSelect = (planId: number) => {
+    setSelectedPlanId(planId);
+  };
+
+  const handleContinueToDetails = () => {
+    if (selectedPlanId) {
+      setStep("details");
+    }
+  };
+
+  const handleBackToPlan = () => {
+    setStep("plan");
+  };
+
+  if (step === "plan") {
+    return (
+      <Card className="w-full max-w-md mx-auto bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl" data-testid="plan-selection">
+        <CardHeader className="space-y-2">
+          <CardTitle className="text-2xl font-bold text-center text-white">
+            Оберіть тариф
+          </CardTitle>
+          <CardDescription className="text-center text-gray-300">
+            Виберіть план, який підходить вам найкраще
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoadingPlans ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {plans?.sort((a, b) => a.priceMonthly - b.priceMonthly).map((plan) => {
+                const isSelected = selectedPlanId === plan.id;
+                const planColor = plan.color || '#6b7280';
+                const features = Array.isArray(plan.features) ? plan.features as string[] : [];
+                
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    onClick={() => handlePlanSelect(plan.id)}
+                    className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                      isSelected 
+                        ? 'border-purple-500 bg-purple-500/20' 
+                        : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
+                    }`}
+                    data-testid={`plan-option-${plan.id}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div 
+                        className="p-2 rounded-full shrink-0"
+                        style={{ backgroundColor: `${planColor}30` }}
+                      >
+                        <Crown className="h-5 w-5" style={{ color: planColor }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-white">{plan.displayName}</h3>
+                          {plan.badge && (
+                            <Badge 
+                              className="text-xs"
+                              style={{ backgroundColor: planColor }}
+                            >
+                              {plan.badge}
+                            </Badge>
+                          )}
+                          {isSelected && (
+                            <Check className="h-4 w-4 text-purple-400 ml-auto" />
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-400 mb-2">{plan.description}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-400">
+                          <span>{plan.maxBrands} брендів</span>
+                          <span>•</span>
+                          <span>{plan.maxTotalGames} ігор</span>
+                          <span>•</span>
+                          <span>{Math.round((plan.maxStorageBytes || 0) / 1024 / 1024)}MB</span>
+                        </div>
+                        {features.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {features.slice(0, 3).map((feature, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs bg-white/10 text-gray-300">
+                                {feature}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        {plan.priceMonthly > 0 ? (
+                          <>
+                            <p className="text-lg font-bold text-white">
+                              {(plan.priceMonthly / 100).toFixed(0)}
+                            </p>
+                            <p className="text-xs text-gray-400">{plan.currency}/міс</p>
+                          </>
+                        ) : (
+                          <p className="text-lg font-bold text-green-400">Безкоштовно</p>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
+            disabled={!selectedPlanId}
+            onClick={handleContinueToDetails}
+            data-testid="button-continue-to-details"
+          >
+            Продовжити
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+
+          {onSwitchToLogin && (
+            <div className="text-center pt-2">
+              <p className="text-sm text-gray-400">
+                Вже маєте акаунт?{" "}
+                <button
+                  type="button"
+                  onClick={onSwitchToLogin}
+                  className="text-purple-400 hover:text-purple-300 hover:underline font-medium"
+                  data-testid="link-login-from-plan"
+                >
+                  Увійти
+                </button>
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-md mx-auto bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl" data-testid="register-form">
       <CardHeader className="space-y-2">
-        <CardTitle className="text-2xl font-bold text-center text-white">
-          Створити акаунт
-        </CardTitle>
-        <CardDescription className="text-center text-gray-300">
-          Зареєструйтесь для гри "Душа бренду"
-        </CardDescription>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleBackToPlan}
+            className="p-1 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+            data-testid="button-back-to-plan"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div className="flex-1">
+            <CardTitle className="text-2xl font-bold text-white">
+              Створити акаунт
+            </CardTitle>
+            <CardDescription className="text-gray-300">
+              Обраний тариф: <span className="text-purple-400 font-medium">{selectedPlan?.displayName}</span>
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -202,7 +365,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             type="button"
             variant="outline"
             className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-            onClick={() => window.location.href = '/api/auth/google'}
+            onClick={() => window.location.href = `/api/auth/google?planId=${selectedPlanId}`}
             data-testid="button-google-register"
           >
             <SiGoogle className="mr-2 h-4 w-4" />
@@ -212,7 +375,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             type="button"
             variant="outline"
             className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-            onClick={() => window.location.href = '/api/auth/apple'}
+            onClick={() => window.location.href = `/api/auth/apple?planId=${selectedPlanId}`}
             data-testid="button-apple-register"
           >
             <SiApple className="mr-2 h-4 w-4" />
