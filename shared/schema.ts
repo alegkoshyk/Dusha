@@ -45,6 +45,17 @@ export const userBrandsTable = pgTable("user_brands", {
   name: varchar("name", { length: 200 }).notNull(),
   description: text("description"),
   logo: text("logo"),
+  // Brand passport fields
+  tagline: varchar("tagline", { length: 300 }), // Слоган бренду
+  mission: text("mission"), // Місія
+  vision: text("vision"), // Візія
+  values: json("values").default(sql`'[]'`), // Цінності бренду (масив строк)
+  brandColors: json("brand_colors").default(sql`'[]'`), // [{name: string, hex: string, role: 'primary'|'secondary'|'accent'|'neutral'}]
+  typography: json("typography").default(sql`'{}'`), // {headingFont: string, bodyFont: string, accentFont: string}
+  voiceTone: json("voice_tone").default(sql`'{}'`), // {personality: string[], tone: string, style: string}
+  targetAudience: text("target_audience"), // Цільова аудиторія
+  competitors: json("competitors").default(sql`'[]'`), // Конкуренти
+  uniqueValue: text("unique_value"), // Унікальна ціннісна пропозиція
   status: varchar("status", { length: 20 }).notNull().default("active"), // active, archived, completed
   totalProgress: integer("total_progress").notNull().default(0),
   completedAt: timestamp("completed_at"),
