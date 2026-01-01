@@ -34,6 +34,7 @@ import Profile from "@/pages/profile";
 import MediaLibrary from "@/pages/media-library";
 import Pricing from "@/pages/pricing";
 import PaymentCallback from "@/pages/PaymentCallback";
+import BrandEdit from "@/pages/brand-edit";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -84,6 +85,7 @@ function Router() {
           <Route path="/media" component={MediaLibrary} />
           <Route path="/pricing" component={Pricing} />
           <Route path="/payment/callback" component={PaymentCallback} />
+          <Route path="/brand/:brandId" component={BrandEdit} />
           <Route component={NotFound} />
         </Switch>
       </main>

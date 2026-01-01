@@ -20,7 +20,8 @@ import {
   TrendingUp,
   BookOpen,
   Sparkles,
-  Pencil
+  Pencil,
+  FileText
 } from 'lucide-react';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { Link, useLocation } from 'wouter';
@@ -383,6 +384,18 @@ export default function Dashboard() {
                             </div>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Link href={`/brand/${brand.id}`}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-gray-500 hover:text-purple-600 p-1"
+                                data-testid={`brand-passport-${brand.id}`}
+                                title="Паспорт бренду"
+                              >
+                                <FileText className="w-4 h-4" />
+                              </Button>
+                            </Link>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -393,6 +406,7 @@ export default function Dashboard() {
                               }}
                               className="text-gray-500 hover:text-blue-600 p-1"
                               data-testid={`edit-brand-${brand.id}`}
+                              title="Швидке редагування"
                             >
                               <Pencil className="w-4 h-4" />
                             </Button>
@@ -405,6 +419,7 @@ export default function Dashboard() {
                               }}
                               className="text-red-500 hover:text-red-700 p-1"
                               data-testid={`delete-brand-${brand.id}`}
+                              title="Видалити"
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>

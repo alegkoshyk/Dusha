@@ -290,7 +290,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update brand (name, description)
+  // Get single brand by ID
+  app.get("/api/user/brands/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const brand = await storage.getUserBrand(id);
+      
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      res.json(brand);
+    } catch (error) {
+      console.error("Get brand error:", error);
+      res.status(500).json({ error: "Помилка отримання бренду" });
+    }
+  });
+
+  // Update brand (all passport fields)
   app.patch("/api/user/brands/:id", requireAuth, async (req, res) => {
     try {
       const currentUser = getCurrentUserUnified(req);
@@ -299,7 +321,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { id } = req.params;
-      const { name, description } = req.body;
+      const { 
+        name, description, tagline, mission, vision, 
+        values, brandColors, typography, voiceTone,
+        targetAudience, competitors, uniqueValue 
+      } = req.body;
       
       // Verify brand belongs to user
       const brand = await storage.getUserBrand(id);
@@ -317,6 +343,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updates: any = {};
       if (name !== undefined) updates.name = name.trim();
       if (description !== undefined) updates.description = description?.trim() || null;
+      if (tagline !== undefined) updates.tagline = tagline?.trim() || null;
+      if (mission !== undefined) updates.mission = mission?.trim() || null;
+      if (vision !== undefined) updates.vision = vision?.trim() || null;
+      if (values !== undefined) updates.values = values;
+      if (brandColors !== undefined) updates.brandColors = brandColors;
+      if (typography !== undefined) updates.typography = typography;
+      if (voiceTone !== undefined) updates.voiceTone = voiceTone;
+      if (targetAudience !== undefined) updates.targetAudience = targetAudience?.trim() || null;
+      if (competitors !== undefined) updates.competitors = competitors;
+      if (uniqueValue !== undefined) updates.uniqueValue = uniqueValue?.trim() || null;
 
       const updated = await storage.updateUserBrand(id, updates);
       res.json(updated);
