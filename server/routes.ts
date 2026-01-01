@@ -3337,15 +3337,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}`
           : 'http://localhost:5000';
 
-      const interval = billingPeriod === 'yearly' ? '1y' : '1m';
-
-      const subscription = await monobank.createSubscription({
-        amount,
-        redirectUrl: `${baseUrl}/payment/callback`,
-        webHookUrl: `${baseUrl}/api/payments/webhook`,
-        interval,
-        reference,
-      });
+      // Try subscription API first, fall back to regular invoice if it fails
+      let invoiceResult: { invoiceId?: string; subscriptionId?: string; pageUrl: string };
+      let isSubscription = false;
+      
+      try {
+        const interval = billingPeriod === 'yearly' ? '1y' : '1m';
+        const subscription = await monobank.createSubscription({
+          amount,
+          redirectUrl: `${baseUrl}/payment/callback`,
+          webHookUrl: `${baseUrl}/api/payments/webhook`,
+          interval,
+          reference,
+        });
+        invoiceResult = {
+          subscriptionId: subscription.subscriptionId,
+          pageUrl: subscription.pageUrl,
+        };
+        isSubscription = true;
+        console.log('Created Monobank subscription:', subscription.subscriptionId);
+      } catch (subscriptionError: any) {
+        console.log('Subscription API failed, falling back to regular invoice:', subscriptionError.message);
+        
+        // Fall back to regular invoice
+        const invoice = await monobank.createInvoice({
+          amount,
+          reference,
+          destination: `Підписка "${plan.displayName}"`,
+          redirectUrl: `${baseUrl}/payment/callback`,
+          webhookUrl: `${baseUrl}/api/payments/webhook`,
+          validity: 3600,
+        });
+        invoiceResult = {
+          invoiceId: invoice.invoiceId,
+          pageUrl: invoice.pageUrl,
+        };
+        console.log('Created Monobank invoice:', invoice.invoiceId);
+      }
 
       const payment = await storage.createPaymentHistory({
         userId: user.id,
@@ -3356,16 +3384,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         paymentMethod: "monobank",
         description: `Підписка "${plan.displayName}" (${billingPeriod === 'yearly' ? 'рік' : 'місяць'})`,
         billingPeriod,
-        monoInvoiceId: subscription.subscriptionId,
-        monoPageUrl: subscription.pageUrl,
+        monoInvoiceId: invoiceResult.subscriptionId || invoiceResult.invoiceId,
+        monoPageUrl: invoiceResult.pageUrl,
         monoReference: reference,
-        metadata: { isSubscription: true, monoSubscriptionId: subscription.subscriptionId },
+        metadata: isSubscription 
+          ? { isSubscription: true, monoSubscriptionId: invoiceResult.subscriptionId }
+          : { isSubscription: false },
       });
 
       res.json({
         paymentId: payment.id,
-        pageUrl: subscription.pageUrl,
-        subscriptionId: subscription.subscriptionId,
+        pageUrl: invoiceResult.pageUrl,
+        subscriptionId: invoiceResult.subscriptionId,
+        invoiceId: invoiceResult.invoiceId,
       });
     } catch (error: any) {
       console.error("Payment create error:", error);
