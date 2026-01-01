@@ -58,6 +58,11 @@ export default function BrandEditPage() {
 
   const { data: brand, isLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
+    queryFn: async () => {
+      const response = await fetch(`/api/user/brands/${params.brandId}`);
+      if (!response.ok) throw new Error("Failed to fetch brand");
+      return response.json();
+    },
     enabled: !!params.brandId,
   });
 
