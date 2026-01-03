@@ -230,9 +230,15 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
       
-    // Create default user settings and profile
+    // Create default user settings and profile with registration-provided names
     await this.createUserSettings({ userId: user.id });
-    await this.createUserProfile({ userId: user.id });
+    const hasNames = !!(userData.firstName && userData.lastName);
+    await this.createUserProfile({ 
+      userId: user.id,
+      firstName: userData.firstName || undefined,
+      lastName: userData.lastName || undefined,
+      onboardingCompleted: hasNames,
+    });
     
     return user;
   }
@@ -322,9 +328,15 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
 
-    // Create default user settings and profile
+    // Create default user settings and profile with OAuth-provided names
     await this.createUserSettings({ userId: user.id });
-    await this.createUserProfile({ userId: user.id });
+    const hasNames = !!(userData.firstName && userData.lastName);
+    await this.createUserProfile({ 
+      userId: user.id,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      onboardingCompleted: hasNames,
+    });
 
     return user;
   }

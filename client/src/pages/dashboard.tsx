@@ -793,6 +793,8 @@ export default function Dashboard() {
       <OnboardingModal 
         open={showOnboarding}
         onComplete={() => setShowOnboarding(false)}
+        initialFirstName={profile?.firstName || user?.firstName || undefined}
+        initialLastName={profile?.lastName || user?.lastName || undefined}
       />
     </div>
   );

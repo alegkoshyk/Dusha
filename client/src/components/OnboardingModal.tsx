@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -38,21 +38,37 @@ const EMPLOYEE_COUNTS = [
 interface OnboardingModalProps {
   open: boolean;
   onComplete: () => void;
+  initialFirstName?: string;
+  initialLastName?: string;
 }
 
-export function OnboardingModal({ open, onComplete }: OnboardingModalProps) {
+export function OnboardingModal({ open, onComplete, initialFirstName, initialLastName }: OnboardingModalProps) {
   const { toast } = useToast();
-  const [step, setStep] = useState(1);
+  const hasInitialNames = !!(initialFirstName && initialLastName);
+  const [step, setStep] = useState(hasInitialNames ? 2 : 1);
   const totalSteps = 3;
 
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
+    firstName: initialFirstName || "",
+    lastName: initialLastName || "",
     company: "",
     position: "",
     industry: "",
     employeeCount: ""
   });
+
+  useEffect(() => {
+    if (initialFirstName || initialLastName) {
+      setFormData(prev => ({
+        ...prev,
+        firstName: initialFirstName || prev.firstName,
+        lastName: initialLastName || prev.lastName,
+      }));
+      if (initialFirstName && initialLastName) {
+        setStep(2);
+      }
+    }
+  }, [initialFirstName, initialLastName]);
 
   const completeOnboardingMutation = useMutation({
     mutationFn: async (data: typeof formData & { skipped?: boolean }) => {
