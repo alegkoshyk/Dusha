@@ -1,17 +1,15 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { registerUserSchema, type RegisterUser, type SubscriptionPlan } from "@shared/schema";
-import { Eye, EyeOff, Mail, Lock, User, Crown, Check, ArrowRight, Loader2 } from "lucide-react";
+import { registerUserSchema, type RegisterUser } from "@shared/schema";
+import { Eye, EyeOff, Mail, Lock, User, Loader2, ArrowRight } from "lucide-react";
 import { SiGoogle, SiApple } from "react-icons/si";
 
 interface RegisterFormProps {
@@ -19,21 +17,10 @@ interface RegisterFormProps {
   onSwitchToLogin?: () => void;
 }
 
-type RegistrationStep = "details" | "plan";
-
 export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
-  const [step, setStep] = useState<RegistrationStep>("details");
-  const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
-  const [formData, setFormData] = useState<RegisterUser | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { register: registerUser, isRegisterPending, registerError } = useAuth();
-
-  const { data: plans, isLoading: isLoadingPlans } = useQuery<SubscriptionPlan[]>({
-    queryKey: ["/api/subscription-plans"],
-  });
-
-  const freePlan = plans?.find(p => p.priceMonthly === 0);
 
   const {
     register,
@@ -43,175 +30,13 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
     resolver: zodResolver(registerUserSchema),
   });
 
-  const handleDetailsSubmit = (data: RegisterUser) => {
-    setFormData(data);
-    setStep("plan");
-  };
-
-  const handleFinalSubmit = (planId: number | null) => {
-    if (!formData) return;
-    
-    const finalPlanId = planId || freePlan?.id;
-    
-    registerUser({ ...formData, selectedPlanId: finalPlanId || undefined }, {
+  const handleFormSubmit = (data: RegisterUser) => {
+    registerUser(data, {
       onSuccess: () => {
         onSuccess?.();
       },
     });
   };
-
-  const handlePlanSelect = (planId: number) => {
-    setSelectedPlanId(planId);
-  };
-
-  const handleSkip = () => {
-    handleFinalSubmit(freePlan?.id || null);
-  };
-
-  const handleContinueWithPlan = () => {
-    if (selectedPlanId) {
-      handleFinalSubmit(selectedPlanId);
-    }
-  };
-
-  if (step === "plan") {
-    return (
-      <Card className="w-full max-w-md mx-auto bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl" data-testid="plan-selection">
-        <CardHeader className="space-y-2">
-          <CardTitle className="text-2xl font-bold text-center text-white">
-            Оберіть тариф
-          </CardTitle>
-          <CardDescription className="text-center text-gray-300">
-            Виберіть план, який підходить вам найкраще
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isLoadingPlans ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {plans?.sort((a, b) => a.priceMonthly - b.priceMonthly).map((plan) => {
-                const isSelected = selectedPlanId === plan.id;
-                const planColor = plan.color || '#6b7280';
-                const features = Array.isArray(plan.features) ? plan.features as string[] : [];
-                const isFree = plan.priceMonthly === 0;
-                
-                return (
-                  <button
-                    key={plan.id}
-                    type="button"
-                    onClick={() => handlePlanSelect(plan.id)}
-                    className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
-                      isSelected 
-                        ? 'border-purple-500 bg-purple-500/20' 
-                        : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
-                    }`}
-                    data-testid={`plan-option-${plan.id}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div 
-                        className="p-2 rounded-full shrink-0"
-                        style={{ backgroundColor: `${planColor}30` }}
-                      >
-                        <Crown className="h-5 w-5" style={{ color: planColor }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-white">{plan.displayName}</h3>
-                          {plan.badge && (
-                            <Badge 
-                              className="text-xs"
-                              style={{ backgroundColor: planColor }}
-                            >
-                              {plan.badge}
-                            </Badge>
-                          )}
-                          {isSelected && (
-                            <Check className="h-4 w-4 text-purple-400 ml-auto" />
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-400 mb-2">{plan.description}</p>
-                        <div className="flex items-center gap-3 text-xs text-gray-400">
-                          <span>{plan.maxBrands} брендів</span>
-                          <span>•</span>
-                          <span>{plan.maxTotalGames} ігор</span>
-                          <span>•</span>
-                          <span>{Math.round((plan.maxStorageBytes || 0) / 1024 / 1024)}MB</span>
-                        </div>
-                        {features.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {features.slice(0, 3).map((feature, i) => (
-                              <Badge key={i} variant="secondary" className="text-xs bg-white/10 text-gray-300">
-                                {feature}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right shrink-0">
-                        {!isFree ? (
-                          <>
-                            <p className="text-lg font-bold text-white">
-                              {(plan.priceMonthly / 100).toFixed(0)}
-                            </p>
-                            <p className="text-xs text-gray-400">{plan.currency}/міс</p>
-                          </>
-                        ) : (
-                          <p className="text-lg font-bold text-green-400">Безкоштовно</p>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          <Button
-            type="button"
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
-            disabled={!selectedPlanId || isRegisterPending}
-            onClick={handleContinueWithPlan}
-            data-testid="button-select-plan"
-          >
-            {isRegisterPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Реєстрація...
-              </>
-            ) : (
-              <>
-                Обрати тариф
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </>
-            )}
-          </Button>
-
-          {registerError && (
-            <Alert variant="destructive" data-testid="register-error">
-              <AlertDescription>
-                {registerError.message || "Помилка реєстрації"}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          <div className="text-center pt-2">
-            <button
-              type="button"
-              onClick={handleSkip}
-              disabled={isRegisterPending}
-              className="text-sm text-gray-500 hover:text-gray-400 transition-colors underline-offset-2 hover:underline"
-              data-testid="button-skip-plan"
-            >
-              Пропустити (безкоштовний тариф)
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className="w-full max-w-md mx-auto bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl" data-testid="register-form">
@@ -224,7 +49,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(handleDetailsSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="firstName" className="text-gray-200">Ім'я</Label>
@@ -344,10 +169,20 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
           <Button 
             type="submit" 
             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0" 
-            data-testid="button-continue"
+            data-testid="button-register"
+            disabled={isRegisterPending}
           >
-            Продовжити
-            <ArrowRight className="ml-2 h-4 w-4" />
+            {isRegisterPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Реєстрація...
+              </>
+            ) : (
+              <>
+                Зареєструватися
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
           </Button>
         </form>
 

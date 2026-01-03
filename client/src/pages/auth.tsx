@@ -52,8 +52,12 @@ export function Auth() {
   const [mode, setMode] = useState<AuthMode>("login");
   const [isHovered, setIsHovered] = useState(false);
 
-  const handleAuthSuccess = () => {
+  const handleLoginSuccess = () => {
     setLocation("/");
+  };
+
+  const handleRegisterSuccess = () => {
+    setLocation("/pricing");
   };
 
   return (
@@ -139,12 +143,12 @@ export function Auth() {
         <div className="w-full mt-4">
           {mode === "login" ? (
             <LoginForm
-              onSuccess={handleAuthSuccess}
+              onSuccess={handleLoginSuccess}
               onSwitchToRegister={() => setMode("register")}
             />
           ) : (
             <RegisterForm
-              onSuccess={handleAuthSuccess}
+              onSuccess={handleRegisterSuccess}
               onSwitchToLogin={() => setMode("login")}
             />
           )}
