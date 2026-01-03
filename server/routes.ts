@@ -3886,10 +3886,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Не авторизовано" });
       }
 
-      const { url } = req.body;
-      if (!url) {
-        return res.status(400).json({ error: "URL обов'язковий" });
+      // Validate request body
+      const createAnalysisSchema = z.object({
+        url: z.string().url({ message: "Невірний формат URL" })
+      });
+      
+      const validation = createAnalysisSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0]?.message || "Невірні дані" });
       }
+      
+      const { url } = validation.data;
 
       // Determine source type from URL
       let sourceType = 'website';
@@ -3959,7 +3966,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update brand analysis setting
   app.put("/api/admin/brand-analysis-settings/:key", requireAdmin, async (req, res) => {
     try {
-      const { value } = req.body;
+      const updateSettingSchema = z.object({
+        value: z.string().min(1, "Значення обов'язкове")
+      });
+      
+      const validation = updateSettingSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0]?.message || "Невірні дані" });
+      }
+      
+      const { value } = validation.data;
       const setting = await storage.updateBrandAnalysisSetting(req.params.key, value);
       if (!setting) {
         return res.status(404).json({ error: "Налаштування не знайдено" });
@@ -3974,7 +3990,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create brand analysis setting
   app.post("/api/admin/brand-analysis-settings", requireAdmin, async (req, res) => {
     try {
-      const { key, value, description, category } = req.body;
+      const createSettingSchema = z.object({
+        key: z.string().min(1, "Ключ обов'язковий"),
+        value: z.string().min(1, "Значення обов'язкове"),
+        description: z.string().optional(),
+        category: z.string().optional()
+      });
+      
+      const validation = createSettingSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0]?.message || "Невірні дані" });
+      }
+      
+      const { key, value, description, category } = validation.data;
       const setting = await storage.createBrandAnalysisSetting({
         key,
         value,

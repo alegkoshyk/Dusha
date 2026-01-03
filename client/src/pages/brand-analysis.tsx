@@ -356,11 +356,21 @@ function AnalysisDetail({ analysis }: { analysis: ExternalBrandAnalysis }) {
   );
 }
 
+function isValidUrl(string: string): boolean {
+  try {
+    new URL(string);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default function BrandAnalysisPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [url, setUrl] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<ExternalBrandAnalysis | null>(null);
 
   const { data: analyses = [], isLoading, refetch } = useQuery<ExternalBrandAnalysis[]>({
@@ -414,8 +424,25 @@ export default function BrandAnalysisPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim()) return;
-    createAnalysisMutation.mutate(url.trim());
+    const trimmedUrl = url.trim();
+    
+    if (!trimmedUrl) {
+      setUrlError("URL обов'язковий");
+      return;
+    }
+    
+    if (!isValidUrl(trimmedUrl)) {
+      setUrlError("Невірний формат URL");
+      return;
+    }
+    
+    setUrlError(null);
+    createAnalysisMutation.mutate(trimmedUrl);
+  };
+
+  const handleUrlChange = (value: string) => {
+    setUrl(value);
+    if (urlError) setUrlError(null);
   };
 
   return (
@@ -437,13 +464,19 @@ export default function BrandAnalysisPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <Input
-                    type="url"
-                    placeholder="https://example.com або Instagram URL"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    data-testid="input-brand-url"
-                  />
+                  <div className="space-y-2">
+                    <Input
+                      type="url"
+                      placeholder="https://example.com або Instagram URL"
+                      value={url}
+                      onChange={(e) => handleUrlChange(e.target.value)}
+                      className={urlError ? "border-red-500" : ""}
+                      data-testid="input-brand-url"
+                    />
+                    {urlError && (
+                      <p className="text-sm text-red-500">{urlError}</p>
+                    )}
+                  </div>
                   <Button 
                     type="submit" 
                     className="w-full" 
