@@ -29,6 +29,7 @@ import BrandSpace from "@/pages/admin/BrandSpace";
 import VisualMap from "@/pages/admin/VisualMap";
 import SubscriptionPlans from "@/pages/admin/SubscriptionPlans";
 import Transactions from "@/pages/admin/Transactions";
+import BrandAnalysisSettings from "@/pages/admin/BrandAnalysisSettings";
 import UserSettings from "@/pages/settings";
 import Profile from "@/pages/profile";
 import MediaLibrary from "@/pages/media-library";
@@ -81,6 +82,7 @@ function Router() {
           <Route path="/rcadmin/visual-map" component={VisualMap} />
           <Route path="/rcadmin/subscriptions" component={SubscriptionPlans} />
           <Route path="/rcadmin/transactions" component={Transactions} />
+          <Route path="/rcadmin/brand-analysis" component={BrandAnalysisSettings} />
           <Route path="/settings" component={UserSettings} />
           <Route path="/profile" component={Profile} />
           <Route path="/media" component={MediaLibrary} />

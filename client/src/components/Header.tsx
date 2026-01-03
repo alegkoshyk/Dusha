@@ -144,6 +144,12 @@ export function Header() {
                       Налаштування
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/rcadmin/brand-analysis" className="flex items-center gap-2 w-full">
+                      <Search className="h-4 w-4" />
+                      Аналіз брендів
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/" className="flex items-center gap-2 w-full">
