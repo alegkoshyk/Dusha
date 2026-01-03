@@ -918,3 +918,79 @@ export const insertPremiumFeatureSchema = createInsertSchema(premiumFeaturesTabl
 
 export type PremiumFeature = typeof premiumFeaturesTable.$inferSelect;
 export type InsertPremiumFeature = z.infer<typeof insertPremiumFeatureSchema>;
+
+// =========================================
+// Аналіз зовнішніх брендів (URL-based)
+// =========================================
+
+// Таблиця аналізів зовнішніх брендів по URL
+export const externalBrandAnalysesTable = pgTable("external_brand_analyses", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  // Інформація про джерело
+  url: text("url").notNull(), // URL сайту, Instagram, тощо
+  sourceType: varchar("source_type", { length: 50 }).notNull(), // 'website', 'instagram', 'facebook', 'linkedin', 'other'
+  brandName: varchar("brand_name", { length: 255 }), // Назва бренду (якщо вдалося визначити)
+  // Аналіз за методологією "Душа Бренду"
+  soulAnalysis: json("soul_analysis"), // { purpose, mission, values, story, why, score }
+  mindAnalysis: json("mind_analysis"), // { communication, positioning, audience, message, what_how, score }
+  bodyAnalysis: json("body_analysis"), // { visual, colors, typography, style, appearance, score }
+  // Загальний аналіз
+  overallScore: integer("overall_score"), // Загальний бал 0-100
+  balanceScore: integer("balance_score"), // Бал балансу трьох компонентів
+  summary: text("summary"), // Короткий підсумок
+  strengths: json("strengths"), // Сильні сторони
+  weaknesses: json("weaknesses"), // Слабкі сторони
+  recommendations: json("recommendations"), // Рекомендації
+  // Технічні дані
+  rawData: json("raw_data"), // Сирі дані з URL (опціонально)
+  provider: varchar("provider", { length: 50 }), // 'openai', 'anthropic', 'perplexity'
+  model: varchar("model", { length: 100 }),
+  tokensUsed: integer("tokens_used"),
+  generationTimeMs: integer("generation_time_ms"),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed'
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  userIdIdx: index("external_brand_analyses_user_id_idx").on(table.userId),
+  statusIdx: index("external_brand_analyses_status_idx").on(table.status),
+  createdAtIdx: index("external_brand_analyses_created_at_idx").on(table.createdAt),
+}));
+
+export const externalBrandAnalysesRelations = relations(externalBrandAnalysesTable, ({ one }) => ({
+  user: one(usersTable, {
+    fields: [externalBrandAnalysesTable.userId],
+    references: [usersTable.id],
+  }),
+}));
+
+export const insertExternalBrandAnalysisSchema = createInsertSchema(externalBrandAnalysesTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type ExternalBrandAnalysis = typeof externalBrandAnalysesTable.$inferSelect;
+export type InsertExternalBrandAnalysis = z.infer<typeof insertExternalBrandAnalysisSchema>;
+
+// Налаштування аналізу брендів (адмін контекст)
+export const brandAnalysisSettingsTable = pgTable("brand_analysis_settings", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value"),
+  description: text("description"),
+  category: varchar("category", { length: 50 }).notNull().default("general"), // 'general', 'soul', 'mind', 'body', 'prompts'
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+export const insertBrandAnalysisSettingSchema = createInsertSchema(brandAnalysisSettingsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type BrandAnalysisSetting = typeof brandAnalysisSettingsTable.$inferSelect;
+export type InsertBrandAnalysisSetting = z.infer<typeof insertBrandAnalysisSettingSchema>;
