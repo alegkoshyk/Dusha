@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -382,6 +382,16 @@ export default function BrandAnalysisPage() {
       return hasProcessing ? 3000 : false;
     },
   });
+
+  // Update selectedAnalysis when analyses list changes (e.g., when status changes to completed)
+  useEffect(() => {
+    if (selectedAnalysis && analyses.length > 0) {
+      const updated = analyses.find(a => a.id === selectedAnalysis.id);
+      if (updated && updated.status !== selectedAnalysis.status) {
+        setSelectedAnalysis(updated);
+      }
+    }
+  }, [analyses, selectedAnalysis]);
 
   const createAnalysisMutation = useMutation({
     mutationFn: async (analysisUrl: string) => {
