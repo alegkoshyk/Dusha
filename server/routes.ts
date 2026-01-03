@@ -4028,9 +4028,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const systemPrompt = systemPromptSetting?.value || 'Ти експерт з брендингу та маркетингу.';
       const context = contextSetting?.value || '';
 
-      // Import OpenAI
-      const { default: OpenAI } = await import('openai');
-      const openai = new OpenAI();
+      // Get AI configuration from admin settings
+      const [
+        providerSetting,
+        modelOpenAISetting,
+        modelPerplexitySetting,
+        modelClaudeSetting,
+        openaiKeySetting,
+        perplexityKeySetting,
+        claudeKeySetting
+      ] = await Promise.all([
+        storage.getAppSetting("AI_PROVIDER"),
+        storage.getAppSetting("AI_MODEL_OPENAI"),
+        storage.getAppSetting("AI_MODEL_PERPLEXITY"),
+        storage.getAppSetting("AI_MODEL_CLAUDE"),
+        storage.getAppSetting("OPENAI_API_KEY"),
+        storage.getAppSetting("PERPLEXITY_API_KEY"),
+        storage.getAppSetting("ANTHROPIC_API_KEY")
+      ]);
+
+      const provider = (providerSetting?.value as "openai" | "perplexity" | "claude") || "openai";
+      
+      let model: string;
+      let apiKey: string;
+      
+      if (provider === "perplexity") {
+        model = modelPerplexitySetting?.value || "sonar-pro";
+        apiKey = perplexityKeySetting?.value || process.env.PERPLEXITY_API_KEY || "";
+      } else if (provider === "claude") {
+        model = modelClaudeSetting?.value || "claude-sonnet-4-20250514";
+        apiKey = claudeKeySetting?.value || process.env.ANTHROPIC_API_KEY || "";
+      } else {
+        model = modelOpenAISetting?.value || "gpt-4o";
+        apiKey = openaiKeySetting?.value || process.env.OPENAI_API_KEY || "";
+      }
+
+      if (!apiKey) {
+        throw new Error(`API ключ для ${provider} не налаштовано. Перейдіть в Адміністрування → Налаштування → AI Settings`);
+      }
 
       const userMessage = `Проаналізуй бренд за цим посиланням: ${url}
 
@@ -4098,24 +4133,56 @@ ${context}
   "recommendations": ["рекомендація 1", "рекомендація 2"]
 }`;
 
-      const response = await openai.chat.completions.create({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage }
-        ],
-        response_format: { type: 'json_object' },
-        max_tokens: 4000,
-      });
+      let content: string | null = null;
+      let tokensUsed = 0;
 
-      const content = response.choices[0]?.message?.content;
+      if (provider === "claude") {
+        // Use Anthropic/Claude
+        const { default: Anthropic } = await import('@anthropic-ai/sdk');
+        const claude = new Anthropic({ apiKey });
+        
+        const response = await claude.messages.create({
+          model,
+          max_tokens: 4000,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userMessage }]
+        });
+        
+        const textBlock = response.content.find(block => block.type === 'text');
+        content = textBlock?.type === 'text' ? textBlock.text : null;
+        tokensUsed = (response.usage?.input_tokens || 0) + (response.usage?.output_tokens || 0);
+      } else {
+        // Use OpenAI or Perplexity (OpenAI-compatible API)
+        const { default: OpenAI } = await import('openai');
+        const baseURL = provider === "perplexity" ? "https://api.perplexity.ai" : undefined;
+        const openai = new OpenAI({ apiKey, baseURL });
+
+        const response = await openai.chat.completions.create({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          response_format: { type: 'json_object' },
+          max_tokens: 4000,
+        });
+
+        content = response.choices[0]?.message?.content;
+        tokensUsed = response.usage?.total_tokens || 0;
+      }
+
       if (!content) {
         throw new Error('Empty response from AI');
       }
 
-      const analysisResult = JSON.parse(content);
+      // Extract JSON from response (Claude may include extra text)
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error('No valid JSON found in AI response');
+      }
+
+      const analysisResult = JSON.parse(jsonMatch[0]);
       const generationTimeMs = Date.now() - startTime;
-      const tokensUsed = (response.usage?.total_tokens) || 0;
 
       // Update analysis with results
       await storage.updateExternalBrandAnalysis(analysisId, {
@@ -4129,8 +4196,8 @@ ${context}
         strengths: analysisResult.strengths,
         weaknesses: analysisResult.weaknesses,
         recommendations: analysisResult.recommendations,
-        provider: 'openai',
-        model: 'gpt-4o',
+        provider,
+        model,
         tokensUsed,
         generationTimeMs,
         status: 'completed',
