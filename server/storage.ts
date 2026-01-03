@@ -71,6 +71,12 @@ import {
   type PremiumFeature,
   type InsertPremiumFeature,
   premiumFeaturesTable,
+  type ExternalBrandAnalysis,
+  type InsertExternalBrandAnalysis,
+  externalBrandAnalysesTable,
+  type BrandAnalysisSetting,
+  type InsertBrandAnalysisSetting,
+  brandAnalysisSettingsTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -214,6 +220,19 @@ export interface IStorage {
   createPremiumFeature(feature: InsertPremiumFeature): Promise<PremiumFeature>;
   updatePremiumFeature(id: number, updates: Partial<PremiumFeature>): Promise<PremiumFeature | undefined>;
   deletePremiumFeature(id: number): Promise<boolean>;
+  
+  // External brand analysis operations
+  createExternalBrandAnalysis(analysis: InsertExternalBrandAnalysis): Promise<ExternalBrandAnalysis>;
+  getExternalBrandAnalyses(userId: string): Promise<ExternalBrandAnalysis[]>;
+  getExternalBrandAnalysis(id: string): Promise<ExternalBrandAnalysis | undefined>;
+  updateExternalBrandAnalysis(id: string, updates: Partial<ExternalBrandAnalysis>): Promise<ExternalBrandAnalysis | undefined>;
+  deleteExternalBrandAnalysis(id: string): Promise<boolean>;
+  
+  // Brand analysis settings operations (admin)
+  getBrandAnalysisSettings(): Promise<BrandAnalysisSetting[]>;
+  getBrandAnalysisSetting(key: string): Promise<BrandAnalysisSetting | undefined>;
+  updateBrandAnalysisSetting(key: string, value: string): Promise<BrandAnalysisSetting | undefined>;
+  createBrandAnalysisSetting(setting: InsertBrandAnalysisSetting): Promise<BrandAnalysisSetting>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2393,6 +2412,86 @@ export class DatabaseStorage implements IStorage {
 
   async getUser(userId: string): Promise<User | undefined> {
     return this.getUserById(userId);
+  }
+
+  // ============================================
+  // External brand analysis operations
+  // ============================================
+
+  async createExternalBrandAnalysis(analysis: InsertExternalBrandAnalysis): Promise<ExternalBrandAnalysis> {
+    const [result] = await db
+      .insert(externalBrandAnalysesTable)
+      .values(analysis)
+      .returning();
+    return result;
+  }
+
+  async getExternalBrandAnalyses(userId: string): Promise<ExternalBrandAnalysis[]> {
+    return await db
+      .select()
+      .from(externalBrandAnalysesTable)
+      .where(eq(externalBrandAnalysesTable.userId, userId))
+      .orderBy(desc(externalBrandAnalysesTable.createdAt));
+  }
+
+  async getExternalBrandAnalysis(id: string): Promise<ExternalBrandAnalysis | undefined> {
+    const [result] = await db
+      .select()
+      .from(externalBrandAnalysesTable)
+      .where(eq(externalBrandAnalysesTable.id, id));
+    return result;
+  }
+
+  async updateExternalBrandAnalysis(id: string, updates: Partial<ExternalBrandAnalysis>): Promise<ExternalBrandAnalysis | undefined> {
+    const [result] = await db
+      .update(externalBrandAnalysesTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(externalBrandAnalysesTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteExternalBrandAnalysis(id: string): Promise<boolean> {
+    const result = await db
+      .delete(externalBrandAnalysesTable)
+      .where(eq(externalBrandAnalysesTable.id, id));
+    return true;
+  }
+
+  // ============================================
+  // Brand analysis settings operations (admin)
+  // ============================================
+
+  async getBrandAnalysisSettings(): Promise<BrandAnalysisSetting[]> {
+    return await db
+      .select()
+      .from(brandAnalysisSettingsTable)
+      .orderBy(brandAnalysisSettingsTable.category);
+  }
+
+  async getBrandAnalysisSetting(key: string): Promise<BrandAnalysisSetting | undefined> {
+    const [result] = await db
+      .select()
+      .from(brandAnalysisSettingsTable)
+      .where(eq(brandAnalysisSettingsTable.key, key));
+    return result;
+  }
+
+  async updateBrandAnalysisSetting(key: string, value: string): Promise<BrandAnalysisSetting | undefined> {
+    const [result] = await db
+      .update(brandAnalysisSettingsTable)
+      .set({ value, updatedAt: new Date() })
+      .where(eq(brandAnalysisSettingsTable.key, key))
+      .returning();
+    return result;
+  }
+
+  async createBrandAnalysisSetting(setting: InsertBrandAnalysisSetting): Promise<BrandAnalysisSetting> {
+    const [result] = await db
+      .insert(brandAnalysisSettingsTable)
+      .values(setting)
+      .returning();
+    return result;
   }
 }
 
