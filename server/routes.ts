@@ -3835,6 +3835,289 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // External Brand Analysis Endpoints
+  // ============================================
+
+  // Get user's brand analyses history
+  app.get("/api/brand-analysis", requireAuth, async (req, res) => {
+    try {
+      const user = await getCurrentUserUnified(req);
+      if (!user) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const analyses = await storage.getExternalBrandAnalyses(user.id);
+      res.json(analyses);
+    } catch (error: any) {
+      console.error("Get brand analyses error:", error);
+      res.status(500).json({ error: "Не вдалося отримати історію аналізів" });
+    }
+  });
+
+  // Get specific brand analysis
+  app.get("/api/brand-analysis/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await getCurrentUserUnified(req);
+      if (!user) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const analysis = await storage.getExternalBrandAnalysis(req.params.id);
+      if (!analysis) {
+        return res.status(404).json({ error: "Аналіз не знайдено" });
+      }
+      if (analysis.userId !== user.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      res.json(analysis);
+    } catch (error: any) {
+      console.error("Get brand analysis error:", error);
+      res.status(500).json({ error: "Не вдалося отримати аналіз" });
+    }
+  });
+
+  // Create new brand analysis
+  app.post("/api/brand-analysis", requireAuth, async (req, res) => {
+    try {
+      const user = await getCurrentUserUnified(req);
+      if (!user) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "URL обов'язковий" });
+      }
+
+      // Determine source type from URL
+      let sourceType = 'website';
+      if (url.includes('instagram.com')) sourceType = 'instagram';
+      else if (url.includes('facebook.com')) sourceType = 'facebook';
+      else if (url.includes('linkedin.com')) sourceType = 'linkedin';
+
+      // Create pending analysis
+      const analysis = await storage.createExternalBrandAnalysis({
+        userId: user.id,
+        url,
+        sourceType,
+        status: 'processing',
+      });
+
+      // Run AI analysis in background
+      runBrandAnalysis(analysis.id, url, sourceType).catch(err => {
+        console.error("Brand analysis background error:", err);
+      });
+
+      res.json(analysis);
+    } catch (error: any) {
+      console.error("Create brand analysis error:", error);
+      res.status(500).json({ error: "Не вдалося створити аналіз" });
+    }
+  });
+
+  // Delete brand analysis
+  app.delete("/api/brand-analysis/:id", requireAuth, async (req, res) => {
+    try {
+      const user = await getCurrentUserUnified(req);
+      if (!user) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const analysis = await storage.getExternalBrandAnalysis(req.params.id);
+      if (!analysis) {
+        return res.status(404).json({ error: "Аналіз не знайдено" });
+      }
+      if (analysis.userId !== user.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await storage.deleteExternalBrandAnalysis(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete brand analysis error:", error);
+      res.status(500).json({ error: "Не вдалося видалити аналіз" });
+    }
+  });
+
+  // ============================================
+  // Admin: Brand Analysis Settings
+  // ============================================
+
+  // Get all brand analysis settings
+  app.get("/api/admin/brand-analysis-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getBrandAnalysisSettings();
+      res.json(settings);
+    } catch (error: any) {
+      console.error("Get brand analysis settings error:", error);
+      res.status(500).json({ error: "Не вдалося отримати налаштування" });
+    }
+  });
+
+  // Update brand analysis setting
+  app.put("/api/admin/brand-analysis-settings/:key", requireAdmin, async (req, res) => {
+    try {
+      const { value } = req.body;
+      const setting = await storage.updateBrandAnalysisSetting(req.params.key, value);
+      if (!setting) {
+        return res.status(404).json({ error: "Налаштування не знайдено" });
+      }
+      res.json(setting);
+    } catch (error: any) {
+      console.error("Update brand analysis setting error:", error);
+      res.status(500).json({ error: "Не вдалося оновити налаштування" });
+    }
+  });
+
+  // Create brand analysis setting
+  app.post("/api/admin/brand-analysis-settings", requireAdmin, async (req, res) => {
+    try {
+      const { key, value, description, category } = req.body;
+      const setting = await storage.createBrandAnalysisSetting({
+        key,
+        value,
+        description,
+        category: category || 'general',
+      });
+      res.json(setting);
+    } catch (error: any) {
+      console.error("Create brand analysis setting error:", error);
+      res.status(500).json({ error: "Не вдалося створити налаштування" });
+    }
+  });
+
+  // Background function to run AI brand analysis
+  async function runBrandAnalysis(analysisId: string, url: string, sourceType: string) {
+    const startTime = Date.now();
+    
+    try {
+      // Get analysis settings
+      const systemPromptSetting = await storage.getBrandAnalysisSetting('system_prompt');
+      const contextSetting = await storage.getBrandAnalysisSetting('analysis_context');
+      
+      const systemPrompt = systemPromptSetting?.value || 'Ти експерт з брендингу та маркетингу.';
+      const context = contextSetting?.value || '';
+
+      // Import OpenAI
+      const { default: OpenAI } = await import('openai');
+      const openai = new OpenAI();
+
+      const userMessage = `Проаналізуй бренд за цим посиланням: ${url}
+
+Тип джерела: ${sourceType}
+
+${context}
+
+Надай детальний аналіз за методологією "Душа Бренду":
+
+1. ДУША (Soul) - ЧОМУ бренд існує:
+   - Місія та призначення
+   - Цінності
+   - Історія та глибинний сенс
+   - Оцінка від 0 до 100
+
+2. РОЗУМ (Mind) - ЩО і ЯК бренд комунікує:
+   - Позиціонування
+   - Цільова аудиторія
+   - Повідомлення та стиль комунікації
+   - Оцінка від 0 до 100
+
+3. ТІЛО (Body) - ЯК бренд ВИГЛЯДАЄ:
+   - Візуальний стиль
+   - Кольори та типографіка
+   - Загальне враження
+   - Оцінка від 0 до 100
+
+Також надай:
+- Загальну оцінку (0-100)
+- Оцінку балансу трьох компонентів (0-100)
+- Сильні сторони (список)
+- Слабкі сторони (список)
+- Рекомендації (список)
+- Короткий підсумок
+
+Відповідь надай у форматі JSON:
+{
+  "brandName": "назва бренду",
+  "soul": {
+    "purpose": "призначення",
+    "mission": "місія",
+    "values": ["цінність1", "цінність2"],
+    "story": "історія",
+    "score": 75
+  },
+  "mind": {
+    "positioning": "позиціонування",
+    "audience": "цільова аудиторія",
+    "communication": "стиль комунікації",
+    "message": "ключове повідомлення",
+    "score": 80
+  },
+  "body": {
+    "visual": "візуальний стиль",
+    "colors": ["колір1", "колір2"],
+    "typography": "типографіка",
+    "style": "загальний стиль",
+    "score": 70
+  },
+  "overallScore": 75,
+  "balanceScore": 80,
+  "summary": "короткий підсумок",
+  "strengths": ["сильна сторона 1", "сильна сторона 2"],
+  "weaknesses": ["слабка сторона 1", "слабка сторона 2"],
+  "recommendations": ["рекомендація 1", "рекомендація 2"]
+}`;
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        response_format: { type: 'json_object' },
+        max_tokens: 4000,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('Empty response from AI');
+      }
+
+      const analysisResult = JSON.parse(content);
+      const generationTimeMs = Date.now() - startTime;
+      const tokensUsed = (response.usage?.total_tokens) || 0;
+
+      // Update analysis with results
+      await storage.updateExternalBrandAnalysis(analysisId, {
+        brandName: analysisResult.brandName,
+        soulAnalysis: analysisResult.soul,
+        mindAnalysis: analysisResult.mind,
+        bodyAnalysis: analysisResult.body,
+        overallScore: analysisResult.overallScore,
+        balanceScore: analysisResult.balanceScore,
+        summary: analysisResult.summary,
+        strengths: analysisResult.strengths,
+        weaknesses: analysisResult.weaknesses,
+        recommendations: analysisResult.recommendations,
+        provider: 'openai',
+        model: 'gpt-4o',
+        tokensUsed,
+        generationTimeMs,
+        status: 'completed',
+      });
+
+      console.log(`Brand analysis ${analysisId} completed in ${generationTimeMs}ms`);
+    } catch (error: any) {
+      console.error(`Brand analysis ${analysisId} failed:`, error);
+      await storage.updateExternalBrandAnalysis(analysisId, {
+        status: 'failed',
+        errorMessage: error.message || 'Unknown error',
+      });
+    }
+  }
+
   const httpServer = createServer(app);
   return httpServer;
 }
