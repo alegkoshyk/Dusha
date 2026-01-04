@@ -3987,7 +3987,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create brand analysis setting
+  // Create or update brand analysis setting (upsert)
   app.post("/api/admin/brand-analysis-settings", requireAdmin, async (req, res) => {
     try {
       const createSettingSchema = z.object({
@@ -4003,6 +4003,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { key, value, description, category } = validation.data;
+      
+      // Check if setting already exists
+      const existing = await storage.getBrandAnalysisSetting(key);
+      if (existing) {
+        // Update existing setting
+        const updated = await storage.updateBrandAnalysisSetting(key, value);
+        return res.json(updated);
+      }
+      
       const setting = await storage.createBrandAnalysisSetting({
         key,
         value,
