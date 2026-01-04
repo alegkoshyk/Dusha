@@ -1089,6 +1089,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user subscription details (admin)
+  app.get("/api/admin/users/:id/subscription", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const subscription = await storage.getUserSubscriptionWithPlan(id);
+      const plans = await storage.getSubscriptionPlans();
+      res.json({ subscription, plans });
+    } catch (error) {
+      console.error("Error fetching user subscription:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Get user payment history (admin)
+  app.get("/api/admin/users/:id/payments", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const payments = await storage.getPaymentsByUserId(id);
+      res.json(payments);
+    } catch (error) {
+      console.error("Error fetching user payments:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Update user subscription (admin)
+  app.put("/api/admin/users/:id/subscription", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { planId, status, billingPeriod } = req.body;
+      
+      // Check if user has existing subscription
+      let subscription = await storage.getUserSubscription(id);
+      
+      if (subscription) {
+        // Update existing subscription
+        const updates: any = {};
+        if (planId !== undefined) updates.planId = planId;
+        if (status !== undefined) updates.status = status;
+        if (billingPeriod !== undefined) updates.billingPeriod = billingPeriod;
+        
+        subscription = await storage.updateUserSubscription(subscription.id, updates);
+      } else if (planId) {
+        // Create new subscription
+        subscription = await storage.createUserSubscription({
+          userId: id,
+          planId,
+          billingPeriod: billingPeriod || 'monthly',
+          status: status || 'active',
+        });
+      }
+      
+      const subscriptionWithPlan = await storage.getUserSubscriptionWithPlan(id);
+      res.json(subscriptionWithPlan);
+    } catch (error) {
+      console.error("Error updating user subscription:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // Card Option Sets Routes
   app.get("/api/admin/card-option-sets", requireAdmin, async (req, res) => {
     try {
