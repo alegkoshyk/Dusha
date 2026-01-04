@@ -38,6 +38,18 @@ const CATEGORIES = [
 
 const DEFAULT_SETTINGS = [
   {
+    key: "analysis_enabled",
+    value: "true",
+    description: "Чи увімкнено аналіз брендів",
+    category: "general",
+  },
+  {
+    key: "analysis_timeout",
+    value: "120",
+    description: "Максимальний час аналізу в секундах",
+    category: "general",
+  },
+  {
     key: "system_prompt",
     value: "Ти експерт з брендингу та маркетингу з багаторічним досвідом. Ти аналізуєш бренди за методологією \"Душа Бренду\", яка включає три виміри: Душа (чому бренд існує), Розум (що і як комунікує), Тіло (як виглядає).",
     description: "Системний промпт для AI",
@@ -222,15 +234,12 @@ export default function BrandAnalysisSettings() {
   const seedDefaultsMutation = useMutation({
     mutationFn: async () => {
       for (const setting of DEFAULT_SETTINGS) {
-        const exists = settings.find(s => s.key === setting.key);
-        if (!exists) {
-          await apiRequest('POST', '/api/admin/brand-analysis-settings', setting);
-        }
+        await apiRequest('POST', '/api/admin/brand-analysis-settings', setting);
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/brand-analysis-settings'] });
-      toast({ title: "Готово", description: "Типові налаштування додано" });
+      toast({ title: "Готово", description: "Усі типові налаштування синхронізовано" });
     },
   });
 
