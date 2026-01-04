@@ -4255,6 +4255,204 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync dev to production - Preview changes
+  app.get("/api/admin/brand-analysis-sync/preview", requireAdmin, async (req, res) => {
+    try {
+      const productionDbUrl = process.env.PRODUCTION_DATABASE_URL;
+      if (!productionDbUrl) {
+        return res.status(400).json({ error: "Production database URL not configured" });
+      }
+
+      // Get dev data
+      const devSettings = await storage.getAllBrandAnalysisSettings();
+      const devTemplates = await storage.getBrandAnalysisTemplates();
+
+      // Connect to production and get data
+      const { neon } = await import("@neondatabase/serverless");
+      const prodSql = neon(productionDbUrl);
+
+      // Get production settings
+      let prodSettings: any[] = [];
+      let prodTemplates: any[] = [];
+
+      try {
+        const settingsResult = await prodSql`SELECT * FROM brand_analysis_settings ORDER BY id`;
+        prodSettings = settingsResult;
+      } catch (e) {
+        console.log("Production settings table may not exist:", e);
+      }
+
+      try {
+        const templatesResult = await prodSql`SELECT * FROM brand_analysis_templates ORDER BY id`;
+        prodTemplates = templatesResult;
+      } catch (e) {
+        console.log("Production templates table may not exist:", e);
+      }
+
+      // Calculate diff for settings
+      const settingsDiff = {
+        toAdd: devSettings.filter(ds => !prodSettings.find((ps: any) => ps.key === ds.key)),
+        toUpdate: devSettings.filter(ds => {
+          const prod = prodSettings.find((ps: any) => ps.key === ds.key);
+          return prod && prod.value !== ds.value;
+        }),
+        unchanged: devSettings.filter(ds => {
+          const prod = prodSettings.find((ps: any) => ps.key === ds.key);
+          return prod && prod.value === ds.value;
+        }),
+      };
+
+      // Calculate diff for templates
+      const templatesDiff = {
+        toAdd: devTemplates.filter(dt => !prodTemplates.find((pt: any) => pt.name === dt.name)),
+        toUpdate: devTemplates.filter(dt => {
+          const prod = prodTemplates.find((pt: any) => pt.name === dt.name);
+          return prod && (prod.system_prompt !== dt.systemPrompt || prod.output_language !== dt.outputLanguage);
+        }),
+        unchanged: devTemplates.filter(dt => {
+          const prod = prodTemplates.find((pt: any) => pt.name === dt.name);
+          return prod && prod.system_prompt === dt.systemPrompt && prod.output_language === dt.outputLanguage;
+        }),
+      };
+
+      res.json({
+        settings: {
+          dev: devSettings.length,
+          prod: prodSettings.length,
+          diff: settingsDiff,
+        },
+        templates: {
+          dev: devTemplates.length,
+          prod: prodTemplates.length,
+          diff: templatesDiff,
+        },
+      });
+    } catch (error: any) {
+      console.error("Sync preview error:", error);
+      res.status(500).json({ error: "Не вдалося отримати дані для синхронізації" });
+    }
+  });
+
+  // Sync dev to production - Apply changes
+  app.post("/api/admin/brand-analysis-sync/apply", requireAdmin, async (req, res) => {
+    try {
+      const productionDbUrl = process.env.PRODUCTION_DATABASE_URL;
+      if (!productionDbUrl) {
+        return res.status(400).json({ error: "Production database URL not configured" });
+      }
+
+      // Get dev data
+      const devSettings = await storage.getAllBrandAnalysisSettings();
+      const devTemplates = await storage.getBrandAnalysisTemplates();
+
+      // Connect to production
+      const { neon } = await import("@neondatabase/serverless");
+      const prodSql = neon(productionDbUrl);
+
+      // Ensure tables exist in production
+      await prodSql`
+        CREATE TABLE IF NOT EXISTS brand_analysis_settings (
+          id SERIAL PRIMARY KEY,
+          key VARCHAR(100) NOT NULL UNIQUE,
+          value TEXT NOT NULL,
+          description TEXT,
+          category VARCHAR(50) DEFAULT 'general',
+          is_active BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `;
+
+      await prodSql`
+        CREATE TABLE IF NOT EXISTS brand_analysis_templates (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(200) NOT NULL,
+          description TEXT,
+          system_prompt TEXT,
+          analysis_context TEXT,
+          soul_criteria TEXT,
+          mind_criteria TEXT,
+          body_criteria TEXT,
+          scoring_scale TEXT,
+          balance_weight TEXT,
+          output_language VARCHAR(20) DEFAULT 'ukrainian',
+          include_recommendations BOOLEAN DEFAULT true,
+          max_strengths INTEGER DEFAULT 5,
+          max_weaknesses INTEGER DEFAULT 5,
+          is_active BOOLEAN DEFAULT true,
+          is_default BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `;
+
+      let settingsSynced = 0;
+      let templatesSynced = 0;
+
+      // Sync settings
+      for (const setting of devSettings) {
+        await prodSql`
+          INSERT INTO brand_analysis_settings (key, value, description, category, is_active)
+          VALUES (${setting.key}, ${setting.value}, ${setting.description}, ${setting.category}, ${setting.isActive})
+          ON CONFLICT (key) DO UPDATE SET 
+            value = EXCLUDED.value,
+            description = EXCLUDED.description,
+            category = EXCLUDED.category,
+            is_active = EXCLUDED.is_active,
+            updated_at = NOW()
+        `;
+        settingsSynced++;
+      }
+
+      // Sync templates
+      for (const template of devTemplates) {
+        const exists = await prodSql`SELECT id FROM brand_analysis_templates WHERE name = ${template.name}`;
+        
+        if (exists.length > 0) {
+          await prodSql`
+            UPDATE brand_analysis_templates SET
+              description = ${template.description},
+              system_prompt = ${template.systemPrompt},
+              analysis_context = ${template.analysisContext},
+              soul_criteria = ${template.soulCriteria},
+              mind_criteria = ${template.mindCriteria},
+              body_criteria = ${template.bodyCriteria},
+              scoring_scale = ${template.scoringScale},
+              balance_weight = ${template.balanceWeight},
+              output_language = ${template.outputLanguage},
+              include_recommendations = ${template.includeRecommendations},
+              max_strengths = ${template.maxStrengths},
+              max_weaknesses = ${template.maxWeaknesses},
+              is_active = ${template.isActive},
+              is_default = ${template.isDefault},
+              updated_at = NOW()
+            WHERE name = ${template.name}
+          `;
+        } else {
+          await prodSql`
+            INSERT INTO brand_analysis_templates 
+            (name, description, system_prompt, analysis_context, soul_criteria, mind_criteria, body_criteria, scoring_scale, balance_weight, output_language, include_recommendations, max_strengths, max_weaknesses, is_active, is_default)
+            VALUES (${template.name}, ${template.description}, ${template.systemPrompt}, ${template.analysisContext}, ${template.soulCriteria}, ${template.mindCriteria}, ${template.bodyCriteria}, ${template.scoringScale}, ${template.balanceWeight}, ${template.outputLanguage}, ${template.includeRecommendations}, ${template.maxStrengths}, ${template.maxWeaknesses}, ${template.isActive}, ${template.isDefault})
+          `;
+        }
+        templatesSynced++;
+      }
+
+      // Log the sync action
+      const currentUser = req.user as any;
+      console.log(`[SYNC] User ${currentUser?.email} synced brand analysis data to production: ${settingsSynced} settings, ${templatesSynced} templates`);
+
+      res.json({
+        success: true,
+        settingsSynced,
+        templatesSynced,
+      });
+    } catch (error: any) {
+      console.error("Sync apply error:", error);
+      res.status(500).json({ error: "Не вдалося синхронізувати дані: " + error.message });
+    }
+  });
+
   // Background function to run AI brand analysis
   async function runBrandAnalysis(analysisId: string, url: string, sourceType: string, templateId?: number) {
     const startTime = Date.now();
