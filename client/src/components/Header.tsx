@@ -150,6 +150,12 @@ export function Header() {
                       Аналіз брендів
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/rcadmin/brand-analysis-templates" className="flex items-center gap-2 w-full">
+                      <Settings className="h-4 w-4" />
+                      Шаблони аналізу
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/" className="flex items-center gap-2 w-full">
