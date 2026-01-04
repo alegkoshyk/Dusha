@@ -77,6 +77,9 @@ import {
   type BrandAnalysisSetting,
   type InsertBrandAnalysisSetting,
   brandAnalysisSettingsTable,
+  type BrandAnalysisTemplate,
+  type InsertBrandAnalysisTemplate,
+  brandAnalysisTemplatesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -233,6 +236,15 @@ export interface IStorage {
   getBrandAnalysisSetting(key: string): Promise<BrandAnalysisSetting | undefined>;
   updateBrandAnalysisSetting(key: string, value: string): Promise<BrandAnalysisSetting | undefined>;
   createBrandAnalysisSetting(setting: InsertBrandAnalysisSetting): Promise<BrandAnalysisSetting>;
+  
+  // Brand analysis templates operations
+  getBrandAnalysisTemplates(): Promise<BrandAnalysisTemplate[]>;
+  getBrandAnalysisTemplate(id: number): Promise<BrandAnalysisTemplate | undefined>;
+  getDefaultBrandAnalysisTemplate(): Promise<BrandAnalysisTemplate | undefined>;
+  createBrandAnalysisTemplate(template: InsertBrandAnalysisTemplate): Promise<BrandAnalysisTemplate>;
+  updateBrandAnalysisTemplate(id: number, updates: Partial<BrandAnalysisTemplate>): Promise<BrandAnalysisTemplate | undefined>;
+  deleteBrandAnalysisTemplate(id: number): Promise<boolean>;
+  setDefaultBrandAnalysisTemplate(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2492,6 +2504,74 @@ export class DatabaseStorage implements IStorage {
       .values(setting)
       .returning();
     return result;
+  }
+
+  // ============================================
+  // Brand analysis templates operations
+  // ============================================
+
+  async getBrandAnalysisTemplates(): Promise<BrandAnalysisTemplate[]> {
+    return await db
+      .select()
+      .from(brandAnalysisTemplatesTable)
+      .orderBy(desc(brandAnalysisTemplatesTable.isDefault), brandAnalysisTemplatesTable.name);
+  }
+
+  async getBrandAnalysisTemplate(id: number): Promise<BrandAnalysisTemplate | undefined> {
+    const [result] = await db
+      .select()
+      .from(brandAnalysisTemplatesTable)
+      .where(eq(brandAnalysisTemplatesTable.id, id));
+    return result;
+  }
+
+  async getDefaultBrandAnalysisTemplate(): Promise<BrandAnalysisTemplate | undefined> {
+    const [result] = await db
+      .select()
+      .from(brandAnalysisTemplatesTable)
+      .where(and(
+        eq(brandAnalysisTemplatesTable.isDefault, true),
+        eq(brandAnalysisTemplatesTable.isActive, true)
+      ));
+    return result;
+  }
+
+  async createBrandAnalysisTemplate(template: InsertBrandAnalysisTemplate): Promise<BrandAnalysisTemplate> {
+    const [result] = await db
+      .insert(brandAnalysisTemplatesTable)
+      .values(template)
+      .returning();
+    return result;
+  }
+
+  async updateBrandAnalysisTemplate(id: number, updates: Partial<BrandAnalysisTemplate>): Promise<BrandAnalysisTemplate | undefined> {
+    const [result] = await db
+      .update(brandAnalysisTemplatesTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(brandAnalysisTemplatesTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteBrandAnalysisTemplate(id: number): Promise<boolean> {
+    const result = await db
+      .delete(brandAnalysisTemplatesTable)
+      .where(eq(brandAnalysisTemplatesTable.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async setDefaultBrandAnalysisTemplate(id: number): Promise<boolean> {
+    await db
+      .update(brandAnalysisTemplatesTable)
+      .set({ isDefault: false, updatedAt: new Date() });
+    
+    const [result] = await db
+      .update(brandAnalysisTemplatesTable)
+      .set({ isDefault: true, updatedAt: new Date() })
+      .where(eq(brandAnalysisTemplatesTable.id, id))
+      .returning();
+    
+    return !!result;
   }
 }
 

@@ -994,3 +994,34 @@ export const insertBrandAnalysisSettingSchema = createInsertSchema(brandAnalysis
 
 export type BrandAnalysisSetting = typeof brandAnalysisSettingsTable.$inferSelect;
 export type InsertBrandAnalysisSetting = z.infer<typeof insertBrandAnalysisSettingSchema>;
+
+// Темплейти аналізу брендів
+export const brandAnalysisTemplatesTable = pgTable("brand_analysis_templates", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  systemPrompt: text("system_prompt").notNull(),
+  analysisContext: text("analysis_context"),
+  soulCriteria: text("soul_criteria"),
+  mindCriteria: text("mind_criteria"),
+  bodyCriteria: text("body_criteria"),
+  scoringScale: text("scoring_scale"),
+  balanceWeight: text("balance_weight"),
+  outputLanguage: varchar("output_language", { length: 20 }).default("ukrainian"),
+  includeRecommendations: boolean("include_recommendations").default(true),
+  maxStrengths: integer("max_strengths").default(5),
+  maxWeaknesses: integer("max_weaknesses").default(5),
+  isActive: boolean("is_active").notNull().default(true),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+export const insertBrandAnalysisTemplateSchema = createInsertSchema(brandAnalysisTemplatesTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type BrandAnalysisTemplate = typeof brandAnalysisTemplatesTable.$inferSelect;
+export type InsertBrandAnalysisTemplate = z.infer<typeof insertBrandAnalysisTemplateSchema>;
