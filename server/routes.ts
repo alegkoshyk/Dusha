@@ -4025,6 +4025,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // Brand Analysis Templates Admin Endpoints
+  // ============================================
+
+  // Get all brand analysis templates
+  app.get("/api/admin/brand-analysis-templates", requireAdmin, async (req, res) => {
+    try {
+      const templates = await storage.getBrandAnalysisTemplates();
+      res.json(templates);
+    } catch (error: any) {
+      console.error("Get brand analysis templates error:", error);
+      res.status(500).json({ error: "Не вдалося отримати шаблони" });
+    }
+  });
+
+  // Get single brand analysis template
+  app.get("/api/admin/brand-analysis-templates/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Невірний ID" });
+      }
+      const template = await storage.getBrandAnalysisTemplate(id);
+      if (!template) {
+        return res.status(404).json({ error: "Шаблон не знайдено" });
+      }
+      res.json(template);
+    } catch (error: any) {
+      console.error("Get brand analysis template error:", error);
+      res.status(500).json({ error: "Не вдалося отримати шаблон" });
+    }
+  });
+
+  // Create brand analysis template
+  app.post("/api/admin/brand-analysis-templates", requireAdmin, async (req, res) => {
+    try {
+      const templateSchema = z.object({
+        name: z.string().min(1, "Назва обов'язкова"),
+        description: z.string().optional(),
+        systemPrompt: z.string().min(1, "Системний промпт обов'язковий"),
+        analysisContext: z.string().optional(),
+        soulCriteria: z.string().optional(),
+        mindCriteria: z.string().optional(),
+        bodyCriteria: z.string().optional(),
+        scoringScale: z.string().optional(),
+        balanceWeight: z.string().optional(),
+        outputLanguage: z.string().optional(),
+        includeRecommendations: z.boolean().optional(),
+        maxStrengths: z.number().optional(),
+        maxWeaknesses: z.number().optional(),
+        isActive: z.boolean().optional(),
+        isDefault: z.boolean().optional(),
+      });
+      
+      const validation = templateSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0]?.message || "Невірні дані" });
+      }
+      
+      const template = await storage.createBrandAnalysisTemplate(validation.data);
+      
+      // If this is set as default, update other templates
+      if (validation.data.isDefault) {
+        await storage.setDefaultBrandAnalysisTemplate(template.id);
+      }
+      
+      res.json(template);
+    } catch (error: any) {
+      console.error("Create brand analysis template error:", error);
+      res.status(500).json({ error: "Не вдалося створити шаблон" });
+    }
+  });
+
+  // Update brand analysis template
+  app.put("/api/admin/brand-analysis-templates/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Невірний ID" });
+      }
+      
+      const templateSchema = z.object({
+        name: z.string().optional(),
+        description: z.string().optional(),
+        systemPrompt: z.string().optional(),
+        analysisContext: z.string().optional(),
+        soulCriteria: z.string().optional(),
+        mindCriteria: z.string().optional(),
+        bodyCriteria: z.string().optional(),
+        scoringScale: z.string().optional(),
+        balanceWeight: z.string().optional(),
+        outputLanguage: z.string().optional(),
+        includeRecommendations: z.boolean().optional(),
+        maxStrengths: z.number().optional(),
+        maxWeaknesses: z.number().optional(),
+        isActive: z.boolean().optional(),
+        isDefault: z.boolean().optional(),
+      });
+      
+      const validation = templateSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: validation.error.errors[0]?.message || "Невірні дані" });
+      }
+      
+      // If setting as default, update all templates first
+      if (validation.data.isDefault) {
+        await storage.setDefaultBrandAnalysisTemplate(id);
+      }
+      
+      const template = await storage.updateBrandAnalysisTemplate(id, validation.data);
+      if (!template) {
+        return res.status(404).json({ error: "Шаблон не знайдено" });
+      }
+      res.json(template);
+    } catch (error: any) {
+      console.error("Update brand analysis template error:", error);
+      res.status(500).json({ error: "Не вдалося оновити шаблон" });
+    }
+  });
+
+  // Delete brand analysis template
+  app.delete("/api/admin/brand-analysis-templates/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Невірний ID" });
+      }
+      
+      const deleted = await storage.deleteBrandAnalysisTemplate(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Шаблон не знайдено" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete brand analysis template error:", error);
+      res.status(500).json({ error: "Не вдалося видалити шаблон" });
+    }
+  });
+
+  // Set template as default
+  app.post("/api/admin/brand-analysis-templates/:id/set-default", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Невірний ID" });
+      }
+      
+      const success = await storage.setDefaultBrandAnalysisTemplate(id);
+      if (!success) {
+        return res.status(404).json({ error: "Шаблон не знайдено" });
+      }
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Set default brand analysis template error:", error);
+      res.status(500).json({ error: "Не вдалося встановити шаблон за замовчуванням" });
+    }
+  });
+
+  // Get default template for users
+  app.get("/api/brand-analysis/template", requireAuth, async (req, res) => {
+    try {
+      const template = await storage.getDefaultBrandAnalysisTemplate();
+      res.json(template || null);
+    } catch (error: any) {
+      console.error("Get default brand analysis template error:", error);
+      res.status(500).json({ error: "Не вдалося отримати шаблон" });
+    }
+  });
+
   // Background function to run AI brand analysis
   async function runBrandAnalysis(analysisId: string, url: string, sourceType: string) {
     const startTime = Date.now();
