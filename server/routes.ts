@@ -1106,7 +1106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/users/:id/payments", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const payments = await storage.getPaymentsByUserId(id);
+      const payments = await storage.getUserPaymentHistory(id);
       res.json(payments);
     } catch (error) {
       console.error("Error fetching user payments:", error);
@@ -4264,7 +4264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get dev data
-      const devSettings = await storage.getAllBrandAnalysisSettings();
+      const devSettings = await storage.getBrandAnalysisSettings();
       const devTemplates = await storage.getBrandAnalysisTemplates();
 
       // Connect to production and get data
@@ -4342,7 +4342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get dev data
-      const devSettings = await storage.getAllBrandAnalysisSettings();
+      const devSettings = await storage.getBrandAnalysisSettings();
       const devTemplates = await storage.getBrandAnalysisTemplates();
 
       // Connect to production

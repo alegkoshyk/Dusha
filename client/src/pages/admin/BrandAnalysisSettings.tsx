@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { 
@@ -22,7 +24,11 @@ import {
   Search,
   Target,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Upload,
+  ArrowRight,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 import type { BrandAnalysisSetting } from "@shared/schema";
 
@@ -190,12 +196,36 @@ function SettingCard({
   );
 }
 
+interface SyncPreviewData {
+  settings: {
+    dev: number;
+    prod: number;
+    diff: {
+      toAdd: any[];
+      toUpdate: any[];
+      unchanged: any[];
+    };
+  };
+  templates: {
+    dev: number;
+    prod: number;
+    diff: {
+      toAdd: any[];
+      toUpdate: any[];
+      unchanged: any[];
+    };
+  };
+}
+
 export default function BrandAnalysisSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeCategory, setActiveCategory] = useState("prompts");
   const [newSetting, setNewSetting] = useState({ key: "", value: "", description: "", category: "general" });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
+  const [syncPreview, setSyncPreview] = useState<SyncPreviewData | null>(null);
+  const [showConfirmSync, setShowConfirmSync] = useState(false);
 
   const { data: settings = [], isLoading, refetch } = useQuery<BrandAnalysisSetting[]>({
     queryKey: ['/api/admin/brand-analysis-settings'],
@@ -243,6 +273,40 @@ export default function BrandAnalysisSettings() {
     },
   });
 
+  const syncPreviewMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('GET', '/api/admin/brand-analysis-sync/preview');
+      return res.json();
+    },
+    onSuccess: (data: SyncPreviewData) => {
+      setSyncPreview(data);
+      setShowSyncDialog(true);
+    },
+    onError: (error: any) => {
+      toast({ title: "Помилка", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const syncApplyMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/admin/brand-analysis-sync/apply');
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setShowConfirmSync(false);
+      setShowSyncDialog(false);
+      setSyncPreview(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/brand-analysis-settings'] });
+      toast({ 
+        title: "Синхронізовано!", 
+        description: `Синхронізовано ${data.settingsSynced} налаштувань та ${data.templatesSynced} шаблонів` 
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: "Помилка синхронізації", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleSave = (key: string, value: string) => {
     updateMutation.mutate({ key, value });
   };
@@ -268,6 +332,19 @@ export default function BrandAnalysisSettings() {
             </Button>
             <Button variant="outline" onClick={() => seedDefaultsMutation.mutate()}>
               <Settings className="h-4 w-4 mr-2" /> Типові налаштування
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => syncPreviewMutation.mutate()}
+              disabled={syncPreviewMutation.isPending}
+              className="bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400"
+            >
+              {syncPreviewMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4 mr-2" />
+              )}
+              Синхр. з Production
             </Button>
             <Button onClick={() => setShowAddForm(!showAddForm)}>
               <Plus className="h-4 w-4 mr-2" /> Додати
@@ -389,6 +466,178 @@ export default function BrandAnalysisSettings() {
           ))}
         </Tabs>
       </div>
+
+      {/* Sync Preview Dialog */}
+      <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
+        <DialogContent className="max-w-2xl dark:bg-gray-800 dark:border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 dark:text-white">
+              <Upload className="h-5 w-5" />
+              Синхронізація з Production
+            </DialogTitle>
+            <DialogDescription className="dark:text-gray-400">
+              Перегляньте зміни перед синхронізацією налаштувань аналізу брендів
+            </DialogDescription>
+          </DialogHeader>
+
+          {syncPreview && (
+            <div className="space-y-6">
+              {/* Settings Preview */}
+              <div className="space-y-3">
+                <h3 className="font-semibold flex items-center gap-2 dark:text-white">
+                  <Settings className="h-4 w-4" />
+                  Налаштування
+                </h3>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <Card className="p-3 dark:bg-gray-700 dark:border-gray-600">
+                    <div className="text-2xl font-bold text-blue-600">{syncPreview.settings.dev}</div>
+                    <div className="text-muted-foreground dark:text-gray-400">Dev</div>
+                  </Card>
+                  <Card className="p-3 dark:bg-gray-700 dark:border-gray-600">
+                    <div className="text-2xl font-bold text-purple-600">{syncPreview.settings.prod}</div>
+                    <div className="text-muted-foreground dark:text-gray-400">Production</div>
+                  </Card>
+                  <Card className="p-3 dark:bg-gray-700 dark:border-gray-600">
+                    <div className="flex gap-2 text-sm">
+                      {syncPreview.settings.diff.toAdd.length > 0 && (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          +{syncPreview.settings.diff.toAdd.length} нових
+                        </Badge>
+                      )}
+                      {syncPreview.settings.diff.toUpdate.length > 0 && (
+                        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                          {syncPreview.settings.diff.toUpdate.length} оновити
+                        </Badge>
+                      )}
+                      {syncPreview.settings.diff.toAdd.length === 0 && syncPreview.settings.diff.toUpdate.length === 0 && (
+                        <Badge variant="outline">Без змін</Badge>
+                      )}
+                    </div>
+                  </Card>
+                </div>
+                {syncPreview.settings.diff.toAdd.length > 0 && (
+                  <div className="text-sm text-muted-foreground dark:text-gray-400">
+                    Нові: {syncPreview.settings.diff.toAdd.map((s: any) => s.key).join(', ')}
+                  </div>
+                )}
+                {syncPreview.settings.diff.toUpdate.length > 0 && (
+                  <div className="text-sm text-muted-foreground dark:text-gray-400">
+                    Оновити: {syncPreview.settings.diff.toUpdate.map((s: any) => s.key).join(', ')}
+                  </div>
+                )}
+              </div>
+
+              {/* Templates Preview */}
+              <div className="space-y-3">
+                <h3 className="font-semibold flex items-center gap-2 dark:text-white">
+                  <FileText className="h-4 w-4" />
+                  Шаблони
+                </h3>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <Card className="p-3 dark:bg-gray-700 dark:border-gray-600">
+                    <div className="text-2xl font-bold text-blue-600">{syncPreview.templates.dev}</div>
+                    <div className="text-muted-foreground dark:text-gray-400">Dev</div>
+                  </Card>
+                  <Card className="p-3 dark:bg-gray-700 dark:border-gray-600">
+                    <div className="text-2xl font-bold text-purple-600">{syncPreview.templates.prod}</div>
+                    <div className="text-muted-foreground dark:text-gray-400">Production</div>
+                  </Card>
+                  <Card className="p-3 dark:bg-gray-700 dark:border-gray-600">
+                    <div className="flex gap-2 text-sm">
+                      {syncPreview.templates.diff.toAdd.length > 0 && (
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          +{syncPreview.templates.diff.toAdd.length} нових
+                        </Badge>
+                      )}
+                      {syncPreview.templates.diff.toUpdate.length > 0 && (
+                        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">
+                          {syncPreview.templates.diff.toUpdate.length} оновити
+                        </Badge>
+                      )}
+                      {syncPreview.templates.diff.toAdd.length === 0 && syncPreview.templates.diff.toUpdate.length === 0 && (
+                        <Badge variant="outline">Без змін</Badge>
+                      )}
+                    </div>
+                  </Card>
+                </div>
+                {syncPreview.templates.diff.toAdd.length > 0 && (
+                  <div className="text-sm text-muted-foreground dark:text-gray-400">
+                    Нові: {syncPreview.templates.diff.toAdd.map((t: any) => t.name).join(', ')}
+                  </div>
+                )}
+                {syncPreview.templates.diff.toUpdate.length > 0 && (
+                  <div className="text-sm text-muted-foreground dark:text-gray-400">
+                    Оновити: {syncPreview.templates.diff.toUpdate.map((t: any) => t.name).join(', ')}
+                  </div>
+                )}
+              </div>
+
+              {/* Summary */}
+              <Card className="p-4 bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+                <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-medium">
+                    Буде синхронізовано: {syncPreview.settings.dev} налаштувань та {syncPreview.templates.dev} шаблонів
+                  </span>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowSyncDialog(false)} className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">
+              Скасувати
+            </Button>
+            <Button 
+              onClick={() => setShowConfirmSync(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={syncApplyMutation.isPending}
+            >
+              {syncApplyMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <ArrowRight className="h-4 w-4 mr-2" />
+              )}
+              Синхронізувати
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Sync Alert Dialog */}
+      <AlertDialog open={showConfirmSync} onOpenChange={setShowConfirmSync}>
+        <AlertDialogContent className="dark:bg-gray-800 dark:border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="dark:text-white">Підтвердіть синхронізацію</AlertDialogTitle>
+            <AlertDialogDescription className="dark:text-gray-400">
+              Ви впевнені, що хочете синхронізувати налаштування та шаблони аналізу брендів з Dev до Production бази даних? 
+              Це перезапише існуючі дані в Production.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600">
+              Скасувати
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => syncApplyMutation.mutate()}
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={syncApplyMutation.isPending}
+            >
+              {syncApplyMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Синхронізація...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Так, синхронізувати
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
