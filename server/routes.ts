@@ -4199,12 +4199,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const startTime = Date.now();
     
     try {
-      // Get analysis settings
+      // Try to get default template first
+      const template = await storage.getDefaultBrandAnalysisTemplate();
+      
+      // Get analysis settings as fallback
       const systemPromptSetting = await storage.getBrandAnalysisSetting('system_prompt');
       const contextSetting = await storage.getBrandAnalysisSetting('analysis_context');
       
-      const systemPrompt = systemPromptSetting?.value || 'Ти експерт з брендингу та маркетингу.';
-      const context = contextSetting?.value || '';
+      // Use template if available, otherwise fallback to individual settings
+      const systemPrompt = template?.systemPrompt || systemPromptSetting?.value || 'Ти експерт з брендингу та маркетингу.';
+      const context = template?.analysisContext || contextSetting?.value || '';
+      const soulCriteria = template?.soulCriteria || '';
+      const mindCriteria = template?.mindCriteria || '';
+      const bodyCriteria = template?.bodyCriteria || '';
+      const scoringScale = template?.scoringScale || '';
+      const balanceWeight = template?.balanceWeight || '';
+      const outputLanguage = template?.outputLanguage || 'ukrainian';
+      const includeRecommendations = template?.includeRecommendations ?? true;
+      const maxStrengths = template?.maxStrengths ?? 5;
+      const maxWeaknesses = template?.maxWeaknesses ?? 5;
 
       // Get AI configuration from admin settings
       const [
@@ -4245,38 +4258,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error(`API ключ для ${provider} не налаштовано. Перейдіть в Адміністрування → Налаштування → AI Settings`);
       }
 
+      const languageInstruction = outputLanguage === 'english' 
+        ? 'Please respond in English.' 
+        : 'Відповідай українською мовою.';
+
       const userMessage = `Проаналізуй бренд за цим посиланням: ${url}
 
 Тип джерела: ${sourceType}
 
 ${context}
 
+${languageInstruction}
+
 Надай детальний аналіз за методологією "Душа Бренду":
 
 1. ДУША (Soul) - ЧОМУ бренд існує:
-   - Місія та призначення
-   - Цінності
-   - Історія та глибинний сенс
+   ${soulCriteria || '- Місія та призначення\n   - Цінності\n   - Історія та глибинний сенс'}
    - Оцінка від 0 до 100
 
 2. РОЗУМ (Mind) - ЩО і ЯК бренд комунікує:
-   - Позиціонування
-   - Цільова аудиторія
-   - Повідомлення та стиль комунікації
+   ${mindCriteria || '- Позиціонування\n   - Цільова аудиторія\n   - Повідомлення та стиль комунікації'}
    - Оцінка від 0 до 100
 
 3. ТІЛО (Body) - ЯК бренд ВИГЛЯДАЄ:
-   - Візуальний стиль
-   - Кольори та типографіка
-   - Загальне враження
+   ${bodyCriteria || '- Візуальний стиль\n   - Кольори та типографіка\n   - Загальне враження'}
    - Оцінка від 0 до 100
+
+${scoringScale ? `Шкала оцінювання: ${scoringScale}` : ''}
+
+${balanceWeight ? `Оцінка балансу: ${balanceWeight}` : ''}
 
 Також надай:
 - Загальну оцінку (0-100)
 - Оцінку балансу трьох компонентів (0-100)
-- Сильні сторони (список)
-- Слабкі сторони (список)
-- Рекомендації (список)
+- Сильні сторони (не більше ${maxStrengths})
+- Слабкі сторони (не більше ${maxWeaknesses})
+${includeRecommendations ? '- Рекомендації (список)' : ''}
 - Короткий підсумок
 
 Відповідь надай у форматі JSON:
