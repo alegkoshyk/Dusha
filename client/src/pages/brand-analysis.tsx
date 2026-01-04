@@ -8,6 +8,9 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,9 +33,11 @@ import {
   Instagram,
   Facebook,
   Linkedin,
-  RefreshCw
+  RefreshCw,
+  LayoutTemplate,
+  Settings2
 } from "lucide-react";
-import type { ExternalBrandAnalysis } from "@shared/schema";
+import type { ExternalBrandAnalysis, BrandAnalysisTemplate } from "@shared/schema";
 
 interface SoulAnalysis {
   purpose?: string;
@@ -372,6 +377,8 @@ export default function BrandAnalysisPage() {
   const [url, setUrl] = useState("");
   const [urlError, setUrlError] = useState<string | null>(null);
   const [selectedAnalysis, setSelectedAnalysis] = useState<ExternalBrandAnalysis | null>(null);
+  const [analysisType, setAnalysisType] = useState<"standard" | "template">("standard");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   const { data: analyses = [], isLoading, refetch } = useQuery<ExternalBrandAnalysis[]>({
     queryKey: ['/api/brand-analysis'],
@@ -382,6 +389,12 @@ export default function BrandAnalysisPage() {
       return hasProcessing ? 3000 : false;
     },
   });
+
+  const { data: templates = [] } = useQuery<BrandAnalysisTemplate[]>({
+    queryKey: ['/api/admin/brand-analysis-templates'],
+  });
+
+  const activeTemplates = templates.filter(t => t.isActive);
 
   // Update selectedAnalysis when analyses list changes (e.g., when status changes to completed)
   useEffect(() => {
@@ -394,8 +407,11 @@ export default function BrandAnalysisPage() {
   }, [analyses, selectedAnalysis]);
 
   const createAnalysisMutation = useMutation({
-    mutationFn: async (analysisUrl: string) => {
-      const res = await apiRequest('POST', '/api/brand-analysis', { url: analysisUrl });
+    mutationFn: async ({ analysisUrl, templateId }: { analysisUrl: string; templateId?: number }) => {
+      const res = await apiRequest('POST', '/api/brand-analysis', { 
+        url: analysisUrl,
+        templateId: templateId || undefined
+      });
       return res.json();
     },
     onSuccess: (data) => {
@@ -445,9 +461,21 @@ export default function BrandAnalysisPage() {
       setUrlError("Невірний формат URL");
       return;
     }
+
+    if (analysisType === "template" && !selectedTemplateId) {
+      toast({
+        title: "Оберіть шаблон",
+        description: "Для аналізу за шаблоном потрібно обрати шаблон",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setUrlError(null);
-    createAnalysisMutation.mutate(trimmedUrl);
+    createAnalysisMutation.mutate({
+      analysisUrl: trimmedUrl,
+      templateId: analysisType === "template" ? parseInt(selectedTemplateId) : undefined
+    });
   };
 
   const handleUrlChange = (value: string) => {
@@ -487,10 +515,69 @@ export default function BrandAnalysisPage() {
                       <p className="text-sm text-red-500">{urlError}</p>
                     )}
                   </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Тип аналізу</Label>
+                    <RadioGroup 
+                      value={analysisType} 
+                      onValueChange={(value) => setAnalysisType(value as "standard" | "template")}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center space-x-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer">
+                        <RadioGroupItem value="standard" id="standard" />
+                        <Label htmlFor="standard" className="flex items-center gap-2 cursor-pointer flex-1">
+                          <Settings2 className="h-4 w-4 text-primary" />
+                          <div>
+                            <p className="font-medium">Стандартний</p>
+                            <p className="text-xs text-muted-foreground">За замовчуванням методологія "Душа Бренду"</p>
+                          </div>
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer">
+                        <RadioGroupItem value="template" id="template" />
+                        <Label htmlFor="template" className="flex items-center gap-2 cursor-pointer flex-1">
+                          <LayoutTemplate className="h-4 w-4 text-purple-500" />
+                          <div>
+                            <p className="font-medium">За шаблоном</p>
+                            <p className="text-xs text-muted-foreground">Обрати з налаштованих шаблонів</p>
+                          </div>
+                        </Label>
+                      </div>
+                    </RadioGroup>
+
+                    {analysisType === "template" && (
+                      <div className="pl-6 space-y-2">
+                        {activeTemplates.length > 0 ? (
+                          <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Оберіть шаблон..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {activeTemplates.map(template => (
+                                <SelectItem key={template.id} value={template.id.toString()}>
+                                  <div className="flex items-center gap-2">
+                                    <span>{template.name}</span>
+                                    {template.isDefault && (
+                                      <Badge variant="secondary" className="text-xs">За замовчуванням</Badge>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">
+                            Немає активних шаблонів. Створіть шаблон в адмін-панелі.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   <Button 
                     type="submit" 
                     className="w-full" 
-                    disabled={createAnalysisMutation.isPending || !url.trim()}
+                    disabled={createAnalysisMutation.isPending || !url.trim() || (analysisType === "template" && !selectedTemplateId)}
                     data-testid="button-analyze-brand"
                   >
                     {createAnalysisMutation.isPending ? (

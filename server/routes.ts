@@ -3888,7 +3888,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate request body
       const createAnalysisSchema = z.object({
-        url: z.string().url({ message: "Невірний формат URL" })
+        url: z.string().url({ message: "Невірний формат URL" }),
+        templateId: z.number().optional()
       });
       
       const validation = createAnalysisSchema.safeParse(req.body);
@@ -3896,7 +3897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: validation.error.errors[0]?.message || "Невірні дані" });
       }
       
-      const { url } = validation.data;
+      const { url, templateId } = validation.data;
 
       // Determine source type from URL
       let sourceType = 'website';
@@ -3912,8 +3913,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'processing',
       });
 
-      // Run AI analysis in background
-      runBrandAnalysis(analysis.id, url, sourceType).catch(err => {
+      // Run AI analysis in background with optional templateId
+      runBrandAnalysis(analysis.id, url, sourceType, templateId).catch(err => {
         console.error("Brand analysis background error:", err);
       });
 
@@ -4195,12 +4196,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Background function to run AI brand analysis
-  async function runBrandAnalysis(analysisId: string, url: string, sourceType: string) {
+  async function runBrandAnalysis(analysisId: string, url: string, sourceType: string, templateId?: number) {
     const startTime = Date.now();
     
     try {
-      // Try to get default template first
-      const template = await storage.getDefaultBrandAnalysisTemplate();
+      // Get template: use specific template if provided, otherwise try default
+      let template = null;
+      if (templateId) {
+        template = await storage.getBrandAnalysisTemplate(templateId);
+      }
+      if (!template) {
+        template = await storage.getDefaultBrandAnalysisTemplate();
+      }
       
       // Get analysis settings as fallback
       const systemPromptSetting = await storage.getBrandAnalysisSetting('system_prompt');
