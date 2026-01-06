@@ -24,6 +24,7 @@ interface SubscriptionPlan {
   maxTotalGames: number;
   maxStorageBytes: number;
   maxMediaFiles: number;
+  analysisQuota: number;
   features: string[] | null;
   isDefault: boolean;
   isActive: boolean;
@@ -194,6 +195,10 @@ export default function SubscriptionPlans() {
                       <span className="text-gray-400">Файли:</span>
                       <span>{plan.maxMediaFiles}</span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Аналізи:</span>
+                      <span>{plan.analysisQuota}</span>
+                    </div>
                   </div>
 
                   {plan.features && plan.features.length > 0 && (
@@ -280,6 +285,7 @@ function PlanForm({
     maxTotalGames: plan?.maxTotalGames || 1,
     maxStorageBytes: plan?.maxStorageBytes || 52428800,
     maxMediaFiles: plan?.maxMediaFiles || 25,
+    analysisQuota: plan?.analysisQuota || 1,
     isDefault: plan?.isDefault || false,
     isActive: plan?.isActive ?? true,
     sortOrder: plan?.sortOrder || 1,
@@ -384,7 +390,7 @@ function PlanForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <Label>Сховище (байт)</Label>
           <Input
@@ -401,6 +407,16 @@ function PlanForm({
             value={formData.maxMediaFiles}
             onChange={(e) => setFormData({ ...formData, maxMediaFiles: parseInt(e.target.value) || 25 })}
             className="bg-gray-800 border-gray-600"
+          />
+        </div>
+        <div>
+          <Label>Квота аналізів</Label>
+          <Input
+            type="number"
+            value={formData.analysisQuota}
+            onChange={(e) => setFormData({ ...formData, analysisQuota: parseInt(e.target.value) || 1 })}
+            className="bg-gray-800 border-gray-600"
+            min={1}
           />
         </div>
       </div>

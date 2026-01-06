@@ -19,7 +19,8 @@ import {
   Star,
   StarOff,
   Check,
-  RefreshCw
+  RefreshCw,
+  Crown
 } from "lucide-react";
 import type { BrandAnalysisTemplate } from "@shared/schema";
 
@@ -39,6 +40,7 @@ const DEFAULT_TEMPLATE = {
   maxWeaknesses: 5,
   isActive: true,
   isDefault: false,
+  isStandard: false,
 };
 
 interface TemplateFormProps {
@@ -65,6 +67,7 @@ function TemplateForm({ template, onSubmit, onCancel, isLoading }: TemplateFormP
     maxWeaknesses: template.maxWeaknesses ?? 5,
     isActive: template.isActive ?? true,
     isDefault: template.isDefault ?? false,
+    isStandard: template.isStandard ?? false,
   } : DEFAULT_TEMPLATE);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -216,6 +219,29 @@ function TemplateForm({ template, onSubmit, onCancel, isLoading }: TemplateFormP
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg border">
+        <div className="flex items-center space-x-2">
+          <Switch
+            checked={formData.isStandard}
+            onCheckedChange={(checked) => setFormData({ ...formData, isStandard: checked })}
+          />
+          <div>
+            <Label>Стандартний шаблон</Label>
+            <p className="text-xs text-muted-foreground">Доступний для всіх користувачів</p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch
+            checked={formData.isDefault}
+            onCheckedChange={(checked) => setFormData({ ...formData, isDefault: checked })}
+          />
+          <div>
+            <Label>За замовчуванням</Label>
+            <p className="text-xs text-muted-foreground">Використовується як основний</p>
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-end gap-2 pt-4 border-t">
         <Button type="button" variant="outline" onClick={onCancel}>
           Скасувати
@@ -249,6 +275,16 @@ function TemplateCard({
             {template.isDefault && (
               <Badge variant="default" className="bg-primary">
                 <Star className="h-3 w-3 mr-1" /> За замовчуванням
+              </Badge>
+            )}
+            {template.isStandard && (
+              <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                Стандарт
+              </Badge>
+            )}
+            {!template.isStandard && (
+              <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                <Crown className="h-3 w-3 mr-1" /> Pro
               </Badge>
             )}
             {!template.isActive && (
