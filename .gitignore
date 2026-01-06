@@ -4,3 +4,7 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Capacitor native builds (optional - keep if you want to track native projects)
+# ios/
+# android/

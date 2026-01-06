@@ -79,5 +79,24 @@ Preferred communication style: Simple, everyday language.
 - **Webhook Security**: X-Sign header verification (development mode allows unsigned for sandbox testing)
 - **Admin Panel**: Transactions page at /rcadmin/transactions shows all payment history
 
+### Mobile App (Capacitor)
+- **App ID**: site.brandsoul
+- **App Name**: Душа Бренду
+- **Platforms**: iOS (iPhone/iPad), Android
+- **Payment Strategy**: 
+  - iOS: Apple In-App Purchase (required by Apple)
+  - Android/Web: Monobank
+- **Platform Detection**: `client/src/lib/platform.ts` provides utilities for conditional logic
+- **Build Process**:
+  1. Run `npm run build` to create production build
+  2. Run `npx cap sync` to sync web assets to native projects
+  3. `npx cap open ios` - Open in Xcode (requires Mac)
+  4. `npx cap open android` - Open in Android Studio
+- **Requirements for Final Build**:
+  - Mac with Xcode for iOS
+  - Android Studio for Android
+  - Apple Developer Account ($99/year) for App Store
+  - Google Play Developer Account ($25 one-time)
+
 ## Documentation
 Full project documentation available in `DOCUMENTATION.md`.
