@@ -3,6 +3,7 @@ import { User, Home, LayoutDashboard, CreditCard, Settings, Users, Eye, ChevronD
 import { Link, useLocation } from 'wouter';
 import UserDropdown from './UserDropdown';
 import { useAuth } from '@/hooks/useAuth';
+import { useBrandAnalysisEnabled } from '@/hooks/useBrandAnalysisEnabled';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { BrandSoulLogo } from './BrandSoulLogo';
 import { 
@@ -16,6 +17,7 @@ import {
 export function Header() {
   const { user, isAuthenticated } = useAuth();
   const [location] = useLocation();
+  const { isEnabled: isBrandAnalysisEnabled } = useBrandAnalysisEnabled();
 
   if (!isAuthenticated) return null;
 
@@ -78,18 +80,20 @@ export function Header() {
               <Image className="w-4 h-4 inline mr-2" />
               Медіа
             </Link>
-            <Link 
-              href="/brand-analysis" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                location === '/brand-analysis'
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' 
-                  : 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400'
-              }`}
-              data-testid="link-brand-analysis"
-            >
-              <Search className="w-4 h-4 inline mr-2" />
-              Аналіз
-            </Link>
+            {isBrandAnalysisEnabled && (
+              <Link 
+                href="/brand-analysis" 
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  location === '/brand-analysis'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' 
+                    : 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400'
+                }`}
+                data-testid="link-brand-analysis"
+              >
+                <Search className="w-4 h-4 inline mr-2" />
+                Аналіз
+              </Link>
+            )}
             
             {/* Admin Menu */}
             {user?.role === 'admin' && (

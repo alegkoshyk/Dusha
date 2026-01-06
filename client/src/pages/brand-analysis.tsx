@@ -390,11 +390,12 @@ export default function BrandAnalysisPage() {
     },
   });
 
-  const { data: templates = [] } = useQuery<BrandAnalysisTemplate[]>({
+  const { data: templates = [], isLoading: templatesLoading } = useQuery<BrandAnalysisTemplate[]>({
     queryKey: ['/api/admin/brand-analysis-templates'],
   });
 
   const activeTemplates = templates.filter(t => t.isActive);
+  const isBrandAnalysisEnabled = activeTemplates.length > 0;
 
   // Update selectedAnalysis when analyses list changes (e.g., when status changes to completed)
   useEffect(() => {
@@ -482,6 +483,34 @@ export default function BrandAnalysisPage() {
     setUrl(value);
     if (urlError) setUrlError(null);
   };
+
+  if (templatesLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isBrandAnalysisEnabled) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto py-16 px-4">
+          <Card className="max-w-md mx-auto text-center">
+            <CardHeader>
+              <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Search className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <CardTitle>Аналіз бренду недоступний</CardTitle>
+              <CardDescription>
+                Ця функція ще не налаштована адміністратором. Зверніться до адміністратора для активації.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

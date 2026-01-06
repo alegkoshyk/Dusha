@@ -1,13 +1,15 @@
 import { useAuth } from "@/hooks/useAuth";
+import { useBrandAnalysisEnabled } from "@/hooks/useBrandAnalysisEnabled";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, LogOut, Home, Settings, Map, History, Shield, Search } from "lucide-react";
+import { User, LogOut, Home, Settings, Map, Shield, Search } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function UserDropdown() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
+  const { isEnabled: isBrandAnalysisEnabled } = useBrandAnalysisEnabled();
 
   if (!user) return null;
 
@@ -28,7 +30,7 @@ export default function UserDropdown() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full" data-testid="button-user-menu">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.profileImageUrl || ""} alt={user.email || ""} />
+            <AvatarImage src={user.avatar || ""} alt={user.email || ""} />
             <AvatarFallback className="bg-blue-500 text-white">
               {getInitials(user.email || "U")}
             </AvatarFallback>
@@ -53,10 +55,12 @@ export default function UserDropdown() {
           <Map className="mr-2 h-4 w-4" />
           <span>Карти брендів</span>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setLocation("/brand-analysis")} data-testid="menu-brand-analysis">
-          <Search className="mr-2 h-4 w-4" />
-          <span>Аналіз</span>
-        </DropdownMenuItem>
+        {isBrandAnalysisEnabled && (
+          <DropdownMenuItem onClick={() => setLocation("/brand-analysis")} data-testid="menu-brand-analysis">
+            <Search className="mr-2 h-4 w-4" />
+            <span>Аналіз</span>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={() => setLocation("/settings")} data-testid="menu-settings">
           <Settings className="mr-2 h-4 w-4" />
           <span>Налаштування</span>
