@@ -3142,6 +3142,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user subscription with analysis usage count
+  app.get("/api/user/subscription-with-usage", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const subWithPlan = await storage.getUserSubscriptionWithPlan(currentUser.id);
+      
+      // Get user's completed analysis count
+      const analyses = await storage.getExternalBrandAnalyses(currentUser.id);
+      const analysisUsed = analyses.filter(a => a.status === 'completed').length;
+
+      if (subWithPlan) {
+        res.json({
+          plan: subWithPlan.plan,
+          subscription: subWithPlan.subscription,
+          analysisUsed
+        });
+      } else {
+        // Return default free plan if no subscription
+        const plans = await storage.getSubscriptionPlans(true);
+        const freePlan = plans.find(p => p.name === 'free');
+        res.json({
+          plan: freePlan || { name: 'free', analysisQuota: 1 },
+          subscription: null,
+          analysisUsed
+        });
+      }
+    } catch (error: any) {
+      console.error("Get subscription with usage error:", error);
+      res.status(500).json({ error: "Не вдалося отримати підписку" });
+    }
+  });
+
   // Get user's quotas
   app.get("/api/subscriptions/quotas", requireAuth, async (req, res) => {
     try {

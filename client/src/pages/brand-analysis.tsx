@@ -35,9 +35,11 @@ import {
   Linkedin,
   RefreshCw,
   LayoutTemplate,
-  Settings2
+  Settings2,
+  Crown,
+  Lock
 } from "lucide-react";
-import type { ExternalBrandAnalysis, BrandAnalysisTemplate } from "@shared/schema";
+import type { ExternalBrandAnalysis, BrandAnalysisTemplate, SubscriptionPlan } from "@shared/schema";
 
 interface SoulAnalysis {
   purpose?: string;
@@ -394,8 +396,19 @@ export default function BrandAnalysisPage() {
     queryKey: ['/api/admin/brand-analysis-templates'],
   });
 
+  const { data: userSubscription } = useQuery<{ plan: SubscriptionPlan; analysisUsed: number }>({
+    queryKey: ['/api/user/subscription-with-usage'],
+    enabled: !!user,
+  });
+
   const activeTemplates = templates.filter(t => t.isActive);
-  const isBrandAnalysisEnabled = activeTemplates.length > 0;
+  const standardTemplates = activeTemplates.filter(t => t.isStandard);
+  const customTemplates = activeTemplates.filter(t => !t.isStandard);
+  const isPro = userSubscription?.plan?.name === 'pro';
+  const analysisQuota = userSubscription?.plan?.analysisQuota || 1;
+  const analysisUsed = userSubscription?.analysisUsed || 0;
+  const remainingAnalyses = Math.max(0, analysisQuota - analysisUsed);
+  const canAnalyze = remainingAnalyses > 0;
 
   // Update selectedAnalysis when analyses list changes (e.g., when status changes to completed)
   useEffect(() => {
@@ -492,26 +505,6 @@ export default function BrandAnalysisPage() {
     );
   }
 
-  if (!isBrandAnalysisEnabled) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto py-16 px-4">
-          <Card className="max-w-md mx-auto text-center">
-            <CardHeader>
-              <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Search className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <CardTitle>Аналіз бренду недоступний</CardTitle>
-              <CardDescription>
-                Ця функція ще не налаштована адміністратором. Зверніться до адміністратора для активації.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto py-8 px-4">
@@ -582,16 +575,33 @@ export default function BrandAnalysisPage() {
                               <SelectValue placeholder="Оберіть шаблон..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {activeTemplates.map(template => (
-                                <SelectItem key={template.id} value={template.id.toString()}>
-                                  <div className="flex items-center gap-2">
-                                    <span>{template.name}</span>
-                                    {template.isDefault && (
-                                      <Badge variant="secondary" className="text-xs">За замовчуванням</Badge>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              ))}
+                              {activeTemplates.map(template => {
+                                const isCustom = !template.isStandard;
+                                const isLocked = isCustom && !isPro;
+                                return (
+                                  <SelectItem 
+                                    key={template.id} 
+                                    value={template.id.toString()}
+                                    disabled={isLocked}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className={isLocked ? "text-muted-foreground" : ""}>{template.name}</span>
+                                      {template.isDefault && (
+                                        <Badge variant="secondary" className="text-xs">За замовчуванням</Badge>
+                                      )}
+                                      {isCustom && (
+                                        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/20">
+                                          <Crown className="h-3 w-3 mr-1" />
+                                          Pro
+                                        </Badge>
+                                      )}
+                                      {isLocked && (
+                                        <Lock className="h-3 w-3 text-muted-foreground" />
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         ) : (
@@ -603,18 +613,36 @@ export default function BrandAnalysisPage() {
                     )}
                   </div>
 
+                  {/* Quota display */}
+                  {userSubscription && (
+                    <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
+                      <span>Залишилось аналізів:</span>
+                      <Badge variant={remainingAnalyses > 0 ? "secondary" : "destructive"}>
+                        {remainingAnalyses} / {analysisQuota}
+                      </Badge>
+                    </div>
+                  )}
+
                   <Button 
                     type="submit" 
                     className="w-full" 
-                    disabled={createAnalysisMutation.isPending || !url.trim() || (analysisType === "template" && !selectedTemplateId)}
+                    disabled={createAnalysisMutation.isPending || !url.trim() || (analysisType === "template" && !selectedTemplateId) || !canAnalyze}
                     data-testid="button-analyze-brand"
                   >
                     {createAnalysisMutation.isPending ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Аналізуємо...</>
+                    ) : !canAnalyze ? (
+                      <><Lock className="h-4 w-4 mr-2" /> Ліміт вичерпано</>
                     ) : (
                       <><Sparkles className="h-4 w-4 mr-2" /> Проаналізувати</>
                     )}
                   </Button>
+
+                  {!canAnalyze && (
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      Оновіть тариф для додаткових аналізів
+                    </p>
+                  )}
                 </form>
               </CardContent>
             </Card>
