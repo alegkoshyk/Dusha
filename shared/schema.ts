@@ -789,6 +789,8 @@ export const subscriptionPlansTable = pgTable("subscription_plans", {
   // Квоти медіа (перезаписують дефолтні)
   maxStorageBytes: integer("max_storage_bytes").notNull().default(104857600), // 100MB
   maxMediaFiles: integer("max_media_files").notNull().default(100),
+  // Квоти аналізу брендів
+  analysisQuota: integer("analysis_quota").notNull().default(1), // кількість аналізів (Free=1, Basic=10, Pro=25)
   // Преміум фічі (JSON масив назв фіч)
   features: json("features").default(sql`'[]'`),
   // Статус плану
@@ -1013,6 +1015,7 @@ export const brandAnalysisTemplatesTable = pgTable("brand_analysis_templates", {
   maxWeaknesses: integer("max_weaknesses").default(5),
   isActive: boolean("is_active").notNull().default(true),
   isDefault: boolean("is_default").notNull().default(false),
+  isStandard: boolean("is_standard").notNull().default(false), // стандартний шаблон доступний всім, кастомні - лише Pro
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 });

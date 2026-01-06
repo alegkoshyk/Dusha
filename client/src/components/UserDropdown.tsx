@@ -1,5 +1,4 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useBrandAnalysisEnabled } from "@/hooks/useBrandAnalysisEnabled";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,7 +8,6 @@ import { useLocation } from "wouter";
 export default function UserDropdown() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
-  const { isEnabled: isBrandAnalysisEnabled } = useBrandAnalysisEnabled();
 
   if (!user) return null;
 
@@ -55,12 +53,10 @@ export default function UserDropdown() {
           <Map className="mr-2 h-4 w-4" />
           <span>Карти брендів</span>
         </DropdownMenuItem>
-        {isBrandAnalysisEnabled && (
-          <DropdownMenuItem onClick={() => setLocation("/brand-analysis")} data-testid="menu-brand-analysis">
-            <Search className="mr-2 h-4 w-4" />
-            <span>Аналіз</span>
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem onClick={() => setLocation("/brand-analysis")} data-testid="menu-brand-analysis">
+          <Search className="mr-2 h-4 w-4" />
+          <span>Аналіз</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setLocation("/settings")} data-testid="menu-settings">
           <Settings className="mr-2 h-4 w-4" />
           <span>Налаштування</span>
