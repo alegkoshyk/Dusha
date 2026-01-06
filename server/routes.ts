@@ -3152,9 +3152,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const subWithPlan = await storage.getUserSubscriptionWithPlan(currentUser.id);
       
-      // Get user's completed analysis count
+      // Get user's analysis count (completed + processing to match quota enforcement)
       const analyses = await storage.getExternalBrandAnalyses(currentUser.id);
-      const analysisUsed = analyses.filter(a => a.status === 'completed').length;
+      const analysisUsed = analyses.filter(a => 
+        a.status === 'completed' || a.status === 'processing'
+      ).length;
 
       if (subWithPlan) {
         res.json({
@@ -3994,6 +3996,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { url, templateId } = validation.data;
+
+      // Get user's subscription plan
+      const subWithPlan = await storage.getUserSubscriptionWithPlan(user.id);
+      let userPlan = subWithPlan?.plan;
+      
+      if (!userPlan) {
+        // Get default free plan
+        const plans = await storage.getSubscriptionPlans(true);
+        userPlan = plans.find(p => p.name === 'free');
+      }
+
+      // Validate template access - custom templates require Pro subscription
+      if (templateId) {
+        const template = await storage.getBrandAnalysisTemplate(templateId);
+        if (template && !template.isStandard) {
+          // Custom template - check if user has Pro subscription
+          if (!userPlan || userPlan.name !== 'pro') {
+            return res.status(403).json({ 
+              error: "Цей шаблон доступний тільки для підписників Pro" 
+            });
+          }
+        }
+      }
+
+      // Check analysis quota - count both completed and processing to prevent rapid-fire bypass
+      const existingAnalyses = await storage.getExternalBrandAnalyses(user.id);
+      const activeCount = existingAnalyses.filter(a => 
+        a.status === 'completed' || a.status === 'processing'
+      ).length;
+      const quotaLimit = userPlan?.analysisQuota || 1;
+      
+      if (activeCount >= quotaLimit) {
+        return res.status(403).json({ 
+          error: `Вичерпано ліміт аналізів (${quotaLimit}). Оновіть підписку для продовження.` 
+        });
+      }
 
       // Determine source type from URL
       let sourceType = 'website';
