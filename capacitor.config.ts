@@ -3,7 +3,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'site.brandsoul',
   appName: 'Душа Бренду',
-  webDir: 'dist',
+  webDir: 'dist/public',
   server: {
     androidScheme: 'https',
     iosScheme: 'https',
