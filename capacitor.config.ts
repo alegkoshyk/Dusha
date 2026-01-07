@@ -7,6 +7,9 @@ const config: CapacitorConfig = {
   server: {
     androidScheme: 'https',
     iosScheme: 'https',
+    // For production: uncomment and set your published URL
+    // url: 'https://your-app.replit.app',
+    // cleartext: false,
   },
   plugins: {
     SplashScreen: {
