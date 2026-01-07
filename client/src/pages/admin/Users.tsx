@@ -507,13 +507,13 @@ export default function Users() {
 
       {/* Subscription Dialog */}
       <Dialog open={isSubscriptionDialogOpen} onOpenChange={setIsSubscriptionDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] dark:bg-gray-800 dark:border-gray-700">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto dark:bg-gray-800 dark:border-gray-700 p-4 md:p-6">
           <DialogHeader>
-            <DialogTitle className="dark:text-white flex items-center gap-2">
-              <CreditCard className="h-5 w-5" />
+            <DialogTitle className="dark:text-white flex items-center gap-2 text-base md:text-lg">
+              <CreditCard className="h-4 w-4 md:h-5 md:w-5 shrink-0" />
               Підписка користувача
             </DialogTitle>
-            <DialogDescription className="dark:text-gray-400">
+            <DialogDescription className="dark:text-gray-400 text-xs md:text-sm truncate">
               Управління підпискою для "{subscriptionUser?.firstName} {subscriptionUser?.lastName}" ({subscriptionUser?.email})
             </DialogDescription>
           </DialogHeader>
@@ -525,13 +525,13 @@ export default function Users() {
           ) : (
             <Tabs defaultValue="subscription" className="w-full">
               <TabsList className="grid w-full grid-cols-2 dark:bg-gray-700">
-                <TabsTrigger value="subscription" className="dark:data-[state=active]:bg-gray-600">
-                  <Package className="h-4 w-4 mr-2" />
-                  Підписка
+                <TabsTrigger value="subscription" className="dark:data-[state=active]:bg-gray-600 text-xs md:text-sm px-2 md:px-4">
+                  <Package className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 shrink-0" />
+                  <span className="truncate">Підписка</span>
                 </TabsTrigger>
-                <TabsTrigger value="payments" className="dark:data-[state=active]:bg-gray-600">
-                  <History className="h-4 w-4 mr-2" />
-                  Історія платежів
+                <TabsTrigger value="payments" className="dark:data-[state=active]:bg-gray-600 text-xs md:text-sm px-2 md:px-4">
+                  <History className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 shrink-0" />
+                  <span className="truncate">Історія платежів</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -546,32 +546,34 @@ export default function Users() {
                           {getSubscriptionStatusBadge(subscriptionData.subscription.status)}
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
+                      <CardContent className="space-y-3 p-3 md:p-6">
+                        <div className="grid grid-cols-2 gap-2 md:gap-4">
                           <div>
-                            <span className="text-sm text-gray-500 dark:text-gray-400">Тарифний план</span>
-                            <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Тарифний план</span>
+                            <div className="flex items-center gap-1 md:gap-2 mt-1 flex-wrap">
                               {getPlanBadge(subscriptionData.subscription.plan?.name || 'free')}
-                              <span className="dark:text-white">{subscriptionData.subscription.plan?.displayName}</span>
+                              <span className="dark:text-white text-xs md:text-sm truncate">{subscriptionData.subscription.plan?.displayName}</span>
                             </div>
                           </div>
                           <div>
-                            <span className="text-sm text-gray-500 dark:text-gray-400">Період оплати</span>
-                            <p className="dark:text-white mt-1">
+                            <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Період оплати</span>
+                            <p className="dark:text-white mt-1 text-xs md:text-sm">
                               {subscriptionData.subscription.billingPeriod === 'yearly' ? 'Річна' : 'Місячна'}
                             </p>
                           </div>
                           <div>
-                            <span className="text-sm text-gray-500 dark:text-gray-400">Дата початку</span>
-                            <p className="dark:text-white mt-1 flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              {new Date(subscriptionData.subscription.startedAt).toLocaleDateString('uk-UA')}
+                            <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Дата початку</span>
+                            <p className="dark:text-white mt-1 flex items-center gap-1 text-xs md:text-sm">
+                              <Calendar className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+                              {subscriptionData.subscription.startedAt 
+                                ? new Date(subscriptionData.subscription.startedAt).toLocaleDateString('uk-UA')
+                                : '—'}
                             </p>
                           </div>
                           <div>
-                            <span className="text-sm text-gray-500 dark:text-gray-400">Дата закінчення</span>
-                            <p className="dark:text-white mt-1 flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
+                            <span className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Дата закінчення</span>
+                            <p className="dark:text-white mt-1 flex items-center gap-1 text-xs md:text-sm">
+                              <Calendar className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
                               {subscriptionData.subscription.endsAt 
                                 ? new Date(subscriptionData.subscription.endsAt).toLocaleDateString('uk-UA')
                                 : 'Безстроково'}
@@ -588,8 +590,8 @@ export default function Users() {
                       <CardHeader>
                         <CardTitle className="text-lg dark:text-white">Змінити тарифний план</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <CardContent className="p-3 md:p-6">
+                        <div className="grid grid-cols-3 gap-2 md:gap-4">
                           {subscriptionData.plans.map((plan) => (
                             <Card 
                               key={plan.id} 
@@ -598,13 +600,13 @@ export default function Users() {
                               }`}
                               onClick={() => handleChangePlan(plan.id)}
                             >
-                              <CardContent className="p-4 text-center">
+                              <CardContent className="p-2 md:p-4 text-center">
                                 {getPlanBadge(plan.name)}
-                                <h3 className="font-bold mt-2 dark:text-white">{plan.displayName}</h3>
-                                <p className="text-2xl font-bold text-primary mt-2">
+                                <h3 className="font-bold mt-1 md:mt-2 dark:text-white text-xs md:text-base">{plan.displayName}</h3>
+                                <p className="text-lg md:text-2xl font-bold text-primary mt-1 md:mt-2">
                                   {(plan.priceMonthly / 100).toFixed(0)} ₴
                                 </p>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">/ місяць</p>
+                                <p className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400">/ місяць</p>
                                 {subscriptionData.subscription?.planId === plan.id && (
                                   <Badge className="mt-2 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                                     <CheckCircle className="h-3 w-3 mr-1" />
@@ -669,20 +671,20 @@ export default function Users() {
                       <p className="text-gray-500 dark:text-gray-400 mb-4">
                         Цей користувач ще не має підписки. Оберіть тарифний план для створення.
                       </p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                      <div className="grid grid-cols-3 gap-2 md:gap-4 mt-4 md:mt-6">
                         {subscriptionData?.plans.map((plan) => (
                           <Card 
                             key={plan.id} 
                             className="cursor-pointer transition-all hover:shadow-md dark:bg-gray-800 dark:border-gray-600"
                             onClick={() => handleChangePlan(plan.id)}
                           >
-                            <CardContent className="p-4 text-center">
+                            <CardContent className="p-2 md:p-4 text-center">
                               {getPlanBadge(plan.name)}
-                              <h3 className="font-bold mt-2 dark:text-white">{plan.displayName}</h3>
-                              <p className="text-2xl font-bold text-primary mt-2">
+                              <h3 className="font-bold mt-1 md:mt-2 dark:text-white text-xs md:text-base">{plan.displayName}</h3>
+                              <p className="text-lg md:text-2xl font-bold text-primary mt-1 md:mt-2">
                                 {(plan.priceMonthly / 100).toFixed(0)} ₴
                               </p>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">/ місяць</p>
+                              <p className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400">/ місяць</p>
                             </CardContent>
                           </Card>
                         ))}
@@ -694,33 +696,33 @@ export default function Users() {
 
               <TabsContent value="payments" className="mt-4">
                 <Card className="dark:bg-gray-700 dark:border-gray-600">
-                  <CardHeader>
-                    <CardTitle className="text-lg dark:text-white flex items-center gap-2">
-                      <History className="h-5 w-5" />
+                  <CardHeader className="p-3 md:p-6">
+                    <CardTitle className="text-base md:text-lg dark:text-white flex items-center gap-2">
+                      <History className="h-4 w-4 md:h-5 md:w-5 shrink-0" />
                       Історія транзакцій
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-3 md:p-6 pt-0">
                     {isLoadingPayments ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
                     ) : payments && payments.length > 0 ? (
-                      <ScrollArea className="h-[400px]">
-                        <div className="space-y-3">
+                      <ScrollArea className="h-[300px] md:h-[400px]">
+                        <div className="space-y-2 md:space-y-3 pr-2">
                           {payments.map((payment) => (
                             <Card key={payment.id} className="dark:bg-gray-800 dark:border-gray-600">
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-4">
-                                    <div className={`p-2 rounded-full ${
+                              <CardContent className="p-2 md:p-4">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-start gap-2 md:gap-4 flex-1 min-w-0">
+                                    <div className={`p-1.5 md:p-2 rounded-full shrink-0 ${
                                       payment.status === 'success' 
                                         ? 'bg-green-100 dark:bg-green-900/30' 
                                         : payment.status === 'failure'
                                         ? 'bg-red-100 dark:bg-red-900/30'
                                         : 'bg-yellow-100 dark:bg-yellow-900/30'
                                     }`}>
-                                      <CreditCard className={`h-5 w-5 ${
+                                      <CreditCard className={`h-4 w-4 md:h-5 md:w-5 ${
                                         payment.status === 'success' 
                                           ? 'text-green-600 dark:text-green-400' 
                                           : payment.status === 'failure'
@@ -728,36 +730,36 @@ export default function Users() {
                                           : 'text-yellow-600 dark:text-yellow-400'
                                       }`} />
                                     </div>
-                                    <div>
-                                      <p className="font-medium dark:text-white">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-medium dark:text-white text-xs md:text-sm truncate">
                                         {payment.description || 'Оплата підписки'}
                                       </p>
-                                      <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                                          {new Date(payment.createdAt).toLocaleString('uk-UA')}
+                                      <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-0.5 md:mt-1">
+                                        <span className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400">
+                                          {new Date(payment.createdAt).toLocaleDateString('uk-UA')}
                                         </span>
-                                        <span className="text-sm text-gray-400 dark:text-gray-500">•</span>
-                                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                                        <span className="text-[10px] md:text-sm text-gray-400 dark:text-gray-500">•</span>
+                                        <span className="text-[10px] md:text-sm text-gray-500 dark:text-gray-400">
                                           {payment.paymentMethod}
                                         </span>
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="text-right">
-                                    <p className={`font-bold ${
+                                  <div className="text-right shrink-0">
+                                    <p className={`font-bold text-xs md:text-base ${
                                       payment.status === 'success' 
                                         ? 'text-green-600 dark:text-green-400' 
                                         : 'dark:text-white'
                                     }`}>
                                       {formatAmount(payment.amount, payment.currency)}
                                     </p>
-                                    <div className="mt-1">
+                                    <div className="mt-0.5 md:mt-1">
                                       {getPaymentStatusBadge(payment.status)}
                                     </div>
                                   </div>
                                 </div>
                                 {payment.monoInvoiceId && (
-                                  <p className="text-xs text-gray-400 mt-2 font-mono">
+                                  <p className="text-[10px] md:text-xs text-gray-400 mt-1 md:mt-2 font-mono truncate">
                                     ID: {payment.monoInvoiceId}
                                   </p>
                                 )}
