@@ -18,22 +18,24 @@ export function BottomNav() {
 
   return (
     <nav 
-      className="fixed inset-x-0 z-[100]"
+      className="fixed left-0 right-0 bottom-0 z-[9999] bg-white dark:bg-gray-900"
       style={{ 
-        bottom: 0,
         position: 'fixed',
-        WebkitBackfaceVisibility: 'hidden',
-        backfaceVisibility: 'hidden',
-        willChange: 'transform'
+        transform: 'translateZ(0)',
+        WebkitTransform: 'translateZ(0)',
+        isolation: 'isolate'
       }}
     >
       <div 
         className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700"
-        style={{ 
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)'
-        }}
       >
-        <div className="flex justify-around items-center h-14 px-1 bg-white dark:bg-gray-900">
+        <div 
+          className="flex justify-around items-center px-1 bg-white dark:bg-gray-900"
+          style={{ 
+            paddingTop: '12px',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)'
+          }}
+        >
           {navItems.map((item) => {
             const isActive = location === item.path || 
               (item.path === '/dashboard' && location === '/') ||
