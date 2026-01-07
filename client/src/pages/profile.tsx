@@ -16,7 +16,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   User, Camera, Building2, Briefcase, Globe, Trophy, Star, 
   ArrowLeft, Save, Loader2, Award, Target, Zap, CreditCard, 
-  Receipt, Crown, Check, Calendar, ExternalLink, Clock, AlertTriangle, RefreshCw, XCircle
+  Receipt, Crown, Check, Calendar, ExternalLink, Clock, AlertTriangle, RefreshCw, XCircle,
+  Settings, LayoutDashboard, Image, ChevronRight, LogOut, Moon, Sun
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -24,6 +25,9 @@ import { Link } from "wouter";
 import type { UserProfile, SubscriptionPlan, UserSubscription, PaymentHistory } from "@shared/schema";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
+import { useMobile } from "@/hooks/useMobile";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/hooks/useAuth";
 
 const INDUSTRIES = [
   "IT та технології",
@@ -860,8 +864,108 @@ export default function ProfilePage() {
               </Tabs>
             </CardContent>
           </Card>
+
+          {/* Settings & Admin Section for Mobile */}
+          <MobileSettingsSection user={user} />
         </div>
       </div>
     </div>
+  );
+}
+
+function MobileSettingsSection({ user }: { user: { id: string; email: string; displayName: string } | undefined }) {
+  const isMobile = useMobile();
+  const { theme, toggleTheme } = useTheme();
+  const { logout } = useAuth();
+  const [, navigate] = useLocation();
+  const isAdmin = (user as any)?.role === 'admin';
+
+  const settingsLinks = [
+    { href: '/settings', icon: Settings, label: 'Налаштування' },
+    { href: '/media', icon: Image, label: 'Медіатека' },
+  ];
+
+  const adminLinks = [
+    { href: '/rcadmin', icon: LayoutDashboard, label: 'Панель адміністратора' },
+    { href: '/rcadmin/cards', icon: CreditCard, label: 'Керування картками' },
+    { href: '/rcadmin/users', icon: User, label: 'Користувачі' },
+  ];
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
+
+  if (!isMobile) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg">Меню</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-1 p-2">
+        {settingsLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors"
+            data-testid={`link-${link.label.toLowerCase()}`}
+          >
+            <div className="flex items-center gap-3">
+              <link.icon className="h-5 w-5 text-muted-foreground" />
+              <span>{link.label}</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+        ))}
+
+        <button
+          onClick={toggleTheme}
+          className="flex items-center justify-between w-full p-3 rounded-lg hover:bg-muted transition-colors"
+          data-testid="button-toggle-theme"
+        >
+          <div className="flex items-center gap-3">
+            {theme === 'dark' ? (
+              <Moon className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <Sun className="h-5 w-5 text-muted-foreground" />
+            )}
+            <span>{theme === 'dark' ? 'Темна тема' : 'Світла тема'}</span>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </button>
+
+        {isAdmin && (
+          <>
+            <div className="border-t my-2" />
+            <p className="text-xs text-muted-foreground px-3 py-1">Адміністрування</p>
+            {adminLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors"
+                data-testid={`link-admin-${link.label.toLowerCase()}`}
+              >
+                <div className="flex items-center gap-3">
+                  <link.icon className="h-5 w-5 text-muted-foreground" />
+                  <span>{link.label}</span>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </Link>
+            ))}
+          </>
+        )}
+
+        <div className="border-t my-2" />
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
+          data-testid="button-logout"
+        >
+          <LogOut className="h-5 w-5" />
+          <span>Вийти</span>
+        </button>
+      </CardContent>
+    </Card>
   );
 }

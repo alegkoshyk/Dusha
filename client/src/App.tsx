@@ -4,7 +4,9 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { useMobile } from "@/hooks/useMobile";
 import { Header } from "@/components/Header";
+import { BottomNav } from "@/components/mobile/BottomNav";
 import { BrandSoulSpinner } from "@/components/BrandSoulSpinner";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
@@ -41,6 +43,7 @@ import BrandAnalysis from "@/pages/brand-analysis";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  const isMobile = useMobile();
 
   if (isLoading) {
     return (
@@ -59,8 +62,8 @@ function Router() {
 
   return (
     <>
-      <Header />
-      <main className="pt-16">
+      {!isMobile && <Header />}
+      <main className={isMobile ? "pb-20" : "pt-16"}>
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
@@ -95,6 +98,7 @@ function Router() {
           <Route component={NotFound} />
         </Switch>
       </main>
+      {isMobile && <BottomNav />}
     </>
   );
 }
