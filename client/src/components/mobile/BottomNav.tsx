@@ -18,23 +18,20 @@ export function BottomNav() {
 
   return (
     <nav 
-      className="fixed left-0 right-0 bottom-0 z-[9999] bg-white dark:bg-gray-900"
+      className="fixed left-4 right-4 z-[9999]"
       style={{ 
         position: 'fixed',
+        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
         transform: 'translateZ(0)',
         WebkitTransform: 'translateZ(0)',
         isolation: 'isolate'
       }}
     >
       <div 
-        className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700"
+        className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50"
       >
         <div 
-          className="flex justify-around items-center px-1 bg-white dark:bg-gray-900"
-          style={{ 
-            paddingTop: '12px',
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)'
-          }}
+          className="flex justify-around items-center px-2 py-3"
         >
           {navItems.map((item) => {
             const isActive = location === item.path || 
