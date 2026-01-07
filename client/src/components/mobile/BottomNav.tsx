@@ -28,10 +28,14 @@ export function BottomNav() {
       }}
     >
       <div 
-        className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-lg rounded-2xl shadow-lg border border-gray-200/50 dark:border-gray-700/50"
+        className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl backdrop-saturate-150 rounded-2xl shadow-xl border border-white/20 dark:border-gray-600/30"
+        style={{
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+        }}
       >
         <div 
-          className="flex justify-around items-center px-2 py-3"
+          className="flex justify-around items-center px-2 py-2"
         >
           {navItems.map((item) => {
             const isActive = location === item.path || 
