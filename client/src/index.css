@@ -3,6 +3,19 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Prevent iOS rubber band scroll effect on fixed elements */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure fixed bottom nav stays in place on iOS */
+@supports (-webkit-touch-callout: none) {
+  body {
+    min-height: -webkit-fill-available;
+  }
+}
+
 :root {
   --background: hsl(0 0% 100%);
   --foreground: hsl(210 25% 7.8431%);
