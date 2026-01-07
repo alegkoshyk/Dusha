@@ -1130,7 +1130,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (status !== undefined) updates.status = status;
         if (billingPeriod !== undefined) updates.billingPeriod = billingPeriod;
         
-        subscription = await storage.updateUserSubscription(subscription.id, updates);
+        subscription = await storage.updateUserSubscription(id, updates);
       } else if (planId) {
         // Create new subscription
         subscription = await storage.createUserSubscription({
