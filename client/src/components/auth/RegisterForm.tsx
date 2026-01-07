@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { registerUserSchema, type RegisterUser } from "@shared/schema";
 import { Eye, EyeOff, Mail, Lock, User, Loader2, ArrowRight } from "lucide-react";
 import { SiGoogle, SiApple } from "react-icons/si";
+import { isNative } from "@/lib/platform";
 
 interface RegisterFormProps {
   onSuccess?: () => void;
@@ -204,7 +205,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             type="button"
             variant="outline"
             className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-            onClick={() => window.location.href = '/api/auth/google'}
+            onClick={() => window.location.href = `/api/auth/google${isNative() ? '?mobile=true' : ''}`}
             data-testid="button-google-register"
           >
             <SiGoogle className="mr-2 h-4 w-4" />
@@ -214,7 +215,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             type="button"
             variant="outline"
             className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-            onClick={() => window.location.href = '/api/auth/apple'}
+            onClick={() => window.location.href = `/api/auth/apple${isNative() ? '?mobile=true' : ''}`}
             data-testid="button-apple-register"
           >
             <SiApple className="mr-2 h-4 w-4" />

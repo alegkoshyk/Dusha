@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { useMobile } from "@/hooks/useMobile";
+import { useDeepLinks } from "@/hooks/useDeepLinks";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/mobile/BottomNav";
 import { BrandSoulSpinner } from "@/components/BrandSoulSpinner";
@@ -44,6 +45,8 @@ import BrandAnalysis from "@/pages/brand-analysis";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
   const isMobile = useMobile();
+  
+  useDeepLinks();
 
   if (isLoading) {
     return (

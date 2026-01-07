@@ -110,7 +110,7 @@ function generateAppleClientSecret(): string {
 }
 
 // OAuth state management with nonce for extra security
-const oauthStates = new Map<string, { provider: string; timestamp: number; nonce?: string }>();
+const oauthStates = new Map<string, { provider: string; timestamp: number; nonce?: string; mobile?: boolean }>();
 
 // Clean up old states every hour
 setInterval(() => {
@@ -124,21 +124,66 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 // Generate secure state with optional nonce
-function generateState(provider: string, includeNonce: boolean = false): { state: string; nonce?: string } {
+function generateState(provider: string, includeNonce: boolean = false, mobile: boolean = false): { state: string; nonce?: string } {
   const state = crypto.randomBytes(32).toString('hex');
   const nonce = includeNonce ? crypto.randomBytes(32).toString('hex') : undefined;
-  oauthStates.set(state, { provider, timestamp: Date.now(), nonce });
+  oauthStates.set(state, { provider, timestamp: Date.now(), nonce, mobile });
   return { state, nonce };
 }
 
 // Verify state and get nonce
-function verifyState(state: string, provider: string): { valid: boolean; nonce?: string } {
+function verifyState(state: string, provider: string): { valid: boolean; nonce?: string; mobile?: boolean } {
   const data = oauthStates.get(state);
   if (!data) return { valid: false };
   if (data.provider !== provider) return { valid: false };
-  const nonce = data.nonce;
+  const { nonce, mobile } = data;
   oauthStates.delete(state);
-  return { valid: true, nonce };
+  return { valid: true, nonce, mobile };
+}
+
+// Generate mobile redirect HTML page
+function getMobileRedirectHtml(authToken: string, baseUrl: string): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Авторизація...</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .container { text-align: center; padding: 40px; background: white; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); max-width: 320px; }
+    h1 { font-size: 24px; margin-bottom: 16px; color: #333; }
+    p { color: #666; margin-bottom: 24px; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #e0e0e0; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn { display: inline-block; padding: 12px 32px; background: #667eea; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h1>Вхід виконано!</h1>
+    <p>Повертаємось до додатку...</p>
+    <a href="${baseUrl}/dashboard?auth_token=${authToken}" class="btn" id="openApp">Відкрити додаток</a>
+  </div>
+  <script>
+    // Try to open the app using Universal Link
+    const appUrl = "${baseUrl}/dashboard?auth_token=${authToken}";
+    
+    // Store token for the app to pick up
+    try {
+      localStorage.setItem('auth_token', '${authToken}');
+    } catch(e) {}
+    
+    // Redirect after short delay
+    setTimeout(function() {
+      window.location.href = appUrl;
+    }, 1500);
+  </script>
+</body>
+</html>
+  `.trim();
 }
 
 // Get base URL dynamically
@@ -160,7 +205,9 @@ export function setupOAuthRoutes(app: Express) {
       return res.status(500).json({ error: "Google OAuth not configured" });
     }
 
-    const { state } = generateState("google");
+    // Check if request is from mobile app (Capacitor)
+    const isMobile = req.query.mobile === 'true' || req.query.mobile === '1';
+    const { state } = generateState("google", false, isMobile);
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/auth/google/callback`;
 
@@ -281,8 +328,14 @@ export function setupOAuthRoutes(app: Express) {
       });
 
       console.log("Google OAuth success - session saved for user:", user.email);
-      // Redirect with token for reliable auth pickup
-      res.redirect(`/dashboard?auth_token=${authToken}`);
+      
+      // Check if this was a mobile OAuth request
+      if (stateResult.mobile) {
+        const baseUrl = getBaseUrl(req);
+        res.send(getMobileRedirectHtml(authToken, baseUrl));
+      } else {
+        res.redirect(`/dashboard?auth_token=${authToken}`);
+      }
     } catch (error) {
       console.error("Google OAuth callback error:", error);
       res.redirect("/?error=oauth_failed");
@@ -318,8 +371,10 @@ export function setupOAuthRoutes(app: Express) {
       return res.redirect("/?error=apple_oauth_not_configured");
     }
 
+    // Check if request is from mobile app (Capacitor)
+    const isMobile = req.query.mobile === 'true' || req.query.mobile === '1';
     // Use nonce for extra security with Apple
-    const { state, nonce } = generateState("apple", true);
+    const { state, nonce } = generateState("apple", true, isMobile);
     const baseUrl = getBaseUrl(req);
     const redirectUri = `${baseUrl}/api/auth/apple/callback`;
 
@@ -520,8 +575,14 @@ export function setupOAuthRoutes(app: Express) {
       console.log("Apple OAuth success - session saved for user:", user.email);
       console.log("Generated auth token length:", authToken.length);
       console.log("Redirecting to dashboard with token...");
-      // Redirect with token for reliable auth pickup
-      res.redirect(`/dashboard?auth_token=${authToken}`);
+      
+      // Check if this was a mobile OAuth request
+      if (stateResult.mobile) {
+        const baseUrl = getBaseUrl(req);
+        res.send(getMobileRedirectHtml(authToken, baseUrl));
+      } else {
+        res.redirect(`/dashboard?auth_token=${authToken}`);
+      }
     } catch (error) {
       console.error("Apple OAuth callback error:", error);
       res.redirect("/?error=oauth_failed");

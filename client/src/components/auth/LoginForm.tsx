@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { loginUserSchema, type LoginUser } from "@shared/schema";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { SiGoogle, SiApple } from "react-icons/si";
+import { isNative } from "@/lib/platform";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -133,7 +134,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
             type="button"
             variant="outline"
             className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-            onClick={() => window.location.href = '/api/auth/google'}
+            onClick={() => window.location.href = `/api/auth/google${isNative() ? '?mobile=true' : ''}`}
             data-testid="button-google-login"
           >
             <SiGoogle className="mr-2 h-4 w-4" />
@@ -143,7 +144,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
             type="button"
             variant="outline"
             className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white"
-            onClick={() => window.location.href = '/api/auth/apple'}
+            onClick={() => window.location.href = `/api/auth/apple${isNative() ? '?mobile=true' : ''}`}
             data-testid="button-apple-login"
           >
             <SiApple className="mr-2 h-4 w-4" />
