@@ -11,13 +11,18 @@ const navItems = [
 export function BottomNav() {
   const [location] = useLocation();
 
+  // Hide bottom nav in AI chat
+  if (location.startsWith('/brand-chat')) {
+    return null;
+  }
+
   return (
     <nav 
       className="fixed bottom-0 left-0 right-0 z-50"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)' }}
     >
       <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-t border-white/20 dark:border-gray-700/30 shadow-lg">
-        <div className="flex justify-around items-center h-16 px-2">
+        <div className="flex justify-around items-center h-16 px-2 pb-1">
           {navItems.map((item) => {
             const isActive = location === item.path || 
               (item.path === '/dashboard' && location === '/') ||
