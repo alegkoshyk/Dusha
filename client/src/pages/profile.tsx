@@ -286,43 +286,43 @@ export default function ProfilePage() {
   const initials = displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-4xl mx-auto py-8 px-4">
+    <div className="min-h-screen bg-background pb-24 md:pb-8">
+      <div className="container max-w-4xl mx-auto py-4 md:py-8 px-3 md:px-4">
         <Button 
           variant="ghost" 
           onClick={() => navigate("/")}
-          className="mb-6"
+          className="mb-4 md:mb-6 h-9 px-3"
           data-testid="button-back"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Назад
         </Button>
 
-        <div className="grid gap-6">
+        <div className="grid gap-4 md:gap-6">
           {/* Header Card */}
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="pt-6">
-              <div className="flex flex-col md:flex-row items-center gap-6">
+            <CardContent className="pt-4 md:pt-6 px-3 md:px-6">
+              <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
                 {/* Avatar */}
                 <div className="relative">
-                  <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
+                  <Avatar className="h-16 w-16 md:h-24 md:w-24 border-4 border-background shadow-lg">
                     <AvatarImage src={avatarPreview || profile?.avatarUrl || undefined} />
-                    <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                    <AvatarFallback className="text-xl md:text-2xl bg-primary text-primary-foreground">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                   <Button
                     size="icon"
                     variant="secondary"
-                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
+                    className="absolute bottom-0 right-0 h-7 w-7 md:h-8 md:w-8 rounded-full"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploadAvatarMutation.isPending}
                     data-testid="button-change-avatar"
                   >
                     {uploadAvatarMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin" />
                     ) : (
-                      <Camera className="h-4 w-4" />
+                      <Camera className="h-3 w-3 md:h-4 md:w-4" />
                     )}
                   </Button>
                   <input
@@ -335,25 +335,25 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 text-center md:text-left">
-                  <h1 className="text-2xl font-bold" data-testid="text-display-name">{displayName}</h1>
-                  <p className="text-muted-foreground">{user?.email}</p>
+                <div className="flex-1 text-center md:text-left min-w-0">
+                  <h1 className="text-lg md:text-2xl font-bold truncate" data-testid="text-display-name">{displayName}</h1>
+                  <p className="text-sm md:text-base text-muted-foreground truncate">{user?.email}</p>
                   {profile?.position && profile?.company && (
-                    <p className="text-sm mt-1">
+                    <p className="text-xs md:text-sm mt-1 truncate">
                       {profile.position} @ {profile.company}
                     </p>
                   )}
                 </div>
 
                 {/* Level Badge */}
-                <div className="text-center">
-                  <div className="inline-flex items-center gap-2 bg-primary/20 rounded-full px-4 py-2">
-                    <Trophy className="h-5 w-5 text-primary" />
-                    <span className="font-bold text-lg">Рівень {levelInfo.level}</span>
+                <div className="text-center flex-shrink-0">
+                  <div className="inline-flex items-center gap-1.5 md:gap-2 bg-primary/20 rounded-full px-3 md:px-4 py-1.5 md:py-2">
+                    <Trophy className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+                    <span className="font-bold text-sm md:text-lg">Рівень {levelInfo.level}</span>
                   </div>
-                  <div className="mt-2 w-32">
-                    <Progress value={(levelInfo.currentLevelXp / levelInfo.xpToNextLevel) * 100} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">
+                  <div className="mt-1.5 md:mt-2 w-24 md:w-32 mx-auto">
+                    <Progress value={(levelInfo.currentLevelXp / levelInfo.xpToNextLevel) * 100} className="h-1.5 md:h-2" />
+                    <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
                       {levelInfo.currentLevelXp}/{levelInfo.xpToNextLevel} XP
                     </p>
                   </div>
@@ -363,26 +363,26 @@ export default function ProfilePage() {
           </Card>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 md:gap-4">
             <Card>
-              <CardContent className="pt-6 text-center">
-                <Zap className="h-8 w-8 mx-auto text-yellow-500 mb-2" />
-                <p className="text-3xl font-bold">{stats?.totalXp || profile?.totalXp || 0}</p>
-                <p className="text-sm text-muted-foreground">Всього XP</p>
+              <CardContent className="pt-3 md:pt-6 px-2 md:px-6 text-center">
+                <Zap className="h-5 w-5 md:h-8 md:w-8 mx-auto text-yellow-500 mb-1 md:mb-2" />
+                <p className="text-xl md:text-3xl font-bold">{stats?.totalXp || profile?.totalXp || 0}</p>
+                <p className="text-[10px] md:text-sm text-muted-foreground">XP</p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6 text-center">
-                <Target className="h-8 w-8 mx-auto text-blue-500 mb-2" />
-                <p className="text-3xl font-bold">{stats?.totalGames || 0}</p>
-                <p className="text-sm text-muted-foreground">Ігор розпочато</p>
+              <CardContent className="pt-3 md:pt-6 px-2 md:px-6 text-center">
+                <Target className="h-5 w-5 md:h-8 md:w-8 mx-auto text-blue-500 mb-1 md:mb-2" />
+                <p className="text-xl md:text-3xl font-bold">{stats?.totalGames || 0}</p>
+                <p className="text-[10px] md:text-sm text-muted-foreground">Ігор</p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6 text-center">
-                <Award className="h-8 w-8 mx-auto text-green-500 mb-2" />
-                <p className="text-3xl font-bold">{stats?.completedGames || 0}</p>
-                <p className="text-sm text-muted-foreground">Ігор завершено</p>
+              <CardContent className="pt-3 md:pt-6 px-2 md:px-6 text-center">
+                <Award className="h-5 w-5 md:h-8 md:w-8 mx-auto text-green-500 mb-1 md:mb-2" />
+                <p className="text-xl md:text-3xl font-bold">{stats?.completedGames || 0}</p>
+                <p className="text-[10px] md:text-sm text-muted-foreground">Завершено</p>
               </CardContent>
             </Card>
           </div>

@@ -273,70 +273,74 @@ export default function Users() {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <div className="min-h-screen pb-24 md:pb-8">
+      <div className="container mx-auto py-4 md:py-8 px-3 md:px-4 space-y-4 md:space-y-8 max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Користувачі</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">Управління користувачами та їх правами доступу</p>
+          <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white">Користувачі</h1>
+          <p className="text-sm md:text-base text-gray-500 dark:text-gray-400 mt-1 md:mt-2">Управління користувачами</p>
         </div>
-        <div className="flex items-center gap-4">
-          <Button className="flex items-center gap-2" data-testid="button-create-new-user">
+        <div className="flex items-center gap-2 md:gap-4 w-full sm:w-auto">
+          <Button className="flex items-center gap-1.5 md:gap-2 text-sm h-9 flex-1 sm:flex-initial" data-testid="button-create-new-user">
             <Plus className="h-4 w-4" />
-            Додати Користувача
+            <span className="hidden sm:inline">Додати Користувача</span>
+            <span className="sm:hidden">Додати</span>
           </Button>
           <Link href="/rcadmin">
-            <Button variant="outline" className="flex items-center gap-2" data-testid="button-back-admin">
+            <Button variant="outline" className="flex items-center gap-1.5 md:gap-2 text-sm h-9" data-testid="button-back-admin">
               <ArrowLeft className="h-4 w-4" />
-              Назад
+              <span className="hidden sm:inline">Назад</span>
             </Button>
           </Link>
         </div>
       </div>
 
       {/* Users List */}
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         {users?.map((user) => (
           <Card key={user.id} className="dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center justify-center w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+            <CardHeader className="p-3 md:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                  <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex-shrink-0">
                     {getRoleIcon(user.role)}
                   </div>
-                  <div>
-                    <CardTitle className="text-lg dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="text-base md:text-lg dark:text-white truncate">
                       {user.firstName} {user.lastName}
                     </CardTitle>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{user.email}</p>
-                    <div className="flex items-center gap-2 mt-2">
+                    <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 truncate">{user.email}</p>
+                    <div className="flex flex-wrap items-center gap-1 md:gap-2 mt-1.5 md:mt-2">
                       {getRoleBadge(user.role)}
                       {getStatusBadge(user.isActive)}
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
                   <Button 
                     size="sm" 
                     variant="outline"
                     onClick={() => handleOpenSubscription(user)}
+                    className="h-8 px-2 md:px-3"
                     data-testid={`button-subscription-${user.id}`}
                   >
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Підписка
+                    <CreditCard className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Підписка</span>
                   </Button>
                   <Button 
                     size="sm" 
                     variant="outline"
+                    className="h-8 px-2 md:px-3"
                     onClick={() => {
                       setEditingUser(user);
                       setIsDialogOpen(true);
                     }}
                     data-testid={`button-edit-${user.id}`}
                   >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Редагувати
+                    <Edit className="h-4 w-4 md:mr-2" />
+                    <span className="hidden md:inline">Редагувати</span>
                   </Button>
                   
                   <AlertDialog>
@@ -344,11 +348,11 @@ export default function Users() {
                       <Button 
                         size="sm" 
                         variant="outline" 
-                        className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 dark:border-red-800 dark:hover:border-red-700"
+                        className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 dark:border-red-800 dark:hover:border-red-700 h-8 px-2 md:px-3"
                         data-testid={`button-delete-${user.id}`}
                       >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Видалити
+                        <Trash2 className="h-4 w-4 md:mr-2" />
+                        <span className="hidden md:inline">Видалити</span>
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent className="dark:bg-gray-800 dark:border-gray-700">
@@ -787,6 +791,7 @@ export default function Users() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
