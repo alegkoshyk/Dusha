@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { User, Home, LayoutDashboard, CreditCard, Settings, Users, Eye, ChevronDown, List, Package, Map, Cog, Image, Search } from 'lucide-react';
+import { User, LayoutDashboard, CreditCard, Settings, Users, Eye, ChevronDown, List, Package, Map, Cog, Image, Search } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import UserDropdown from './UserDropdown';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,17 +32,6 @@ export function Header() {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-4">
-            <Link 
-              href="/" 
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                location === '/' 
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' 
-                  : 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400'
-              }`}
-            >
-              <Home className="w-4 h-4 inline mr-2" />
-              Головна
-            </Link>
             <Link 
               href="/dashboard" 
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
