@@ -1,4 +1,4 @@
-import { useState, createElement, useEffect } from 'react';
+import { useState, createElement, useEffect, useLayoutEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,11 @@ export default function Dashboard() {
     queryKey: ['/api/user/profile'],
     enabled: !!user,
   });
+
+  // Scroll to top on mount
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Показати онбординг якщо не завершено і не пропущено
   useEffect(() => {
@@ -204,68 +209,69 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 pb-24 md:pb-8">
+      <div className="container mx-auto px-3 md:px-4 py-4 md:py-8">
+        {/* Header - compact on mobile */}
+        <div className="mb-4 md:mb-8">
+          <div className="flex items-center justify-between mb-3 md:mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white">
                 Дашборд
               </h1>
-              <p className="text-gray-600 dark:text-gray-300 mt-1">
+              <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 mt-0.5 md:mt-1 hidden md:block">
                 Керуйте своїми брендами та грами
               </p>
             </div>
             <Button 
               onClick={() => setCreateBrandOpen(true)}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5 md:gap-2 text-sm md:text-base px-3 md:px-4 h-9 md:h-10"
               data-testid="button-create-brand"
             >
               <Plus className="w-4 h-4" />
-              Новий бренд
+              <span className="hidden sm:inline">Новий бренд</span>
+              <span className="sm:hidden">Новий</span>
             </Button>
           </div>
 
-          {/* Statistics */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {/* Statistics - compact on mobile */}
+          <div className="grid grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-8">
             <Card>
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center w-12 h-12 bg-purple-100 text-purple-600 rounded-full mx-auto mb-2">
-                  <Users className="w-6 h-6" />
+              <CardContent className="p-2 md:p-4 text-center">
+                <div className="flex items-center justify-center w-8 h-8 md:w-12 md:h-12 bg-purple-100 text-purple-600 rounded-full mx-auto mb-1 md:mb-2">
+                  <Users className="w-4 h-4 md:w-6 md:h-6" />
                 </div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalBrands}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Брендів</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{totalBrands}</p>
+                <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400">Брендів</p>
               </CardContent>
             </Card>
             
             <Card>
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center w-12 h-12 bg-green-100 text-green-600 rounded-full mx-auto mb-2">
-                  <Trophy className="w-6 h-6" />
+              <CardContent className="p-2 md:p-4 text-center">
+                <div className="flex items-center justify-center w-8 h-8 md:w-12 md:h-12 bg-green-100 text-green-600 rounded-full mx-auto mb-1 md:mb-2">
+                  <Trophy className="w-4 h-4 md:w-6 md:h-6" />
                 </div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{completedGames}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Завершено</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{completedGames}</p>
+                <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400">Завершено</p>
               </CardContent>
             </Card>
             
             <Card>
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center w-12 h-12 bg-blue-100 text-blue-600 rounded-full mx-auto mb-2">
-                  <TrendingUp className="w-6 h-6" />
+              <CardContent className="p-2 md:p-4 text-center">
+                <div className="flex items-center justify-center w-8 h-8 md:w-12 md:h-12 bg-blue-100 text-blue-600 rounded-full mx-auto mb-1 md:mb-2">
+                  <TrendingUp className="w-4 h-4 md:w-6 md:h-6" />
                 </div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{activeGames}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Активних</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{activeGames}</p>
+                <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400">Активних</p>
               </CardContent>
             </Card>
             
             <Card>
-              <CardContent className="p-4 text-center">
-                <div className="flex items-center justify-center w-12 h-12 bg-yellow-100 text-yellow-600 rounded-full mx-auto mb-2">
-                  <Zap className="w-6 h-6" />
+              <CardContent className="p-2 md:p-4 text-center">
+                <div className="flex items-center justify-center w-8 h-8 md:w-12 md:h-12 bg-yellow-100 text-yellow-600 rounded-full mx-auto mb-1 md:mb-2">
+                  <Zap className="w-4 h-4 md:w-6 md:h-6" />
                 </div>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalXP}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Всього XP</p>
+                <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{totalXP}</p>
+                <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400">XP</p>
               </CardContent>
             </Card>
           </div>

@@ -18,11 +18,16 @@ export function BottomNav() {
 
   return (
     <nav 
-      className="fixed bottom-0 left-0 right-0 z-50"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)' }}
+      className="fixed bottom-0 left-0 right-0 z-[100]"
+      style={{ 
+        paddingBottom: 'max(env(safe-area-inset-bottom), 12px)',
+        position: 'fixed',
+        transform: 'translateZ(0)',
+        WebkitTransform: 'translateZ(0)'
+      }}
     >
-      <div className="bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border-t border-white/20 dark:border-gray-700/30 shadow-lg">
-        <div className="flex justify-around items-center h-16 px-2 pb-1">
+      <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl border-t border-gray-200/50 dark:border-gray-700/50 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]">
+        <div className="flex justify-around items-center h-14 px-2">
           {navItems.map((item) => {
             const isActive = location === item.path || 
               (item.path === '/dashboard' && location === '/') ||
