@@ -221,11 +221,13 @@ export async function generateImageWithNanoBanana(
     
     // If logo provided, use Image-to-Image mode instead of Text-to-Image
     if (logoUrl) {
-      requestBody.type = 'IMAGETOIAMGE'; // Image editing mode (note: API typo is intentional)
-      requestBody.imageUrls = [logoUrl]; // Pass logo as input image (camelCase!)
+      requestBody.type = 'IMAGETOIMAGE'; // Image editing mode
+      requestBody.imageUrls = [logoUrl]; // Pass logo as input image
+      // Remove image_size for image-to-image mode as it may cause issues
+      delete requestBody.image_size;
       console.log('NanoBanana: Using Image-to-Image mode with logo:', logoUrl);
     } else {
-      requestBody.type = 'TEXTTOIAMGE'; // Text-to-Image mode (note: API uses this spelling)
+      requestBody.type = 'TEXTTOIMAGE'; // Text-to-Image mode
     }
     
     console.log('NanoBanana: Request body:', JSON.stringify(requestBody));
