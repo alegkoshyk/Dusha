@@ -422,9 +422,9 @@ export function GameCard({
                 return (
                   <div
                     key={cardId || index}
-                    className={`flex-1 h-2.5 rounded-full transition-colors duration-200 ${
+                    className={`flex-1 h-2.5 rounded-full transition-all duration-300 ${
                       isCurrent
-                        ? `bg-gradient-to-r ${levelColors.bg} shadow-md ring-2 ring-offset-1 ring-primary/50 dark:ring-offset-gray-900`
+                        ? `bg-gradient-to-r ${levelColors.bg} shadow-sm animate-pulse`
                         : isSkipped
                         ? 'bg-yellow-400 shadow-sm'
                         : isCompleted
