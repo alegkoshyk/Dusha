@@ -262,31 +262,31 @@ export default function BrandEditPage() {
           </TabsList>
 
           <TabsContent value="basic" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Building2 className="h-5 w-5 text-primary" />
                   Основна інформація
                 </CardTitle>
                 <CardDescription>Базові дані про ваш бренд</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col sm:flex-row gap-6">
-                  <div className="space-y-2">
-                    <Label>Логотип</Label>
+              <CardContent className="space-y-6">
+                <div className="flex flex-col sm:flex-row gap-6 items-start">
+                  <div className="space-y-2 flex-shrink-0">
+                    <Label className="text-sm font-medium">Логотип</Label>
                     <div className="flex items-center gap-4">
                       {logoPreview ? (
-                        <div className="relative">
+                        <div className="relative group">
                           <img 
                             src={logoPreview} 
                             alt="Logo" 
-                            className="w-24 h-24 object-contain rounded-xl border bg-white"
+                            className="w-20 h-20 object-contain rounded-lg border-2 border-border bg-white dark:bg-gray-800 p-2"
                             data-testid="img-brand-logo"
                           />
                           <button
                             type="button"
                             onClick={removeLogo}
-                            className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 hover:bg-destructive/90"
+                            className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 hover:bg-destructive/90 shadow-sm"
                             data-testid="button-remove-logo"
                           >
                             <X className="w-3 h-3" />
@@ -296,11 +296,11 @@ export default function BrandEditPage() {
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
-                          className="w-24 h-24 border-2 border-dashed rounded-xl flex flex-col items-center justify-center hover:border-primary/50 transition-colors"
+                          className="w-20 h-20 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center hover:border-primary/50 hover:bg-muted/50 transition-all"
                           data-testid="button-upload-logo"
                         >
-                          <ImagePlus className="w-6 h-6 text-muted-foreground mb-1" />
-                          <span className="text-xs text-muted-foreground">Завантажити</span>
+                          <ImagePlus className="w-5 h-5 text-muted-foreground mb-1" />
+                          <span className="text-xs text-muted-foreground">Додати</span>
                         </button>
                       )}
                     </div>
@@ -313,78 +313,96 @@ export default function BrandEditPage() {
                     />
                   </div>
 
-                  <div className="flex-1 space-y-4">
+                  <div className="flex-1 space-y-4 w-full">
                     <div className="space-y-2">
-                      <Label htmlFor="name">Назва бренду *</Label>
+                      <Label htmlFor="name" className="text-sm font-medium">Назва бренду *</Label>
                       <Input
                         id="name"
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         placeholder="Назва вашого бренду"
+                        className="h-10"
                         data-testid="input-brand-name"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="tagline">Слоган</Label>
+                      <Label htmlFor="tagline" className="text-sm font-medium">Слоган</Label>
                       <Input
                         id="tagline"
                         value={formData.tagline}
                         onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
                         placeholder="Короткий запам'ятовується слоган"
+                        className="h-10"
                         data-testid="input-brand-tagline"
                       />
                     </div>
                   </div>
                 </div>
 
+                <Separator className="my-2" />
+
                 <div className="space-y-2">
-                  <Label htmlFor="description">Опис бренду</Label>
+                  <Label htmlFor="description" className="text-sm font-medium">Опис бренду</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Детальний опис вашого бренду"
-                    rows={3}
+                    placeholder="Детальний опис вашого бренду, його місії та цільової аудиторії..."
+                    rows={4}
+                    className="resize-none"
                     data-testid="textarea-brand-description"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Heart className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Heart className="h-5 w-5 text-rose-500" />
                   Цінності бренду
                 </CardTitle>
                 <CardDescription>Ключові цінності, які визначають ваш бренд</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {values.map((value, index) => (
-                    <Badge key={index} variant="secondary" className="text-sm py-1 px-3">
-                      {value}
-                      <button
-                        type="button"
-                        onClick={() => removeValue(index)}
-                        className="ml-2 hover:text-destructive"
-                        data-testid={`button-remove-value-${index}`}
+                {values.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-lg">
+                    {values.map((value, index) => (
+                      <Badge 
+                        key={index} 
+                        variant="secondary" 
+                        className="text-sm py-1.5 px-3 bg-background border border-border hover:bg-muted transition-colors"
                       >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
+                        {value}
+                        <button
+                          type="button"
+                          onClick={() => removeValue(index)}
+                          className="ml-2 hover:text-destructive transition-colors"
+                          data-testid={`button-remove-value-${index}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Input
                     value={newValue}
                     onChange={(e) => setNewValue(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addValue())}
                     placeholder="Додати цінність..."
+                    className="h-10"
                     data-testid="input-new-value"
                   />
-                  <Button type="button" variant="outline" onClick={addValue} data-testid="button-add-value">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={addValue}
+                    className="h-10 px-4"
+                    data-testid="button-add-value"
+                  >
                     Додати
                   </Button>
                 </div>
@@ -393,10 +411,10 @@ export default function BrandEditPage() {
           </TabsContent>
 
           <TabsContent value="identity" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Palette className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Palette className="h-5 w-5 text-violet-500" />
                   Кольорова палітра
                 </CardTitle>
                 <CardDescription>Визначте кольори вашого бренду</CardDescription>
@@ -410,10 +428,10 @@ export default function BrandEditPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Type className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Type className="h-5 w-5 text-blue-500" />
                   Типографіка
                 </CardTitle>
                 <CardDescription>Шрифти для різних елементів бренду</CardDescription>
@@ -421,29 +439,32 @@ export default function BrandEditPage() {
               <CardContent className="space-y-4">
                 <div className="grid sm:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Заголовки</Label>
+                    <Label className="text-sm font-medium">Заголовки</Label>
                     <Input
                       value={typography.headingFont || ""}
                       onChange={(e) => setTypography({ ...typography, headingFont: e.target.value })}
                       placeholder="Наприклад: Montserrat"
+                      className="h-10"
                       data-testid="input-heading-font"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Основний текст</Label>
+                    <Label className="text-sm font-medium">Основний текст</Label>
                     <Input
                       value={typography.bodyFont || ""}
                       onChange={(e) => setTypography({ ...typography, bodyFont: e.target.value })}
                       placeholder="Наприклад: Inter"
+                      className="h-10"
                       data-testid="input-body-font"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Акцентний</Label>
+                    <Label className="text-sm font-medium">Акцентний</Label>
                     <Input
                       value={typography.accentFont || ""}
                       onChange={(e) => setTypography({ ...typography, accentFont: e.target.value })}
                       placeholder="Наприклад: Playfair Display"
+                      className="h-10"
                       data-testid="input-accent-font"
                     />
                   </div>
@@ -453,119 +474,136 @@ export default function BrandEditPage() {
           </TabsContent>
 
           <TabsContent value="strategy" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Eye className="h-5 w-5 text-emerald-500" />
                   Місія та Візія
                 </CardTitle>
                 <CardDescription>Фундаментальні цілі вашого бренду</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="mission">Місія</Label>
+                  <Label htmlFor="mission" className="text-sm font-medium">Місія</Label>
                   <Textarea
                     id="mission"
                     value={formData.mission}
                     onChange={(e) => setFormData({ ...formData, mission: e.target.value })}
                     placeholder="Чому існує ваш бренд? Яку проблему ви вирішуєте?"
                     rows={3}
+                    className="resize-none"
                     data-testid="textarea-brand-mission"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="vision">Візія</Label>
+                  <Label htmlFor="vision" className="text-sm font-medium">Візія</Label>
                   <Textarea
                     id="vision"
                     value={formData.vision}
                     onChange={(e) => setFormData({ ...formData, vision: e.target.value })}
                     placeholder="Яким ви бачите майбутнє вашого бренду?"
                     rows={3}
+                    className="resize-none"
                     data-testid="textarea-brand-vision"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Users className="h-5 w-5 text-amber-500" />
                   Цільова аудиторія
                 </CardTitle>
                 <CardDescription>Для кого створено ваш бренд</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="targetAudience">Опис цільової аудиторії</Label>
+                  <Label htmlFor="targetAudience" className="text-sm font-medium">Опис цільової аудиторії</Label>
                   <Textarea
                     id="targetAudience"
                     value={formData.targetAudience}
                     onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
                     placeholder="Хто ваші ідеальні клієнти? Їх вік, інтереси, потреби..."
                     rows={3}
+                    className="resize-none"
                     data-testid="textarea-target-audience"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Zap className="h-5 w-5 text-yellow-500" />
                   Унікальна ціннісна пропозиція
                 </CardTitle>
                 <CardDescription>Що робить вас особливими</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="uniqueValue">УЦП</Label>
+                  <Label htmlFor="uniqueValue" className="text-sm font-medium">УЦП</Label>
                   <Textarea
                     id="uniqueValue"
                     value={formData.uniqueValue}
                     onChange={(e) => setFormData({ ...formData, uniqueValue: e.target.value })}
                     placeholder="Чим ваш бренд відрізняється від конкурентів? Яку унікальну цінність ви пропонуєте?"
                     rows={3}
+                    className="resize-none"
                     data-testid="textarea-unique-value"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Target className="h-5 w-5 text-red-500" />
                   Конкуренти
                 </CardTitle>
                 <CardDescription>Основні конкуренти на ринку</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {competitors.map((competitor, index) => (
-                    <Badge key={index} variant="outline" className="text-sm py-1 px-3">
-                      {competitor}
-                      <button
-                        type="button"
-                        onClick={() => removeCompetitor(index)}
-                        className="ml-2 hover:text-destructive"
-                        data-testid={`button-remove-competitor-${index}`}
+                {competitors.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-lg">
+                    {competitors.map((competitor, index) => (
+                      <Badge 
+                        key={index} 
+                        variant="outline" 
+                        className="text-sm py-1.5 px-3 bg-background border-border hover:bg-muted transition-colors"
                       >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
+                        {competitor}
+                        <button
+                          type="button"
+                          onClick={() => removeCompetitor(index)}
+                          className="ml-2 hover:text-destructive transition-colors"
+                          data-testid={`button-remove-competitor-${index}`}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Input
                     value={newCompetitor}
                     onChange={(e) => setNewCompetitor(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCompetitor())}
                     placeholder="Додати конкурента..."
+                    className="h-10"
                     data-testid="input-new-competitor"
                   />
-                  <Button type="button" variant="outline" onClick={addCompetitor} data-testid="button-add-competitor">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={addCompetitor}
+                    className="h-10 px-4"
+                    data-testid="button-add-competitor"
+                  >
                     Додати
                   </Button>
                 </div>
@@ -574,34 +612,40 @@ export default function BrandEditPage() {
           </TabsContent>
 
           <TabsContent value="voice" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Megaphone className="h-5 w-5" />
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Megaphone className="h-5 w-5 text-orange-500" />
                   Голос та тон бренду
                 </CardTitle>
                 <CardDescription>Як ваш бренд спілкується з аудиторією</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Характеристики особистості</Label>
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {(voiceTone.personality || []).map((trait, index) => (
-                      <Badge key={index} variant="secondary" className="text-sm py-1 px-3">
-                        {trait}
-                        <button
-                          type="button"
-                          onClick={() => setVoiceTone({
-                            ...voiceTone,
-                            personality: (voiceTone.personality || []).filter((_, i) => i !== index)
-                          })}
-                          className="ml-2 hover:text-destructive"
+              <CardContent className="space-y-5">
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Характеристики особистості</Label>
+                  {(voiceTone.personality || []).length > 0 && (
+                    <div className="flex flex-wrap gap-2 p-3 bg-muted/30 rounded-lg">
+                      {(voiceTone.personality || []).map((trait, index) => (
+                        <Badge 
+                          key={index} 
+                          variant="secondary" 
+                          className="text-sm py-1.5 px-3 bg-primary/10 border border-primary/20 text-primary"
                         >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
+                          {trait}
+                          <button
+                            type="button"
+                            onClick={() => setVoiceTone({
+                              ...voiceTone,
+                              personality: (voiceTone.personality || []).filter((_, i) => i !== index)
+                            })}
+                            className="ml-2 hover:text-destructive transition-colors"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     {['Дружній', 'Професійний', 'Інноваційний', 'Надійний', 'Енергійний', 'Спокійний', 'Експертний', 'Грайливий'].map((trait) => (
                       <Button
@@ -609,6 +653,7 @@ export default function BrandEditPage() {
                         type="button"
                         variant={(voiceTone.personality || []).includes(trait) ? "default" : "outline"}
                         size="sm"
+                        className="h-8"
                         onClick={() => {
                           const current = voiceTone.personality || [];
                           if (current.includes(trait)) {
@@ -627,24 +672,26 @@ export default function BrandEditPage() {
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label htmlFor="tone">Тон комунікації</Label>
+                  <Label htmlFor="tone" className="text-sm font-medium">Тон комунікації</Label>
                   <Input
                     id="tone"
                     value={voiceTone.tone || ""}
                     onChange={(e) => setVoiceTone({ ...voiceTone, tone: e.target.value })}
                     placeholder="Наприклад: Теплий та підтримуючий"
+                    className="h-10"
                     data-testid="input-voice-tone"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="style">Стиль написання</Label>
+                  <Label htmlFor="style" className="text-sm font-medium">Стиль написання</Label>
                   <Textarea
                     id="style"
                     value={voiceTone.style || ""}
                     onChange={(e) => setVoiceTone({ ...voiceTone, style: e.target.value })}
                     placeholder="Опишіть як має виглядати текст бренду: формальність, довжина речень, використання емодзі тощо"
                     rows={3}
+                    className="resize-none"
                     data-testid="textarea-voice-style"
                   />
                 </div>
