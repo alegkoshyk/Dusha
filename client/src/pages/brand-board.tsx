@@ -433,12 +433,6 @@ export default function BrandBoard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <Card className="border-purple-200 dark:border-purple-800">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20">
-              <CardTitle className="flex items-center gap-2 text-purple-800 dark:text-purple-200">
-                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold">S</div>
-                Душа Бренду
-              </CardTitle>
-            </CardHeader>
             <CardContent className="space-y-6 p-6">
               {brandMap?.soul?.values?.length > 0 && (
                 <div>
@@ -460,12 +454,6 @@ export default function BrandBoard() {
           </Card>
 
           <Card className="border-blue-200 dark:border-blue-800">
-            <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20">
-              <CardTitle className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">M</div>
-                Розум Бренду
-              </CardTitle>
-            </CardHeader>
             <CardContent className="space-y-6 p-6">
               {brandMap?.mind?.positioning && (
                 <div><h4 className="font-semibold text-gray-900 dark:text-white mb-2">Позиціонування</h4><p className="text-gray-600 dark:text-gray-400">{brandMap.mind.positioning}</p></div>
@@ -480,12 +468,6 @@ export default function BrandBoard() {
           </Card>
 
           <Card className="border-green-200 dark:border-green-800">
-            <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
-              <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-200">
-                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold">B</div>
-                Тіло Бренду
-              </CardTitle>
-            </CardHeader>
             <CardContent className="space-y-6 p-6">
               {brandMap?.body?.channels?.length > 0 && (
                 <div>
