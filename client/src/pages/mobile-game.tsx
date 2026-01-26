@@ -552,6 +552,7 @@ export default function MobileGame() {
       onCardSelect={handleCardSelect}
       onLevelChange={handleLevelChange}
       sessionResponses={sessionResponses}
+      apiCards={apiCards || []}
     />
   );
 }

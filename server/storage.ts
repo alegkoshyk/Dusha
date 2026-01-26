@@ -1093,9 +1093,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateGameCard(cardId: string, cardData: Partial<GameCard>): Promise<GameCard> {
+    // Filter out date fields, joined fields, and only include allowed update fields
+    const { createdAt, updatedAt, id, level, properties, ...updateFields } = cardData as any;
+    
     const [updatedCard] = await db
       .update(gameCardsTable)
-      .set({ ...cardData, updatedAt: new Date() })
+      .set({ ...updateFields, updatedAt: new Date() })
       .where(eq(gameCardsTable.id, cardId))
       .returning();
 

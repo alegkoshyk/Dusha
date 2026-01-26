@@ -20,7 +20,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import type { GameCard, GameLevel, PlayerProgress } from '@shared/schema';
-import { brandGameField, mobileGameCards, getUnlockedCards, calculateTotalXP, getEarnedBadges } from '@/lib/mobileGameData';
+import { brandGameField, getUnlockedCards, calculateTotalXP, getEarnedBadges } from '@/lib/mobileGameData';
 import { LevelProgress } from '@/components/progress/LevelProgress';
 import UserDropdown from '@/components/UserDropdown';
 
@@ -29,6 +29,7 @@ interface GameFieldProps {
   onCardSelect: (cardId: string) => void;
   onLevelChange: (level: GameLevel) => void;
   sessionResponses?: Record<string, any>;
+  apiCards?: any[];
 }
 
 const levelIcons = {
@@ -50,7 +51,7 @@ const SKIP_REASON_LABELS: Record<string, string> = {
   'quick_pass': 'Хотів швидко пройти'
 };
 
-export function GameField({ playerProgress, onCardSelect, onLevelChange, sessionResponses = {} }: GameFieldProps) {
+export function GameField({ playerProgress, onCardSelect, onLevelChange, sessionResponses = {}, apiCards = [] }: GameFieldProps) {
   const [selectedLevel, setSelectedLevel] = useState<GameLevel>(playerProgress.currentLevel || 'soul');
   const [unlockedCards, setUnlockedCards] = useState<string[]>([]);
   
@@ -60,8 +61,10 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange, session
   }, [playerProgress.completedCards, playerProgress.responses]);
 
   const currentLevelData = brandGameField.levels.find(l => l.id === selectedLevel);
-  const currentLevelCards = mobileGameCards.filter(card => 
-    card.level === selectedLevel && unlockedCards.includes(card.id)
+  // Use apiCards from database instead of static mobileGameCards
+  const allCards = apiCards.length > 0 ? apiCards : [];
+  const currentLevelCards = allCards.filter((card: any) => 
+    card.levelId === selectedLevel && unlockedCards.includes(card.id)
   );
 
   const totalXP = calculateTotalXP(playerProgress.completedCards);
@@ -83,8 +86,9 @@ export function GameField({ playerProgress, onCardSelect, onLevelChange, session
   };
 
   const getLevelProgress = (level: GameLevel) => {
-    const levelCards = mobileGameCards.filter(card => card.level === level);
-    const completed = levelCards.filter(card => isCardCompleted(card.id)).length;
+    const levelCards = allCards.filter((card: any) => card.levelId === level);
+    if (levelCards.length === 0) return 0;
+    const completed = levelCards.filter((card: any) => isCardCompleted(card.id)).length;
     return Math.round((completed / levelCards.length) * 100);
   };
 
