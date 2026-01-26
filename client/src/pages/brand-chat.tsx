@@ -176,8 +176,9 @@ interface LocalImageMessage {
 function formatMarkdown(text: string): JSX.Element {
   const lines = text.split('\n');
   const elements: JSX.Element[] = [];
-  let listItems: string[] = [];
+  let listItems: { content: string; number?: number }[] = [];
   let listType: 'ul' | 'ol' | null = null;
+  let globalOrderedCounter = 0; // Track ordered list numbers globally
 
   const processInlineMarkdown = (line: string): JSX.Element[] => {
     const parts: JSX.Element[] = [];
@@ -203,14 +204,27 @@ function formatMarkdown(text: string): JSX.Element {
 
   const flushList = () => {
     if (listItems.length > 0 && listType) {
-      const ListTag = listType;
-      elements.push(
-        <ListTag key={elements.length} className={`${listType === 'ol' ? 'list-decimal' : 'list-disc'} ml-4 space-y-1 my-2`}>
-          {listItems.map((item, i) => (
-            <li key={i} className="text-sm">{processInlineMarkdown(item)}</li>
-          ))}
-        </ListTag>
-      );
+      if (listType === 'ol') {
+        // For ordered lists, use manual numbering to maintain global sequence
+        elements.push(
+          <div key={elements.length} className="ml-4 space-y-1 my-2">
+            {listItems.map((item, i) => (
+              <div key={i} className="text-sm flex">
+                <span className="mr-2 text-gray-600 dark:text-gray-400 min-w-[1.5rem]">{item.number}.</span>
+                <span>{processInlineMarkdown(item.content)}</span>
+              </div>
+            ))}
+          </div>
+        );
+      } else {
+        elements.push(
+          <ul key={elements.length} className="list-disc ml-4 space-y-1 my-2">
+            {listItems.map((item, i) => (
+              <li key={i} className="text-sm">{processInlineMarkdown(item.content)}</li>
+            ))}
+          </ul>
+        );
+      }
       listItems = [];
       listType = null;
     }
@@ -237,14 +251,15 @@ function formatMarkdown(text: string): JSX.Element {
         flushList();
         listType = 'ul';
       }
-      listItems.push(trimmedLine.replace(/^[-•]\s/, ''));
+      listItems.push({ content: trimmedLine.replace(/^[-•]\s/, '') });
     }
     else if (trimmedLine.match(/^\d+\.\s/)) {
       if (listType !== 'ol') {
         flushList();
         listType = 'ol';
       }
-      listItems.push(trimmedLine.replace(/^\d+\.\s/, ''));
+      globalOrderedCounter++;
+      listItems.push({ content: trimmedLine.replace(/^\d+\.\s/, ''), number: globalOrderedCounter });
     }
     else if (trimmedLine === '') {
       flushList();
