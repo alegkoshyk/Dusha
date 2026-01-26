@@ -213,7 +213,7 @@ export default function BrandEditPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-4xl py-6 px-4">
+      <div className="container max-w-4xl mx-auto py-6 px-4">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Link href="/dashboard">
