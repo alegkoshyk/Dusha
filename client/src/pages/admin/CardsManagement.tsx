@@ -39,7 +39,7 @@ interface GameCard {
   description: string;
   shortDescription: string;
   hint?: string;
-  type: "text" | "choice" | "values" | "reflection" | "completion" | "archetype";
+  type: "text" | "choice" | "values" | "reflection" | "completion" | "archetype" | "info" | "complete";
   difficulty: "easy" | "medium" | "hard";
   estimatedTime: number;
   required: boolean;
@@ -204,6 +204,7 @@ export default function CardsManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/game-cards"] });
       toast({
         title: "Картка оновлена",
         description: "Зміни успішно збережені",
@@ -226,6 +227,7 @@ export default function CardsManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/game-cards"] });
       toast({
         title: "Картка видалена",
         description: "Картка успішно видалена з системи",
@@ -247,6 +249,7 @@ export default function CardsManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/game-cards"] });
       toast({
         title: "Порядок оновлено",
         description: "Новий порядок карток збережено",
@@ -268,6 +271,7 @@ export default function CardsManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/cards"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/game-cards"] });
       toast({
         title: "Позиції виправлено",
         description: "Нумерація карток починається з 1 для кожного рівня",
