@@ -1,13 +1,19 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Download, Trash2, Image, User, Palette, Package, FileImage, X, Loader2 } from "lucide-react";
+import { Download, Trash2, Image, User, Palette, Package, FileImage, X, Loader2, Building2 } from "lucide-react";
+
+type Brand = {
+  id: string;
+  name: string;
+};
 
 type MediaAsset = {
   id: string;
@@ -61,6 +67,18 @@ export default function MediaLibrary() {
   const { data: quota } = useQuery<MediaQuota>({
     queryKey: ["/api/media/quota"],
   });
+
+  const { data: brands = [] } = useQuery<Brand[]>({
+    queryKey: ["/api/user/brands"],
+  });
+
+  const brandMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    brands.forEach(brand => {
+      map[brand.id] = brand.name;
+    });
+    return map;
+  }, [brands]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -206,6 +224,12 @@ export default function MediaLibrary() {
                     <p className="text-xs text-gray-500 truncate">
                       {assetTypeLabels[asset.assetType]?.label || asset.assetType}
                     </p>
+                    {asset.brandId && brandMap[asset.brandId] && (
+                      <p className="text-xs text-primary font-medium truncate flex items-center gap-1">
+                        <Building2 className="w-3 h-3" />
+                        {brandMap[asset.brandId]}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-400">
                       {formatBytes(asset.sizeBytes)}
                     </p>
@@ -251,6 +275,14 @@ export default function MediaLibrary() {
                 <div>
                   <span className="text-gray-500">Розмір:</span>{" "}
                   <span className="font-medium">{formatBytes(selectedAsset.sizeBytes)}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Бренд:</span>{" "}
+                  <span className="font-medium">
+                    {selectedAsset.brandId && brandMap[selectedAsset.brandId] 
+                      ? brandMap[selectedAsset.brandId] 
+                      : "—"}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-500">Формат:</span>{" "}
