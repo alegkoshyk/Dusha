@@ -519,7 +519,7 @@ export default function MobileGame() {
     return (
       <GameCard
         card={currentCard}
-        response={sessionResponses ? sessionResponses[currentCardId] : undefined}
+        response={sessionResponses?.[currentCardId]?.response}
         onResponse={handleCardResponse}
         onNext={handleNextCard}
         onPrevious={handlePreviousCard}
