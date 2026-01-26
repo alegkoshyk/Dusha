@@ -215,19 +215,17 @@ export async function generateImageWithNanoBanana(
     const requestBody: Record<string, any> = {
       prompt: fullPrompt,
       numImages: 1,
-      image_size: aspectRatio,
       callBackUrl: 'https://example.com/callback' // Required by API but we use polling
     };
     
-    // If logo provided, use Image-to-Image mode instead of Text-to-Image
+    // If logo provided, use Image-to-Image mode by passing images array
+    // The API auto-detects mode based on presence of images parameter
     if (logoUrl) {
-      requestBody.type = 'IMAGETOIMAGE'; // Image editing mode
-      requestBody.imageUrls = [logoUrl]; // Pass logo as input image
-      // Remove image_size for image-to-image mode as it may cause issues
-      delete requestBody.image_size;
+      requestBody.images = [logoUrl]; // Pass logo as input image - API auto-detects i2i mode
       console.log('NanoBanana: Using Image-to-Image mode with logo:', logoUrl);
     } else {
-      requestBody.type = 'TEXTTOIMAGE'; // Text-to-Image mode
+      // For text-to-image, include aspect ratio
+      requestBody.image_size = aspectRatio;
     }
     
     console.log('NanoBanana: Request body:', JSON.stringify(requestBody));
