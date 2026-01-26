@@ -30,6 +30,7 @@ interface GameFieldProps {
   onLevelChange: (level: GameLevel) => void;
   sessionResponses?: Record<string, any>;
   apiCards?: any[];
+  defaultLevel?: GameLevel;
 }
 
 const levelIcons = {
@@ -51,8 +52,14 @@ const SKIP_REASON_LABELS: Record<string, string> = {
   'quick_pass': 'Хотів швидко пройти'
 };
 
-export function GameField({ playerProgress, onCardSelect, onLevelChange, sessionResponses = {}, apiCards = [] }: GameFieldProps) {
-  const [selectedLevel, setSelectedLevel] = useState<GameLevel>(playerProgress.currentLevel || 'soul');
+export function GameField({ playerProgress, onCardSelect, onLevelChange, sessionResponses = {}, apiCards = [], defaultLevel }: GameFieldProps) {
+  const [selectedLevel, setSelectedLevel] = useState<GameLevel>(defaultLevel || playerProgress.currentLevel || 'soul');
+  
+  useEffect(() => {
+    if (defaultLevel && defaultLevel !== selectedLevel) {
+      setSelectedLevel(defaultLevel);
+    }
+  }, [defaultLevel]);
   const [unlockedCards, setUnlockedCards] = useState<string[]>([]);
   
   useEffect(() => {

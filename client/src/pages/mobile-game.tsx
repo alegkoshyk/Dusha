@@ -41,6 +41,7 @@ export default function MobileGame() {
   const [location, setLocation] = useLocation();
   const [viewMode, setViewMode] = useState<ViewMode>('field');
   const [currentCardId, setCurrentCardId] = useState<string>('soul-start');
+  const [currentLevel, setCurrentLevel] = useState<GameLevel>('soul');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -200,6 +201,12 @@ export default function MobileGame() {
     setCurrentCardId(cardId);
     setViewMode('card');
     setLocation(`/game/${activeSessionId}?card=${cardId}`);
+    
+    // Update current level based on selected card
+    const selectedCard = apiCards?.find(c => c.id === cardId);
+    if (selectedCard?.levelId) {
+      setCurrentLevel(selectedCard.levelId as GameLevel);
+    }
   };
 
   const handleGoBack = () => {
@@ -553,6 +560,7 @@ export default function MobileGame() {
       onLevelChange={handleLevelChange}
       sessionResponses={sessionResponses}
       apiCards={apiCards || []}
+      defaultLevel={currentLevel}
     />
   );
 }
