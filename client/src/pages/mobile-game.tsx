@@ -78,9 +78,14 @@ export default function MobileGame() {
     return (a.positionX || 0) - (b.positionX || 0);
   });
   
-  // Get session responses from API
+  // Get session responses from API (raw=true to get original IDs for GameCard)
   const { data: sessionResponses = {} } = useQuery<Record<string, any>>({
-    queryKey: ["/api/game-sessions", activeSessionId, "responses-map"],
+    queryKey: ["/api/game-sessions", activeSessionId, "responses-map", "raw"],
+    queryFn: async () => {
+      const res = await fetch(`/api/game-sessions/${activeSessionId}/responses-map?raw=true`);
+      if (!res.ok) throw new Error("Failed to fetch responses");
+      return res.json();
+    },
     enabled: !!activeSessionId,
   });
 

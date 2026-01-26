@@ -20,7 +20,8 @@ import {
 import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
+import { cardResponsesTable } from "@shared/schema";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured } from "./openai";
 
 // Admin middleware
@@ -890,6 +891,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/game-sessions/:id/responses-map", async (req, res) => {
     try {
       const { id } = req.params;
+      const { raw } = req.query;
+      
+      // If raw=true, get untranslated responses for GameCard
+      if (raw === 'true') {
+        const rawResponses = await db
+          .select()
+          .from(cardResponsesTable)
+          .where(eq(cardResponsesTable.sessionId, id));
+        
+        const responsesMap: Record<string, any> = {};
+        for (const r of rawResponses) {
+          responsesMap[r.cardId] = {
+            response: r.response,
+            responseType: r.responseType,
+            skipped: r.responseType === 'skip' || (r.response && typeof r.response === 'object' && (r.response as any).skipped === true),
+            reason: r.response && typeof r.response === 'object' ? (r.response as any).reason : undefined,
+            timeSpent: r.timeSpent,
+            isWithinTimeLimit: r.isWithinTimeLimit,
+            earnedXP: r.earnedXP
+          };
+        }
+        return res.json(responsesMap);
+      }
+      
       const responses = await storage.getSessionCardResponses(id);
       
       // Convert array to map for easier lookup in UI
