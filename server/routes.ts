@@ -2702,8 +2702,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Combine template reference and user-uploaded references
       const referenceUrl = templateReferenceUrl || (referenceUrls && referenceUrls.length > 0 ? referenceUrls[0] : undefined);
       
+      // If logoUrl is base64, upload it to object storage first to get a public URL
+      let processedLogoUrl = logoUrl;
+      if (logoUrl && logoUrl.startsWith('data:')) {
+        try {
+          console.log('Logo is base64, uploading to object storage first...');
+          const { ObjectStorageService } = await import('./objectStorage');
+          const objectStorageService = new ObjectStorageService();
+          const uploadResult = await objectStorageService.uploadMediaAsset({
+            userId,
+            assetType: 'logo',
+            brandId: gameSession.brandId || undefined,
+            base64Data: logoUrl
+          });
+          processedLogoUrl = uploadResult.publicUrl;
+          console.log('Logo uploaded for generation, URL:', processedLogoUrl);
+        } catch (uploadError) {
+          console.error('Failed to upload base64 logo for generation:', uploadError);
+          return res.status(400).json({ 
+            error: "Не вдалося підготувати лого для генерації. Спробуйте завантажити лого ще раз." 
+          });
+        }
+      }
+      
       const { generateImageWithNanoBanana } = await import('./nanobanana');
-      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, logoUrl, referenceUrl);
+      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, processedLogoUrl, referenceUrl);
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });
@@ -2717,6 +2740,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
           (merchTypeId ? `Generated ${merchTypePrompt.substring(0, 50)}...` : '') ||
           (templateId ? `Template generation` : 'Image generated');
         await storage.saveChatMessage(sessionId, userId, 'image', messageContent, imageUrl);
+        
+        // Automatically save to media library
+        try {
+          const { ObjectStorageService } = await import('./objectStorage');
+          const objectStorageService = new ObjectStorageService();
+          
+          let uploadResult;
+          if (result.imageBase64) {
+            // Upload base64 directly
+            const estimatedSize = Math.ceil(result.imageBase64.length * 0.75);
+            const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
+            if (hasQuota) {
+              uploadResult = await objectStorageService.uploadMediaAsset({
+                userId,
+                assetType: 'merch',
+                brandId: gameSession.brandId || undefined,
+                base64Data: result.imageBase64
+              });
+            }
+          } else if (result.imageUrl && !result.imageUrl.startsWith('data:')) {
+            // Download from URL and upload
+            const response = await fetch(result.imageUrl);
+            if (response.ok) {
+              const buffer = await response.arrayBuffer();
+              const base64 = Buffer.from(buffer).toString('base64');
+              const mimeType = response.headers.get('content-type') || 'image/png';
+              const fullBase64 = `data:${mimeType};base64,${base64}`;
+              
+              const estimatedSize = buffer.byteLength;
+              const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
+              if (hasQuota) {
+                uploadResult = await objectStorageService.uploadMediaAsset({
+                  userId,
+                  assetType: 'merch',
+                  brandId: gameSession.brandId || undefined,
+                  base64Data: fullBase64
+                });
+              }
+            }
+          }
+          
+          if (uploadResult) {
+            await storage.createMediaAsset({
+              userId,
+              brandId: gameSession.brandId || null,
+              assetType: 'merch',
+              storageKey: uploadResult.storageKey,
+              publicUrl: uploadResult.publicUrl,
+              filename: messageContent.substring(0, 100) || `Generated-${Date.now()}`,
+              mimeType: uploadResult.mimeType,
+              sizeBytes: uploadResult.sizeBytes,
+              altText: messageContent.substring(0, 200) || 'Generated image',
+            });
+            console.log('Generated image saved to media library:', uploadResult.publicUrl);
+          }
+        } catch (mediaError) {
+          console.warn('Failed to auto-save generated image to media library:', mediaError);
+          // Don't fail the request, just log the warning
+        }
       }
 
       res.json({ 
@@ -2775,6 +2857,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Save image message to database
       if (result.imageUrl) {
         await storage.saveChatMessage(sessionId, userId, 'image', prompt, result.imageUrl);
+        
+        // Automatically save to media library
+        try {
+          const { ObjectStorageService } = await import('./objectStorage');
+          const objectStorageService = new ObjectStorageService();
+          
+          // Download from URL and upload
+          const response = await fetch(result.imageUrl);
+          if (response.ok) {
+            const buffer = await response.arrayBuffer();
+            const base64 = Buffer.from(buffer).toString('base64');
+            const mimeType = response.headers.get('content-type') || 'image/png';
+            const fullBase64 = `data:${mimeType};base64,${base64}`;
+            
+            const estimatedSize = buffer.byteLength;
+            const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
+            if (hasQuota) {
+              const uploadResult = await objectStorageService.uploadMediaAsset({
+                userId,
+                assetType: 'merch',
+                brandId: gameSession.brandId || undefined,
+                base64Data: fullBase64
+              });
+              
+              await storage.createMediaAsset({
+                userId,
+                brandId: gameSession.brandId || null,
+                assetType: 'merch',
+                storageKey: uploadResult.storageKey,
+                publicUrl: uploadResult.publicUrl,
+                filename: prompt.substring(0, 100) || `DALLE-${Date.now()}`,
+                mimeType: uploadResult.mimeType,
+                sizeBytes: uploadResult.sizeBytes,
+                altText: prompt.substring(0, 200) || 'DALL-E generated image',
+              });
+              console.log('DALL-E image saved to media library:', uploadResult.publicUrl);
+            }
+          }
+        } catch (mediaError) {
+          console.warn('Failed to auto-save DALL-E image to media library:', mediaError);
+        }
       }
 
       res.json({ 
