@@ -218,13 +218,14 @@ export async function generateImageWithNanoBanana(
       callBackUrl: 'https://example.com/callback' // Required by API but we use polling
     };
     
-    // If logo provided, use Image-to-Image mode by passing images array
-    // The API auto-detects mode based on presence of images parameter
+    // Always set type - API requires it
+    // Note: API has typo in type values - IAMGE instead of IMAGE
     if (logoUrl) {
-      requestBody.images = [logoUrl]; // Pass logo as input image - API auto-detects i2i mode
+      requestBody.type = 'IMAGETOIAMGE'; // Image editing mode (API typo: IAMGE not IMAGE)
+      requestBody.imageUrls = [logoUrl]; // Pass logo as input image
       console.log('NanoBanana: Using Image-to-Image mode with logo:', logoUrl);
     } else {
-      // For text-to-image, include aspect ratio
+      requestBody.type = 'TEXTTOIAMGE'; // Text-to-Image mode (API typo: IAMGE not IMAGE)
       requestBody.image_size = aspectRatio;
     }
     
@@ -350,7 +351,7 @@ export async function validateApiKey(encryptedApiKey: string): Promise<boolean> 
       },
       body: JSON.stringify({
         prompt: 'test validation',
-        type: 'TEXTTOIAMGE',
+        type: 'TEXTTOIAMGE', // Note: API has typo - IAMGE not IMAGE
         numImages: 1,
         callBackUrl: 'https://example.com/callback'
       })
