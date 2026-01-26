@@ -272,24 +272,14 @@ export default function MobileGame() {
     const cardLevel = currentApiCard?.levelId || (currentStaticCard as any)?.level;
     console.log("handleNextCard: currentCardId =", currentCardId, "currentCard.level =", cardLevel);
 
-    // PRIORITY 1: Use nextCards from mobileGameCards definition (if exists)
-    const nextOptions = getNextCardOptions(currentCardId, playerProgress.responses);
-    console.log("handleNextCard: nextOptions =", nextOptions);
-    
-    if (nextOptions.length > 0) {
-      console.log("handleNextCard: navigating to", nextOptions[0]);
-      handleCardSelect(nextOptions[0]);
-      return;
-    }
-
-    // PRIORITY 2: For API cards, find next card based on position (MAIN LOGIC)
+    // PRIORITY 1: Use database order (positionX) for navigation - this is the MAIN LOGIC
     const levelCards = apiCards.filter(c => c.levelId === cardLevel);
     const currentIndexInLevel = levelCards.findIndex(c => c.id === currentCardId);
     
     if (currentIndexInLevel >= 0 && currentIndexInLevel < levelCards.length - 1) {
-      // Go to next card in the same level
+      // Go to next card in the same level based on database order
       const nextCard = levelCards[currentIndexInLevel + 1];
-      console.log("handleNextCard: navigating to next in level", nextCard.id);
+      console.log("handleNextCard: navigating to next in level (database order)", nextCard.id);
       handleCardSelect(nextCard.id);
       return;
     }
