@@ -41,7 +41,7 @@ export function Header() {
               }`}
             >
               <User className="w-4 h-4 inline mr-2" />
-              Мої Бренди
+              Бренди
             </Link>
             <Link 
               href="/brand-maps" 

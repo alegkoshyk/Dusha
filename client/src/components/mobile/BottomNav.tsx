@@ -1,8 +1,8 @@
 import { Link, useLocation } from 'wouter';
-import { Gamepad2, CreditCard, Search, User } from 'lucide-react';
+import { MessageSquare, CreditCard, Search, User } from 'lucide-react';
 
 const navItems = [
-  { path: '/dashboard', icon: Gamepad2, label: 'Ігри' },
+  { path: '/dashboard', icon: MessageSquare, label: 'Бренди' },
   { path: '/brand-maps', icon: CreditCard, label: 'Карти' },
   { path: '/brand-analysis', icon: Search, label: 'Аналіз' },
   { path: '/profile', icon: User, label: 'Профіль' },

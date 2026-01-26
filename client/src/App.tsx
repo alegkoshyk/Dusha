@@ -75,6 +75,7 @@ function Router() {
           <Route path="/game/:sessionId/results" component={BrandBoard} />
           <Route path="/brand-board/:sessionId" component={BrandBoard} />
           <Route path="/brand-maps" component={BrandMaps} />
+          <Route path="/brand-chat/brand/:brandId" component={BrandChat} />
           <Route path="/brand-chat/:sessionId" component={BrandChat} />
           <Route path="/classic/:sessionId?" component={Game} />
           <Route path="/rcadmin" component={AdminDashboard} />

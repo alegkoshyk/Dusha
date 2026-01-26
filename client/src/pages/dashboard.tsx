@@ -21,7 +21,8 @@ import {
   BookOpen,
   Sparkles,
   Pencil,
-  FileText
+  FileText,
+  MessageSquare
 } from 'lucide-react';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { Link, useLocation } from 'wouter';
@@ -280,9 +281,9 @@ export default function Dashboard() {
         {/* Main Content */}
         <Tabs defaultValue="brands" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="brands">Мої бренди</TabsTrigger>
+            <TabsTrigger value="brands">Бренди</TabsTrigger>
             <TabsTrigger value="games">Активні ігри</TabsTrigger>
-            <TabsTrigger value="completed">Завершені ігри</TabsTrigger>
+            <TabsTrigger value="completed">Завершені</TabsTrigger>
           </TabsList>
           
           <TabsContent value="brands" className="space-y-4">
@@ -501,6 +502,17 @@ export default function Dashboard() {
                                 Нова гра
                               </Button>
                             )}
+                            
+                            {/* Chat Button - Primary action for brand communication */}
+                            <Button
+                              variant="outline"
+                              onClick={() => setLocation(`/brand-chat/brand/${brand.id}`)}
+                              className="w-full border-blue-300 text-blue-600 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                              data-testid={`brand-chat-${brand.id}`}
+                            >
+                              <MessageSquare className="w-4 h-4 mr-2" />
+                              Чат
+                            </Button>
                             
                             {/* AI Analyses Button */}
                             {brandSessions.length > 0 && (

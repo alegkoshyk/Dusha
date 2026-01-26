@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, Link } from 'wouter';
+import { useParams, Link, useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,10 @@ import {
   Palette,
   Save,
   Upload,
-  Sparkles
+  Sparkles,
+  Play,
+  Gamepad2,
+  CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
@@ -262,7 +265,8 @@ function formatMarkdown(text: string): JSX.Element {
 }
 
 export default function BrandChat() {
-  const { sessionId } = useParams<{ sessionId: string }>();
+  const params = useParams<{ sessionId?: string; brandId?: string }>();
+  const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -279,36 +283,70 @@ export default function BrandChat() {
   const [imageGenerator, setImageGenerator] = useState<'nanobanana' | 'dalle'>('nanobanana');
   const [referenceImages, setReferenceImages] = useState<{ url: string; filename: string }[]>([]);
   const [uploadingReference, setUploadingReference] = useState(false);
+  const [selectedGameSessionId, setSelectedGameSessionId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: session, isLoading: sessionLoading } = useQuery<GameSession>({
-    queryKey: ['/api/game-sessions', sessionId],
-    enabled: !!sessionId && !!user,
+  // Detect mode - brand-based or session-based
+  const isBrandMode = location.startsWith('/brand-chat/brand/');
+  const brandIdFromUrl = isBrandMode ? params.brandId : undefined;
+  const sessionIdFromUrl = !isBrandMode ? params.sessionId : undefined;
+  
+  // Active session ID (either from URL or selected from completed games)
+  const activeSessionId = sessionIdFromUrl || selectedGameSessionId;
+
+  // Load all user sessions (for brand mode)
+  const { data: allSessions = [] } = useQuery<GameSession[]>({
+    queryKey: ['/api/user/game-sessions'],
+    enabled: isBrandMode && !!user,
   });
 
+  // Filter sessions for the current brand (completed games)
+  const brandSessions = isBrandMode && brandIdFromUrl 
+    ? allSessions.filter(s => s.brandId === brandIdFromUrl)
+    : [];
+  const completedBrandSessions = brandSessions.filter(s => s.completed);
+  const activeBrandSession = brandSessions.find(s => !s.completed);
+
+  // Auto-select the latest completed game when entering brand mode
+  useEffect(() => {
+    if (isBrandMode && completedBrandSessions.length > 0 && !selectedGameSessionId) {
+      const sortedSessions = completedBrandSessions.sort((a, b) => 
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
+      setSelectedGameSessionId(sortedSessions[0].id);
+    }
+  }, [isBrandMode, completedBrandSessions, selectedGameSessionId]);
+
+  const { data: session, isLoading: sessionLoading } = useQuery<GameSession>({
+    queryKey: ['/api/game-sessions', activeSessionId],
+    enabled: !!activeSessionId && !!user,
+  });
+
+  // Load brand - either from URL (brand mode) or from session
   const { data: brand } = useQuery<UserBrand>({
-    queryKey: ['/api/user/brands', session?.brandId],
+    queryKey: ['/api/user/brands', brandIdFromUrl || session?.brandId],
     queryFn: async () => {
-      if (!session?.brandId) return null;
+      const targetBrandId = brandIdFromUrl || session?.brandId;
+      if (!targetBrandId) return null;
       const brands = await apiRequestJson('GET', '/api/user/brands');
-      return brands.find((b: UserBrand) => b.id === session.brandId);
+      return brands.find((b: UserBrand) => b.id === targetBrandId);
     },
-    enabled: !!session?.brandId,
+    enabled: !!(brandIdFromUrl || session?.brandId),
   });
 
   const { data: messages = [], isLoading: messagesLoading } = useQuery<ChatMessage[]>({
-    queryKey: ['/api/game-sessions', sessionId, 'chat'],
-    enabled: !!sessionId && !!user,
+    queryKey: ['/api/game-sessions', activeSessionId, 'chat'],
+    enabled: !!activeSessionId && !!user,
   });
 
   const sendMessageMutation = useMutation({
     mutationFn: async (messageText: string) => {
-      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/chat`, { message: messageText });
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/chat`, { message: messageText });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', sessionId, 'chat'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
       setMessage('');
     },
     onError: (error: any) => {
@@ -322,10 +360,10 @@ export default function BrandChat() {
 
   const clearChatMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('DELETE', `/api/game-sessions/${sessionId}/chat`);
+      return apiRequest('DELETE', `/api/game-sessions/${activeSessionId}/chat`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', sessionId, 'chat'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
       setImageMessages([]);
       toast({
         title: "Чат очищено",
@@ -353,7 +391,7 @@ export default function BrandChat() {
 
   const generateImageMutation = useMutation({
     mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[] }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls });
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls });
     },
     onError: (error: any) => {
       toast({
@@ -367,7 +405,7 @@ export default function BrandChat() {
   // DALL-E image generation mutation
   const generateDalleMutation = useMutation({
     mutationFn: async ({ prompt, size, quality, style }: { prompt: string; size?: string; quality?: string; style?: string }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${sessionId}/generate-dalle`, { prompt, size, quality, style });
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-dalle`, { prompt, size, quality, style });
     },
     onError: (error: any) => {
       toast({
@@ -392,7 +430,7 @@ export default function BrandChat() {
           try {
             const imageData = e.target?.result as string;
             
-            const response = await apiRequestJson('POST', `/api/game-sessions/${sessionId}/upload-reference`, {
+            const response = await apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/upload-reference`, {
               imageData,
               filename: file.name
             });
@@ -526,7 +564,7 @@ export default function BrandChat() {
       }, {
         onSuccess: (data) => {
           setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
-          queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', sessionId, 'chat'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
           if (data.imageUrl) {
             setModalImage(data.imageUrl);
           }
@@ -548,7 +586,7 @@ export default function BrandChat() {
         onSuccess: (data) => {
           const imageData = data.imageBase64 || data.imageUrl;
           setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
-          queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', sessionId, 'chat'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
           if (imageData) {
             setModalImage(imageData);
           }
@@ -627,7 +665,7 @@ export default function BrandChat() {
     <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl h-[calc(100vh-5rem)] sm:h-[calc(100vh-6rem)] flex flex-col">
       <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-          <Link href="/brand-maps">
+          <Link href={isBrandMode ? "/dashboard" : "/brand-maps"}>
             <Button variant="ghost" size="icon" className="shrink-0" data-testid="button-back">
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -642,7 +680,7 @@ export default function BrandChat() {
           </div>
         </div>
         <div className="flex gap-1 sm:gap-2 shrink-0">
-          <Link href={`/brand-board/${sessionId}`}>
+          <Link href={`/brand-board/${activeSessionId}`}>
             <Button variant="outline" size="sm" className="px-2 sm:px-3" data-testid="button-view-map">
               <Eye className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Карта</span>
@@ -661,9 +699,119 @@ export default function BrandChat() {
         </div>
       </div>
 
+      {/* Game Context Selector - Show in brand mode */}
+      {isBrandMode && (
+        <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+              <Gamepad2 className="w-4 h-4" />
+              <span>Контекст гри:</span>
+            </div>
+            
+            {completedBrandSessions.length > 0 ? (
+              <div className="flex-1 flex items-center gap-2">
+                <Select
+                  value={selectedGameSessionId || ''}
+                  onValueChange={(value) => {
+                    setSelectedGameSessionId(value);
+                    queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', value, 'chat'] });
+                  }}
+                >
+                  <SelectTrigger className="flex-1 max-w-xs h-8 text-sm">
+                    <SelectValue placeholder="Оберіть гру..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {completedBrandSessions
+                      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                      .map((gameSession, index) => (
+                        <SelectItem key={gameSession.id} value={gameSession.id}>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3 h-3 text-green-600" />
+                            <span>
+                              Гра #{completedBrandSessions.length - index}
+                              {' - '}
+                              {new Date(gameSession.updatedAt).toLocaleDateString('uk-UA')}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+                
+                {activeBrandSession && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLocation(`/game/${activeBrandSession.id}`)}
+                    className="shrink-0"
+                  >
+                    <Play className="w-3 h-3 mr-1" />
+                    Продовжити активну
+                  </Button>
+                )}
+              </div>
+            ) : activeBrandSession ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-yellow-600 dark:text-yellow-400">
+                  Немає завершених ігор
+                </span>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setLocation(`/game/${activeBrandSession.id}`)}
+                >
+                  <Play className="w-3 h-3 mr-1" />
+                  Продовжити гру
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Немає ігор для цього бренду
+                </span>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await apiRequestJson('POST', '/api/game-sessions', {
+                        brandId: brandIdFromUrl,
+                        currentLevel: 'soul',
+                        currentCard: 'soul-start',
+                        progress: 0,
+                      });
+                      setLocation(`/game/${response.id}`);
+                    } catch (error) {
+                      toast({
+                        title: "Помилка",
+                        description: "Не вдалося створити гру",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                >
+                  <Play className="w-3 h-3 mr-1" />
+                  Почати гру
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <Card className="flex-1 flex flex-col overflow-hidden">
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          {messages.length === 0 && imageMessages.length === 0 ? (
+          {(!activeSessionId && isBrandMode) ? (
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+              <Gamepad2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium mb-2">Спочатку пройдіть гру</p>
+              <p className="text-sm max-w-md mx-auto">
+                Щоб спілкуватися з AI-консультантом, потрібно спочатку пройти гру "Душа Бренду".
+                AI використовуватиме ваші відповіді для розуміння контексту бренду.
+              </p>
+            </div>
+          ) : messages.length === 0 && imageMessages.length === 0 ? (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400" data-testid="text-empty-chat">
               <Bot className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium mb-2">Привіт! Я ваш AI-консультант</p>
