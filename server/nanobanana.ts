@@ -220,13 +220,15 @@ export async function generateImageWithNanoBanana(
     
     // Always set type - API requires it
     // Note: API has typo in type values - IAMGE instead of IMAGE
+    // Always set image_size for both modes
+    requestBody.image_size = aspectRatio;
+    
     if (logoUrl) {
       requestBody.type = 'IMAGETOIAMGE'; // Image editing mode (API typo: IAMGE not IMAGE)
       requestBody.imageUrls = [logoUrl]; // Pass logo as input image
       console.log('NanoBanana: Using Image-to-Image mode with logo:', logoUrl);
     } else {
       requestBody.type = 'TEXTTOIAMGE'; // Text-to-Image mode (API typo: IAMGE not IMAGE)
-      requestBody.image_size = aspectRatio;
     }
     
     console.log('NanoBanana: Request body:', JSON.stringify(requestBody));
