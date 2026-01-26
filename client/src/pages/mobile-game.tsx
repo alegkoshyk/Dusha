@@ -70,12 +70,12 @@ export default function MobileGame() {
     enabled: true,
   });
   
-  // Sort cards stably by level and order for consistent navigation
+  // Sort cards stably by level and positionX for consistent navigation
   const apiCards = [...rawApiCards].sort((a, b) => {
     const levelOrder: Record<string, number> = { 'soul': 0, 'mind': 1, 'body': 2 };
     const levelDiff = (levelOrder[a.levelId] || 0) - (levelOrder[b.levelId] || 0);
     if (levelDiff !== 0) return levelDiff;
-    return (a.order || 0) - (b.order || 0);
+    return (a.positionX || 0) - (b.positionX || 0);
   });
   
   // Get session responses from API

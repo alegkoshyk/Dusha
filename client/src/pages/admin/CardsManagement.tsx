@@ -469,6 +469,8 @@ export default function CardsManagement() {
                       <SelectItem value="archetype">Archetype</SelectItem>
                       <SelectItem value="reflection">Reflection</SelectItem>
                       <SelectItem value="completion">Completion</SelectItem>
+                      <SelectItem value="info">Info</SelectItem>
+                      <SelectItem value="complete">Complete</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
