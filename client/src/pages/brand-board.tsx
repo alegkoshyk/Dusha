@@ -364,137 +364,8 @@ export default function BrandBoard() {
           </div>
         </div>
 
-        {cardResponses && (
-          <Card className="mb-8 border-orange-200 dark:border-orange-800">
-            <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20">
-              <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
-                <MapPin className="w-6 h-6" />
-                Карта всіх відповідей ({cardResponses?.length || 0} відповідей)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6">
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                Натисніть на картку, щоб переглянути або відредагувати відповідь
-              </p>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {['soul', 'mind', 'body'].map((level) => {
-                  const levelResponses = cardResponses.filter(r => r.level === level);
-                  const LevelIcon = level === 'soul' ? Heart : level === 'mind' ? Brain : Dumbbell;
-                  const colors = getLevelColors(level);
-                  
-                  return (
-                    <div key={level} className={`border-2 rounded-lg p-4 ${colors.border}`}>
-                      <div className={`flex items-center gap-2 mb-4 ${colors.text}`}>
-                        <LevelIcon className="w-5 h-5" />
-                        <h3 className="font-semibold">
-                          {level === 'soul' ? 'Душа' : level === 'mind' ? 'Розум' : 'Тіло'} ({levelResponses.length})
-                        </h3>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        {levelResponses.map((response, index) => (
-                          <div 
-                            key={response.cardId}
-                            onClick={() => handleCardClick(response)}
-                            data-testid={`card-response-${response.cardId}`}
-                            className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${colors.bg} ${colors.border} ${colors.hover}`}
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <h4 className={`font-medium text-sm ${colors.text}`}>{response.cardTitle}</h4>
-                              <div className="flex items-center gap-1">
-                                <Badge variant="secondary" className="text-xs">{index + 1}</Badge>
-                                <ChevronRight className={`w-4 h-4 ${colors.textLight}`} />
-                              </div>
-                            </div>
-                            <div className={`text-sm ${colors.textLight} line-clamp-2`}>
-                              {Array.isArray(response.response) ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {response.response.slice(0, 3).map((item: string, i: number) => (
-                                    <span key={i} className={`px-2 py-0.5 rounded text-xs ${colors.badge}`}>{item}</span>
-                                  ))}
-                                  {response.response.length > 3 && (
-                                    <span className="text-xs opacity-60">+{response.response.length - 3}</span>
-                                  )}
-                                </div>
-                              ) : (
-                                <p className="whitespace-pre-wrap break-words truncate">{response.response}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="border-purple-200 dark:border-purple-800">
-            <CardContent className="space-y-6 p-6">
-              {brandMap?.soul?.values?.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Цінності</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {brandMap.soul.values.map((value: string, index: number) => (
-                      <span key={index} className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm">{value}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {brandMap?.soul?.mission && (
-                <div><h4 className="font-semibold text-gray-900 dark:text-white mb-2">Місія</h4><p className="text-gray-600 dark:text-gray-400">{brandMap.soul.mission}</p></div>
-              )}
-              {brandMap?.soul?.archetype && (
-                <div><h4 className="font-semibold text-gray-900 dark:text-white mb-2">Архетип</h4><p className="text-gray-600 dark:text-gray-400">{brandMap.soul.archetype}</p></div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-blue-200 dark:border-blue-800">
-            <CardContent className="space-y-6 p-6">
-              {brandMap?.mind?.positioning && (
-                <div><h4 className="font-semibold text-gray-900 dark:text-white mb-2">Позиціонування</h4><p className="text-gray-600 dark:text-gray-400">{brandMap.mind.positioning}</p></div>
-              )}
-              {brandMap?.mind?.promise && (
-                <div><h4 className="font-semibold text-gray-900 dark:text-white mb-2">Обіцянка</h4><p className="text-gray-600 dark:text-gray-400">{brandMap.mind.promise}</p></div>
-              )}
-              {brandMap?.mind?.audience && (
-                <div><h4 className="font-semibold text-gray-900 dark:text-white mb-2">Цільова аудиторія</h4><p className="text-gray-600 dark:text-gray-400">{brandMap.mind.audience}</p></div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-green-200 dark:border-green-800">
-            <CardContent className="space-y-6 p-6">
-              {brandMap?.body?.channels?.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Канали комунікації</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {brandMap.body.channels.map((channel: string, index: number) => (
-                      <span key={index} className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm">{channel}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {brandMap?.body?.tone?.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Тон голосу</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {brandMap.body.tone.map((tone: string, index: number) => (
-                      <span key={index} className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm">{tone}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
         {/* AI Insights Section */}
-        <Card id="ai-analysis-section" className="mt-8 border-indigo-200 dark:border-indigo-800">
+        <Card id="ai-analysis-section" className="border-indigo-200 dark:border-indigo-800">
           <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <CardTitle className="flex items-center gap-2 text-indigo-800 dark:text-indigo-200">
@@ -867,6 +738,74 @@ export default function BrandBoard() {
                 </div>
               </CardContent>
             )}
+          </Card>
+        )}
+
+        {/* Card Responses Map */}
+        {cardResponses && (
+          <Card className="mt-8 border-orange-200 dark:border-orange-800">
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20">
+              <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
+                <MapPin className="w-6 h-6" />
+                Карта всіх відповідей ({cardResponses?.length || 0} відповідей)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Натисніть на картку, щоб переглянути або відредагувати відповідь
+              </p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {['soul', 'mind', 'body'].map((level) => {
+                  const levelResponses = cardResponses.filter(r => r.level === level);
+                  const LevelIcon = level === 'soul' ? Heart : level === 'mind' ? Brain : Dumbbell;
+                  const colors = getLevelColors(level);
+                  
+                  return (
+                    <div key={level} className={`border-2 rounded-lg p-4 ${colors.border}`}>
+                      <div className={`flex items-center gap-2 mb-4 ${colors.text}`}>
+                        <LevelIcon className="w-5 h-5" />
+                        <h3 className="font-semibold">
+                          {level === 'soul' ? 'Душа' : level === 'mind' ? 'Розум' : 'Тіло'} ({levelResponses.length})
+                        </h3>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {levelResponses.map((response, index) => (
+                          <div 
+                            key={response.cardId}
+                            onClick={() => handleCardClick(response)}
+                            data-testid={`card-response-${response.cardId}`}
+                            className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${colors.bg} ${colors.border} ${colors.hover}`}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className={`font-medium text-sm ${colors.text}`}>{response.cardTitle}</h4>
+                              <div className="flex items-center gap-1">
+                                <Badge variant="secondary" className="text-xs">{index + 1}</Badge>
+                                <ChevronRight className={`w-4 h-4 ${colors.textLight}`} />
+                              </div>
+                            </div>
+                            <div className={`text-sm ${colors.textLight} line-clamp-2`}>
+                              {Array.isArray(response.response) ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {response.response.slice(0, 3).map((item: string, i: number) => (
+                                    <span key={i} className={`px-2 py-0.5 rounded text-xs ${colors.badge}`}>{item}</span>
+                                  ))}
+                                  {response.response.length > 3 && (
+                                    <span className="text-xs opacity-60">+{response.response.length - 3}</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="whitespace-pre-wrap break-words truncate">{response.response}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
           </Card>
         )}
       </div>
