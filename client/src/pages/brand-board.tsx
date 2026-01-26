@@ -346,12 +346,12 @@ export default function BrandBoard() {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => document.getElementById('ai-analysis-section')?.scrollIntoView({ behavior: 'smooth' })}
-              className="border-indigo-300 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
-              data-testid="button-ai-analyses"
+              onClick={() => document.getElementById('card-responses-section')?.scrollIntoView({ behavior: 'smooth' })}
+              className="border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-700 dark:text-orange-400 dark:hover:bg-orange-900/30"
+              data-testid="button-card-responses"
             >
-              <Sparkles className="w-4 h-4 mr-1 md:mr-2" />
-              <span className="text-xs md:text-sm">AI аналізи</span>
+              <MapPin className="w-4 h-4 mr-1 md:mr-2" />
+              <span className="text-xs md:text-sm">Карта бренду</span>
             </Button>
             <Button variant="outline" size="sm" data-testid="button-share">
               <Share className="w-4 h-4 mr-1 md:mr-2" />
@@ -743,7 +743,7 @@ export default function BrandBoard() {
 
         {/* Card Responses Map */}
         {cardResponses && (
-          <Card className="mt-8 border-orange-200 dark:border-orange-800">
+          <Card id="card-responses-section" className="mt-8 border-orange-200 dark:border-orange-800">
             <CardHeader className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20">
               <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
                 <MapPin className="w-6 h-6" />
