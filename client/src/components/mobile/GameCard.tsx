@@ -145,6 +145,11 @@ export function GameCard({
       if (typeof response === 'string') {
         setCurrentResponse(response);
         setSelectedOptions(response ? [response] : []);
+      } else if (typeof response === 'number') {
+        // Handle numeric responses (like choice card selections stored as numbers)
+        const strResponse = String(response);
+        setCurrentResponse(strResponse);
+        setSelectedOptions([strResponse]);
       } else if (Array.isArray(response)) {
         setCurrentResponse('');
         setSelectedOptions(response);
