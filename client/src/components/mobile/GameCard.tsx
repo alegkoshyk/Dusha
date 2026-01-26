@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { apiRequest } from '@/lib/queryClient';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -420,10 +421,10 @@ export function GameCard({
                 
                 return (
                   <div
-                    key={index}
-                    className={`flex-1 h-2.5 rounded-full transition-all duration-300 ${
+                    key={cardId || index}
+                    className={`flex-1 h-2.5 rounded-full transition-colors duration-200 ${
                       isCurrent
-                        ? `bg-gradient-to-r ${levelColors.bg} shadow-sm animate-pulse`
+                        ? `bg-gradient-to-r ${levelColors.bg} shadow-md ring-2 ring-offset-1 ring-primary/50 dark:ring-offset-gray-900`
                         : isSkipped
                         ? 'bg-yellow-400 shadow-sm'
                         : isCompleted
