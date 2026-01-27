@@ -61,12 +61,27 @@ function buildBrandInteractionPrompt(audience: any, brand: any, scenario: string
   const brandIndustry = brand.industry || "";
   const brandMission = brand.mission || "";
   
+  // Extract brand colors for visual consistency
+  const brandColors = Array.isArray(brand.brandColors) ? brand.brandColors : [];
+  const primaryColor = brandColors.find((c: any) => c.role === 'primary')?.hex || "";
+  const colorPalette = brandColors.map((c: any) => c.hex).filter(Boolean).slice(0, 3).join(", ");
+  
+  // Brand visual description
+  const brandVisuals = [];
+  if (colorPalette) {
+    brandVisuals.push(`brand colors: ${colorPalette}`);
+  }
+  if (brand.logo) {
+    brandVisuals.push(`visible brand logo or branding elements of ${brandName}`);
+  }
+  const visualDescription = brandVisuals.length > 0 ? `Include ${brandVisuals.join(", ")}.` : "";
+  
   const scenarioPrompts: Record<string, string> = {
-    "using_product": `${gender}, age ${ageRange}, ${occupation} happily using a product or service from ${brandName}${brandIndustry ? ` (${brandIndustry})` : ""}. Show genuine engagement and satisfaction. Modern lifestyle photography, natural lighting, authentic moment.`,
-    "shopping": `${gender}, age ${ageRange}, ${occupation} browsing or shopping at ${brandName}${brandIndustry ? ` (${brandIndustry})` : ""} store or online. Show interest and consideration. Retail/e-commerce lifestyle photography.`,
-    "recommending": `${gender}, age ${ageRange}, ${occupation} recommending ${brandName} to friends or colleagues. Social interaction, positive conversation. Lifestyle photography, natural setting.`,
-    "social_media": `${gender}, age ${ageRange}, ${occupation} engaging with ${brandName} content on smartphone or laptop. Social media interaction, modern digital lifestyle photography.`,
-    "event": `${gender}, age ${ageRange}, ${occupation} at a ${brandName} brand event or activation. Engaged and enjoying the experience. Event photography style.`,
+    "using_product": `${gender}, age ${ageRange}, ${occupation} happily using a product or service from ${brandName}${brandIndustry ? ` (${brandIndustry})` : ""}. Show genuine engagement and satisfaction. ${visualDescription} Modern lifestyle photography, natural lighting, authentic moment.`,
+    "shopping": `${gender}, age ${ageRange}, ${occupation} browsing or shopping at ${brandName}${brandIndustry ? ` (${brandIndustry})` : ""} store or online. Show interest and consideration. ${visualDescription} Retail/e-commerce lifestyle photography.`,
+    "recommending": `${gender}, age ${ageRange}, ${occupation} recommending ${brandName} to friends or colleagues, showing product with ${brandName} branding. ${visualDescription} Social interaction, positive conversation. Lifestyle photography, natural setting.`,
+    "social_media": `${gender}, age ${ageRange}, ${occupation} engaging with ${brandName} content on smartphone or laptop, ${brandName} logo visible on screen. ${visualDescription} Social media interaction, modern digital lifestyle photography.`,
+    "event": `${gender}, age ${ageRange}, ${occupation} at a ${brandName} brand event or activation with ${brandName} branded decorations and signage. ${visualDescription} Engaged and enjoying the experience. Event photography style.`,
   };
   
   const basePrompt = scenarioPrompts[scenario] || scenarioPrompts["using_product"];
