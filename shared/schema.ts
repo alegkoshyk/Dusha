@@ -1029,13 +1029,93 @@ export const insertBrandAnalysisTemplateSchema = createInsertSchema(brandAnalysi
 export type BrandAnalysisTemplate = typeof brandAnalysisTemplatesTable.$inferSelect;
 
 // =========================================
-// Цільова Аудиторія (Target Audience)
+// Демографічні сегменти та підсегменти
 // =========================================
 
-// Таблиця цільових аудиторій для брендів
+// Таблиця демографічних сегментів (верхній рівень групування)
+export const demographicSegmentsTable = pgTable("demographic_segments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  brandId: uuid("brand_id").notNull().references(() => userBrandsTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(), // Назва сегменту (напр. "Молодь 18-25")
+  description: text("description"),
+  // Демографічні характеристики сегменту
+  ageRange: varchar("age_range", { length: 50 }),
+  gender: varchar("gender", { length: 50 }),
+  location: text("location"),
+  income: varchar("income", { length: 100 }),
+  education: varchar("education", { length: 100 }),
+  occupation: text("occupation"),
+  // Метадані
+  color: varchar("color", { length: 20 }), // Колір для візуалізації
+  priority: integer("priority").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  brandIdIdx: index("demographic_segments_brand_id_idx").on(table.brandId),
+}));
+
+// Таблиця підсегментів (другий рівень групування)
+export const demographicSubSegmentsTable = pgTable("demographic_sub_segments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  segmentId: uuid("segment_id").notNull().references(() => demographicSegmentsTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(), // Назва підсегменту
+  description: text("description"),
+  // Специфічні характеристики підсегменту
+  characteristics: json("characteristics").default(sql`'[]'`),
+  // Метадані
+  color: varchar("color", { length: 20 }),
+  priority: integer("priority").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  segmentIdIdx: index("demographic_sub_segments_segment_id_idx").on(table.segmentId),
+}));
+
+export const demographicSegmentsRelations = relations(demographicSegmentsTable, ({ one, many }) => ({
+  brand: one(userBrandsTable, {
+    fields: [demographicSegmentsTable.brandId],
+    references: [userBrandsTable.id],
+  }),
+  subSegments: many(demographicSubSegmentsTable),
+  personas: many(targetAudiencesTable),
+}));
+
+export const demographicSubSegmentsRelations = relations(demographicSubSegmentsTable, ({ one, many }) => ({
+  segment: one(demographicSegmentsTable, {
+    fields: [demographicSubSegmentsTable.segmentId],
+    references: [demographicSegmentsTable.id],
+  }),
+  personas: many(targetAudiencesTable),
+}));
+
+export const insertDemographicSegmentSchema = createInsertSchema(demographicSegmentsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDemographicSubSegmentSchema = createInsertSchema(demographicSubSegmentsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type DemographicSegment = typeof demographicSegmentsTable.$inferSelect;
+export type InsertDemographicSegment = z.infer<typeof insertDemographicSegmentSchema>;
+export type DemographicSubSegment = typeof demographicSubSegmentsTable.$inferSelect;
+export type InsertDemographicSubSegment = z.infer<typeof insertDemographicSubSegmentSchema>;
+
+// =========================================
+// Цільова Аудиторія (Target Audience) / Персони
+// =========================================
+
+// Таблиця цільових аудиторій (персон) для брендів
 export const targetAudiencesTable = pgTable("target_audiences", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   brandId: uuid("brand_id").notNull().references(() => userBrandsTable.id, { onDelete: "cascade" }),
+  // Опціональна прив'язка до сегменту/підсегменту (персона може бути і без них)
+  segmentId: uuid("segment_id").references(() => demographicSegmentsTable.id, { onDelete: "set null" }),
+  subSegmentId: uuid("sub_segment_id").references(() => demographicSubSegmentsTable.id, { onDelete: "set null" }),
   name: varchar("name", { length: 255 }).notNull(), // Назва ЦА (напр. "Молоді підприємці")
   description: text("description"), // Загальний опис
   // Демографія
@@ -1075,7 +1155,15 @@ export const targetAudiencesRelations = relations(targetAudiencesTable, ({ one, 
     fields: [targetAudiencesTable.brandId],
     references: [userBrandsTable.id],
   }),
-  segments: many(audienceSegmentsTable),
+  segment: one(demographicSegmentsTable, {
+    fields: [targetAudiencesTable.segmentId],
+    references: [demographicSegmentsTable.id],
+  }),
+  subSegment: one(demographicSubSegmentsTable, {
+    fields: [targetAudiencesTable.subSegmentId],
+    references: [demographicSubSegmentsTable.id],
+  }),
+  oldSegments: many(audienceSegmentsTable),
 }));
 
 export const insertTargetAudienceSchema = createInsertSchema(targetAudiencesTable).omit({
