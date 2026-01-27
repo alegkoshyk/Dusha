@@ -41,6 +41,7 @@ import Pricing from "@/pages/pricing";
 import PaymentCallback from "@/pages/PaymentCallback";
 import BrandEdit from "@/pages/brand-edit";
 import BrandAnalysis from "@/pages/brand-analysis";
+import Brands from "@/pages/brands";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -70,6 +71,7 @@ function Router() {
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
+          <Route path="/brands" component={Brands} />
           <Route path="/mobile-game" component={MobileGame} />
           <Route path="/game/:sessionId" component={MobileGame} />
           <Route path="/game/:sessionId/results" component={BrandBoard} />

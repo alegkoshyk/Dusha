@@ -33,9 +33,9 @@ export function Header() {
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-4">
             <Link 
-              href="/dashboard" 
+              href="/brands" 
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                location === '/dashboard' 
+                location === '/brands' 
                   ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' 
                   : 'text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400'
               }`}
