@@ -695,3 +695,119 @@ export async function generateImageWithDALLE(
     return { success: false, error: error.message || "Помилка генерації зображення" };
   }
 }
+
+// Target Audience Persona Generation
+export interface GeneratedPersona {
+  name: string;
+  age: number;
+  gender: string;
+  occupation: string;
+  location: string;
+  income: string;
+  education: string;
+  familyStatus: string;
+  lifestyle: string;
+  values: string[];
+  interests: string[];
+  painPoints: string[];
+  goals: string[];
+  motivations: string[];
+  fears: string[];
+  buyingBehavior: string;
+  mediaConsumption: string[];
+  decisionFactors: string[];
+  quote: string;
+  dayInLife: string;
+  brandRelationship: string;
+}
+
+export async function generateAudiencePersona(
+  brandData: { name: string; description?: string; values?: string[]; mission?: string },
+  audienceType: "primary" | "secondary" | "niche" = "primary",
+  existingSegments?: { name: string; description?: string }[]
+): Promise<GeneratedPersona> {
+  const { client, config } = await getAIClient();
+
+  const segmentsContext = existingSegments?.length 
+    ? `\nІснуючі сегменти аудиторії: ${existingSegments.map(s => s.name).join(", ")}`
+    : "";
+
+  const audienceTypeDesc = {
+    primary: "основної (найбільшої та найважливішої)",
+    secondary: "вторинної (додаткової, менш критичної)",
+    niche: "нішевої (спеціалізованої, вузької)"
+  }[audienceType];
+
+  const prompt = `Ти - експерт з маркетингу та сегментації аудиторії. Створи детальний портрет представника ${audienceTypeDesc} цільової аудиторії для бренду.
+
+📌 Бренд: ${brandData.name}
+${brandData.description ? `📝 Опис: ${brandData.description}` : ""}
+${brandData.values?.length ? `🎯 Цінності: ${brandData.values.join(", ")}` : ""}
+${brandData.mission ? `🚀 Місія: ${brandData.mission}` : ""}
+${segmentsContext}
+
+Створи JSON з детальним портретом персони:
+{
+  "name": "типове українське ім'я",
+  "age": число (реалістичний вік),
+  "gender": "чоловік" або "жінка",
+  "occupation": "професія/посада",
+  "location": "місто/регіон України",
+  "income": "рівень доходу",
+  "education": "освіта",
+  "familyStatus": "сімейний стан",
+  "lifestyle": "опис стилю життя (2-3 речення)",
+  "values": ["масив 3-5 ключових цінностей"],
+  "interests": ["масив 4-6 інтересів/хобі"],
+  "painPoints": ["масив 3-5 болей/проблем, які вирішує бренд"],
+  "goals": ["масив 3-5 цілей персони"],
+  "motivations": ["масив 3-4 мотивацій до покупки"],
+  "fears": ["масив 2-3 страхи/занепокоєння"],
+  "buyingBehavior": "опис поведінки при покупках",
+  "mediaConsumption": ["масив 3-5 каналів споживання медіа"],
+  "decisionFactors": ["масив 3-5 факторів прийняття рішень"],
+  "quote": "типова цитата, яку міг би сказати цей клієнт",
+  "dayInLife": "опис типового дня (3-4 речення)",
+  "brandRelationship": "як ця персона взаємодіє з брендом (2-3 речення)"
+}
+
+Відповідай ТІЛЬКИ валідним JSON українською мовою.`;
+
+  const response = await client.chat.completions.create({
+    model: config.model,
+    messages: [
+      {
+        role: "system",
+        content: "Ти - експерт з маркетингу. Відповідай тільки валідним JSON без додаткового тексту."
+      },
+      { role: "user", content: prompt }
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 2000
+  });
+
+  const usage = response.usage;
+  if (usage) {
+    const costRates = config.provider === "perplexity"
+      ? { input: 0.000001, output: 0.000001 }
+      : { input: 0.00001, output: 0.00003 };
+    
+    const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
+    
+    await storage.logAIUsage({
+      provider: config.provider,
+      model: config.model,
+      tokensInput: usage.prompt_tokens,
+      tokensOutput: usage.completion_tokens,
+      costEstimate: estimatedCost.toFixed(6),
+      endpoint: "generateAudiencePersona",
+    });
+  }
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("Не вдалося згенерувати персону");
+  }
+
+  return JSON.parse(content) as GeneratedPersona;
+}

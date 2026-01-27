@@ -22,7 +22,7 @@ import { z } from "zod";
 import { db } from "./db";
 import { sql, eq } from "drizzle-orm";
 import { cardResponsesTable } from "@shared/schema";
-import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured } from "./openai";
+import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona } from "./openai";
 
 // Admin middleware
 const requireAdmin = async (req: any, res: any, next: any) => {
@@ -803,6 +803,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Delete audience segment error:", error);
       res.status(500).json({ error: "Помилка видалення сегменту" });
+    }
+  });
+
+  // Generate AI persona for target audience
+  app.post("/api/brands/:brandId/generate-persona", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      const { audienceType = "primary" } = req.body;
+      
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      // Get existing audiences for context
+      const existingAudiences = await storage.getTargetAudiences(brandId);
+      const existingSegments = existingAudiences.map(a => ({
+        name: a.name,
+        description: a.description || undefined
+      }));
+
+      // Extract brand data from passport or other sources
+      const brandData = {
+        name: brand.name,
+        description: brand.description || undefined,
+        values: brand.brandValues || undefined,
+        mission: brand.mission || undefined
+      };
+
+      const persona = await generateAudiencePersona(brandData, audienceType, existingSegments);
+      res.json(persona);
+    } catch (error) {
+      console.error("Generate persona error:", error);
+      res.status(500).json({ error: "Помилка генерації персони" });
     }
   });
 
