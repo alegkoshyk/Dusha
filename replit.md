@@ -27,7 +27,19 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL with a normalized schema managed by Drizzle ORM.
 - **Schema**: Full relational database including tables for users, user profiles, brands, game levels, cards, card properties, relations, game sessions, card responses, and new card option management system.
 - **Card Option Sets**: New system for managing predefined choices (archetypes, values, channels) with configurable min/max selection rules.
+- **Target Audiences**: Tables for target_audiences and audience_segments with demographics, psychographics, behavioral data, and AI-generated portraits.
 - **Session Data**: Structured relational storage with foreign key constraints.
+
+### Target Audience Feature
+- **Database Tables**: target_audiences (demographics, psychographics, behavior, AI portrait), audience_segments (sub-groups with personas)
+- **AI Persona Generation**: OpenAI-powered generation of detailed audience personas based on brand data
+- **API Endpoints**:
+  - GET/POST `/api/brands/:brandId/target-audiences` - List/create audiences
+  - GET/PATCH/DELETE `/api/target-audiences/:id` - Audience operations
+  - GET/POST `/api/target-audiences/:audienceId/segments` - Segment operations
+  - PATCH/DELETE `/api/audience-segments/:id` - Segment operations
+  - POST `/api/brands/:brandId/generate-persona` - AI persona generation
+- **Frontend**: Brand passport "Audience" tab, dedicated /target-audience/:brandId page with AI generation dialog
 
 ### Export and Sharing
 - **PDF Export**: jsPDF integration for branded PDF reports of the brand map.
