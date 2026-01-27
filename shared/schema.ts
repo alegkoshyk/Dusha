@@ -1060,6 +1060,7 @@ export const targetAudiencesTable = pgTable("target_audiences", {
   // AI-генерований портрет
   aiPortrait: text("ai_portrait"), // Детальний AI-опис персони
   aiPortraitImageUrl: text("ai_portrait_image_url"), // Згенероване зображення
+  brandInteractionImages: json("brand_interaction_images").default(sql`'[]'`), // Фото взаємодії з брендом
   // Метадані
   isPrimary: boolean("is_primary").notNull().default(false), // Основна ЦА
   priority: integer("priority").notNull().default(0), // Пріоритет (0 = найвищий)
