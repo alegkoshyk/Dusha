@@ -1166,7 +1166,14 @@ function AudienceDetailsCard({ audience, onRefresh }: { audience: TargetAudience
   const fears = (audience.fears || []) as string[];
   const mediaConsumption = (audience.mediaConsumption || []) as string[];
   const decisionFactors = (audience.decisionFactors || []) as string[];
-  const brandInteractionImages = (audience.brandInteractionImages || []) as string[];
+  
+  const [localInteractionImages, setLocalInteractionImages] = useState<string[]>(
+    (audience.brandInteractionImages || []) as string[]
+  );
+  
+  useEffect(() => {
+    setLocalInteractionImages((audience.brandInteractionImages || []) as string[]);
+  }, [audience.brandInteractionImages]);
 
   const generateInteractionMutation = useMutation({
     mutationFn: async (scenario: string) => {
@@ -1174,8 +1181,12 @@ function AudienceDetailsCard({ audience, onRefresh }: { audience: TargetAudience
       if (!response.ok) throw new Error("Failed to generate image");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({ title: "Успішно", description: "Зображення згенеровано" });
+      if (data.imageUrl) {
+        setLocalInteractionImages(prev => [...prev, data.imageUrl]);
+        setLightboxImage(data.imageUrl);
+      }
       onRefresh?.();
     },
     onError: () => {
@@ -1189,8 +1200,9 @@ function AudienceDetailsCard({ audience, onRefresh }: { audience: TargetAudience
       if (!response.ok) throw new Error("Failed to delete image");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, imageIndex) => {
       toast({ title: "Успішно", description: "Зображення видалено" });
+      setLocalInteractionImages(prev => prev.filter((_, i) => i !== imageIndex));
       onRefresh?.();
     },
     onError: () => {
@@ -1344,9 +1356,9 @@ function AudienceDetailsCard({ audience, onRefresh }: { audience: TargetAudience
           </Button>
         </div>
 
-        {brandInteractionImages.length > 0 ? (
+        {localInteractionImages.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {brandInteractionImages.map((imageUrl, index) => (
+            {localInteractionImages.map((imageUrl, index) => (
               <div key={index} className="relative group">
                 <button
                   onClick={() => setLightboxImage(imageUrl)}
