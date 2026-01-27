@@ -16,10 +16,11 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   ArrowLeft, Save, Loader2, Building2, Palette, Type, Target, 
   Users, Sparkles, ImagePlus, X, FileText, Megaphone, Eye, Heart, Zap,
-  Plus, Trash2, User, Quote
+  Plus, Trash2, User, Quote, FolderOpen, ChevronDown, ChevronRight, Layers, Move
 } from "lucide-react";
 import { Link } from "wouter";
-import type { UserBrand, TargetAudience } from "@shared/schema";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import type { UserBrand, TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
 import { BrandColorPicker, type BrandColor } from "@/components/brands/BrandColorPicker";
 
 interface GeneratedPersona {
@@ -86,6 +87,10 @@ export default function BrandEditPage() {
   const [audienceType, setAudienceType] = useState<"primary" | "secondary" | "niche">("primary");
   const [newAudienceName, setNewAudienceName] = useState("");
   const [selectedAudience, setSelectedAudience] = useState<TargetAudience | null>(null);
+  const [isSegmentDialogOpen, setIsSegmentDialogOpen] = useState(false);
+  const [newSegmentName, setNewSegmentName] = useState("");
+  const [expandedSegments, setExpandedSegments] = useState<Set<string>>(new Set());
+  const [assigningPersonaId, setAssigningPersonaId] = useState<string | null>(null);
 
   const { data: brand, isLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -156,6 +161,87 @@ export default function BrandEditPage() {
     },
     enabled: !!params.brandId,
   });
+
+  interface SegmentWithData extends DemographicSegment {
+    subSegments: (DemographicSubSegment & { personas: TargetAudience[] })[];
+    personas: TargetAudience[];
+  }
+
+  const { data: segments = [], isLoading: segmentsLoading } = useQuery<SegmentWithData[]>({
+    queryKey: ["/api/brands", params.brandId, "demographic-segments"],
+    queryFn: async () => {
+      const response = await fetch(`/api/brands/${params.brandId}/demographic-segments`);
+      if (!response.ok) throw new Error("Failed to fetch segments");
+      return response.json();
+    },
+    enabled: !!params.brandId,
+  });
+
+  const createSegmentMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const response = await apiRequest("POST", `/api/brands/${params.brandId}/demographic-segments`, { name });
+      if (!response.ok) throw new Error("Failed to create segment");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Сегмент створено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      setIsSegmentDialogOpen(false);
+      setNewSegmentName("");
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося створити сегмент", variant: "destructive" });
+    },
+  });
+
+  const deleteSegmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/demographic-segments/${id}`);
+      if (!response.ok) throw new Error("Failed to delete segment");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Сегмент видалено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити сегмент", variant: "destructive" });
+    },
+  });
+
+  const createSubSegmentMutation = useMutation({
+    mutationFn: async ({ segmentId, name }: { segmentId: string; name: string }) => {
+      const response = await apiRequest("POST", `/api/demographic-segments/${segmentId}/sub-segments`, { name });
+      if (!response.ok) throw new Error("Failed to create sub-segment");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Підсегмент створено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося створити підсегмент", variant: "destructive" });
+    },
+  });
+
+  const assignToSegmentMutation = useMutation({
+    mutationFn: async ({ personaId, segmentId, subSegmentId }: { personaId: string; segmentId?: string | null; subSegmentId?: string | null }) => {
+      const response = await apiRequest("PATCH", `/api/target-audiences/${personaId}/assign-segment`, { segmentId, subSegmentId });
+      if (!response.ok) throw new Error("Failed to assign");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Персону призначено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      setAssigningPersonaId(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося призначити персону", variant: "destructive" });
+    },
+  });
+
+  const unassignedPersonas = audiences.filter(a => !a.segmentId && !a.subSegmentId);
 
   const generatePersonaMutation = useMutation({
     mutationFn: async (type: "primary" | "secondary" | "niche") => {
@@ -873,34 +959,266 @@ export default function BrandEditPage() {
                 </div>
                 
                 <Separator />
-                
-                {audiencesLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+
+                {/* Segments Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-blue-500" />
+                      <span className="font-medium text-sm">Сегменти аудиторії</span>
+                    </div>
+                    <Dialog open={isSegmentDialogOpen} onOpenChange={setIsSegmentDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Plus className="h-3 w-3 mr-1" />
+                          Сегмент
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Створити сегмент</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label>Назва сегменту</Label>
+                            <Input
+                              value={newSegmentName}
+                              onChange={(e) => setNewSegmentName(e.target.value)}
+                              placeholder="напр. Молодь 18-25"
+                            />
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button variant="outline" onClick={() => setIsSegmentDialogOpen(false)}>
+                              Скасувати
+                            </Button>
+                            <Button
+                              onClick={() => createSegmentMutation.mutate(newSegmentName)}
+                              disabled={!newSegmentName.trim() || createSegmentMutation.isPending}
+                            >
+                              {createSegmentMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : null}
+                              Створити
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
-                ) : audiences.length === 0 ? (
-                  <div className="p-6 border border-dashed rounded-lg text-center">
-                    <Users className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-                    <p className="text-muted-foreground mb-3">Ще немає персон цільової аудиторії</p>
-                    <Button variant="outline" size="sm" onClick={() => setIsAudienceDialogOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Створити першу персону
-                    </Button>
+
+                  {segmentsLoading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : segments.length === 0 ? (
+                    <div className="p-4 border border-dashed rounded-lg text-center">
+                      <FolderOpen className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-sm text-muted-foreground">Немає сегментів</p>
+                      <p className="text-xs text-muted-foreground">Створіть сегменти для групування персон за демографією</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {segments.map((segment) => (
+                        <Collapsible
+                          key={segment.id}
+                          open={expandedSegments.has(segment.id)}
+                          onOpenChange={(open) => {
+                            const newSet = new Set(expandedSegments);
+                            if (open) newSet.add(segment.id);
+                            else newSet.delete(segment.id);
+                            setExpandedSegments(newSet);
+                          }}
+                        >
+                          <div className="border rounded-lg">
+                            <CollapsibleTrigger className="w-full">
+                              <div className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors">
+                                <div className="flex items-center gap-2">
+                                  {expandedSegments.has(segment.id) ? (
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                  <FolderOpen className="h-4 w-4 text-amber-500" />
+                                  <span className="font-medium text-sm">{segment.name}</span>
+                                  <Badge variant="secondary" className="text-xs">
+                                    {segment.personas.length + segment.subSegments.reduce((acc, s) => acc + s.personas.length, 0)} персон
+                                  </Badge>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const name = prompt("Назва підсегменту:");
+                                      if (name) createSubSegmentMutation.mutate({ segmentId: segment.id, name });
+                                    }}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm("Видалити сегмент?")) deleteSegmentMutation.mutate(segment.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="px-3 pb-3 space-y-2">
+                                {/* Personas directly in segment */}
+                                {segment.personas.map((persona) => (
+                                  <div
+                                    key={persona.id}
+                                    className="flex items-center gap-2 p-2 rounded-md bg-muted/30 ml-6 cursor-pointer hover:bg-muted/50"
+                                    onClick={() => setSelectedAudience(persona)}
+                                  >
+                                    {persona.aiPortraitImageUrl ? (
+                                      <img src={persona.aiPortraitImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+                                    ) : (
+                                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                                        <User className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                    )}
+                                    <span className="text-sm font-medium">{persona.name}</span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 ml-auto"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        assignToSegmentMutation.mutate({ personaId: persona.id, segmentId: null, subSegmentId: null });
+                                      }}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                                {/* Sub-segments */}
+                                {segment.subSegments.map((subSegment) => (
+                                  <div key={subSegment.id} className="ml-6 border-l-2 border-muted pl-3 space-y-1">
+                                    <div className="flex items-center gap-2 py-1">
+                                      <Layers className="h-3 w-3 text-blue-400" />
+                                      <span className="text-sm text-muted-foreground">{subSegment.name}</span>
+                                      <Badge variant="outline" className="text-xs">{subSegment.personas.length}</Badge>
+                                    </div>
+                                    {subSegment.personas.map((persona) => (
+                                      <div
+                                        key={persona.id}
+                                        className="flex items-center gap-2 p-2 rounded-md bg-muted/20 cursor-pointer hover:bg-muted/40"
+                                        onClick={() => setSelectedAudience(persona)}
+                                      >
+                                        {persona.aiPortraitImageUrl ? (
+                                          <img src={persona.aiPortraitImageUrl} alt="" className="h-7 w-7 rounded-full object-cover" />
+                                        ) : (
+                                          <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center">
+                                            <User className="h-3 w-3 text-muted-foreground" />
+                                          </div>
+                                        )}
+                                        <span className="text-sm">{persona.name}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ))}
+                                {segment.personas.length === 0 && segment.subSegments.length === 0 && (
+                                  <p className="text-xs text-muted-foreground ml-6 py-2">Немає персон у цьому сегменті</p>
+                                )}
+                              </div>
+                            </CollapsibleContent>
+                          </div>
+                        </Collapsible>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                {/* Unassigned Personas */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-purple-500" />
+                    <span className="font-medium text-sm">Персони без сегменту</span>
+                    {unassignedPersonas.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">{unassignedPersonas.length}</Badge>
+                    )}
                   </div>
-                ) : (
-                  <div className="grid gap-3">
-                    {audiences.map((audience) => (
-                      <AudienceCardInline 
-                        key={audience.id} 
-                        audience={audience}
-                        onSelect={() => setSelectedAudience(audience)}
-                        onDelete={() => deleteAudienceMutation.mutate(audience.id)}
-                        onGenerateAvatar={() => generateAvatarMutation.mutate(audience.id)}
-                        isGeneratingAvatar={generatingAvatarId === audience.id}
-                      />
-                    ))}
-                  </div>
-                )}
+                  
+                  {audiencesLoading ? (
+                    <div className="flex justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : unassignedPersonas.length === 0 && audiences.length === 0 ? (
+                    <div className="p-4 border border-dashed rounded-lg text-center">
+                      <Users className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-sm text-muted-foreground mb-2">Ще немає персон</p>
+                      <Button variant="outline" size="sm" onClick={() => setIsAudienceDialogOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Створити персону
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-2">
+                      {unassignedPersonas.map((audience) => (
+                        <div key={audience.id} className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <AudienceCardInline 
+                              audience={audience}
+                              onSelect={() => setSelectedAudience(audience)}
+                              onDelete={() => deleteAudienceMutation.mutate(audience.id)}
+                              onGenerateAvatar={() => generateAvatarMutation.mutate(audience.id)}
+                              isGeneratingAvatar={generatingAvatarId === audience.id}
+                            />
+                          </div>
+                          {segments.length > 0 && (
+                            <Select
+                              value=""
+                              onValueChange={(value) => {
+                                if (value.startsWith("seg:")) {
+                                  assignToSegmentMutation.mutate({ personaId: audience.id, segmentId: value.replace("seg:", ""), subSegmentId: null });
+                                } else if (value.startsWith("sub:")) {
+                                  const [, subId, segId] = value.split(":");
+                                  assignToSegmentMutation.mutate({ personaId: audience.id, segmentId: segId, subSegmentId: subId });
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-10 h-8 p-0 justify-center">
+                                <Move className="h-3 w-3" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {segments.map((seg) => (
+                                  <div key={seg.id}>
+                                    <SelectItem value={`seg:${seg.id}`}>
+                                      <div className="flex items-center gap-2">
+                                        <FolderOpen className="h-3 w-3" />
+                                        {seg.name}
+                                      </div>
+                                    </SelectItem>
+                                    {seg.subSegments.map((sub) => (
+                                      <SelectItem key={sub.id} value={`sub:${sub.id}:${seg.id}`}>
+                                        <div className="flex items-center gap-2 ml-4">
+                                          <Layers className="h-3 w-3" />
+                                          {sub.name}
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </div>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-2 pt-2">
                   <Link href={`/target-audience/${params.brandId}`}>
