@@ -9,15 +9,42 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   ArrowLeft, Save, Loader2, Building2, Palette, Type, Target, 
-  Users, Sparkles, ImagePlus, X, FileText, Megaphone, Eye, Heart, Zap
+  Users, Sparkles, ImagePlus, X, FileText, Megaphone, Eye, Heart, Zap,
+  Plus, Trash2, User, Quote
 } from "lucide-react";
 import { Link } from "wouter";
-import type { UserBrand } from "@shared/schema";
+import type { UserBrand, TargetAudience } from "@shared/schema";
 import { BrandColorPicker, type BrandColor } from "@/components/brands/BrandColorPicker";
+
+interface GeneratedPersona {
+  name: string;
+  age: number;
+  gender: string;
+  occupation: string;
+  location: string;
+  income: string;
+  education: string;
+  familyStatus: string;
+  lifestyle: string;
+  values: string[];
+  interests: string[];
+  painPoints: string[];
+  goals: string[];
+  motivations: string[];
+  fears: string[];
+  buyingBehavior: string;
+  mediaConsumption: string[];
+  decisionFactors: string[];
+  quote: string;
+  dayInLife: string;
+  brandRelationship: string;
+}
 
 interface BrandTypography {
   headingFont?: string;
@@ -55,6 +82,10 @@ export default function BrandEditPage() {
   const [newCompetitor, setNewCompetitor] = useState("");
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoChanged, setLogoChanged] = useState(false);
+  const [isAudienceDialogOpen, setIsAudienceDialogOpen] = useState(false);
+  const [audienceType, setAudienceType] = useState<"primary" | "secondary" | "niche">("primary");
+  const [newAudienceName, setNewAudienceName] = useState("");
+  const [selectedAudience, setSelectedAudience] = useState<TargetAudience | null>(null);
 
   const { data: brand, isLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -115,6 +146,97 @@ export default function BrandEditPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/user/brands", params.brandId] });
     },
   });
+
+  const { data: audiences = [], isLoading: audiencesLoading } = useQuery<TargetAudience[]>({
+    queryKey: ["/api/brands", params.brandId, "target-audiences"],
+    queryFn: async () => {
+      const response = await fetch(`/api/brands/${params.brandId}/target-audiences`);
+      if (!response.ok) throw new Error("Failed to fetch audiences");
+      return response.json();
+    },
+    enabled: !!params.brandId,
+  });
+
+  const generatePersonaMutation = useMutation({
+    mutationFn: async (type: "primary" | "secondary" | "niche") => {
+      const response = await apiRequest("POST", `/api/brands/${params.brandId}/generate-persona`, { audienceType: type });
+      if (!response.ok) throw new Error("Failed to generate persona");
+      return response.json() as Promise<GeneratedPersona>;
+    },
+    onSuccess: (persona) => {
+      setNewAudienceName(persona.name);
+      toast({ title: "Персона згенерована", description: `Портрет "${persona.name}" створено` });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося згенерувати персону", variant: "destructive" });
+    },
+  });
+
+  const createAudienceMutation = useMutation({
+    mutationFn: async (data: Partial<TargetAudience>) => {
+      const response = await apiRequest("POST", `/api/brands/${params.brandId}/target-audiences`, data);
+      if (!response.ok) throw new Error("Failed to create audience");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Цільову аудиторію створено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      setIsAudienceDialogOpen(false);
+      setNewAudienceName("");
+      generatePersonaMutation.reset();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося створити аудиторію", variant: "destructive" });
+    },
+  });
+
+  const deleteAudienceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/target-audiences/${id}`);
+      if (!response.ok) throw new Error("Failed to delete audience");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Цільову аудиторію видалено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      setSelectedAudience(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити аудиторію", variant: "destructive" });
+    },
+  });
+
+  const handleGeneratePersona = () => {
+    generatePersonaMutation.mutate(audienceType);
+  };
+
+  const handleCreateFromPersona = () => {
+    const persona = generatePersonaMutation.data;
+    if (!persona) return;
+
+    createAudienceMutation.mutate({
+      brandId: params.brandId!,
+      name: persona.name,
+      description: `${persona.occupation}, ${persona.age} років`,
+      isPrimary: audienceType === "primary",
+      ageRange: `${persona.age - 5}-${persona.age + 5}`,
+      gender: persona.gender,
+      location: persona.location,
+      income: persona.income,
+      education: persona.education,
+      occupation: persona.occupation,
+      values: persona.values,
+      interests: persona.interests,
+      painPoints: persona.painPoints,
+      goals: persona.goals,
+      motivations: persona.motivations,
+      fears: persona.fears,
+      buyingBehavior: persona.buyingBehavior,
+      mediaConsumption: persona.mediaConsumption,
+      decisionFactors: persona.decisionFactors,
+      aiPortrait: `${persona.lifestyle}\n\n${persona.dayInLife}\n\n${persona.brandRelationship}`,
+    });
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -618,21 +740,113 @@ export default function BrandEditPage() {
           <TabsContent value="audience" className="space-y-6">
             <Card className="border-border/50 shadow-sm">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Users className="h-5 w-5 text-blue-500" />
-                  Цільова аудиторія
-                </CardTitle>
-                <CardDescription>Ваші ідеальні клієнти та їх портрети</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Users className="h-5 w-5 text-blue-500" />
+                      Цільова аудиторія
+                    </CardTitle>
+                    <CardDescription>Ваші ідеальні клієнти та їх портрети</CardDescription>
+                  </div>
+                  <Dialog open={isAudienceDialogOpen} onOpenChange={setIsAudienceDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Додати ЦА
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Створити цільову аудиторію</DialogTitle>
+                      </DialogHeader>
+                      
+                      <div className="space-y-6 py-4">
+                        <div className="space-y-2">
+                          <Label>Тип аудиторії</Label>
+                          <Select value={audienceType} onValueChange={(v) => setAudienceType(v as "primary" | "secondary" | "niche")}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="primary">Основна (Primary)</SelectItem>
+                              <SelectItem value="secondary">Вторинна (Secondary)</SelectItem>
+                              <SelectItem value="niche">Нішева (Niche)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="p-4 bg-muted/50 rounded-lg border">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="h-5 w-5 text-primary" />
+                              <span className="font-medium">AI-генерація персони</span>
+                            </div>
+                            <Button 
+                              onClick={handleGeneratePersona} 
+                              disabled={generatePersonaMutation.isPending}
+                              size="sm"
+                            >
+                              {generatePersonaMutation.isPending ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Генерація...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="h-4 w-4 mr-2" />
+                                  Згенерувати
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            AI проаналізує ваш бренд та створить детальний портрет ідеального клієнта
+                          </p>
+                        </div>
+
+                        {generatePersonaMutation.data && (
+                          <PersonaPreviewCard persona={generatePersonaMutation.data} />
+                        )}
+
+                        <Separator />
+
+                        <div className="space-y-2">
+                          <Label>Ім'я персони</Label>
+                          <Input 
+                            value={newAudienceName}
+                            onChange={(e) => setNewAudienceName(e.target.value)}
+                            placeholder="Введіть ім'я або згенеруйте AI"
+                          />
+                        </div>
+
+                        <div className="flex gap-2 justify-end">
+                          <Button variant="outline" onClick={() => setIsAudienceDialogOpen(false)}>
+                            Скасувати
+                          </Button>
+                          <Button 
+                            onClick={handleCreateFromPersona}
+                            disabled={!generatePersonaMutation.data || createAudienceMutation.isPending}
+                          >
+                            {createAudienceMutation.isPending && (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            )}
+                            Зберегти
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </CardHeader>
               <CardContent className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="targetAudienceDesc" className="text-sm font-medium">Опис цільової аудиторії</Label>
+                  <Label htmlFor="targetAudienceDesc" className="text-sm font-medium">Загальний опис</Label>
                   <Textarea
                     id="targetAudienceDesc"
                     value={formData.targetAudience}
                     onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
                     placeholder="Хто ваші ідеальні клієнти? Їх демографія, інтереси, потреби..."
-                    rows={4}
+                    rows={3}
                     className="resize-none"
                     data-testid="textarea-target-audience"
                   />
@@ -640,23 +854,56 @@ export default function BrandEditPage() {
                 
                 <Separator />
                 
-                <div className="p-4 bg-muted/30 rounded-lg border border-dashed border-border">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <span className="font-medium text-sm">Детальний аналіз аудиторії</span>
+                {audiencesLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Для створення детальних портретів персон з AI-аналізом перейдіть до інструменту цільової аудиторії
-                  </p>
+                ) : audiences.length === 0 ? (
+                  <div className="p-6 border border-dashed rounded-lg text-center">
+                    <Users className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-muted-foreground mb-3">Ще немає персон цільової аудиторії</p>
+                    <Button variant="outline" size="sm" onClick={() => setIsAudienceDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Створити першу персону
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {audiences.map((audience) => (
+                      <AudienceCardInline 
+                        key={audience.id} 
+                        audience={audience}
+                        onSelect={() => setSelectedAudience(audience)}
+                        onDelete={() => deleteAudienceMutation.mutate(audience.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-2">
                   <Link href={`/target-audience/${params.brandId}`}>
                     <Button variant="outline" size="sm">
                       <Users className="h-4 w-4 mr-2" />
-                      Відкрити інструмент ЦА
+                      Детальний інструмент ЦА
                     </Button>
                   </Link>
                 </div>
               </CardContent>
             </Card>
+
+            {selectedAudience && (
+              <Dialog open={!!selectedAudience} onOpenChange={() => setSelectedAudience(null)}>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <User className="h-5 w-5" />
+                      {selectedAudience.name}
+                    </DialogTitle>
+                  </DialogHeader>
+                  <AudienceDetailsCard audience={selectedAudience} />
+                </DialogContent>
+              </Dialog>
+            )}
           </TabsContent>
 
           <TabsContent value="voice" className="space-y-6">
@@ -748,6 +995,204 @@ export default function BrandEditPage() {
           </TabsContent>
         </Tabs>
       </div>
+    </div>
+  );
+}
+
+function PersonaPreviewCard({ persona }: { persona: GeneratedPersona }) {
+  return (
+    <div className="border rounded-lg p-4 space-y-4 bg-background">
+      <div className="flex items-start gap-4">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+          <User className="h-8 w-8 text-primary" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold">{persona.name}</h3>
+          <p className="text-muted-foreground">{persona.occupation}, {persona.age} років</p>
+          <div className="flex flex-wrap gap-1 mt-2">
+            <Badge variant="outline">{persona.gender}</Badge>
+            <Badge variant="outline">{persona.location}</Badge>
+            <Badge variant="outline">{persona.familyStatus}</Badge>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-3 bg-muted/50 rounded-lg italic text-sm">
+        <Quote className="h-4 w-4 inline mr-2 text-muted-foreground" />
+        "{persona.quote}"
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <div className="flex items-center gap-2 font-medium mb-1">
+            <Heart className="h-4 w-4 text-red-500" />
+            Цінності
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {persona.values.slice(0, 3).map((v, i) => (
+              <Badge key={i} variant="secondary" className="text-xs">{v}</Badge>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center gap-2 font-medium mb-1">
+            <Target className="h-4 w-4 text-green-500" />
+            Цілі
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {persona.goals.slice(0, 2).map((g, i) => (
+              <Badge key={i} variant="secondary" className="text-xs">{g}</Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <p className="text-sm text-muted-foreground">{persona.lifestyle}</p>
+    </div>
+  );
+}
+
+function AudienceCardInline({ 
+  audience, 
+  onSelect, 
+  onDelete 
+}: { 
+  audience: TargetAudience; 
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  const values = (audience.values || []) as string[];
+  
+  return (
+    <div 
+      className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
+      onClick={onSelect}
+    >
+      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center shrink-0">
+        <User className="h-5 w-5 text-primary" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-medium truncate">{audience.name}</span>
+          <Badge variant="outline" className="text-xs shrink-0">
+            {audience.isPrimary ? "Основна" : "Вторинна"}
+          </Badge>
+        </div>
+        {audience.description && (
+          <p className="text-sm text-muted-foreground truncate">{audience.description}</p>
+        )}
+        <div className="flex flex-wrap gap-1 mt-1">
+          {audience.gender && (
+            <Badge variant="secondary" className="text-xs">{audience.gender}</Badge>
+          )}
+          {audience.ageRange && (
+            <Badge variant="secondary" className="text-xs">{audience.ageRange}</Badge>
+          )}
+          {values.length > 0 && (
+            <Badge variant="secondary" className="text-xs">+{values.length} цінностей</Badge>
+          )}
+        </div>
+      </div>
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="h-8 w-8 shrink-0"
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+      >
+        <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+      </Button>
+    </div>
+  );
+}
+
+function AudienceDetailsCard({ audience }: { audience: TargetAudience }) {
+  const values = (audience.values || []) as string[];
+  const interests = (audience.interests || []) as string[];
+  const painPoints = (audience.painPoints || []) as string[];
+  const goals = (audience.goals || []) as string[];
+  const motivations = (audience.motivations || []) as string[];
+  const fears = (audience.fears || []) as string[];
+  const mediaConsumption = (audience.mediaConsumption || []) as string[];
+  const decisionFactors = (audience.decisionFactors || []) as string[];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start gap-4">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
+          <User className="h-8 w-8 text-primary" />
+        </div>
+        <div>
+          <Badge variant={audience.isPrimary ? "default" : "secondary"}>
+            {audience.isPrimary ? "Основна" : "Вторинна"}
+          </Badge>
+          {audience.description && (
+            <p className="text-muted-foreground mt-1">{audience.description}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="space-y-3">
+          <h4 className="font-medium">Демографія</h4>
+          <div className="space-y-2 text-sm">
+            {audience.ageRange && <p><span className="text-muted-foreground">Вік:</span> {audience.ageRange}</p>}
+            {audience.gender && <p><span className="text-muted-foreground">Стать:</span> {audience.gender}</p>}
+            {audience.location && <p><span className="text-muted-foreground">Локація:</span> {audience.location}</p>}
+            {audience.education && <p><span className="text-muted-foreground">Освіта:</span> {audience.education}</p>}
+            {audience.occupation && <p><span className="text-muted-foreground">Професія:</span> {audience.occupation}</p>}
+            {audience.income && <p><span className="text-muted-foreground">Дохід:</span> {audience.income}</p>}
+          </div>
+        </div>
+        
+        {values.length > 0 && (
+          <div className="space-y-3">
+            <h4 className="font-medium flex items-center gap-2">
+              <Heart className="h-4 w-4 text-red-500" />
+              Цінності
+            </h4>
+            <div className="flex flex-wrap gap-1">
+              {values.map((v, i) => (
+                <Badge key={i} variant="secondary" className="text-xs">{v}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {goals.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="font-medium flex items-center gap-2">
+            <Target className="h-4 w-4 text-green-500" />
+            Цілі та мотивації
+          </h4>
+          <div className="flex flex-wrap gap-1">
+            {goals.map((g, i) => (
+              <Badge key={i} variant="outline" className="text-xs">{g}</Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {painPoints.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="font-medium">Болі та проблеми</h4>
+          <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+            {painPoints.map((p, i) => (
+              <li key={i}>{p}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {audience.aiPortrait && (
+        <div className="space-y-3">
+          <h4 className="font-medium flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            AI-портрет
+          </h4>
+          <p className="text-sm text-muted-foreground whitespace-pre-line">{audience.aiPortrait}</p>
+        </div>
+      )}
     </div>
   );
 }
