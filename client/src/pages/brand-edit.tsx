@@ -922,7 +922,10 @@ export default function BrandEditPage() {
                       {selectedAudience.name}
                     </DialogTitle>
                   </DialogHeader>
-                  <AudienceDetailsCard audience={selectedAudience} />
+                  <AudienceDetailsCard 
+                    audience={selectedAudience} 
+                    onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] })}
+                  />
                 </DialogContent>
               </Dialog>
             )}
@@ -1150,7 +1153,11 @@ function AudienceCardInline({
   );
 }
 
-function AudienceDetailsCard({ audience }: { audience: TargetAudience }) {
+function AudienceDetailsCard({ audience, onRefresh }: { audience: TargetAudience; onRefresh?: () => void }) {
+  const { toast } = useToast();
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [selectedScenario, setSelectedScenario] = useState("using_product");
+  
   const values = (audience.values || []) as string[];
   const interests = (audience.interests || []) as string[];
   const painPoints = (audience.painPoints || []) as string[];
@@ -1159,11 +1166,68 @@ function AudienceDetailsCard({ audience }: { audience: TargetAudience }) {
   const fears = (audience.fears || []) as string[];
   const mediaConsumption = (audience.mediaConsumption || []) as string[];
   const decisionFactors = (audience.decisionFactors || []) as string[];
+  const brandInteractionImages = (audience.brandInteractionImages || []) as string[];
+
+  const generateInteractionMutation = useMutation({
+    mutationFn: async (scenario: string) => {
+      const response = await apiRequest("POST", `/api/target-audiences/${audience.id}/generate-interaction`, { scenario });
+      if (!response.ok) throw new Error("Failed to generate image");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Зображення згенеровано" });
+      onRefresh?.();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося згенерувати зображення", variant: "destructive" });
+    },
+  });
+
+  const deleteInteractionMutation = useMutation({
+    mutationFn: async (imageIndex: number) => {
+      const response = await apiRequest("DELETE", `/api/target-audiences/${audience.id}/interaction-image/${imageIndex}`);
+      if (!response.ok) throw new Error("Failed to delete image");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Зображення видалено" });
+      onRefresh?.();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити зображення", variant: "destructive" });
+    },
+  });
+
+  const scenarios = [
+    { value: "using_product", label: "Використовує продукт" },
+    { value: "shopping", label: "Покупка/вибір" },
+    { value: "recommending", label: "Рекомендує друзям" },
+    { value: "social_media", label: "В соцмережах" },
+    { value: "event", label: "На заході бренду" },
+  ];
 
   return (
     <div className="space-y-6">
+      <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
+        <DialogContent className="max-w-2xl p-2">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Перегляд зображення</DialogTitle>
+          </DialogHeader>
+          {lightboxImage && (
+            <img 
+              src={lightboxImage} 
+              alt="Повнорозмірне зображення" 
+              className="w-full h-auto rounded-lg"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="flex items-start gap-4">
-        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center overflow-hidden shrink-0">
+        <button 
+          onClick={() => audience.aiPortraitImageUrl && setLightboxImage(audience.aiPortraitImageUrl)}
+          className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center overflow-hidden shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+        >
           {audience.aiPortraitImageUrl ? (
             <img 
               src={audience.aiPortraitImageUrl} 
@@ -1173,7 +1237,7 @@ function AudienceDetailsCard({ audience }: { audience: TargetAudience }) {
           ) : (
             <User className="h-10 w-10 text-primary" />
           )}
-        </div>
+        </button>
         <div>
           <Badge variant={audience.isPrimary ? "default" : "secondary"}>
             {audience.isPrimary ? "Основна" : "Вторинна"}
@@ -1246,6 +1310,70 @@ function AudienceDetailsCard({ audience }: { audience: TargetAudience }) {
           <p className="text-sm text-muted-foreground whitespace-pre-line">{audience.aiPortrait}</p>
         </div>
       )}
+
+      <Separator />
+
+      <div className="space-y-4">
+        <h4 className="font-medium flex items-center gap-2">
+          <ImagePlus className="h-4 w-4 text-primary" />
+          Взаємодія з брендом
+        </h4>
+        
+        <div className="flex flex-wrap gap-2 items-center">
+          <Select value={selectedScenario} onValueChange={setSelectedScenario}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Оберіть сценарій" />
+            </SelectTrigger>
+            <SelectContent>
+              {scenarios.map((s) => (
+                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button 
+            size="sm" 
+            onClick={() => generateInteractionMutation.mutate(selectedScenario)}
+            disabled={generateInteractionMutation.isPending}
+          >
+            {generateInteractionMutation.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2" />
+            )}
+            Згенерувати фото
+          </Button>
+        </div>
+
+        {brandInteractionImages.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {brandInteractionImages.map((imageUrl, index) => (
+              <div key={index} className="relative group">
+                <button
+                  onClick={() => setLightboxImage(imageUrl)}
+                  className="w-full aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
+                >
+                  <img 
+                    src={imageUrl} 
+                    alt={`Взаємодія ${index + 1}`} 
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+                <button
+                  onClick={() => deleteInteractionMutation.mutate(index)}
+                  disabled={deleteInteractionMutation.isPending}
+                  className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Згенеруйте зображення персони у взаємодії з вашим брендом
+          </p>
+        )}
+      </div>
     </div>
   );
 }
