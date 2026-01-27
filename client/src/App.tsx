@@ -42,6 +42,7 @@ import PaymentCallback from "@/pages/PaymentCallback";
 import BrandEdit from "@/pages/brand-edit";
 import BrandAnalysis from "@/pages/brand-analysis";
 import Brands from "@/pages/brands";
+import TargetAudience from "@/pages/target-audience";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -100,6 +101,7 @@ function Router() {
           <Route path="/pricing" component={Pricing} />
           <Route path="/payment/callback" component={PaymentCallback} />
           <Route path="/brand/:brandId" component={BrandEdit} />
+          <Route path="/target-audience/:brandId" component={TargetAudience} />
           <Route path="/brand-analysis" component={BrandAnalysis} />
           <Route component={NotFound} />
         </Switch>

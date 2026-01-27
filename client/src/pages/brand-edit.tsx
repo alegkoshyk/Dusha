@@ -242,7 +242,7 @@ export default function BrandEditPage() {
         </div>
 
         <Tabs defaultValue="basic" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-5">
             <TabsTrigger value="basic" className="text-xs sm:text-sm">
               <Building2 className="h-4 w-4 mr-1 hidden sm:inline" />
               Основне
@@ -254,6 +254,10 @@ export default function BrandEditPage() {
             <TabsTrigger value="strategy" className="text-xs sm:text-sm">
               <Target className="h-4 w-4 mr-1 hidden sm:inline" />
               Стратегія
+            </TabsTrigger>
+            <TabsTrigger value="audience" className="text-xs sm:text-sm">
+              <Users className="h-4 w-4 mr-1 hidden sm:inline" />
+              Аудиторія
             </TabsTrigger>
             <TabsTrigger value="voice" className="text-xs sm:text-sm">
               <Megaphone className="h-4 w-4 mr-1 hidden sm:inline" />
@@ -606,6 +610,50 @@ export default function BrandEditPage() {
                   >
                     Додати
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audience" className="space-y-6">
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Users className="h-5 w-5 text-blue-500" />
+                  Цільова аудиторія
+                </CardTitle>
+                <CardDescription>Ваші ідеальні клієнти та їх портрети</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="targetAudienceDesc" className="text-sm font-medium">Опис цільової аудиторії</Label>
+                  <Textarea
+                    id="targetAudienceDesc"
+                    value={formData.targetAudience}
+                    onChange={(e) => setFormData({ ...formData, targetAudience: e.target.value })}
+                    placeholder="Хто ваші ідеальні клієнти? Їх демографія, інтереси, потреби..."
+                    rows={4}
+                    className="resize-none"
+                    data-testid="textarea-target-audience"
+                  />
+                </div>
+                
+                <Separator />
+                
+                <div className="p-4 bg-muted/30 rounded-lg border border-dashed border-border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-sm">Детальний аналіз аудиторії</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Для створення детальних портретів персон з AI-аналізом перейдіть до інструменту цільової аудиторії
+                  </p>
+                  <Link href={`/target-audience/${params.brandId}`}>
+                    <Button variant="outline" size="sm">
+                      <Users className="h-4 w-4 mr-2" />
+                      Відкрити інструмент ЦА
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
