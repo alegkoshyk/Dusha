@@ -80,6 +80,12 @@ import {
   type BrandAnalysisTemplate,
   type InsertBrandAnalysisTemplate,
   brandAnalysisTemplatesTable,
+  type TargetAudience,
+  type InsertTargetAudience,
+  targetAudiencesTable,
+  type AudienceSegment,
+  type InsertAudienceSegment,
+  audienceSegmentsTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -245,6 +251,20 @@ export interface IStorage {
   updateBrandAnalysisTemplate(id: number, updates: Partial<BrandAnalysisTemplate>): Promise<BrandAnalysisTemplate | undefined>;
   deleteBrandAnalysisTemplate(id: number): Promise<boolean>;
   setDefaultBrandAnalysisTemplate(id: number): Promise<boolean>;
+  
+  // Target audience operations
+  getTargetAudiences(brandId: string): Promise<TargetAudience[]>;
+  getTargetAudience(id: string): Promise<TargetAudience | undefined>;
+  createTargetAudience(audience: InsertTargetAudience): Promise<TargetAudience>;
+  updateTargetAudience(id: string, updates: Partial<TargetAudience>): Promise<TargetAudience | undefined>;
+  deleteTargetAudience(id: string): Promise<boolean>;
+  
+  // Audience segment operations
+  getAudienceSegments(audienceId: string): Promise<AudienceSegment[]>;
+  getAudienceSegment(id: string): Promise<AudienceSegment | undefined>;
+  createAudienceSegment(segment: InsertAudienceSegment): Promise<AudienceSegment>;
+  updateAudienceSegment(id: string, updates: Partial<AudienceSegment>): Promise<AudienceSegment | undefined>;
+  deleteAudienceSegment(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2575,6 +2595,90 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return !!result;
+  }
+
+  // Target audience operations
+  async getTargetAudiences(brandId: string): Promise<TargetAudience[]> {
+    const results = await db
+      .select()
+      .from(targetAudiencesTable)
+      .where(eq(targetAudiencesTable.brandId, brandId))
+      .orderBy(targetAudiencesTable.priority);
+    return results;
+  }
+
+  async getTargetAudience(id: string): Promise<TargetAudience | undefined> {
+    const [result] = await db
+      .select()
+      .from(targetAudiencesTable)
+      .where(eq(targetAudiencesTable.id, id));
+    return result;
+  }
+
+  async createTargetAudience(audience: InsertTargetAudience): Promise<TargetAudience> {
+    const [result] = await db
+      .insert(targetAudiencesTable)
+      .values(audience)
+      .returning();
+    return result;
+  }
+
+  async updateTargetAudience(id: string, updates: Partial<TargetAudience>): Promise<TargetAudience | undefined> {
+    const [result] = await db
+      .update(targetAudiencesTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(targetAudiencesTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteTargetAudience(id: string): Promise<boolean> {
+    const result = await db
+      .delete(targetAudiencesTable)
+      .where(eq(targetAudiencesTable.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Audience segment operations
+  async getAudienceSegments(audienceId: string): Promise<AudienceSegment[]> {
+    const results = await db
+      .select()
+      .from(audienceSegmentsTable)
+      .where(eq(audienceSegmentsTable.audienceId, audienceId))
+      .orderBy(audienceSegmentsTable.priority);
+    return results;
+  }
+
+  async getAudienceSegment(id: string): Promise<AudienceSegment | undefined> {
+    const [result] = await db
+      .select()
+      .from(audienceSegmentsTable)
+      .where(eq(audienceSegmentsTable.id, id));
+    return result;
+  }
+
+  async createAudienceSegment(segment: InsertAudienceSegment): Promise<AudienceSegment> {
+    const [result] = await db
+      .insert(audienceSegmentsTable)
+      .values(segment)
+      .returning();
+    return result;
+  }
+
+  async updateAudienceSegment(id: string, updates: Partial<AudienceSegment>): Promise<AudienceSegment | undefined> {
+    const [result] = await db
+      .update(audienceSegmentsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(audienceSegmentsTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteAudienceSegment(id: string): Promise<boolean> {
+    const result = await db
+      .delete(audienceSegmentsTable)
+      .where(eq(audienceSegmentsTable.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 }
 

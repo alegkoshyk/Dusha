@@ -541,6 +541,271 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =========================================
+  // Target Audience Routes
+  // =========================================
+  
+  // Get all target audiences for a brand
+  app.get("/api/brands/:brandId/target-audiences", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      const audiences = await storage.getTargetAudiences(brandId);
+      res.json(audiences);
+    } catch (error) {
+      console.error("Get target audiences error:", error);
+      res.status(500).json({ error: "Помилка отримання цільових аудиторій" });
+    }
+  });
+
+  // Get single target audience
+  app.get("/api/target-audiences/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const audience = await storage.getTargetAudience(id);
+      
+      if (!audience) {
+        return res.status(404).json({ error: "Цільову аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      res.json(audience);
+    } catch (error) {
+      console.error("Get target audience error:", error);
+      res.status(500).json({ error: "Помилка отримання цільової аудиторії" });
+    }
+  });
+
+  // Create target audience
+  app.post("/api/brands/:brandId/target-audiences", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      const audience = await storage.createTargetAudience({
+        brandId,
+        ...req.body
+      });
+      res.status(201).json(audience);
+    } catch (error) {
+      console.error("Create target audience error:", error);
+      res.status(500).json({ error: "Помилка створення цільової аудиторії" });
+    }
+  });
+
+  // Update target audience
+  app.patch("/api/target-audiences/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const audience = await storage.getTargetAudience(id);
+      
+      if (!audience) {
+        return res.status(404).json({ error: "Цільову аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const updated = await storage.updateTargetAudience(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update target audience error:", error);
+      res.status(500).json({ error: "Помилка оновлення цільової аудиторії" });
+    }
+  });
+
+  // Delete target audience
+  app.delete("/api/target-audiences/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const audience = await storage.getTargetAudience(id);
+      
+      if (!audience) {
+        return res.status(404).json({ error: "Цільову аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await storage.deleteTargetAudience(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete target audience error:", error);
+      res.status(500).json({ error: "Помилка видалення цільової аудиторії" });
+    }
+  });
+
+  // =========================================
+  // Audience Segments Routes
+  // =========================================
+
+  // Get segments for an audience
+  app.get("/api/target-audiences/:audienceId/segments", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { audienceId } = req.params;
+      const audience = await storage.getTargetAudience(audienceId);
+      
+      if (!audience) {
+        return res.status(404).json({ error: "Цільову аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const segments = await storage.getAudienceSegments(audienceId);
+      res.json(segments);
+    } catch (error) {
+      console.error("Get audience segments error:", error);
+      res.status(500).json({ error: "Помилка отримання сегментів" });
+    }
+  });
+
+  // Create segment
+  app.post("/api/target-audiences/:audienceId/segments", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { audienceId } = req.params;
+      const audience = await storage.getTargetAudience(audienceId);
+      
+      if (!audience) {
+        return res.status(404).json({ error: "Цільову аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const segment = await storage.createAudienceSegment({
+        audienceId,
+        ...req.body
+      });
+      res.status(201).json(segment);
+    } catch (error) {
+      console.error("Create audience segment error:", error);
+      res.status(500).json({ error: "Помилка створення сегменту" });
+    }
+  });
+
+  // Update segment
+  app.patch("/api/audience-segments/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const segment = await storage.getAudienceSegment(id);
+      
+      if (!segment) {
+        return res.status(404).json({ error: "Сегмент не знайдено" });
+      }
+
+      const audience = await storage.getTargetAudience(segment.audienceId);
+      if (!audience) {
+        return res.status(404).json({ error: "Цільову аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const updated = await storage.updateAudienceSegment(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update audience segment error:", error);
+      res.status(500).json({ error: "Помилка оновлення сегменту" });
+    }
+  });
+
+  // Delete segment
+  app.delete("/api/audience-segments/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const segment = await storage.getAudienceSegment(id);
+      
+      if (!segment) {
+        return res.status(404).json({ error: "Сегмент не знайдено" });
+      }
+
+      const audience = await storage.getTargetAudience(segment.audienceId);
+      if (!audience) {
+        return res.status(404).json({ error: "Цільову аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await storage.deleteAudienceSegment(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete audience segment error:", error);
+      res.status(500).json({ error: "Помилка видалення сегменту" });
+    }
+  });
+
   // Game sessions with user auth
   app.get("/api/user/game-sessions", requireAuth, async (req, res) => {
     try {
