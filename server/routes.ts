@@ -52,6 +52,27 @@ function buildAvatarPrompt(audience: any): string {
   return `Professional portrait photo of a ${gender}, age ${ageRange}, ${occupation}. ${values ? `Values: ${values}.` : ""} ${interests ? `Interests: ${interests}.` : ""} ${lifestyle ? lifestyle : ""} High quality, realistic, professional headshot, neutral background, natural lighting, friendly expression. Style: modern corporate portrait photography.`;
 }
 
+// Build prompt for brand interaction image
+function buildBrandInteractionPrompt(audience: any, brand: any, scenario: string): string {
+  const gender = audience.gender || "person";
+  const ageRange = audience.ageRange || "30-40";
+  const occupation = audience.occupation || "professional";
+  const brandName = brand.name || "brand";
+  const brandIndustry = brand.industry || "";
+  const brandMission = brand.mission || "";
+  
+  const scenarioPrompts: Record<string, string> = {
+    "using_product": `${gender}, age ${ageRange}, ${occupation} happily using a product or service from ${brandName}${brandIndustry ? ` (${brandIndustry})` : ""}. Show genuine engagement and satisfaction. Modern lifestyle photography, natural lighting, authentic moment.`,
+    "shopping": `${gender}, age ${ageRange}, ${occupation} browsing or shopping at ${brandName}${brandIndustry ? ` (${brandIndustry})` : ""} store or online. Show interest and consideration. Retail/e-commerce lifestyle photography.`,
+    "recommending": `${gender}, age ${ageRange}, ${occupation} recommending ${brandName} to friends or colleagues. Social interaction, positive conversation. Lifestyle photography, natural setting.`,
+    "social_media": `${gender}, age ${ageRange}, ${occupation} engaging with ${brandName} content on smartphone or laptop. Social media interaction, modern digital lifestyle photography.`,
+    "event": `${gender}, age ${ageRange}, ${occupation} at a ${brandName} brand event or activation. Engaged and enjoying the experience. Event photography style.`,
+  };
+  
+  const basePrompt = scenarioPrompts[scenario] || scenarioPrompts["using_product"];
+  return `${basePrompt} ${brandMission ? `Brand values: ${brandMission}.` : ""} High quality, realistic, professional photography.`;
+}
+
 const saveCardResponseSchema = z.object({
   cardId: z.string(),
   response: z.any(),
@@ -899,6 +920,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Generate avatar error:", error);
       res.status(500).json({ error: "Помилка генерації аватара" });
+    }
+  });
+
+  // Generate brand interaction image for target audience
+  app.post("/api/target-audiences/:id/generate-interaction", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const { scenario } = req.body;
+      
+      // Get audience and verify ownership
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Build prompt for brand interaction image
+      const prompt = buildBrandInteractionPrompt(audience, brand, scenario || "using_product");
+      
+      // Generate image using Gemini
+      const { generateImage } = await import("./replit_integrations/image/client");
+      const imageDataUrl = await generateImage(prompt);
+      
+      // Get existing images and add new one
+      const existingImages = (audience.brandInteractionImages as string[]) || [];
+      const updatedImages = [...existingImages, imageDataUrl];
+      
+      // Update audience with new interaction image
+      const updated = await storage.updateTargetAudience(id, {
+        brandInteractionImages: updatedImages
+      });
+
+      res.json({ 
+        success: true, 
+        imageUrl: imageDataUrl,
+        brandInteractionImages: updatedImages,
+        audience: updated 
+      });
+    } catch (error) {
+      console.error("Generate brand interaction error:", error);
+      res.status(500).json({ error: "Помилка генерації зображення" });
+    }
+  });
+
+  // Delete brand interaction image
+  app.delete("/api/target-audiences/:id/interaction-image/:imageIndex", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id, imageIndex } = req.params;
+      const index = parseInt(imageIndex, 10);
+      
+      // Get audience and verify ownership
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Remove image at index
+      const existingImages = (audience.brandInteractionImages as string[]) || [];
+      if (index < 0 || index >= existingImages.length) {
+        return res.status(400).json({ error: "Невірний індекс зображення" });
+      }
+      
+      const updatedImages = existingImages.filter((_, i) => i !== index);
+      
+      const updated = await storage.updateTargetAudience(id, {
+        brandInteractionImages: updatedImages
+      });
+
+      res.json({ 
+        success: true, 
+        brandInteractionImages: updatedImages,
+        audience: updated 
+      });
+    } catch (error) {
+      console.error("Delete interaction image error:", error);
+      res.status(500).json({ error: "Помилка видалення зображення" });
     }
   });
 
