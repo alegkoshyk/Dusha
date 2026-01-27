@@ -868,6 +868,288 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =========================================
+  // Demographic Segments API (new hierarchical structure)
+  // =========================================
+
+  // Get all demographic segments for a brand
+  app.get("/api/brands/:brandId/demographic-segments", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      const segments = await storage.getDemographicSegments(brandId);
+      
+      // Also get sub-segments and personas for each segment
+      const segmentsWithData = await Promise.all(segments.map(async (segment) => {
+        const subSegments = await storage.getDemographicSubSegments(segment.id);
+        const subSegmentsWithPersonas = await Promise.all(subSegments.map(async (subSeg) => {
+          const personas = await storage.getTargetAudiences(brandId);
+          const subSegmentPersonas = personas.filter(p => p.subSegmentId === subSeg.id);
+          return { ...subSeg, personas: subSegmentPersonas };
+        }));
+        
+        const personas = await storage.getTargetAudiences(brandId);
+        const segmentPersonas = personas.filter(p => p.segmentId === segment.id && !p.subSegmentId);
+        
+        return { 
+          ...segment, 
+          subSegments: subSegmentsWithPersonas,
+          personas: segmentPersonas 
+        };
+      }));
+
+      res.json(segmentsWithData);
+    } catch (error) {
+      console.error("Get demographic segments error:", error);
+      res.status(500).json({ error: "Помилка отримання сегментів" });
+    }
+  });
+
+  // Create demographic segment
+  app.post("/api/brands/:brandId/demographic-segments", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const segment = await storage.createDemographicSegment({
+        brandId,
+        ...req.body
+      });
+      res.status(201).json(segment);
+    } catch (error) {
+      console.error("Create demographic segment error:", error);
+      res.status(500).json({ error: "Помилка створення сегменту" });
+    }
+  });
+
+  // Update demographic segment
+  app.patch("/api/demographic-segments/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const segment = await storage.getDemographicSegment(id);
+      if (!segment) {
+        return res.status(404).json({ error: "Сегмент не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(segment.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const updated = await storage.updateDemographicSegment(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update demographic segment error:", error);
+      res.status(500).json({ error: "Помилка оновлення сегменту" });
+    }
+  });
+
+  // Delete demographic segment
+  app.delete("/api/demographic-segments/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const segment = await storage.getDemographicSegment(id);
+      if (!segment) {
+        return res.status(404).json({ error: "Сегмент не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(segment.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await storage.deleteDemographicSegment(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete demographic segment error:", error);
+      res.status(500).json({ error: "Помилка видалення сегменту" });
+    }
+  });
+
+  // =========================================
+  // Demographic Sub-Segments API
+  // =========================================
+
+  // Get sub-segments for a segment
+  app.get("/api/demographic-segments/:segmentId/sub-segments", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { segmentId } = req.params;
+      const segment = await storage.getDemographicSegment(segmentId);
+      if (!segment) {
+        return res.status(404).json({ error: "Сегмент не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(segment.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const subSegments = await storage.getDemographicSubSegments(segmentId);
+      res.json(subSegments);
+    } catch (error) {
+      console.error("Get demographic sub-segments error:", error);
+      res.status(500).json({ error: "Помилка отримання підсегментів" });
+    }
+  });
+
+  // Create sub-segment
+  app.post("/api/demographic-segments/:segmentId/sub-segments", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { segmentId } = req.params;
+      const segment = await storage.getDemographicSegment(segmentId);
+      if (!segment) {
+        return res.status(404).json({ error: "Сегмент не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(segment.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const subSegment = await storage.createDemographicSubSegment({
+        segmentId,
+        ...req.body
+      });
+      res.status(201).json(subSegment);
+    } catch (error) {
+      console.error("Create demographic sub-segment error:", error);
+      res.status(500).json({ error: "Помилка створення підсегменту" });
+    }
+  });
+
+  // Update sub-segment
+  app.patch("/api/demographic-sub-segments/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const subSegment = await storage.getDemographicSubSegment(id);
+      if (!subSegment) {
+        return res.status(404).json({ error: "Підсегмент не знайдено" });
+      }
+
+      const segment = await storage.getDemographicSegment(subSegment.segmentId);
+      if (!segment) {
+        return res.status(404).json({ error: "Сегмент не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(segment.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const updated = await storage.updateDemographicSubSegment(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update demographic sub-segment error:", error);
+      res.status(500).json({ error: "Помилка оновлення підсегменту" });
+    }
+  });
+
+  // Delete sub-segment
+  app.delete("/api/demographic-sub-segments/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const subSegment = await storage.getDemographicSubSegment(id);
+      if (!subSegment) {
+        return res.status(404).json({ error: "Підсегмент не знайдено" });
+      }
+
+      const segment = await storage.getDemographicSegment(subSegment.segmentId);
+      if (!segment) {
+        return res.status(404).json({ error: "Сегмент не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(segment.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await storage.deleteDemographicSubSegment(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete demographic sub-segment error:", error);
+      res.status(500).json({ error: "Помилка видалення підсегменту" });
+    }
+  });
+
+  // Assign persona to segment or sub-segment
+  app.patch("/api/target-audiences/:id/assign-segment", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const { segmentId, subSegmentId } = req.body;
+
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Персону не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const updated = await storage.updateTargetAudience(id, { 
+        segmentId: segmentId || null, 
+        subSegmentId: subSegmentId || null 
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Assign persona to segment error:", error);
+      res.status(500).json({ error: "Помилка призначення персони до сегменту" });
+    }
+  });
+
   // Generate AI persona for target audience
   app.post("/api/brands/:brandId/generate-persona", requireAuth, async (req, res) => {
     try {

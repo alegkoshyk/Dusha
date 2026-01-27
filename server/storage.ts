@@ -86,6 +86,12 @@ import {
   type AudienceSegment,
   type InsertAudienceSegment,
   audienceSegmentsTable,
+  type DemographicSegment,
+  type InsertDemographicSegment,
+  demographicSegmentsTable,
+  type DemographicSubSegment,
+  type InsertDemographicSubSegment,
+  demographicSubSegmentsTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -259,12 +265,26 @@ export interface IStorage {
   updateTargetAudience(id: string, updates: Partial<TargetAudience>): Promise<TargetAudience | undefined>;
   deleteTargetAudience(id: string): Promise<boolean>;
   
-  // Audience segment operations
+  // Audience segment operations (old)
   getAudienceSegments(audienceId: string): Promise<AudienceSegment[]>;
   getAudienceSegment(id: string): Promise<AudienceSegment | undefined>;
   createAudienceSegment(segment: InsertAudienceSegment): Promise<AudienceSegment>;
   updateAudienceSegment(id: string, updates: Partial<AudienceSegment>): Promise<AudienceSegment | undefined>;
   deleteAudienceSegment(id: string): Promise<boolean>;
+  
+  // Demographic segment operations (new)
+  getDemographicSegments(brandId: string): Promise<DemographicSegment[]>;
+  getDemographicSegment(id: string): Promise<DemographicSegment | undefined>;
+  createDemographicSegment(segment: InsertDemographicSegment): Promise<DemographicSegment>;
+  updateDemographicSegment(id: string, updates: Partial<DemographicSegment>): Promise<DemographicSegment | undefined>;
+  deleteDemographicSegment(id: string): Promise<boolean>;
+  
+  // Demographic sub-segment operations
+  getDemographicSubSegments(segmentId: string): Promise<DemographicSubSegment[]>;
+  getDemographicSubSegment(id: string): Promise<DemographicSubSegment | undefined>;
+  createDemographicSubSegment(subSegment: InsertDemographicSubSegment): Promise<DemographicSubSegment>;
+  updateDemographicSubSegment(id: string, updates: Partial<DemographicSubSegment>): Promise<DemographicSubSegment | undefined>;
+  deleteDemographicSubSegment(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2678,6 +2698,90 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(audienceSegmentsTable)
       .where(eq(audienceSegmentsTable.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+  
+  // Demographic segment operations (new)
+  async getDemographicSegments(brandId: string): Promise<DemographicSegment[]> {
+    const results = await db
+      .select()
+      .from(demographicSegmentsTable)
+      .where(eq(demographicSegmentsTable.brandId, brandId))
+      .orderBy(demographicSegmentsTable.priority);
+    return results;
+  }
+
+  async getDemographicSegment(id: string): Promise<DemographicSegment | undefined> {
+    const [result] = await db
+      .select()
+      .from(demographicSegmentsTable)
+      .where(eq(demographicSegmentsTable.id, id));
+    return result;
+  }
+
+  async createDemographicSegment(segment: InsertDemographicSegment): Promise<DemographicSegment> {
+    const [result] = await db
+      .insert(demographicSegmentsTable)
+      .values(segment)
+      .returning();
+    return result;
+  }
+
+  async updateDemographicSegment(id: string, updates: Partial<DemographicSegment>): Promise<DemographicSegment | undefined> {
+    const [result] = await db
+      .update(demographicSegmentsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(demographicSegmentsTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteDemographicSegment(id: string): Promise<boolean> {
+    const result = await db
+      .delete(demographicSegmentsTable)
+      .where(eq(demographicSegmentsTable.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+  
+  // Demographic sub-segment operations
+  async getDemographicSubSegments(segmentId: string): Promise<DemographicSubSegment[]> {
+    const results = await db
+      .select()
+      .from(demographicSubSegmentsTable)
+      .where(eq(demographicSubSegmentsTable.segmentId, segmentId))
+      .orderBy(demographicSubSegmentsTable.priority);
+    return results;
+  }
+
+  async getDemographicSubSegment(id: string): Promise<DemographicSubSegment | undefined> {
+    const [result] = await db
+      .select()
+      .from(demographicSubSegmentsTable)
+      .where(eq(demographicSubSegmentsTable.id, id));
+    return result;
+  }
+
+  async createDemographicSubSegment(subSegment: InsertDemographicSubSegment): Promise<DemographicSubSegment> {
+    const [result] = await db
+      .insert(demographicSubSegmentsTable)
+      .values(subSegment)
+      .returning();
+    return result;
+  }
+
+  async updateDemographicSubSegment(id: string, updates: Partial<DemographicSubSegment>): Promise<DemographicSubSegment | undefined> {
+    const [result] = await db
+      .update(demographicSubSegmentsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(demographicSubSegmentsTable.id, id))
+      .returning();
+    return result;
+  }
+
+  async deleteDemographicSubSegment(id: string): Promise<boolean> {
+    const result = await db
+      .delete(demographicSubSegmentsTable)
+      .where(eq(demographicSubSegmentsTable.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
   }
 }
