@@ -1027,4 +1027,105 @@ export const insertBrandAnalysisTemplateSchema = createInsertSchema(brandAnalysi
 });
 
 export type BrandAnalysisTemplate = typeof brandAnalysisTemplatesTable.$inferSelect;
+
+// =========================================
+// Цільова Аудиторія (Target Audience)
+// =========================================
+
+// Таблиця цільових аудиторій для брендів
+export const targetAudiencesTable = pgTable("target_audiences", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  brandId: uuid("brand_id").notNull().references(() => userBrandsTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(), // Назва ЦА (напр. "Молоді підприємці")
+  description: text("description"), // Загальний опис
+  // Демографія
+  ageRange: varchar("age_range", { length: 50 }), // "25-35", "18-45"
+  gender: varchar("gender", { length: 50 }), // "all", "male", "female", "other"
+  location: text("location"), // Географія
+  income: varchar("income", { length: 100 }), // Рівень доходу
+  education: varchar("education", { length: 100 }), // Рівень освіти
+  occupation: text("occupation"), // Професії/сфери
+  // Психографія
+  values: json("values").default(sql`'[]'`), // Цінності
+  interests: json("interests").default(sql`'[]'`), // Інтереси
+  painPoints: json("pain_points").default(sql`'[]'`), // Болі/проблеми
+  goals: json("goals").default(sql`'[]'`), // Цілі/мрії
+  motivations: json("motivations").default(sql`'[]'`), // Мотивації
+  fears: json("fears").default(sql`'[]'`), // Страхи/перешкоди
+  // Поведінка
+  buyingBehavior: text("buying_behavior"), // Поведінка при покупці
+  mediaConsumption: json("media_consumption").default(sql`'[]'`), // Канали споживання контенту
+  brandInteraction: text("brand_interaction"), // Як взаємодіють з брендами
+  decisionFactors: json("decision_factors").default(sql`'[]'`), // Фактори прийняття рішень
+  // AI-генерований портрет
+  aiPortrait: text("ai_portrait"), // Детальний AI-опис персони
+  aiPortraitImageUrl: text("ai_portrait_image_url"), // Згенероване зображення
+  // Метадані
+  isPrimary: boolean("is_primary").notNull().default(false), // Основна ЦА
+  priority: integer("priority").notNull().default(0), // Пріоритет (0 = найвищий)
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  brandIdIdx: index("target_audiences_brand_id_idx").on(table.brandId),
+}));
+
+export const targetAudiencesRelations = relations(targetAudiencesTable, ({ one, many }) => ({
+  brand: one(userBrandsTable, {
+    fields: [targetAudiencesTable.brandId],
+    references: [userBrandsTable.id],
+  }),
+  segments: many(audienceSegmentsTable),
+}));
+
+export const insertTargetAudienceSchema = createInsertSchema(targetAudiencesTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type TargetAudience = typeof targetAudiencesTable.$inferSelect;
+export type InsertTargetAudience = z.infer<typeof insertTargetAudienceSchema>;
+
+// Таблиця сегментів аудиторії (підгрупи всередині ЦА)
+export const audienceSegmentsTable = pgTable("audience_segments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  audienceId: uuid("audience_id").notNull().references(() => targetAudiencesTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(), // Назва сегменту
+  description: text("description"),
+  // Специфіка сегменту
+  size: varchar("size", { length: 50 }), // Розмір сегменту ("small", "medium", "large", відсоток)
+  characteristics: json("characteristics").default(sql`'[]'`), // Ключові характеристики
+  specificNeeds: json("specific_needs").default(sql`'[]'`), // Специфічні потреби
+  communicationStyle: text("communication_style"), // Як комунікувати
+  preferredChannels: json("preferred_channels").default(sql`'[]'`), // Канали комунікації
+  // Персона сегменту
+  personaName: varchar("persona_name", { length: 100 }), // Ім'я персони (напр. "Марія Підприємиця")
+  personaAge: integer("persona_age"), // Вік
+  personaJob: varchar("persona_job", { length: 200 }), // Професія
+  personaStory: text("persona_story"), // Коротка історія персони
+  personaQuote: text("persona_quote"), // Типова цитата
+  personaImageUrl: text("persona_image_url"), // Зображення персони
+  // Метадані
+  priority: integer("priority").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  audienceIdIdx: index("audience_segments_audience_id_idx").on(table.audienceId),
+}));
+
+export const audienceSegmentsRelations = relations(audienceSegmentsTable, ({ one }) => ({
+  audience: one(targetAudiencesTable, {
+    fields: [audienceSegmentsTable.audienceId],
+    references: [targetAudiencesTable.id],
+  }),
+}));
+
+export const insertAudienceSegmentSchema = createInsertSchema(audienceSegmentsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type AudienceSegment = typeof audienceSegmentsTable.$inferSelect;
+export type InsertAudienceSegment = z.infer<typeof insertAudienceSegmentSchema>;
 export type InsertBrandAnalysisTemplate = z.infer<typeof insertBrandAnalysisTemplateSchema>;
