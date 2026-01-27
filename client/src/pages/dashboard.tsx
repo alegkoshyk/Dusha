@@ -1,16 +1,12 @@
-import { useState, createElement, useEffect, useLayoutEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useLayoutEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Plus, 
   Play, 
-  Eye, 
-  Trash2, 
-  Calendar,
   Trophy,
   Zap,
   Heart,
@@ -18,174 +14,67 @@ import {
   Dumbbell,
   Users,
   TrendingUp,
-  BookOpen,
-  Sparkles,
-  Pencil,
-  FileText,
+  ArrowRight,
+  Map,
+  Image,
+  Search,
   MessageSquare
 } from 'lucide-react';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
-import { CreateBrandDialog } from '@/components/brands/CreateBrandDialog';
-import { EditBrandDialog } from '@/components/brands/EditBrandDialog';
 import { OnboardingModal } from '@/components/OnboardingModal';
-import { apiRequest, apiRequestJson, queryClient } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
 import type { UserBrand, GameSession, UserProfile } from '@shared/schema';
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClientHook = useQueryClient();
-  const [createBrandOpen, setCreateBrandOpen] = useState(false);
-  const [editBrandOpen, setEditBrandOpen] = useState(false);
-  const [editingBrand, setEditingBrand] = useState<UserBrand | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Завантаження профілю користувача для перевірки онбордингу
   const { data: profile, isLoading: profileLoading } = useQuery<UserProfile & { hasApiKey: boolean }>({
     queryKey: ['/api/user/profile'],
     enabled: !!user,
   });
 
-  // Scroll to top on mount
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  // Показати онбординг якщо не завершено і не пропущено
   useEffect(() => {
     if (profile && !profile.onboardingCompleted && !profile.onboardingSkipped) {
       setShowOnboarding(true);
     }
   }, [profile]);
 
-  // Завантаження брендів користувача
   const { data: brands = [], isLoading: brandsLoading } = useQuery<UserBrand[]>({
     queryKey: ['/api/user/brands'],
     enabled: !!user,
   });
 
-  // Завантаження активних сесій
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery<GameSession[]>({
     queryKey: ['/api/user/game-sessions'],
     enabled: !!user,
   });
 
-  // Завантаження статистики користувача
   const { data: userStats } = useQuery<{totalXp: number; totalGames: number; completedGames: number}>({
     queryKey: ['/api/user/stats'],
     enabled: !!user,
   });
 
-  // Мутація для видалення бренду
-  const deleteBrandMutation = useMutation({
-    mutationFn: async (brandId: string) => {
-      return apiRequest('DELETE', `/api/user/brands/${brandId}`);
-    },
-    onSuccess: () => {
-      queryClientHook.invalidateQueries({ queryKey: ['/api/user/brands'] });
-      queryClientHook.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
-      toast({
-        title: "Бренд видалено",
-        description: "Бренд та всі пов'язані дані успішно видалено",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Помилка",
-        description: "Не вдалося видалити бренд",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Мутація для видалення ігрової сесії
-  const deleteSessionMutation = useMutation({
-    mutationFn: async (sessionId: string) => {
-      return apiRequest('DELETE', `/api/game-sessions/${sessionId}`);
-    },
-    onSuccess: () => {
-      queryClientHook.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
-      toast({
-        title: "Гру видалено",
-        description: "Ігрова сесія успішно видалена",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Помилка",
-        description: "Не вдалося видалити гру",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Мутація для створення нової гри
-  const createGameMutation = useMutation({
-    mutationFn: async (brandId: string) => {
-      return apiRequestJson('POST', '/api/game-sessions', { brandId });
-    },
-    onSuccess: (session: any) => {
-      queryClientHook.invalidateQueries({ queryKey: ['/api/user/game-sessions'] });
-      setLocation(`/game/${session.id}`);
-    },
-    onError: () => {
-      toast({
-        title: "Помилка",
-        description: "Не вдалося створити нову гру",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleDeleteBrand = (brandId: string, brandName: string) => {
-    if (window.confirm(`Ви впевнені, що хочете видалити бренд "${brandName}"? Всі дані будуть втрачені.`)) {
-      deleteBrandMutation.mutate(brandId);
-    }
-  };
-
-  const handleDeleteSession = (sessionId: string, brandName: string) => {
-    if (window.confirm(`Ви впевнені, що хочете видалити гру для бренду "${brandName}"? Це дію неможливо скасувати.`)) {
-      deleteSessionMutation.mutate(sessionId);
-    }
-  };
-
-  const handleStartGame = (brandId: string) => {
-    createGameMutation.mutate(brandId);
-  };
-
-  const handleContinueGame = (sessionId: string) => {
-    setLocation(`/game/${sessionId}`);
-  };
-
-  const handleViewResults = (sessionId: string) => {
-    setLocation(`/game/${sessionId}/results`);
-  };
-
-  // Статистика
   const totalBrands = brands.length;
   const completedGames = userStats?.completedGames || sessions.filter(s => s.completed).length;
   const activeGames = sessions.filter(s => !s.completed).length;
   const totalXP = userStats?.totalXp || sessions.reduce((sum, s) => sum + (s.totalXp || 0), 0);
+
+  const activeSessions = sessions.filter(s => !s.completed).slice(0, 3);
+  const recentBrands = brands.slice(0, 3);
 
   const getLevelIcon = (level: string) => {
     switch (level) {
       case 'soul': return Heart;
       case 'mind': return Brain;
       case 'body': return Dumbbell;
-      default: return BookOpen;
-    }
-  };
-
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case 'soul': return 'text-purple-600 bg-purple-100';
-      case 'mind': return 'text-blue-600 bg-blue-100';
-      case 'body': return 'text-green-600 bg-green-100';
-      default: return 'text-gray-600 bg-gray-100';
+      default: return Heart;
     }
   };
 
@@ -194,620 +83,303 @@ export default function Dashboard() {
       case 'soul': return 'Душа';
       case 'mind': return 'Розум';
       case 'body': return 'Тіло';
-      default: return 'Невідомо';
+      default: return level;
     }
   };
 
-  if (brandsLoading || sessionsLoading) {
+  const getLevelColor = (level: string) => {
+    switch (level) {
+      case 'soul': return 'bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300';
+      case 'mind': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300';
+      case 'body': return 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  if (brandsLoading || sessionsLoading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <BrandSoulSpinner size={48} className="mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Завантаження дашборду...</p>
+          <p className="text-gray-600 dark:text-gray-400">Завантаження...</p>
         </div>
       </div>
     );
   }
 
+  const greeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Доброго ранку';
+    if (hour < 18) return 'Доброго дня';
+    return 'Доброго вечора';
+  };
+
+  const userName = profile?.firstName || user?.firstName || 'Користувач';
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 pb-24 md:pb-8">
-      <div className="container mx-auto px-3 md:px-4 py-4 md:py-8">
-        {/* Header - compact on mobile */}
-        <div className="mb-4 md:mb-8">
-          <div className="flex items-center justify-between mb-3 md:mb-6">
-            <div>
-              <h1 className="text-xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                Дашборд
-              </h1>
-              <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 mt-0.5 md:mt-1 hidden md:block">
-                Керуйте своїми брендами та грами
-              </p>
-            </div>
-            <Button 
-              onClick={() => setCreateBrandOpen(true)}
-              className="flex items-center gap-1.5 md:gap-2 text-sm md:text-base px-3 md:px-4 h-9 md:h-10"
-              data-testid="button-create-brand"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Новий бренд</span>
-              <span className="sm:hidden">Новий</span>
-            </Button>
-          </div>
-
-          {/* Statistics - compact on mobile */}
-          <div className="grid grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-8">
-            <Card>
-              <CardContent className="p-2 md:p-4 text-center">
-                <div className="flex items-center justify-center w-8 h-8 md:w-12 md:h-12 bg-purple-100 text-purple-600 rounded-full mx-auto mb-1 md:mb-2">
-                  <Users className="w-4 h-4 md:w-6 md:h-6" />
-                </div>
-                <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{totalBrands}</p>
-                <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400">Брендів</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-2 md:p-4 text-center">
-                <div className="flex items-center justify-center w-8 h-8 md:w-12 md:h-12 bg-green-100 text-green-600 rounded-full mx-auto mb-1 md:mb-2">
-                  <Trophy className="w-4 h-4 md:w-6 md:h-6" />
-                </div>
-                <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{completedGames}</p>
-                <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400">Завершено</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-2 md:p-4 text-center">
-                <div className="flex items-center justify-center w-8 h-8 md:w-12 md:h-12 bg-blue-100 text-blue-600 rounded-full mx-auto mb-1 md:mb-2">
-                  <TrendingUp className="w-4 h-4 md:w-6 md:h-6" />
-                </div>
-                <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{activeGames}</p>
-                <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400">Активних</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-2 md:p-4 text-center">
-                <div className="flex items-center justify-center w-8 h-8 md:w-12 md:h-12 bg-yellow-100 text-yellow-600 rounded-full mx-auto mb-1 md:mb-2">
-                  <Zap className="w-4 h-4 md:w-6 md:h-6" />
-                </div>
-                <p className="text-lg md:text-2xl font-bold text-gray-900 dark:text-white">{totalXP}</p>
-                <p className="text-[10px] md:text-sm text-gray-600 dark:text-gray-400">XP</p>
-              </CardContent>
-            </Card>
-          </div>
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">
+            {greeting()}, {userName}!
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300">
+            Ласкаво просимо до Душі Бренду
+          </p>
         </div>
 
-        {/* Main Content */}
-        <Tabs defaultValue="brands" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="brands">Бренди</TabsTrigger>
-            <TabsTrigger value="games">Активні ігри</TabsTrigger>
-            <TabsTrigger value="completed">Завершені</TabsTrigger>
-          </TabsList>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
+          <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur">
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 rounded-full mx-auto mb-2">
+                <Users className="w-5 h-5 md:w-6 md:h-6" />
+              </div>
+              <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{totalBrands}</p>
+              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Брендів</p>
+            </CardContent>
+          </Card>
           
-          <TabsContent value="brands" className="space-y-4">
-            {brands.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <div className="mb-4">
-                    <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      Ще немає брендів
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-300 mb-6">
-                      Створіть свій перший бренд, щоб розпочати подорож самопізнання
-                    </p>
+          <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur">
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full mx-auto mb-2">
+                <Trophy className="w-5 h-5 md:w-6 md:h-6" />
+              </div>
+              <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{completedGames}</p>
+              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Завершено</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur">
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full mx-auto mb-2">
+                <TrendingUp className="w-5 h-5 md:w-6 md:h-6" />
+              </div>
+              <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{activeGames}</p>
+              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Активних</p>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur">
+            <CardContent className="p-4 text-center">
+              <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400 rounded-full mx-auto mb-2">
+                <Zap className="w-5 h-5 md:w-6 md:h-6" />
+              </div>
+              <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{totalXP}</p>
+              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">XP</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Link href="/brands" className="contents">
+            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-blue-200 dark:hover:border-blue-800">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <Users className="w-6 h-6 text-white" />
                   </div>
-                  <Button 
-                    onClick={() => setCreateBrandOpen(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Створити перший бренд
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {/* Карта створення нового бренду */}
-                <Card 
-                  className="border-dashed border-2 border-gray-300 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer group"
-                  onClick={() => setCreateBrandOpen(true)}
-                >
-                  <CardContent className="p-6 text-center">
-                    <div className="flex flex-col items-center justify-center h-48">
-                      <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mb-4 group-hover:bg-blue-200 transition-colors">
-                        <Plus className="w-8 h-8 text-blue-600" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      Мої бренди
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{totalBrands} брендів</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/brand-maps" className="contents">
+            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-indigo-200 dark:hover:border-indigo-800">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
+                    <Map className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      Карти брендів
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Візуалізації</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/media" className="contents">
+            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-pink-200 dark:hover:border-pink-800">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
+                    <Image className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
+                      Медіа
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Бібліотека</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-pink-500 group-hover:translate-x-1 transition-all" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/brand-analysis" className="contents">
+            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-emerald-200 dark:hover:border-emerald-800">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                    <Search className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      Аналіз
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Дослідження</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Активні ігри</CardTitle>
+                {activeSessions.length > 0 && (
+                  <Link href="/brands">
+                    <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+                      Всі <ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {activeSessions.length === 0 ? (
+                <div className="text-center py-6">
+                  <TrendingUp className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">Немає активних ігор</p>
+                  <Link href="/brands">
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Почати гру
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activeSessions.map((session) => {
+                    const brand = brands.find(b => b.id === session.brandId);
+                    const progress = Math.min(Math.round(session.progress || 0), 100);
+                    const LevelIcon = getLevelIcon(session.currentLevel);
+                    
+                    return (
+                      <div 
+                        key={session.id}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                        onClick={() => setLocation(`/game/${session.id}`)}
+                      >
+                        {brand?.logo ? (
+                          <img src={brand.logo} alt="" className="w-10 h-10 rounded-lg object-contain bg-white border" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                            <span className="text-white font-bold">{brand?.name?.charAt(0) || '?'}</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-white truncate">{brand?.name || 'Бренд'}</p>
+                          <div className="flex items-center gap-2">
+                            <Progress value={progress} className="h-1.5 flex-1" />
+                            <span className="text-xs text-gray-500">{progress}%</span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className={getLevelColor(session.currentLevel)}>
+                          <LevelIcon className="w-3 h-3 mr-1" />
+                          {getLevelName(session.currentLevel)}
+                        </Badge>
+                        <Play className="w-4 h-4 text-blue-500" />
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        Створити новий бренд
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Почніть подорож створення нового бренду
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-                {brands.map((brand) => {
-                  const brandSessions = sessions.filter(s => s.brandId === brand.id);
-                  const completedBrandGames = brandSessions.filter(s => s.completed).length;
-                  const activeBrandGame = brandSessions.find(s => !s.completed);
-                  
-                  // Обчислення прогресу
-                  const totalCards = 15; // загальна кількість карток в грі
-                  const rawProgress = activeBrandGame?.progress || 0;
-                  // Обмежуємо прогрес до максимум 100%
-                  const progress = Math.min(Math.round(rawProgress), 100);
-                  
-                  const hasActiveGame = !!activeBrandGame;
-                  const isCompleted = !hasActiveGame && completedBrandGames > 0;
-                  
-                  return (
-                    <Card 
-                      key={brand.id} 
-                      className="hover:shadow-lg transition-shadow cursor-pointer group"
-                      onClick={() => hasActiveGame ? handleContinueGame(activeBrandGame.id) : handleStartGame(brand.id)}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3 flex-1">
-                            {brand.logo ? (
-                              <img 
-                                src={brand.logo} 
-                                alt={`${brand.name} logo`}
-                                className="w-12 h-12 object-contain rounded-lg border border-gray-200 bg-white flex-shrink-0"
-                                data-testid={`brand-logo-${brand.id}`}
-                              />
-                            ) : (
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <span className="text-white font-bold text-lg">
-                                  {brand.name.charAt(0).toUpperCase()}
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <CardTitle className="text-lg mb-1 group-hover:text-blue-600 transition-colors truncate">
-                                {brand.name}
-                              </CardTitle>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                              {brand.description || 'Опис агентства йосього улюбленого шоку'}
-                            </p>
-                            
-                            {/* Статус */}
-                            <div className="flex items-center gap-2 mt-2">
-                              {hasActiveGame && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Активний
-                                </Badge>
-                              )}
-                              {isCompleted && (
-                                <Badge variant="default" className="text-xs bg-green-100 text-green-700">
-                                  Завершено
-                                </Badge>
-                              )}
-                            </div>
-                            </div>
-                          </div>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Link href={`/brand/${brand.id}`}>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-gray-500 hover:text-purple-600 p-1"
-                                data-testid={`brand-passport-${brand.id}`}
-                                title="Паспорт бренду"
-                              >
-                                <FileText className="w-4 h-4" />
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingBrand(brand);
-                                setEditBrandOpen(true);
-                              }}
-                              className="text-gray-500 hover:text-blue-600 p-1"
-                              data-testid={`edit-brand-${brand.id}`}
-                              title="Швидке редагування"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteBrand(brand.id, brand.name);
-                              }}
-                              className="text-red-500 hover:text-red-700 p-1"
-                              data-testid={`delete-brand-${brand.id}`}
-                              title="Видалити"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0 pb-4">
-                        <div className="space-y-4">
-                          {/* Progress Display */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600 dark:text-gray-400">Прогрес</span>
-                              <span className="font-medium">{progress}%</span>
-                            </div>
-                            <Progress value={progress} className="h-2" />
-                          </div>
-
-                          {/* Current Level Info */}
-                          {activeBrandGame && (
-                            <div className="flex items-center gap-2">
-                              {createElement(getLevelIcon(activeBrandGame.currentLevel || 'soul'), {
-                                className: "w-4 h-4"
-                              })}
-                              <Badge variant="outline" className={getLevelColor(activeBrandGame.currentLevel || 'soul')}>
-                                {getLevelName(activeBrandGame.currentLevel || 'soul')}
-                              </Badge>
-                            </div>
-                          )}
-
-                          {/* Metadata */}
-                          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {new Date(brand.createdAt).toLocaleDateString('uk-UA')}
-                            </div>
-                            {completedBrandGames > 0 && (
-                              <div className="flex items-center gap-1">
-                                <Trophy className="w-3 h-3" />
-                                {completedBrandGames} завершено
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Action Button - стилізований як на дизайні */}
-                          <div className="pt-2 space-y-2" onClick={(e) => e.stopPropagation()}>
-                            {hasActiveGame ? (
-                              <div className="flex gap-2">
-                                <Button
-                                  onClick={() => handleContinueGame(activeBrandGame.id)}
-                                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                                  data-testid={`continue-game-${brand.id}`}
-                                >
-                                  <Play className="w-4 h-4 mr-2" />
-                                  Продовжити
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => handleViewResults(activeBrandGame.id)}
-                                  className="p-2"
-                                  data-testid={`view-results-${brand.id}`}
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                onClick={() => handleStartGame(brand.id)}
-                                variant="outline"
-                                className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-50"
-                                data-testid={`start-game-${brand.id}`}
-                              >
-                                <Play className="w-4 h-4 mr-2" />
-                                Нова гра
-                              </Button>
-                            )}
-                            
-                            {/* Chat Button - Primary action for brand communication */}
-                            <Button
-                              variant="outline"
-                              onClick={() => setLocation(`/brand-chat/brand/${brand.id}`)}
-                              className="w-full border-blue-300 text-blue-600 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/30"
-                              data-testid={`brand-chat-${brand.id}`}
-                            >
-                              <MessageSquare className="w-4 h-4 mr-2" />
-                              Чат
-                            </Button>
-                            
-                            {/* AI Analyses Button */}
-                            {brandSessions.length > 0 && (
-                              <Button
-                                variant="outline"
-                                onClick={() => {
-                                  const latestSession = brandSessions.sort((a, b) => 
-                                    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-                                  )[0];
-                                  setLocation(`/game/${latestSession.id}/results`);
-                                }}
-                                className="w-full border-indigo-300 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
-                                data-testid={`ai-analyses-${brand.id}`}
-                              >
-                                <Sparkles className="w-4 h-4 mr-2" />
-                                AI аналізи бренду
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Мої бренди</CardTitle>
+                <Link href="/brands">
+                  <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
+                    Всі <ArrowRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </Link>
               </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="games" className="space-y-4">
-            {sessions.filter(s => !s.completed).length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <TrendingUp className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    Немає активних ігор
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    Розпочніть нову гру з одного з ваших брендів
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {sessions.filter(s => !s.completed).map((session) => {
-                  const brand = brands.find(b => b.id === session.brandId);
-                  const LevelIcon = getLevelIcon(session.currentLevel);
-                  const rawSessionProgress = session.progress || 0;
-                  // Обмежуємо прогрес до максимум 100%
-                  const progressPercentage = Math.min(Math.round(rawSessionProgress), 100);
-                  
-                  return (
-                    <Card key={session.id} className="hover:shadow-lg transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex items-start gap-4">
-                          <div className={`p-3 rounded-lg ${getLevelColor(session.currentLevel)}`}>
-                            <LevelIcon className="w-6 h-6" />
+            </CardHeader>
+            <CardContent>
+              {recentBrands.length === 0 ? (
+                <div className="text-center py-6">
+                  <Users className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-500 dark:text-gray-400 mb-4">Ще немає брендів</p>
+                  <Link href="/brands">
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Створити бренд
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentBrands.map((brand) => {
+                    const brandSessions = sessions.filter(s => s.brandId === brand.id);
+                    const hasActiveGame = brandSessions.some(s => !s.completed);
+                    const isCompleted = !hasActiveGame && brandSessions.some(s => s.completed);
+                    
+                    return (
+                      <div 
+                        key={brand.id}
+                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                        onClick={() => setLocation(`/brand/${brand.id}`)}
+                      >
+                        {brand.logo ? (
+                          <img src={brand.logo} alt="" className="w-10 h-10 rounded-lg object-contain bg-white border" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                            <span className="text-white font-bold">{brand.name.charAt(0)}</span>
                           </div>
-                          
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <h3 className="font-semibold text-gray-900 dark:text-white">
-                                  {brand?.name || 'Невідомий бренд'}
-                                </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  Поточний рівень: {getLevelName(session.currentLevel)}
-                                </p>
-                              </div>
-                              <Badge variant="outline">
-                                {progressPercentage}% завершено
-                              </Badge>
-                            </div>
-                            
-                            <div className="space-y-3">
-                              <div>
-                                <div className="flex items-center justify-between text-sm mb-1">
-                                  <span className="text-gray-600 dark:text-gray-400">Прогрес</span>
-                                  <span className="text-gray-900 dark:text-white font-medium">
-                                    {(session.completedCards as string[])?.length || 0}/15 карток
-                                  </span>
-                                </div>
-                                <Progress value={progressPercentage} className="h-2" />
-                              </div>
-                              
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                                  <div className="flex items-center gap-1">
-                                    <Zap className="w-4 h-4" />
-                                    <span>{session.totalXp || 0} XP</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Calendar className="w-4 h-4" />
-                                    <span>{new Date(session.updatedAt).toLocaleDateString('uk-UA')}</span>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex gap-2">
-                                  <Button 
-                                    size="sm"
-                                    onClick={() => handleContinueGame(session.id)}
-                                    data-testid={`continue-session-${session.id}`}
-                                  >
-                                    <Play className="w-4 h-4 mr-1" />
-                                    Продовжити
-                                  </Button>
-                                  {progressPercentage > 0 && (
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => handleViewResults(session.id)}
-                                      data-testid={`view-session-results-${session.id}`}
-                                    >
-                                      <Eye className="w-4 h-4" />
-                                    </Button>
-                                  )}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteSession(session.id, brand?.name || 'Невідомий бренд');
-                                    }}
-                                    className="text-red-500 hover:text-red-700 p-2"
-                                    data-testid={`delete-session-${session.id}`}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-white truncate">{brand.name}</p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                            {brand.description || 'Без опису'}
+                          </p>
                         </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="completed" className="space-y-4">
-            {sessions.filter(s => s.completed).length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <Trophy className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    Ще немає завершених ігор
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    Завершіть вашу першу гру, щоб побачити результати тут
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {sessions.filter(s => s.completed).map((session) => {
-                  const brand = brands.find(b => b.id === session.brandId);
-                  const completionDate = new Date(session.updatedAt);
-                  
-                  return (
-                    <Card key={session.id} className="hover:shadow-lg transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex items-start gap-4">
-                          <div className="p-3 rounded-lg bg-green-100 text-green-600">
-                            <Trophy className="w-6 h-6" />
-                          </div>
-                          
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <h3 className="font-semibold text-gray-900 dark:text-white">
-                                  {brand?.name || 'Невідомий бренд'}
-                                </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  Гра завершена • {completionDate.toLocaleDateString('uk-UA')}
-                                </p>
-                              </div>
-                              <Badge variant="default" className="bg-green-100 text-green-800">
-                                Завершено
-                              </Badge>
-                            </div>
-                            
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
-                                <div className="flex items-center gap-1">
-                                  <Heart className="w-4 h-4 text-purple-500" />
-                                  <span>{(session.completedCards as string[])?.filter(c => c.startsWith('soul-')).length || 0} Душа</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Brain className="w-4 h-4 text-blue-500" />
-                                  <span>{(session.completedCards as string[])?.filter(c => c.startsWith('mind-')).length || 0} Розум</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Dumbbell className="w-4 h-4 text-green-500" />
-                                  <span>{(session.completedCards as string[])?.filter(c => c.startsWith('body-')).length || 0} Тіло</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Zap className="w-4 h-4 text-yellow-500" />
-                                  <span>{session.totalXp || 0} XP</span>
-                                </div>
-                              </div>
-                              
-                              <div className="flex items-center justify-between">
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  Всього відповідей: {(session.completedCards as string[])?.length || 0}
-                                </p>
-                                
-                                <div className="flex gap-2 flex-wrap">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => handleViewResults(session.id)}
-                                    data-testid={`view-completed-results-${session.id}`}
-                                  >
-                                    <Eye className="w-4 h-4 mr-1" />
-                                    Карта бренду
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => handleViewResults(session.id)}
-                                    className="border-indigo-300 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
-                                    data-testid={`ai-analyses-completed-${session.id}`}
-                                  >
-                                    <Sparkles className="w-4 h-4 mr-1" />
-                                    AI аналізи
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteSession(session.id, brand?.name || 'Невідомий бренд');
-                                    }}
-                                    className="text-red-500 hover:text-red-700 p-2"
-                                    data-testid={`delete-completed-session-${session.id}`}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => handleStartGame(brand?.id || '')}
-                                    data-testid={`restart-game-${session.id}`}
-                                  >
-                                    <Play className="w-4 h-4 mr-1" />
-                                    Нова гра
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+                        {hasActiveGame && (
+                          <Badge variant="secondary" className="text-xs">Активний</Badge>
+                        )}
+                        {isCompleted && (
+                          <Badge className="text-xs bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">Завершено</Badge>
+                        )}
+                        <ArrowRight className="w-4 h-4 text-gray-400" />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Create Brand Dialog */}
-      <CreateBrandDialog 
-        open={createBrandOpen} 
-        onOpenChange={setCreateBrandOpen}
-        onBrandCreated={(brand) => {
-          setCreateBrandOpen(false);
-          queryClientHook.invalidateQueries({ queryKey: ['/api/user/brands'] });
-          toast({
-            title: "Бренд створено",
-            description: `Бренд "${brand.name}" успішно створено`,
-          });
-        }}
-      />
-
-      {/* Edit Brand Dialog */}
-      <EditBrandDialog 
-        brand={editingBrand}
-        open={editBrandOpen} 
-        onOpenChange={(open) => {
-          setEditBrandOpen(open);
-          if (!open) setEditingBrand(null);
-        }}
-        onBrandUpdated={() => {
-          queryClientHook.invalidateQueries({ queryKey: ['/api/user/brands'] });
-          toast({
-            title: "Бренд оновлено",
-            description: "Зміни успішно збережено",
-          });
-        }}
-      />
-
-      {/* Onboarding Modal */}
       <OnboardingModal 
         open={showOnboarding}
         onComplete={() => setShowOnboarding(false)}
