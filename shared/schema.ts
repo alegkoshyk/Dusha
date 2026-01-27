@@ -1129,3 +1129,5 @@ export const insertAudienceSegmentSchema = createInsertSchema(audienceSegmentsTa
 export type AudienceSegment = typeof audienceSegmentsTable.$inferSelect;
 export type InsertAudienceSegment = z.infer<typeof insertAudienceSegmentSchema>;
 export type InsertBrandAnalysisTemplate = z.infer<typeof insertBrandAnalysisTemplateSchema>;
+
+export * from "./models/chat";

@@ -206,6 +206,26 @@ export default function BrandEditPage() {
     },
   });
 
+  const [generatingAvatarId, setGeneratingAvatarId] = useState<string | null>(null);
+  
+  const generateAvatarMutation = useMutation({
+    mutationFn: async (audienceId: string) => {
+      setGeneratingAvatarId(audienceId);
+      const response = await apiRequest("POST", `/api/target-audiences/${audienceId}/generate-avatar`);
+      if (!response.ok) throw new Error("Failed to generate avatar");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Аватар згенеровано" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      setGeneratingAvatarId(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося згенерувати аватар", variant: "destructive" });
+      setGeneratingAvatarId(null);
+    },
+  });
+
   const handleGeneratePersona = () => {
     generatePersonaMutation.mutate(audienceType);
   };
@@ -875,6 +895,8 @@ export default function BrandEditPage() {
                         audience={audience}
                         onSelect={() => setSelectedAudience(audience)}
                         onDelete={() => deleteAudienceMutation.mutate(audience.id)}
+                        onGenerateAvatar={() => generateAvatarMutation.mutate(audience.id)}
+                        isGeneratingAvatar={generatingAvatarId === audience.id}
                       />
                     ))}
                   </div>
@@ -1055,11 +1077,15 @@ function PersonaPreviewCard({ persona }: { persona: GeneratedPersona }) {
 function AudienceCardInline({ 
   audience, 
   onSelect, 
-  onDelete 
+  onDelete,
+  onGenerateAvatar,
+  isGeneratingAvatar
 }: { 
   audience: TargetAudience; 
   onSelect: () => void;
   onDelete: () => void;
+  onGenerateAvatar: () => void;
+  isGeneratingAvatar: boolean;
 }) {
   const values = (audience.values || []) as string[];
   
@@ -1068,8 +1094,27 @@ function AudienceCardInline({
       className="flex items-center gap-4 p-4 border rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
       onClick={onSelect}
     >
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center shrink-0">
-        <User className="h-5 w-5 text-primary" />
+      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center shrink-0 overflow-hidden relative group">
+        {audience.aiPortraitImageUrl ? (
+          <img 
+            src={audience.aiPortraitImageUrl} 
+            alt={audience.name} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <User className="h-6 w-6 text-primary" />
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); onGenerateAvatar(); }}
+          disabled={isGeneratingAvatar}
+          className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          {isGeneratingAvatar ? (
+            <Loader2 className="h-4 w-4 text-white animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4 text-white" />
+          )}
+        </button>
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
@@ -1118,8 +1163,16 @@ function AudienceDetailsCard({ audience }: { audience: TargetAudience }) {
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-4">
-        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-          <User className="h-8 w-8 text-primary" />
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center overflow-hidden shrink-0">
+          {audience.aiPortraitImageUrl ? (
+            <img 
+              src={audience.aiPortraitImageUrl} 
+              alt={audience.name} 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <User className="h-10 w-10 text-primary" />
+          )}
         </div>
         <div>
           <Badge variant={audience.isPrimary ? "default" : "secondary"}>

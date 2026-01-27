@@ -39,6 +39,19 @@ const requireAdmin = async (req: any, res: any, next: any) => {
   next();
 };
 
+// Build prompt for avatar generation based on audience data
+function buildAvatarPrompt(audience: any): string {
+  const gender = audience.gender || "person";
+  const ageRange = audience.ageRange || "30-40";
+  const occupation = audience.occupation || "professional";
+  const values = Array.isArray(audience.values) ? audience.values.slice(0, 3).join(", ") : "";
+  const interests = Array.isArray(audience.interests) ? audience.interests.slice(0, 3).join(", ") : "";
+  
+  const lifestyle = audience.aiPortrait ? audience.aiPortrait.split('\n')[0] : "";
+  
+  return `Professional portrait photo of a ${gender}, age ${ageRange}, ${occupation}. ${values ? `Values: ${values}.` : ""} ${interests ? `Interests: ${interests}.` : ""} ${lifestyle ? lifestyle : ""} High quality, realistic, professional headshot, neutral background, natural lighting, friendly expression. Style: modern corporate portrait photography.`;
+}
+
 const saveCardResponseSchema = z.object({
   cardId: z.string(),
   response: z.any(),
@@ -842,6 +855,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Generate persona error:", error);
       res.status(500).json({ error: "Помилка генерації персони" });
+    }
+  });
+
+  // Generate avatar image for target audience using Gemini
+  app.post("/api/target-audiences/:id/generate-avatar", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      
+      // Get audience and verify ownership
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Build prompt for avatar generation based on audience data
+      const prompt = buildAvatarPrompt(audience);
+      
+      // Generate image using Gemini
+      const { generateImage } = await import("./replit_integrations/image/client");
+      const imageDataUrl = await generateImage(prompt);
+      
+      // Update audience with avatar URL
+      const updated = await storage.updateTargetAudience(id, {
+        aiPortraitImageUrl: imageDataUrl
+      });
+
+      res.json({ 
+        success: true, 
+        aiPortraitImageUrl: imageDataUrl,
+        audience: updated 
+      });
+    } catch (error) {
+      console.error("Generate avatar error:", error);
+      res.status(500).json({ error: "Помилка генерації аватара" });
     }
   });
 
