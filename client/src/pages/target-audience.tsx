@@ -580,41 +580,38 @@ export default function TargetAudiencePage() {
                           setExpandedSegments(newSet);
                         }}
                       >
-                        <div className="border rounded-lg">
+                        <div className="border rounded-lg group">
                           <CollapsibleTrigger className="w-full">
-                            <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
-                              <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-between p-3 sm:p-4 hover:bg-muted/50 transition-colors gap-2">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                                 {expandedSegments.has(segment.id) ? (
-                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                 ) : (
-                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                                 )}
-                                <FolderOpen className="h-5 w-5" style={{ color: segment.color || '#f59e0b' }} />
-                                <span className="font-medium">{segment.name}</span>
-                                <Badge variant="secondary">
+                                <FolderOpen className="h-5 w-5 flex-shrink-0" style={{ color: segment.color || '#f59e0b' }} />
+                                <span className="font-medium truncate">{segment.name}</span>
+                                <Badge variant="secondary" className="whitespace-nowrap flex-shrink-0">
                                   {segment.personas.length + segment.subSegments.reduce((acc, s) => acc + s.personas.length, 0)} персон
                                 </Badge>
-                                {segment.communicationTone && (
-                                  <Badge variant="outline">{segment.communicationTone}</Badge>
-                                )}
                               </div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1 flex-shrink-0">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0"
+                                  className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setEditingSegment(segment);
                                   }}
                                   title="Налаштування сегменту"
                                 >
-                                  <Settings className="h-4 w-4" />
+                                  <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0"
+                                  className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     const name = prompt("Назва підсегменту:");
@@ -622,19 +619,19 @@ export default function TargetAudiencePage() {
                                   }}
                                   title="Додати підсегмент"
                                 >
-                                  <Plus className="h-4 w-4" />
+                                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                  className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (confirm("Видалити сегмент?")) deleteSegmentMutation.mutate(segment.id);
                                   }}
                                   title="Видалити"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 </Button>
                               </div>
                             </div>
@@ -749,7 +746,7 @@ export default function TargetAudiencePage() {
                   <div className="space-y-2">
                     {getUnassignedPersonas().map((audience) => (
                       <div key={audience.id} className="flex items-center gap-2">
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <PersonaInline 
                             persona={audience}
                             onSelect={() => setSelectedAudience(audience)}
@@ -770,7 +767,7 @@ export default function TargetAudiencePage() {
                               }
                             }}
                           >
-                            <SelectTrigger className="w-10 h-9 p-0 justify-center">
+                            <SelectTrigger className="w-9 h-8 sm:w-10 sm:h-9 p-0 justify-center flex-shrink-0">
                               <Move className="h-4 w-4" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1160,45 +1157,45 @@ function PersonaInline({
   
   return (
     <div 
-      className={`flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors group ${className || ''}`}
+      className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors group ${className || ''}`}
       onClick={onSelect}
     >
       {persona.aiPortraitImageUrl ? (
         <img 
           src={persona.aiPortraitImageUrl} 
           alt="" 
-          className={`rounded-full object-cover ${small ? 'h-8 w-8' : 'h-10 w-10'}`} 
+          className={`rounded-full object-cover flex-shrink-0 ${small ? 'h-8 w-8' : 'h-9 w-9 sm:h-10 sm:w-10'}`} 
         />
       ) : (
-        <div className={`rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center ${small ? 'h-8 w-8' : 'h-10 w-10'}`}>
-          <User className={small ? 'h-4 w-4 text-primary' : 'h-5 w-5 text-primary'} />
+        <div className={`rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center flex-shrink-0 ${small ? 'h-8 w-8' : 'h-9 w-9 sm:h-10 sm:w-10'}`}>
+          <User className={small ? 'h-4 w-4 text-primary' : 'h-4 w-4 sm:h-5 sm:w-5 text-primary'} />
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className={`font-medium truncate ${small ? 'text-sm' : ''}`}>{persona.name}</span>
+        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+          <span className={`font-medium truncate max-w-[120px] sm:max-w-none ${small ? 'text-sm' : 'text-sm sm:text-base'}`}>{persona.name}</span>
           {persona.isPrimary && (
-            <Badge variant="default" className="text-xs">Основна</Badge>
+            <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2">Основна</Badge>
           )}
           {!persona.isPrimary && (
-            <Badge variant="outline" className="text-xs">Вторинна</Badge>
+            <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2">Вторинна</Badge>
           )}
         </div>
         {persona.description && !small && (
-          <p className="text-sm text-muted-foreground truncate">{persona.description}</p>
+          <p className="text-xs sm:text-sm text-muted-foreground truncate">{persona.description}</p>
         )}
         <div className="flex flex-wrap gap-1 mt-1">
-          {persona.gender && <Badge variant="outline" className="text-xs">{persona.gender}</Badge>}
-          {persona.ageRange && <Badge variant="outline" className="text-xs">{persona.ageRange}</Badge>}
-          {values.length > 0 && <Badge variant="secondary" className="text-xs">+{values.length} цінностей</Badge>}
+          {persona.gender && <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5">{persona.gender}</Badge>}
+          {persona.ageRange && <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5">{persona.ageRange}</Badge>}
+          {values.length > 0 && <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5">+{values.length} цін.</Badge>}
         </div>
       </div>
-      <div className="hidden group-hover:flex items-center gap-1">
+      <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
         {!persona.aiPortraitImageUrl && onGenerateAvatar && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0"
+            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
             onClick={(e) => {
               e.stopPropagation();
               onGenerateAvatar();
@@ -1207,9 +1204,9 @@ function PersonaInline({
             title="Згенерувати аватар"
           >
             {isGeneratingAvatar ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
             ) : (
-              <Image className="h-4 w-4" />
+              <Image className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             )}
           </Button>
         )}
@@ -1217,14 +1214,14 @@ function PersonaInline({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
             title="Видалити"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </Button>
         )}
       </div>
