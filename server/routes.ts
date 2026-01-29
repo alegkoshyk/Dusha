@@ -20,8 +20,8 @@ import {
 import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
-import { sql, eq } from "drizzle-orm";
-import { cardResponsesTable } from "@shared/schema";
+import { sql, eq, and, isNull } from "drizzle-orm";
+import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable } from "@shared/schema";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona } from "./openai";
 
 // Admin middleware
@@ -887,18 +887,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const segments = await storage.getDemographicSegments(brandId);
+      const allAudiences = await storage.getTargetAudiences(brandId);
+      
+      // Get all assignments for this brand's personas
+      const personaIds = allAudiences.map(a => a.id);
+      const allAssignments = personaIds.length > 0 
+        ? await db.select().from(personaSegmentAssignmentsTable)
+            .where(sql`${personaSegmentAssignmentsTable.personaId} = ANY(${personaIds})`)
+        : [];
       
       // Also get sub-segments and personas for each segment
       const segmentsWithData = await Promise.all(segments.map(async (segment) => {
         const subSegments = await storage.getDemographicSubSegments(segment.id);
-        const subSegmentsWithPersonas = await Promise.all(subSegments.map(async (subSeg) => {
-          const personas = await storage.getTargetAudiences(brandId);
-          const subSegmentPersonas = personas.filter(p => p.subSegmentId === subSeg.id);
+        const subSegmentsWithPersonas = subSegments.map(subSeg => {
+          // Find personas assigned to this sub-segment
+          const subSegmentAssignments = allAssignments.filter(a => a.subSegmentId === subSeg.id);
+          const subSegmentPersonas = subSegmentAssignments.map(a => 
+            allAudiences.find(p => p.id === a.personaId)
+          ).filter(Boolean);
           return { ...subSeg, personas: subSegmentPersonas };
-        }));
+        });
         
-        const personas = await storage.getTargetAudiences(brandId);
-        const segmentPersonas = personas.filter(p => p.segmentId === segment.id && !p.subSegmentId);
+        // Find personas assigned to this segment (but not to any sub-segment)
+        const segmentAssignments = allAssignments.filter(a => a.segmentId === segment.id && !a.subSegmentId);
+        const segmentPersonas = segmentAssignments.map(a => 
+          allAudiences.find(p => p.id === a.personaId)
+        ).filter(Boolean);
         
         return { 
           ...segment, 
@@ -1118,7 +1132,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Assign persona to segment or sub-segment
+  // Add persona to segment or sub-segment (many-to-many)
+  app.post("/api/target-audiences/:id/segment-assignments", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const { segmentId, subSegmentId } = req.body;
+
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Персону не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Check if assignment already exists
+      const existing = await db.select().from(personaSegmentAssignmentsTable)
+        .where(and(
+          eq(personaSegmentAssignmentsTable.personaId, id),
+          segmentId ? eq(personaSegmentAssignmentsTable.segmentId, segmentId) : isNull(personaSegmentAssignmentsTable.segmentId),
+          subSegmentId ? eq(personaSegmentAssignmentsTable.subSegmentId, subSegmentId) : isNull(personaSegmentAssignmentsTable.subSegmentId)
+        ));
+      
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Призначення вже існує" });
+      }
+
+      const [assignment] = await db.insert(personaSegmentAssignmentsTable).values({
+        personaId: id,
+        segmentId: segmentId || null,
+        subSegmentId: subSegmentId || null,
+      }).returning();
+      
+      res.json(assignment);
+    } catch (error) {
+      console.error("Add persona segment assignment error:", error);
+      res.status(500).json({ error: "Помилка призначення персони до сегменту" });
+    }
+  });
+
+  // Remove persona from segment or sub-segment
+  app.delete("/api/target-audiences/:id/segment-assignments/:assignmentId", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id, assignmentId } = req.params;
+
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Персону не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await db.delete(personaSegmentAssignmentsTable)
+        .where(and(
+          eq(personaSegmentAssignmentsTable.id, assignmentId),
+          eq(personaSegmentAssignmentsTable.personaId, id)
+        ));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Remove persona segment assignment error:", error);
+      res.status(500).json({ error: "Помилка видалення призначення" });
+    }
+  });
+
+  // Get persona segment assignments
+  app.get("/api/target-audiences/:id/segment-assignments", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Персону не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const assignments = await db.select({
+        id: personaSegmentAssignmentsTable.id,
+        personaId: personaSegmentAssignmentsTable.personaId,
+        segmentId: personaSegmentAssignmentsTable.segmentId,
+        subSegmentId: personaSegmentAssignmentsTable.subSegmentId,
+        segment: demographicSegmentsTable,
+        subSegment: demographicSubSegmentsTable,
+      })
+        .from(personaSegmentAssignmentsTable)
+        .leftJoin(demographicSegmentsTable, eq(personaSegmentAssignmentsTable.segmentId, demographicSegmentsTable.id))
+        .leftJoin(demographicSubSegmentsTable, eq(personaSegmentAssignmentsTable.subSegmentId, demographicSubSegmentsTable.id))
+        .where(eq(personaSegmentAssignmentsTable.personaId, id));
+      
+      res.json(assignments);
+    } catch (error) {
+      console.error("Get persona segment assignments error:", error);
+      res.status(500).json({ error: "Помилка отримання призначень" });
+    }
+  });
+
+  // Legacy: Assign persona to segment (for backward compatibility, updates the simple FK fields)
   app.patch("/api/target-audiences/:id/assign-segment", requireAuth, async (req, res) => {
     try {
       const currentUser = getCurrentUserUnified(req);

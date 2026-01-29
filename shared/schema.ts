@@ -1164,6 +1164,7 @@ export const targetAudiencesRelations = relations(targetAudiencesTable, ({ one, 
     references: [demographicSubSegmentsTable.id],
   }),
   oldSegments: many(audienceSegmentsTable),
+  segmentAssignments: many(personaSegmentAssignmentsTable),
 }));
 
 export const insertTargetAudienceSchema = createInsertSchema(targetAudiencesTable).omit({
@@ -1174,6 +1175,39 @@ export const insertTargetAudienceSchema = createInsertSchema(targetAudiencesTabl
 
 export type TargetAudience = typeof targetAudiencesTable.$inferSelect;
 export type InsertTargetAudience = z.infer<typeof insertTargetAudienceSchema>;
+
+// =========================================
+// Призначення персон до сегментів (багато-до-багатьох)
+// =========================================
+
+export const personaSegmentAssignmentsTable = pgTable("persona_segment_assignments", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  personaId: uuid("persona_id").notNull().references(() => targetAudiencesTable.id, { onDelete: "cascade" }),
+  segmentId: uuid("segment_id").references(() => demographicSegmentsTable.id, { onDelete: "cascade" }),
+  subSegmentId: uuid("sub_segment_id").references(() => demographicSubSegmentsTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  personaIdx: index("persona_segment_persona_idx").on(table.personaId),
+  segmentIdx: index("persona_segment_segment_idx").on(table.segmentId),
+  subSegmentIdx: index("persona_segment_sub_segment_idx").on(table.subSegmentId),
+}));
+
+export const personaSegmentAssignmentsRelations = relations(personaSegmentAssignmentsTable, ({ one }) => ({
+  persona: one(targetAudiencesTable, {
+    fields: [personaSegmentAssignmentsTable.personaId],
+    references: [targetAudiencesTable.id],
+  }),
+  segment: one(demographicSegmentsTable, {
+    fields: [personaSegmentAssignmentsTable.segmentId],
+    references: [demographicSegmentsTable.id],
+  }),
+  subSegment: one(demographicSubSegmentsTable, {
+    fields: [personaSegmentAssignmentsTable.subSegmentId],
+    references: [demographicSubSegmentsTable.id],
+  }),
+}));
+
+export type PersonaSegmentAssignment = typeof personaSegmentAssignmentsTable.$inferSelect;
 
 // Таблиця сегментів аудиторії (підгрупи всередині ЦА)
 export const audienceSegmentsTable = pgTable("audience_segments", {
