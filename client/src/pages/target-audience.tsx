@@ -66,6 +66,8 @@ export default function TargetAudiencePage() {
   const [editingSubSegment, setEditingSubSegment] = useState<DemographicSubSegment | null>(null);
   const [movingSubSegment, setMovingSubSegment] = useState<{ id: string; currentSegmentId: string } | null>(null);
   const [generatingAvatarId, setGeneratingAvatarId] = useState<string | null>(null);
+  const [editingAudience, setEditingAudience] = useState<TargetAudience | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -156,6 +158,25 @@ export default function TargetAudiencePage() {
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося видалити аудиторію", variant: "destructive" });
+    },
+  });
+
+  const updateAudienceMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<TargetAudience> }) => {
+      const response = await apiRequest("PATCH", `/api/target-audiences/${id}`, data);
+      if (!response.ok) throw new Error("Failed to update audience");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Персону оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      setEditingAudience(null);
+      setSelectedAudience(null);
+      setIsEditMode(false);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося оновити персону", variant: "destructive" });
     },
   });
 
@@ -816,15 +837,68 @@ export default function TargetAudiencePage() {
 
         {/* Selected Audience Dialog */}
         {selectedAudience && (
-          <Dialog open={!!selectedAudience} onOpenChange={() => setSelectedAudience(null)}>
+          <Dialog open={!!selectedAudience} onOpenChange={() => { setSelectedAudience(null); setIsEditMode(false); setEditingAudience(null); }}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  {selectedAudience.name}
-                </DialogTitle>
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    {isEditMode ? "Редагувати персону" : selectedAudience.name}
+                  </DialogTitle>
+                  {!isEditMode && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setEditingAudience({ ...selectedAudience });
+                        setIsEditMode(true);
+                      }}
+                    >
+                      <Settings className="h-4 w-4 mr-2" />
+                      Редагувати
+                    </Button>
+                  )}
+                </div>
               </DialogHeader>
-              <AudienceDetails audience={selectedAudience} />
+              {isEditMode && editingAudience ? (
+                <AudienceEditForm 
+                  audience={editingAudience}
+                  onChange={setEditingAudience}
+                  onSave={() => {
+                    updateAudienceMutation.mutate({
+                      id: editingAudience.id,
+                      data: {
+                        name: editingAudience.name,
+                        description: editingAudience.description,
+                        isPrimary: editingAudience.isPrimary,
+                        ageRange: editingAudience.ageRange,
+                        gender: editingAudience.gender,
+                        location: editingAudience.location,
+                        income: editingAudience.income,
+                        education: editingAudience.education,
+                        occupation: editingAudience.occupation,
+                        values: editingAudience.values,
+                        interests: editingAudience.interests,
+                        painPoints: editingAudience.painPoints,
+                        goals: editingAudience.goals,
+                        motivations: editingAudience.motivations,
+                        fears: editingAudience.fears,
+                        buyingBehavior: editingAudience.buyingBehavior,
+                        mediaConsumption: editingAudience.mediaConsumption,
+                        decisionFactors: editingAudience.decisionFactors,
+                        aiPortrait: editingAudience.aiPortrait,
+                      }
+                    });
+                  }}
+                  onCancel={() => {
+                    setIsEditMode(false);
+                    setEditingAudience(null);
+                  }}
+                  isSaving={updateAudienceMutation.isPending}
+                />
+              ) : (
+                <AudienceDetails audience={selectedAudience} />
+              )}
             </DialogContent>
           </Dialog>
         )}
@@ -1362,6 +1436,242 @@ function AudienceDetails({ audience }: { audience: TargetAudience }) {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+function AudienceEditForm({ 
+  audience, 
+  onChange, 
+  onSave, 
+  onCancel, 
+  isSaving 
+}: { 
+  audience: TargetAudience;
+  onChange: (audience: TargetAudience) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const updateArrayField = (field: keyof TargetAudience, value: string) => {
+    const items = value.split('\n').filter(item => item.trim());
+    onChange({ ...audience, [field]: items });
+  };
+
+  const getArrayValue = (arr: unknown): string => {
+    if (Array.isArray(arr)) {
+      return arr.join('\n');
+    }
+    return '';
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Ім'я</Label>
+          <Input
+            value={audience.name}
+            onChange={(e) => onChange({ ...audience, name: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Тип аудиторії</Label>
+          <Select
+            value={audience.isPrimary ? "primary" : "secondary"}
+            onValueChange={(v) => onChange({ ...audience, isPrimary: v === "primary" })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="primary">Основна</SelectItem>
+              <SelectItem value="secondary">Вторинна</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Опис</Label>
+        <Textarea
+          value={audience.description || ""}
+          onChange={(e) => onChange({ ...audience, description: e.target.value })}
+          rows={2}
+        />
+      </div>
+
+      <Separator />
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label>Стать</Label>
+          <Input
+            value={audience.gender || ""}
+            onChange={(e) => onChange({ ...audience, gender: e.target.value })}
+            placeholder="Жінка, Чоловік..."
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Вік</Label>
+          <Input
+            value={audience.ageRange || ""}
+            onChange={(e) => onChange({ ...audience, ageRange: e.target.value })}
+            placeholder="25-35"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Локація</Label>
+          <Input
+            value={audience.location || ""}
+            onChange={(e) => onChange({ ...audience, location: e.target.value })}
+            placeholder="Київ, Україна"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-2">
+          <Label>Дохід</Label>
+          <Input
+            value={audience.income || ""}
+            onChange={(e) => onChange({ ...audience, income: e.target.value })}
+            placeholder="Середній"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Освіта</Label>
+          <Input
+            value={audience.education || ""}
+            onChange={(e) => onChange({ ...audience, education: e.target.value })}
+            placeholder="Вища"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Професія</Label>
+          <Input
+            value={audience.occupation || ""}
+            onChange={(e) => onChange({ ...audience, occupation: e.target.value })}
+            placeholder="Маркетолог"
+          />
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Цінності (по одній на рядок)</Label>
+          <Textarea
+            value={getArrayValue(audience.values)}
+            onChange={(e) => updateArrayField('values', e.target.value)}
+            rows={4}
+            placeholder="Якість&#10;Інновації&#10;Сталість"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Інтереси (по одному на рядок)</Label>
+          <Textarea
+            value={getArrayValue(audience.interests)}
+            onChange={(e) => updateArrayField('interests', e.target.value)}
+            rows={4}
+            placeholder="Технології&#10;Подорожі&#10;Спорт"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Болі (по одному на рядок)</Label>
+          <Textarea
+            value={getArrayValue(audience.painPoints)}
+            onChange={(e) => updateArrayField('painPoints', e.target.value)}
+            rows={4}
+            placeholder="Нестача часу&#10;Високі ціни"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Цілі (по одній на рядок)</Label>
+          <Textarea
+            value={getArrayValue(audience.goals)}
+            onChange={(e) => updateArrayField('goals', e.target.value)}
+            rows={4}
+            placeholder="Збільшити дохід&#10;Розвиток кар'єри"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Мотивації (по одній на рядок)</Label>
+          <Textarea
+            value={getArrayValue(audience.motivations)}
+            onChange={(e) => updateArrayField('motivations', e.target.value)}
+            rows={3}
+            placeholder="Успіх&#10;Визнання"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Страхи (по одному на рядок)</Label>
+          <Textarea
+            value={getArrayValue(audience.fears)}
+            onChange={(e) => updateArrayField('fears', e.target.value)}
+            rows={3}
+            placeholder="Невдача&#10;Втрата роботи"
+          />
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-2">
+        <Label>Поведінка при покупках</Label>
+        <Textarea
+          value={audience.buyingBehavior || ""}
+          onChange={(e) => onChange({ ...audience, buyingBehavior: e.target.value })}
+          rows={2}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Канали медіа (по одному на рядок)</Label>
+          <Textarea
+            value={getArrayValue(audience.mediaConsumption)}
+            onChange={(e) => updateArrayField('mediaConsumption', e.target.value)}
+            rows={3}
+            placeholder="Instagram&#10;YouTube&#10;Podcasts"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Фактори рішень (по одному на рядок)</Label>
+          <Textarea
+            value={getArrayValue(audience.decisionFactors)}
+            onChange={(e) => updateArrayField('decisionFactors', e.target.value)}
+            rows={3}
+            placeholder="Ціна&#10;Якість&#10;Відгуки"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>AI Портрет / Додаткова інформація</Label>
+        <Textarea
+          value={audience.aiPortrait || ""}
+          onChange={(e) => onChange({ ...audience, aiPortrait: e.target.value })}
+          rows={4}
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button variant="outline" onClick={onCancel}>
+          Скасувати
+        </Button>
+        <Button onClick={onSave} disabled={!audience.name.trim() || isSaving}>
+          {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+          Зберегти
+        </Button>
+      </div>
     </div>
   );
 }
