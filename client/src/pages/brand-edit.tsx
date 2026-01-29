@@ -16,7 +16,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   ArrowLeft, Save, Loader2, Building2, Palette, Type, Target, 
   Users, Sparkles, ImagePlus, X, FileText, Megaphone, Eye, Heart, Zap,
-  Plus, Trash2, User, Quote, FolderOpen, ChevronDown, ChevronRight, Layers, Move, Pencil
+  Plus, Trash2, User, Quote, FolderOpen, ChevronDown, ChevronRight, Layers, Move, Pencil,
+  Settings, ArrowRightLeft, GripVertical
 } from "lucide-react";
 import { Link } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -91,7 +92,9 @@ export default function BrandEditPage() {
   const [newSegmentName, setNewSegmentName] = useState("");
   const [expandedSegments, setExpandedSegments] = useState<Set<string>>(new Set());
   const [assigningPersonaId, setAssigningPersonaId] = useState<string | null>(null);
-  const [editingSegment, setEditingSegment] = useState<{ id: string; name: string } | null>(null);
+  const [editingSegment, setEditingSegment] = useState<DemographicSegment | null>(null);
+  const [editingSubSegment, setEditingSubSegment] = useState<DemographicSubSegment | null>(null);
+  const [movingSubSegment, setMovingSubSegment] = useState<{ id: string; currentSegmentId: string } | null>(null);
   const [editingPersona, setEditingPersona] = useState<TargetAudience | null>(null);
 
   const { data: brand, isLoading } = useQuery<UserBrand>({
@@ -259,8 +262,8 @@ export default function BrandEditPage() {
   });
 
   const updateSegmentMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      const response = await apiRequest("PATCH", `/api/demographic-segments/${id}`, { name });
+    mutationFn: async ({ id, data }: { id: string; data: Partial<DemographicSegment> }) => {
+      const response = await apiRequest("PATCH", `/api/demographic-segments/${id}`, data);
       if (!response.ok) throw new Error("Failed to update segment");
       return response.json();
     },
@@ -271,6 +274,53 @@ export default function BrandEditPage() {
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося оновити сегмент", variant: "destructive" });
+    },
+  });
+
+  const updateSubSegmentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<DemographicSubSegment> }) => {
+      const response = await apiRequest("PATCH", `/api/demographic-sub-segments/${id}`, data);
+      if (!response.ok) throw new Error("Failed to update sub-segment");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Підсегмент оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      setEditingSubSegment(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося оновити підсегмент", variant: "destructive" });
+    },
+  });
+
+  const moveSubSegmentMutation = useMutation({
+    mutationFn: async ({ id, newSegmentId }: { id: string; newSegmentId: string }) => {
+      const response = await apiRequest("PATCH", `/api/demographic-sub-segments/${id}`, { segmentId: newSegmentId });
+      if (!response.ok) throw new Error("Failed to move sub-segment");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Підсегмент переміщено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      setMovingSubSegment(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося перемістити підсегмент", variant: "destructive" });
+    },
+  });
+
+  const deleteSubSegmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/demographic-sub-segments/${id}`);
+      if (!response.ok) throw new Error("Failed to delete sub-segment");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Підсегмент видалено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити підсегмент", variant: "destructive" });
     },
   });
 
@@ -1111,11 +1161,14 @@ export default function BrandEditPage() {
                                   ) : (
                                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                   )}
-                                  <FolderOpen className="h-4 w-4 text-amber-500" />
+                                  <FolderOpen className="h-4 w-4" style={{ color: segment.color || '#f59e0b' }} />
                                   <span className="font-medium text-sm">{segment.name}</span>
                                   <Badge variant="secondary" className="text-xs">
                                     {segment.personas.length + segment.subSegments.reduce((acc, s) => acc + s.personas.length, 0)} персон
                                   </Badge>
+                                  {segment.communicationTone && (
+                                    <Badge variant="outline" className="text-xs">{segment.communicationTone}</Badge>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Button
@@ -1124,10 +1177,11 @@ export default function BrandEditPage() {
                                     className="h-7 w-7 p-0"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setEditingSegment({ id: segment.id, name: segment.name });
+                                      setEditingSegment(segment);
                                     }}
+                                    title="Налаштування сегменту"
                                   >
-                                    <Pencil className="h-3 w-3" />
+                                    <Settings className="h-3 w-3" />
                                   </Button>
                                   <Button
                                     variant="ghost"
@@ -1189,11 +1243,51 @@ export default function BrandEditPage() {
                                 ))}
                                 {/* Sub-segments */}
                                 {segment.subSegments.map((subSegment) => (
-                                  <div key={subSegment.id} className="ml-6 border-l-2 border-muted pl-3 space-y-1">
-                                    <div className="flex items-center gap-2 py-1">
-                                      <Layers className="h-3 w-3 text-blue-400" />
-                                      <span className="text-sm text-muted-foreground">{subSegment.name}</span>
+                                  <div key={subSegment.id} className="ml-6 border-l-2 pl-3 space-y-1" style={{ borderColor: subSegment.color || '#60a5fa' }}>
+                                    <div className="flex items-center gap-2 py-1 group">
+                                      <Layers className="h-3 w-3" style={{ color: subSegment.color || '#60a5fa' }} />
+                                      <span className="text-sm text-muted-foreground flex-1">{subSegment.name}</span>
                                       <Badge variant="outline" className="text-xs">{subSegment.personas.length}</Badge>
+                                      <div className="hidden group-hover:flex items-center gap-1">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingSubSegment(subSegment);
+                                          }}
+                                          title="Налаштування"
+                                        >
+                                          <Settings className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setMovingSubSegment({ id: subSegment.id, currentSegmentId: segment.id });
+                                          }}
+                                          title="Перемістити"
+                                        >
+                                          <ArrowRightLeft className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (confirm("Видалити підсегмент?")) {
+                                              deleteSubSegmentMutation.mutate(subSegment.id);
+                                            }
+                                          }}
+                                          title="Видалити"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
                                     </div>
                                     {subSegment.personas.map((persona) => (
                                       <div
@@ -1356,28 +1450,330 @@ export default function BrandEditPage() {
             {/* Edit Segment Dialog */}
             {editingSegment && (
               <Dialog open={!!editingSegment} onOpenChange={() => setEditingSegment(null)}>
-                <DialogContent>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Редагувати сегмент</DialogTitle>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Settings className="h-5 w-5" />
+                      Налаштування сегменту
+                    </DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4 py-4">
+                  <div className="space-y-6 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Назва сегменту</Label>
+                        <Input
+                          value={editingSegment.name}
+                          onChange={(e) => setEditingSegment({ ...editingSegment, name: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Колір</Label>
+                        <Input
+                          type="color"
+                          value={editingSegment.color || "#3b82f6"}
+                          onChange={(e) => setEditingSegment({ ...editingSegment, color: e.target.value })}
+                          className="h-10 p-1"
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label>Назва сегменту</Label>
-                      <Input
-                        value={editingSegment.name}
-                        onChange={(e) => setEditingSegment({ ...editingSegment, name: e.target.value })}
+                      <Label>Опис сегменту</Label>
+                      <Textarea
+                        value={editingSegment.description || ""}
+                        onChange={(e) => setEditingSegment({ ...editingSegment, description: e.target.value })}
+                        placeholder="Загальний опис цього сегменту..."
+                        rows={2}
                       />
                     </div>
-                    <div className="flex justify-end gap-2">
+
+                    <Separator />
+                    <h4 className="text-sm font-medium text-muted-foreground">Демографія</h4>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Вікова група</Label>
+                        <Input
+                          value={editingSegment.ageRange || ""}
+                          onChange={(e) => setEditingSegment({ ...editingSegment, ageRange: e.target.value })}
+                          placeholder="18-35"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Стать</Label>
+                        <Select
+                          value={editingSegment.gender || "all"}
+                          onValueChange={(value) => setEditingSegment({ ...editingSegment, gender: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Всі</SelectItem>
+                            <SelectItem value="male">Чоловіки</SelectItem>
+                            <SelectItem value="female">Жінки</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Локація</Label>
+                        <Input
+                          value={editingSegment.location || ""}
+                          onChange={(e) => setEditingSegment({ ...editingSegment, location: e.target.value })}
+                          placeholder="Україна, великі міста"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Рівень доходу</Label>
+                        <Input
+                          value={editingSegment.income || ""}
+                          onChange={(e) => setEditingSegment({ ...editingSegment, income: e.target.value })}
+                          placeholder="Середній+"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Освіта</Label>
+                        <Input
+                          value={editingSegment.education || ""}
+                          onChange={(e) => setEditingSegment({ ...editingSegment, education: e.target.value })}
+                          placeholder="Вища освіта"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Професія/Сфера</Label>
+                        <Input
+                          value={editingSegment.occupation || ""}
+                          onChange={(e) => setEditingSegment({ ...editingSegment, occupation: e.target.value })}
+                          placeholder="IT, маркетинг"
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+                    <h4 className="text-sm font-medium text-muted-foreground">Контекстні налаштування</h4>
+
+                    <div className="space-y-2">
+                      <Label>Контекст та призначення сегменту</Label>
+                      <Textarea
+                        value={editingSegment.contextDescription || ""}
+                        onChange={(e) => setEditingSegment({ ...editingSegment, contextDescription: e.target.value })}
+                        placeholder="Детальний опис: хто ці люди, чому вони важливі для бренду, яку роль вони відіграють..."
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Маркетингова стратегія</Label>
+                      <Textarea
+                        value={editingSegment.marketingStrategy || ""}
+                        onChange={(e) => setEditingSegment({ ...editingSegment, marketingStrategy: e.target.value })}
+                        placeholder="Як працювати з цим сегментом, які канали використовувати..."
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Типова поведінка</Label>
+                      <Textarea
+                        value={editingSegment.targetBehavior || ""}
+                        onChange={(e) => setEditingSegment({ ...editingSegment, targetBehavior: e.target.value })}
+                        placeholder="Звички, патерни покупок, що мотивує до дій..."
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Тон комунікації</Label>
+                      <Select
+                        value={editingSegment.communicationTone || "friendly"}
+                        onValueChange={(value) => setEditingSegment({ ...editingSegment, communicationTone: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="formal">Формальний</SelectItem>
+                          <SelectItem value="friendly">Дружній</SelectItem>
+                          <SelectItem value="professional">Професійний</SelectItem>
+                          <SelectItem value="casual">Неформальний</SelectItem>
+                          <SelectItem value="inspiring">Надихаючий</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4">
                       <Button variant="outline" onClick={() => setEditingSegment(null)}>
                         Скасувати
                       </Button>
                       <Button
-                        onClick={() => updateSegmentMutation.mutate({ id: editingSegment.id, name: editingSegment.name })}
+                        onClick={() => updateSegmentMutation.mutate({ 
+                          id: editingSegment.id, 
+                          data: {
+                            name: editingSegment.name,
+                            description: editingSegment.description,
+                            color: editingSegment.color,
+                            ageRange: editingSegment.ageRange,
+                            gender: editingSegment.gender,
+                            location: editingSegment.location,
+                            income: editingSegment.income,
+                            education: editingSegment.education,
+                            occupation: editingSegment.occupation,
+                            contextDescription: editingSegment.contextDescription,
+                            marketingStrategy: editingSegment.marketingStrategy,
+                            targetBehavior: editingSegment.targetBehavior,
+                            communicationTone: editingSegment.communicationTone,
+                          }
+                        })}
                         disabled={!editingSegment.name.trim() || updateSegmentMutation.isPending}
                       >
                         {updateSegmentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                         Зберегти
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {/* Edit Sub-Segment Dialog */}
+            {editingSubSegment && (
+              <Dialog open={!!editingSubSegment} onOpenChange={() => setEditingSubSegment(null)}>
+                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Layers className="h-5 w-5" />
+                      Налаштування підсегменту
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Назва</Label>
+                        <Input
+                          value={editingSubSegment.name}
+                          onChange={(e) => setEditingSubSegment({ ...editingSubSegment, name: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Колір</Label>
+                        <Input
+                          type="color"
+                          value={editingSubSegment.color || "#60a5fa"}
+                          onChange={(e) => setEditingSubSegment({ ...editingSubSegment, color: e.target.value })}
+                          className="h-10 p-1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Опис</Label>
+                      <Textarea
+                        value={editingSubSegment.description || ""}
+                        onChange={(e) => setEditingSubSegment({ ...editingSubSegment, description: e.target.value })}
+                        placeholder="Опис підсегменту..."
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Контекст підсегменту</Label>
+                      <Textarea
+                        value={editingSubSegment.contextDescription || ""}
+                        onChange={(e) => setEditingSubSegment({ ...editingSubSegment, contextDescription: e.target.value })}
+                        placeholder="Детальний контекст: що відрізняє цю підгрупу..."
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Специфічні потреби</Label>
+                      <Textarea
+                        value={editingSubSegment.specificNeeds || ""}
+                        onChange={(e) => setEditingSubSegment({ ...editingSubSegment, specificNeeds: e.target.value })}
+                        placeholder="Унікальні потреби цього підсегменту..."
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Відмінності від інших</Label>
+                      <Textarea
+                        value={editingSubSegment.differentiators || ""}
+                        onChange={(e) => setEditingSubSegment({ ...editingSubSegment, differentiators: e.target.value })}
+                        placeholder="Чим відрізняється від інших підсегментів..."
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4">
+                      <Button variant="outline" onClick={() => setEditingSubSegment(null)}>
+                        Скасувати
+                      </Button>
+                      <Button
+                        onClick={() => updateSubSegmentMutation.mutate({ 
+                          id: editingSubSegment.id, 
+                          data: {
+                            name: editingSubSegment.name,
+                            description: editingSubSegment.description,
+                            color: editingSubSegment.color,
+                            contextDescription: editingSubSegment.contextDescription,
+                            specificNeeds: editingSubSegment.specificNeeds,
+                            differentiators: editingSubSegment.differentiators,
+                          }
+                        })}
+                        disabled={!editingSubSegment.name.trim() || updateSubSegmentMutation.isPending}
+                      >
+                        {updateSubSegmentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Зберегти
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {/* Move Sub-Segment Dialog */}
+            {movingSubSegment && (
+              <Dialog open={!!movingSubSegment} onOpenChange={() => setMovingSubSegment(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <ArrowRightLeft className="h-5 w-5" />
+                      Перемістити підсегмент
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <p className="text-sm text-muted-foreground">
+                      Оберіть новий сегмент для переміщення підсегменту:
+                    </p>
+                    <Select
+                      onValueChange={(value) => moveSubSegmentMutation.mutate({ id: movingSubSegment.id, newSegmentId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Оберіть сегмент..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {segments
+                          .filter(seg => seg.id !== movingSubSegment.currentSegmentId)
+                          .map((seg) => (
+                            <SelectItem key={seg.id} value={seg.id}>
+                              <div className="flex items-center gap-2">
+                                <FolderOpen className="h-4 w-4" />
+                                {seg.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex justify-end">
+                      <Button variant="outline" onClick={() => setMovingSubSegment(null)}>
+                        Скасувати
                       </Button>
                     </div>
                   </div>

@@ -1045,6 +1045,12 @@ export const demographicSegmentsTable = pgTable("demographic_segments", {
   income: varchar("income", { length: 100 }),
   education: varchar("education", { length: 100 }),
   occupation: text("occupation"),
+  // Контекстні налаштування сегменту
+  contextDescription: text("context_description"), // Детальний контекст та призначення сегменту
+  marketingStrategy: text("marketing_strategy"), // Маркетингова стратегія для сегменту
+  targetBehavior: text("target_behavior"), // Типова поведінка та звички
+  communicationTone: varchar("communication_tone", { length: 100 }), // Тон комунікації (формальний, дружній, тощо)
+  keyMessages: json("key_messages").default(sql`'[]'`), // Ключові повідомлення для сегменту
   // Метадані
   color: varchar("color", { length: 20 }), // Колір для візуалізації
   priority: integer("priority").notNull().default(0),
@@ -1062,6 +1068,10 @@ export const demographicSubSegmentsTable = pgTable("demographic_sub_segments", {
   description: text("description"),
   // Специфічні характеристики підсегменту
   characteristics: json("characteristics").default(sql`'[]'`),
+  // Контекстні налаштування підсегменту
+  contextDescription: text("context_description"), // Детальний контекст підсегменту
+  specificNeeds: text("specific_needs"), // Специфічні потреби підсегменту
+  differentiators: text("differentiators"), // Чим відрізняється від інших підсегментів
   // Метадані
   color: varchar("color", { length: 20 }),
   priority: integer("priority").notNull().default(0),
