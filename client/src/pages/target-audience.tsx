@@ -68,6 +68,7 @@ export default function TargetAudiencePage() {
   const [generatingAvatarId, setGeneratingAvatarId] = useState<string | null>(null);
   const [editingAudience, setEditingAudience] = useState<TargetAudience | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState("");
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -111,8 +112,11 @@ export default function TargetAudiencePage() {
   const getUnassignedPersonas = () => audiences.filter(a => !assignedPersonaIds.has(a.id));
 
   const generatePersonaMutation = useMutation({
-    mutationFn: async (type: "primary" | "secondary" | "niche") => {
-      const response = await apiRequest("POST", `/api/brands/${params.brandId}/generate-persona`, { audienceType: type });
+    mutationFn: async ({ type, customPrompt }: { type: "primary" | "secondary" | "niche"; customPrompt?: string }) => {
+      const response = await apiRequest("POST", `/api/brands/${params.brandId}/generate-persona`, { 
+        audienceType: type,
+        customPrompt 
+      });
       if (!response.ok) throw new Error("Failed to generate persona");
       return response.json() as Promise<GeneratedPersona>;
     },
@@ -326,7 +330,7 @@ export default function TargetAudiencePage() {
   });
 
   const handleGeneratePersona = () => {
-    generatePersonaMutation.mutate(audienceType);
+    generatePersonaMutation.mutate({ type: audienceType, customPrompt: customPrompt.trim() || undefined });
   };
 
   const handleCreateFromPersona = () => {
@@ -400,7 +404,10 @@ export default function TargetAudiencePage() {
             </div>
           </div>
           
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <Dialog open={isCreateOpen} onOpenChange={(open) => {
+            setIsCreateOpen(open);
+            if (!open) setCustomPrompt("");
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -427,8 +434,8 @@ export default function TargetAudiencePage() {
                   </Select>
                 </div>
 
-                <div className="p-4 bg-muted/50 rounded-lg border">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="p-4 bg-muted/50 rounded-lg border space-y-4">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Sparkles className="h-5 w-5 text-primary" />
                       <span className="font-medium">AI-генерація персони</span>
@@ -452,8 +459,21 @@ export default function TargetAudiencePage() {
                     </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    AI проаналізує ваш бренд та створить детальний портрет ідеального клієнта
+                    AI проаналізує ваш бренд (цінності, місію, опис) та створить детальний портрет ідеального клієнта
                   </p>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Додатковий напрямок (опціонально)</Label>
+                    <Textarea
+                      value={customPrompt}
+                      onChange={(e) => setCustomPrompt(e.target.value)}
+                      placeholder="Опишіть особливості персони, яку хочете згенерувати. Наприклад: 'Молода мама з великого міста, яка цікавиться здоровим харчуванням' або 'IT-спеціаліст, який шукає преміальні продукти'"
+                      rows={3}
+                      className="text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Ваші вказівки будуть враховані як пріоритетний напрямок для створення персони
+                    </p>
+                  </div>
                 </div>
 
                 {generatePersonaMutation.data && (

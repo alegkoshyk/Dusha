@@ -1292,7 +1292,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { brandId } = req.params;
-      const { audienceType = "primary" } = req.body;
+      const { audienceType = "primary", customPrompt } = req.body;
       
       const brand = await storage.getUserBrand(brandId);
       if (!brand || brand.userId !== currentUser.id) {
@@ -1306,15 +1306,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: a.description || undefined
       }));
 
-      // Extract brand data from passport or other sources
+      // Extract full brand data from passport
+      const brandValues = brand.brandValues as string[] | undefined;
       const brandData = {
         name: brand.name,
         description: brand.description || undefined,
-        values: brand.brandValues || undefined,
-        mission: brand.mission || undefined
+        values: brandValues,
+        mission: brand.mission || undefined,
+        vision: brand.vision || undefined,
+        targetAudience: brand.targetAudience || undefined,
+        uniqueValue: brand.uniqueValue || undefined,
+        tagline: brand.tagline || undefined,
       };
 
-      const persona = await generateAudiencePersona(brandData, audienceType, existingSegments);
+      const persona = await generateAudiencePersona(brandData, audienceType, existingSegments, customPrompt);
       res.json(persona);
     } catch (error) {
       console.error("Generate persona error:", error);

@@ -722,9 +722,19 @@ export interface GeneratedPersona {
 }
 
 export async function generateAudiencePersona(
-  brandData: { name: string; description?: string; values?: string[]; mission?: string },
+  brandData: { 
+    name: string; 
+    description?: string; 
+    values?: string[]; 
+    mission?: string;
+    vision?: string;
+    targetAudience?: string;
+    uniqueValue?: string;
+    tagline?: string;
+  },
   audienceType: "primary" | "secondary" | "niche" = "primary",
-  existingSegments?: { name: string; description?: string }[]
+  existingSegments?: { name: string; description?: string }[],
+  customPrompt?: string
 ): Promise<GeneratedPersona> {
   const { client, config } = await getAIClient();
 
@@ -738,13 +748,21 @@ export async function generateAudiencePersona(
     niche: "нішевої (спеціалізованої, вузької)"
   }[audienceType];
 
+  const customDirection = customPrompt?.trim() 
+    ? `\n\n🎯 ОСОБЛИВІ ВКАЗІВКИ ВІД КОРИСТУВАЧА:\n${customPrompt}\n\nВраховуй ці вказівки як пріоритетний напрямок для створення персони!`
+    : "";
+
   const prompt = `Ти - експерт з маркетингу та сегментації аудиторії. Створи детальний портрет представника ${audienceTypeDesc} цільової аудиторії для бренду.
 
 📌 Бренд: ${brandData.name}
-${brandData.description ? `📝 Опис: ${brandData.description}` : ""}
-${brandData.values?.length ? `🎯 Цінності: ${brandData.values.join(", ")}` : ""}
+${brandData.description ? `📝 Опис бренду: ${brandData.description}` : ""}
+${brandData.tagline ? `💬 Слоган: ${brandData.tagline}` : ""}
+${brandData.values?.length ? `🎯 Цінності бренду: ${brandData.values.join(", ")}` : ""}
 ${brandData.mission ? `🚀 Місія: ${brandData.mission}` : ""}
-${segmentsContext}
+${brandData.vision ? `🔮 Візія: ${brandData.vision}` : ""}
+${brandData.targetAudience ? `👥 Загальний опис ЦА: ${brandData.targetAudience}` : ""}
+${brandData.uniqueValue ? `⭐ Унікальна цінність: ${brandData.uniqueValue}` : ""}
+${segmentsContext}${customDirection}
 
 Створи JSON з детальним портретом персони:
 {
