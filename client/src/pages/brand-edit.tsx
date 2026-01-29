@@ -593,28 +593,30 @@ export default function BrandEditPage() {
         </div>
 
         <Tabs defaultValue="basic" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:grid-cols-5">
-            <TabsTrigger value="basic" className="text-xs sm:text-sm">
-              <Building2 className="h-4 w-4 mr-1 hidden sm:inline" />
-              Основне
-            </TabsTrigger>
-            <TabsTrigger value="identity" className="text-xs sm:text-sm">
-              <Palette className="h-4 w-4 mr-1 hidden sm:inline" />
-              Ідентичність
-            </TabsTrigger>
-            <TabsTrigger value="strategy" className="text-xs sm:text-sm">
-              <Target className="h-4 w-4 mr-1 hidden sm:inline" />
-              Стратегія
-            </TabsTrigger>
-            <TabsTrigger value="audience" className="text-xs sm:text-sm">
-              <Users className="h-4 w-4 mr-1 hidden sm:inline" />
-              Аудиторія
-            </TabsTrigger>
-            <TabsTrigger value="voice" className="text-xs sm:text-sm">
-              <Megaphone className="h-4 w-4 mr-1 hidden sm:inline" />
-              Голос
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-5 gap-1">
+              <TabsTrigger value="basic" className="text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4">
+                <Building2 className="h-4 w-4 mr-1 hidden sm:inline" />
+                Основне
+              </TabsTrigger>
+              <TabsTrigger value="identity" className="text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4">
+                <Palette className="h-4 w-4 mr-1 hidden sm:inline" />
+                Ідентичність
+              </TabsTrigger>
+              <TabsTrigger value="strategy" className="text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4">
+                <Target className="h-4 w-4 mr-1 hidden sm:inline" />
+                Стратегія
+              </TabsTrigger>
+              <TabsTrigger value="audience" className="text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4">
+                <Users className="h-4 w-4 mr-1 hidden sm:inline" />
+                Аудиторія
+              </TabsTrigger>
+              <TabsTrigger value="voice" className="text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4">
+                <Megaphone className="h-4 w-4 mr-1 hidden sm:inline" />
+                Голос
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="basic" className="space-y-6">
             <Card className="border-border/50 shadow-sm">

@@ -157,22 +157,24 @@ export default function MediaLibrary() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6 flex-wrap h-auto gap-2">
-          <TabsTrigger value="all" className="gap-2" data-testid="tab-all">
-            <Image className="w-4 h-4" />
-            Усі ({assets.length})
-          </TabsTrigger>
-          {Object.entries(assetTypeLabels).map(([type, { label, icon: Icon }]) => {
-            const count = groupedAssets[type] || 0;
-            if (count === 0) return null;
-            return (
-              <TabsTrigger key={type} value={type} className="gap-2" data-testid={`tab-${type}`}>
-                <Icon className="w-4 h-4" />
-                {label} ({count})
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 mb-6">
+          <TabsList className="inline-flex w-auto gap-2">
+            <TabsTrigger value="all" className="gap-2 whitespace-nowrap" data-testid="tab-all">
+              <Image className="w-4 h-4" />
+              Усі ({assets.length})
+            </TabsTrigger>
+            {Object.entries(assetTypeLabels).map(([type, { label, icon: Icon }]) => {
+              const count = groupedAssets[type] || 0;
+              if (count === 0) return null;
+              return (
+                <TabsTrigger key={type} value={type} className="gap-2 whitespace-nowrap" data-testid={`tab-${type}`}>
+                  <Icon className="w-4 h-4" />
+                  {label} ({count})
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
 
         <TabsContent value={activeTab}>
           {assetsLoading ? (

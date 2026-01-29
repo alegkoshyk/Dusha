@@ -181,17 +181,19 @@ function AnalysisDetail({ analysis }: { analysis: ExternalBrandAnalysis }) {
 
       {/* Detailed analysis tabs */}
       <Tabs defaultValue="soul" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="soul" className="flex items-center gap-1">
-            <Heart className="h-4 w-4" /> Душа
-          </TabsTrigger>
-          <TabsTrigger value="mind" className="flex items-center gap-1">
-            <Brain className="h-4 w-4" /> Розум
-          </TabsTrigger>
-          <TabsTrigger value="body" className="flex items-center gap-1">
-            <Dumbbell className="h-4 w-4" /> Тіло
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+          <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-3 gap-1">
+            <TabsTrigger value="soul" className="flex items-center gap-1 whitespace-nowrap">
+              <Heart className="h-4 w-4" /> Душа
+            </TabsTrigger>
+            <TabsTrigger value="mind" className="flex items-center gap-1 whitespace-nowrap">
+              <Brain className="h-4 w-4" /> Розум
+            </TabsTrigger>
+            <TabsTrigger value="body" className="flex items-center gap-1 whitespace-nowrap">
+              <Dumbbell className="h-4 w-4" /> Тіло
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="soul" className="space-y-4 mt-4">
           {soul && (

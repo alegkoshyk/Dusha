@@ -422,27 +422,23 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="personal">
-                <div className="overflow-x-auto -mx-2 px-2 mb-4">
-                  <TabsList className="w-full md:w-auto inline-flex">
-                    <TabsTrigger value="personal" className="text-xs md:text-sm">
+                <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 mb-4">
+                  <TabsList className="inline-flex w-auto min-w-full md:w-auto gap-1">
+                    <TabsTrigger value="personal" className="text-xs md:text-sm whitespace-nowrap">
                       <User className="h-4 w-4 mr-1 md:mr-2" />
-                      <span className="hidden sm:inline">Особисте</span>
-                      <span className="sm:hidden">Особ.</span>
+                      Особисте
                     </TabsTrigger>
-                    <TabsTrigger value="company" className="text-xs md:text-sm">
+                    <TabsTrigger value="company" className="text-xs md:text-sm whitespace-nowrap">
                       <Building2 className="h-4 w-4 mr-1 md:mr-2" />
-                      <span className="hidden sm:inline">Компанія</span>
-                      <span className="sm:hidden">Комп.</span>
+                      Компанія
                     </TabsTrigger>
-                    <TabsTrigger value="subscription" className="text-xs md:text-sm">
+                    <TabsTrigger value="subscription" className="text-xs md:text-sm whitespace-nowrap">
                       <Crown className="h-4 w-4 mr-1 md:mr-2" />
-                      <span className="hidden sm:inline">Підписка</span>
-                      <span className="sm:hidden">Підп.</span>
+                      Підписка
                     </TabsTrigger>
-                    <TabsTrigger value="payments" className="text-xs md:text-sm">
+                    <TabsTrigger value="payments" className="text-xs md:text-sm whitespace-nowrap">
                       <Receipt className="h-4 w-4 mr-1 md:mr-2" />
-                      <span className="hidden sm:inline">Платежі</span>
-                      <span className="sm:hidden">Плат.</span>
+                      Платежі
                     </TabsTrigger>
                   </TabsList>
                 </div>
