@@ -1394,12 +1394,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Collect reference images (logo and avatar)
       const referenceImages: { url: string; label: string }[] = [];
       
+      // Refresh logo URL if it's a signed Google Storage URL (they expire)
       if (brand.logo) {
-        referenceImages.push({ url: brand.logo, label: "Brand Logo - use this exact logo in the image" });
+        try {
+          const { refreshSignedUrl } = await import("./objectStorage");
+          const freshLogoUrl = await refreshSignedUrl(brand.logo);
+          referenceImages.push({ url: freshLogoUrl, label: "Brand Logo - use this exact logo in the image" });
+          console.log("Using refreshed logo URL for brand interaction image");
+        } catch (logoError) {
+          console.error("Failed to refresh logo URL:", logoError);
+          // Try using original URL as fallback
+          referenceImages.push({ url: brand.logo, label: "Brand Logo - use this exact logo in the image" });
+        }
       }
       
+      // Refresh avatar URL if it's a signed Google Storage URL
       if (audience.aiPortraitImageUrl) {
-        referenceImages.push({ url: audience.aiPortraitImageUrl, label: "Target Persona - generate this person in the scene" });
+        try {
+          if (audience.aiPortraitImageUrl.includes("storage.googleapis.com")) {
+            const { refreshSignedUrl } = await import("./objectStorage");
+            const freshAvatarUrl = await refreshSignedUrl(audience.aiPortraitImageUrl);
+            referenceImages.push({ url: freshAvatarUrl, label: "Target Persona - generate this person in the scene" });
+            console.log("Using refreshed avatar URL for brand interaction image");
+          } else {
+            // It's a data URL or other format, use as-is
+            referenceImages.push({ url: audience.aiPortraitImageUrl, label: "Target Persona - generate this person in the scene" });
+          }
+        } catch (avatarError) {
+          console.error("Failed to refresh avatar URL:", avatarError);
+          referenceImages.push({ url: audience.aiPortraitImageUrl, label: "Target Persona - generate this person in the scene" });
+        }
       }
       
       // Generate image using Gemini with reference images

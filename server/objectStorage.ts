@@ -479,3 +479,37 @@ async function signObjectURL({
   const { signed_url: signedURL } = await response.json();
   return signedURL;
 }
+
+/**
+ * Regenerate a fresh signed URL from an existing (possibly expired) signed URL
+ * Extracts bucket and object path from the URL and generates a new signed URL
+ */
+export async function refreshSignedUrl(existingUrl: string): Promise<string> {
+  // Parse the URL to extract bucket and object path
+  // Format: https://storage.googleapis.com/bucket-name/object-path?X-Goog-...
+  try {
+    const url = new URL(existingUrl);
+    const pathParts = url.pathname.split('/');
+    // First part is empty (leading /), second is bucket name, rest is object path
+    if (pathParts.length < 3) {
+      throw new Error("Invalid storage URL format");
+    }
+    
+    const bucketName = pathParts[1];
+    const objectPath = pathParts.slice(2).join('/');
+    
+    console.log(`refreshSignedUrl: Regenerating URL for bucket=${bucketName}, object=${objectPath}`);
+    
+    const freshUrl = await signObjectURL({
+      bucketName,
+      objectName: objectPath,
+      method: "GET",
+      ttlSec: 60 * 60 * 24 * 7, // 7 days
+    });
+    
+    return freshUrl;
+  } catch (error) {
+    console.error("refreshSignedUrl: Failed to regenerate URL:", error);
+    throw error;
+  }
+}
