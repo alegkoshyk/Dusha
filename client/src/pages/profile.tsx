@@ -286,8 +286,8 @@ export default function ProfilePage() {
   const initials = displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-8">
-      <div className="container max-w-4xl mx-auto py-4 md:py-8 px-3 md:px-4">
+    <div className="min-h-screen bg-background pb-24 md:pb-8 overflow-x-hidden">
+      <div className="max-w-4xl mx-auto py-4 md:py-8 px-3 md:px-4">
         <Button 
           variant="ghost" 
           onClick={() => navigate("/")}
@@ -300,7 +300,7 @@ export default function ProfilePage() {
 
         <div className="grid gap-4 md:gap-6">
           {/* Header Card */}
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20 overflow-hidden">
             <CardContent className="pt-4 md:pt-6 px-3 md:px-6">
               <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6">
                 {/* Avatar */}
@@ -364,36 +364,36 @@ export default function ProfilePage() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-3 gap-2 md:gap-4">
-            <Card>
-              <CardContent className="pt-3 md:pt-6 px-2 md:px-6 text-center">
-                <Zap className="h-5 w-5 md:h-8 md:w-8 mx-auto text-yellow-500 mb-1 md:mb-2" />
-                <p className="text-xl md:text-3xl font-bold">{stats?.totalXp || profile?.totalXp || 0}</p>
-                <p className="text-[10px] md:text-sm text-muted-foreground">XP</p>
+            <Card className="overflow-hidden">
+              <CardContent className="pt-3 md:pt-6 px-1 md:px-6 text-center">
+                <Zap className="h-4 w-4 md:h-8 md:w-8 mx-auto text-yellow-500 mb-1 md:mb-2" />
+                <p className="text-lg md:text-3xl font-bold">{stats?.totalXp || profile?.totalXp || 0}</p>
+                <p className="text-[9px] md:text-sm text-muted-foreground">XP</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pt-3 md:pt-6 px-2 md:px-6 text-center">
-                <Target className="h-5 w-5 md:h-8 md:w-8 mx-auto text-blue-500 mb-1 md:mb-2" />
-                <p className="text-xl md:text-3xl font-bold">{stats?.totalGames || 0}</p>
-                <p className="text-[10px] md:text-sm text-muted-foreground">Ігор</p>
+            <Card className="overflow-hidden">
+              <CardContent className="pt-3 md:pt-6 px-1 md:px-6 text-center">
+                <Target className="h-4 w-4 md:h-8 md:w-8 mx-auto text-blue-500 mb-1 md:mb-2" />
+                <p className="text-lg md:text-3xl font-bold">{stats?.totalGames || 0}</p>
+                <p className="text-[9px] md:text-sm text-muted-foreground">Ігор</p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pt-3 md:pt-6 px-2 md:px-6 text-center">
-                <Award className="h-5 w-5 md:h-8 md:w-8 mx-auto text-green-500 mb-1 md:mb-2" />
-                <p className="text-xl md:text-3xl font-bold">{stats?.completedGames || 0}</p>
-                <p className="text-[10px] md:text-sm text-muted-foreground">Завершено</p>
+            <Card className="overflow-hidden">
+              <CardContent className="pt-3 md:pt-6 px-1 md:px-6 text-center">
+                <Award className="h-4 w-4 md:h-8 md:w-8 mx-auto text-green-500 mb-1 md:mb-2" />
+                <p className="text-lg md:text-3xl font-bold">{stats?.completedGames || 0}</p>
+                <p className="text-[9px] md:text-sm text-muted-foreground truncate">Завершено</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Profile Form */}
-          <Card>
-            <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+          <Card className="overflow-hidden">
+            <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
               <div className="flex items-start sm:items-center justify-between gap-2">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <CardTitle className="text-base sm:text-lg">Особиста інформація</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm truncate">Ваш профіль та дані про компанію</CardDescription>
+                  <CardDescription className="text-[10px] sm:text-sm">Ваш профіль та дані про компанію</CardDescription>
                 </div>
                 {!isEditing ? (
                   <Button 

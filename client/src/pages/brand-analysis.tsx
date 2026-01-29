@@ -508,23 +508,23 @@ export default function BrandAnalysisPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-4 sm:py-8 px-3 sm:px-4">
+    <div className="min-h-screen bg-background overflow-x-hidden">
+      <div className="max-w-7xl mx-auto py-4 sm:py-8 px-3 sm:px-4">
         <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Left sidebar - History and input */}
-          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+          <div className="lg:col-span-1 space-y-4 sm:space-y-6 min-w-0">
             {/* URL Input Card */}
-            <Card>
-              <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+            <Card className="overflow-hidden">
+              <CardHeader className="px-3 py-3 sm:px-6 sm:py-4">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                   <Search className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
                   Аналіз бренду
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">
-                  Вставте посилання на сайт, Instagram чи іншу сторінку бренду для аналізу за методологією "Душа Бренду"
+                <CardDescription className="text-xs sm:text-sm leading-relaxed">
+                  Вставте посилання на сайт, Instagram чи іншу сторінку бренду для аналізу
                 </CardDescription>
               </CardHeader>
-              <CardContent className="px-4 sm:px-6">
+              <CardContent className="px-3 sm:px-6">
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Input
@@ -547,23 +547,23 @@ export default function BrandAnalysisPage() {
                       onValueChange={(value) => setAnalysisType(value as "standard" | "template")}
                       className="space-y-2"
                     >
-                      <div className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer">
-                        <RadioGroupItem value="standard" id="standard" />
+                      <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer">
+                        <RadioGroupItem value="standard" id="standard" className="flex-shrink-0" />
                         <Label htmlFor="standard" className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
                           <Settings2 className="h-4 w-4 text-primary flex-shrink-0" />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm">Стандартний</p>
-                            <p className="text-xs text-muted-foreground truncate">За замовчуванням методологія "Душа Бренду"</p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">Методологія "Душа Бренду"</p>
                           </div>
                         </Label>
                       </div>
-                      <div className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer">
-                        <RadioGroupItem value="template" id="template" />
+                      <div className="flex items-center space-x-2 p-2 sm:p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer">
+                        <RadioGroupItem value="template" id="template" className="flex-shrink-0" />
                         <Label htmlFor="template" className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
                           <LayoutTemplate className="h-4 w-4 text-purple-500 flex-shrink-0" />
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm">За шаблоном</p>
-                            <p className="text-xs text-muted-foreground truncate">Обрати з налаштованих шаблонів</p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground">Налаштовані шаблони</p>
                           </div>
                         </Label>
                       </div>
@@ -617,10 +617,10 @@ export default function BrandAnalysisPage() {
 
                   {/* Quota display */}
                   {userSubscription && (
-                    <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-                      <span>Залишилось аналізів:</span>
-                      <Badge variant={remainingAnalyses > 0 ? "secondary" : "destructive"}>
-                        {remainingAnalyses} / {analysisQuota}
+                    <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground mb-2 gap-2">
+                      <span className="flex-shrink-0">Залишилось:</span>
+                      <Badge variant={remainingAnalyses > 0 ? "secondary" : "destructive"} className="text-xs flex-shrink-0">
+                        {remainingAnalyses}/{analysisQuota}
                       </Badge>
                     </div>
                   )}
@@ -650,8 +650,8 @@ export default function BrandAnalysisPage() {
             </Card>
 
             {/* History Card */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between px-4 py-3 sm:px-6 sm:py-4 pb-2">
+            <Card className="overflow-hidden">
+              <CardHeader className="flex flex-row items-center justify-between px-3 py-3 sm:px-6 sm:py-4 pb-2">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <History className="h-4 w-4 flex-shrink-0" />
                   Історія аналізів
