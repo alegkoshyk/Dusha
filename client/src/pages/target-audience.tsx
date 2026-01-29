@@ -297,7 +297,7 @@ export default function TargetAudiencePage() {
 
   const addToSegmentMutation = useMutation({
     mutationFn: async ({ personaId, segmentId, subSegmentId }: { personaId: string; segmentId: string; subSegmentId: string | null }) => {
-      const response = await apiRequest("POST", `/api/persona-segment-assignments`, { personaId, segmentId, subSegmentId });
+      const response = await apiRequest("POST", `/api/target-audiences/${personaId}/segment-assignments`, { segmentId, subSegmentId });
       if (!response.ok) throw new Error("Failed to add to segment");
       return response.json();
     },
