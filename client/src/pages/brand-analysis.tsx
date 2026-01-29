@@ -509,22 +509,22 @@ export default function BrandAnalysisPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8 px-4">
-        <div className="grid lg:grid-cols-3 gap-6">
+      <div className="container mx-auto py-4 sm:py-8 px-3 sm:px-4">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Left sidebar - History and input */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-4 sm:space-y-6">
             {/* URL Input Card */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="h-5 w-5 text-primary" />
+              <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Search className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
                   Аналіз бренду
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Вставте посилання на сайт, Instagram чи іншу сторінку бренду для аналізу за методологією "Душа Бренду"
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-4 sm:px-6">
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Input
@@ -540,30 +540,30 @@ export default function BrandAnalysisPage() {
                     )}
                   </div>
 
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">Тип аналізу</Label>
+                  <div className="space-y-2 sm:space-y-3">
+                    <Label className="text-xs sm:text-sm font-medium">Тип аналізу</Label>
                     <RadioGroup 
                       value={analysisType} 
                       onValueChange={(value) => setAnalysisType(value as "standard" | "template")}
                       className="space-y-2"
                     >
-                      <div className="flex items-center space-x-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer">
+                      <div className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer">
                         <RadioGroupItem value="standard" id="standard" />
-                        <Label htmlFor="standard" className="flex items-center gap-2 cursor-pointer flex-1">
-                          <Settings2 className="h-4 w-4 text-primary" />
-                          <div>
-                            <p className="font-medium">Стандартний</p>
-                            <p className="text-xs text-muted-foreground">За замовчуванням методологія "Душа Бренду"</p>
+                        <Label htmlFor="standard" className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                          <Settings2 className="h-4 w-4 text-primary flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm">Стандартний</p>
+                            <p className="text-xs text-muted-foreground truncate">За замовчуванням методологія "Душа Бренду"</p>
                           </div>
                         </Label>
                       </div>
-                      <div className="flex items-center space-x-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer">
+                      <div className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors cursor-pointer">
                         <RadioGroupItem value="template" id="template" />
-                        <Label htmlFor="template" className="flex items-center gap-2 cursor-pointer flex-1">
-                          <LayoutTemplate className="h-4 w-4 text-purple-500" />
-                          <div>
-                            <p className="font-medium">За шаблоном</p>
-                            <p className="text-xs text-muted-foreground">Обрати з налаштованих шаблонів</p>
+                        <Label htmlFor="template" className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                          <LayoutTemplate className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm">За шаблоном</p>
+                            <p className="text-xs text-muted-foreground truncate">Обрати з налаштованих шаблонів</p>
                           </div>
                         </Label>
                       </div>
@@ -651,14 +651,15 @@ export default function BrandAnalysisPage() {
 
             {/* History Card */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardHeader className="flex flex-row items-center justify-between px-4 py-3 sm:px-6 sm:py-4 pb-2">
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <History className="h-4 w-4" />
+                  <History className="h-4 w-4 flex-shrink-0" />
                   Історія аналізів
                 </CardTitle>
                 <Button 
                   variant="ghost" 
                   size="icon" 
+                  className="h-8 w-8"
                   onClick={() => refetch()}
                   data-testid="button-refresh-history"
                 >
@@ -666,7 +667,7 @@ export default function BrandAnalysisPage() {
                 </Button>
               </CardHeader>
               <CardContent className="p-0">
-                <ScrollArea className="h-[400px]">
+                <ScrollArea className="h-[300px] sm:h-[400px]">
                   {isLoading ? (
                     <div className="flex items-center justify-center py-8">
                       <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -682,45 +683,45 @@ export default function BrandAnalysisPage() {
                       {analyses.map((analysis) => (
                         <div
                           key={analysis.id}
-                          className={`p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
+                          className={`p-3 sm:p-4 cursor-pointer hover:bg-muted/50 transition-colors ${
                             selectedAnalysis?.id === analysis.id ? 'bg-muted' : ''
                           }`}
                           onClick={() => setSelectedAnalysis(analysis)}
                           data-testid={`analysis-item-${analysis.id}`}
                         >
                           <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              {getSourceIcon(analysis.sourceType)}
-                              <div className="min-w-0">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className="flex-shrink-0">{getSourceIcon(analysis.sourceType)}</span>
+                              <div className="min-w-0 flex-1">
                                 <p className="font-medium text-sm truncate">
                                   {analysis.brandName || new URL(analysis.url).hostname}
                                 </p>
-                                <p className="text-xs text-muted-foreground truncate">
+                                <p className="text-xs text-muted-foreground">
                                   {new Date(analysis.createdAt).toLocaleDateString('uk-UA')}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                               {getStatusBadge(analysis.status)}
+                            </div>
+                          </div>
+                          {analysis.status === 'completed' && analysis.overallScore && (
+                            <div className="mt-2 flex items-center justify-between">
+                              <Badge variant="outline" className="text-xs">
+                                Бал: {analysis.overallScore}/100
+                              </Badge>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8"
+                                className="h-6 w-6"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   deleteAnalysisMutation.mutate(analysis.id);
                                 }}
                                 data-testid={`button-delete-analysis-${analysis.id}`}
                               >
-                                <Trash2 className="h-4 w-4 text-muted-foreground hover:text-red-500" />
+                                <Trash2 className="h-3 w-3 text-muted-foreground hover:text-red-500" />
                               </Button>
-                            </div>
-                          </div>
-                          {analysis.status === 'completed' && analysis.overallScore && (
-                            <div className="mt-2 flex gap-2">
-                              <Badge variant="outline" className="text-xs">
-                                Бал: {analysis.overallScore}/100
-                              </Badge>
                             </div>
                           )}
                         </div>
@@ -734,8 +735,8 @@ export default function BrandAnalysisPage() {
 
           {/* Right content - Analysis details */}
           <div className="lg:col-span-2">
-            <Card className="h-full min-h-[600px]">
-              <CardContent className="p-6">
+            <Card className="h-full min-h-[400px] sm:min-h-[600px]">
+              <CardContent className="p-4 sm:p-6">
                 {selectedAnalysis ? (
                   <AnalysisDetail analysis={selectedAnalysis} />
                 ) : (
