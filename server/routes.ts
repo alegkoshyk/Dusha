@@ -20,7 +20,7 @@ import {
 import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
-import { sql, eq, and, isNull } from "drizzle-orm";
+import { sql, eq, and, isNull, inArray } from "drizzle-orm";
 import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable } from "@shared/schema";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona } from "./openai";
 
@@ -893,7 +893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const personaIds = allAudiences.map(a => a.id);
       const allAssignments = personaIds.length > 0 
         ? await db.select().from(personaSegmentAssignmentsTable)
-            .where(sql`${personaSegmentAssignmentsTable.personaId} = ANY(${personaIds})`)
+            .where(inArray(personaSegmentAssignmentsTable.personaId, personaIds))
         : [];
       
       // Also get sub-segments and personas for each segment
