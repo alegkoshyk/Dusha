@@ -17,7 +17,7 @@ import {
   User, Camera, Building2, Briefcase, Globe, Trophy, Star, 
   ArrowLeft, Save, Loader2, Award, Target, Zap, CreditCard, 
   Receipt, Crown, Check, Calendar, ExternalLink, Clock, AlertTriangle, RefreshCw, XCircle,
-  Settings, LayoutDashboard, Image, ChevronRight, LogOut, Moon, Sun
+  Settings, LayoutDashboard, Image, ChevronRight, LogOut, Moon, Sun, Edit, X
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -389,55 +389,64 @@ export default function ProfilePage() {
 
           {/* Profile Form */}
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Особиста інформація</CardTitle>
-                  <CardDescription>Ваш профіль та дані про компанію</CardDescription>
+            <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+              <div className="flex items-start sm:items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <CardTitle className="text-base sm:text-lg">Особиста інформація</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm truncate">Ваш профіль та дані про компанію</CardDescription>
                 </div>
                 {!isEditing ? (
-                  <Button onClick={() => setIsEditing(true)} data-testid="button-edit-profile">
-                    Редагувати
+                  <Button 
+                    onClick={() => setIsEditing(true)} 
+                    data-testid="button-edit-profile"
+                    size="sm"
+                    className="flex-shrink-0 text-xs sm:text-sm"
+                  >
+                    <Edit className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Редагувати</span>
                   </Button>
                 ) : (
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setIsEditing(false)}>
-                      Скасувати
+                  <div className="flex gap-1 sm:gap-2 flex-shrink-0">
+                    <Button variant="outline" size="sm" onClick={() => setIsEditing(false)} className="text-xs sm:text-sm">
+                      <X className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Скасувати</span>
                     </Button>
                     <Button 
                       onClick={handleSave} 
                       disabled={updateProfileMutation.isPending}
                       data-testid="button-save-profile"
+                      size="sm"
+                      className="text-xs sm:text-sm"
                     >
                       {updateProfileMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        <Loader2 className="h-4 w-4 animate-spin sm:mr-1" />
                       ) : (
-                        <Save className="h-4 w-4 mr-2" />
+                        <Save className="h-4 w-4 sm:mr-1" />
                       )}
-                      Зберегти
+                      <span className="hidden sm:inline">Зберегти</span>
                     </Button>
                   </div>
                 )}
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 sm:px-6">
               <Tabs defaultValue="personal">
-                <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0 mb-4">
-                  <TabsList className="inline-flex w-auto min-w-full md:w-auto gap-1">
-                    <TabsTrigger value="personal" className="text-xs md:text-sm whitespace-nowrap">
-                      <User className="h-4 w-4 mr-1 md:mr-2" />
+                <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 sm:-mx-6 sm:px-6 mb-4">
+                  <TabsList className="inline-flex w-auto gap-1 pr-3 sm:pr-0">
+                    <TabsTrigger value="personal" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+                      <User className="h-4 w-4 mr-1" />
                       Особисте
                     </TabsTrigger>
-                    <TabsTrigger value="company" className="text-xs md:text-sm whitespace-nowrap">
-                      <Building2 className="h-4 w-4 mr-1 md:mr-2" />
+                    <TabsTrigger value="company" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+                      <Building2 className="h-4 w-4 mr-1" />
                       Компанія
                     </TabsTrigger>
-                    <TabsTrigger value="subscription" className="text-xs md:text-sm whitespace-nowrap">
-                      <Crown className="h-4 w-4 mr-1 md:mr-2" />
+                    <TabsTrigger value="subscription" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+                      <Crown className="h-4 w-4 mr-1" />
                       Підписка
                     </TabsTrigger>
-                    <TabsTrigger value="payments" className="text-xs md:text-sm whitespace-nowrap">
-                      <Receipt className="h-4 w-4 mr-1 md:mr-2" />
+                    <TabsTrigger value="payments" className="text-xs sm:text-sm whitespace-nowrap flex-shrink-0">
+                      <Receipt className="h-4 w-4 mr-1" />
                       Платежі
                     </TabsTrigger>
                   </TabsList>
