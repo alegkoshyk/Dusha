@@ -387,20 +387,20 @@ export default function TargetAudiencePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-6xl mx-auto py-6 px-4">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
+      <div className="container max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
+        <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link href={`/brand/${params.brandId}`}>
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </Link>
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Users className="h-6 w-6 text-primary" />
-                Цільова аудиторія
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
+                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
+                <span className="truncate">Цільова аудиторія</span>
               </h1>
-              <p className="text-sm text-muted-foreground">{brand.name}</p>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">{brand.name}</p>
             </div>
           </div>
           
@@ -409,9 +409,9 @@ export default function TargetAudiencePage() {
             if (!open) setCustomPrompt("");
           }}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Додати ЦА
+              <Button size="sm" className="flex-shrink-0 text-xs sm:text-sm">
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Додати ЦА</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -510,22 +510,22 @@ export default function TargetAudiencePage() {
           </Dialog>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Left Column: Segments */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Segments Section */}
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Layers className="h-5 w-5 text-blue-500" />
-                    <CardTitle className="text-lg">Сегменти аудиторії</CardTitle>
+              <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Layers className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 flex-shrink-0" />
+                    <CardTitle className="text-base sm:text-lg truncate">Сегменти аудиторії</CardTitle>
                   </div>
                   <Dialog open={isSegmentDialogOpen} onOpenChange={setIsSegmentDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Plus className="h-4 w-4 mr-1" />
-                        Сегмент
+                      <Button variant="outline" size="sm" className="flex-shrink-0 text-xs sm:text-sm">
+                        <Plus className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Сегмент</span>
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -560,15 +560,15 @@ export default function TargetAudiencePage() {
                   </Dialog>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 {segments.length === 0 ? (
-                  <div className="p-6 border border-dashed rounded-lg text-center">
-                    <FolderOpen className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-                    <p className="font-medium text-muted-foreground mb-1">Немає сегментів</p>
-                    <p className="text-sm text-muted-foreground">Створіть сегменти для групування персон за демографією</p>
+                  <div className="p-4 sm:p-6 border border-dashed rounded-lg text-center">
+                    <FolderOpen className="h-8 w-8 sm:h-10 sm:w-10 mx-auto text-muted-foreground/50 mb-2 sm:mb-3" />
+                    <p className="font-medium text-muted-foreground mb-1 text-sm sm:text-base">Немає сегментів</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Створіть сегменти для групування персон</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {segments.map((segment) => (
                       <Collapsible
                         key={segment.id}
@@ -719,27 +719,27 @@ export default function TargetAudiencePage() {
 
             {/* Unassigned Personas */}
             <Card>
-              <CardHeader>
+              <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
                 <div className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-purple-500" />
-                  <CardTitle className="text-lg">Персони без сегменту</CardTitle>
+                  <Users className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500 flex-shrink-0" />
+                  <CardTitle className="text-base sm:text-lg">Персони без сегменту</CardTitle>
                   {getUnassignedPersonas().length > 0 && (
-                    <Badge variant="secondary">{getUnassignedPersonas().length}</Badge>
+                    <Badge variant="secondary" className="text-xs">{getUnassignedPersonas().length}</Badge>
                   )}
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 {getUnassignedPersonas().length === 0 && audiences.length === 0 ? (
-                  <div className="p-6 border border-dashed rounded-lg text-center">
-                    <Users className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
-                    <p className="font-medium text-muted-foreground mb-1">Ще немає персон</p>
-                    <Button variant="outline" size="sm" onClick={() => setIsCreateOpen(true)} className="mt-2">
-                      <Plus className="h-4 w-4 mr-2" />
+                  <div className="p-4 sm:p-6 border border-dashed rounded-lg text-center">
+                    <Users className="h-8 w-8 sm:h-10 sm:w-10 mx-auto text-muted-foreground/50 mb-2 sm:mb-3" />
+                    <p className="font-medium text-muted-foreground mb-1 text-sm sm:text-base">Ще немає персон</p>
+                    <Button variant="outline" size="sm" onClick={() => setIsCreateOpen(true)} className="mt-2 text-xs sm:text-sm">
+                      <Plus className="h-4 w-4 mr-1 sm:mr-2" />
                       Створити персону
                     </Button>
                   </div>
                 ) : getUnassignedPersonas().length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground">
+                  <div className="p-3 sm:p-4 text-center text-muted-foreground">
                     <p className="text-sm">Всі персони розподілені по сегментах</p>
                   </div>
                 ) : (
@@ -801,32 +801,32 @@ export default function TargetAudiencePage() {
           </div>
 
           {/* Right Column: Quick Stats */}
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Статистика</CardTitle>
+              <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                <CardTitle className="text-base sm:text-lg">Статистика</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
+              <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Всього персон</span>
-                  <Badge variant="secondary">{audiences.length}</Badge>
+                  <Badge variant="secondary" className="text-xs">{audiences.length}</Badge>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Сегментів</span>
-                  <Badge variant="secondary">{segments.length}</Badge>
+                  <Badge variant="secondary" className="text-xs">{segments.length}</Badge>
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Без сегменту</span>
-                  <Badge variant="outline">{getUnassignedPersonas().length}</Badge>
+                  <Badge variant="outline" className="text-xs">{getUnassignedPersonas().length}</Badge>
                 </div>
                 <Separator />
                 <div className="space-y-2">
-                  <span className="text-sm font-medium">Типи аудиторій</span>
-                  <div className="flex items-center justify-between text-sm">
+                  <span className="text-xs sm:text-sm font-medium">Типи аудиторій</span>
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="text-muted-foreground">Основна</span>
                     <span>{audiences.filter(a => a.isPrimary).length}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-xs sm:text-sm">
                     <span className="text-muted-foreground">Вторинна</span>
                     <span>{audiences.filter(a => !a.isPrimary).length}</span>
                   </div>
@@ -835,10 +835,10 @@ export default function TargetAudiencePage() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Швидкі дії</CardTitle>
+              <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+                <CardTitle className="text-base sm:text-lg">Швидкі дії</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-2 px-4 sm:px-6">
                 <Button variant="outline" className="w-full justify-start" onClick={() => setIsCreateOpen(true)}>
                   <Sparkles className="h-4 w-4 mr-2" />
                   Згенерувати персону
