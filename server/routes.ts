@@ -1394,34 +1394,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Collect reference images (logo and avatar)
       const referenceImages: { url: string; label: string }[] = [];
       
-      // Refresh logo URL if it's a signed Google Storage URL (they expire)
+      // Use logo URL - refresh only if it's a signed URL (has X-Goog-Signature)
       if (brand.logo) {
         try {
-          const { refreshSignedUrl } = await import("./objectStorage");
-          const freshLogoUrl = await refreshSignedUrl(brand.logo);
-          referenceImages.push({ url: freshLogoUrl, label: "Brand Logo - use this exact logo in the image" });
-          console.log("Using refreshed logo URL for brand interaction image");
+          let logoUrl = brand.logo;
+          // Only refresh if it's a signed URL (private storage)
+          if (brand.logo.includes("X-Goog-Signature")) {
+            const { refreshSignedUrl } = await import("./objectStorage");
+            logoUrl = await refreshSignedUrl(brand.logo);
+            console.log("Refreshed signed logo URL for brand interaction image");
+          } else {
+            console.log("Using public logo URL for brand interaction image");
+          }
+          referenceImages.push({ url: logoUrl, label: "Brand Logo - use this exact logo in the image" });
         } catch (logoError) {
-          console.error("Failed to refresh logo URL:", logoError);
+          console.error("Failed to process logo URL:", logoError);
           // Try using original URL as fallback
           referenceImages.push({ url: brand.logo, label: "Brand Logo - use this exact logo in the image" });
         }
       }
       
-      // Refresh avatar URL if it's a signed Google Storage URL
+      // Use avatar URL - refresh only if it's a signed URL (has X-Goog-Signature)
       if (audience.aiPortraitImageUrl) {
         try {
-          if (audience.aiPortraitImageUrl.includes("storage.googleapis.com")) {
+          let avatarUrl = audience.aiPortraitImageUrl;
+          if (audience.aiPortraitImageUrl.includes("X-Goog-Signature")) {
             const { refreshSignedUrl } = await import("./objectStorage");
-            const freshAvatarUrl = await refreshSignedUrl(audience.aiPortraitImageUrl);
-            referenceImages.push({ url: freshAvatarUrl, label: "Target Persona - generate this person in the scene" });
-            console.log("Using refreshed avatar URL for brand interaction image");
+            avatarUrl = await refreshSignedUrl(audience.aiPortraitImageUrl);
+            console.log("Refreshed signed avatar URL for brand interaction image");
           } else {
-            // It's a data URL or other format, use as-is
-            referenceImages.push({ url: audience.aiPortraitImageUrl, label: "Target Persona - generate this person in the scene" });
+            console.log("Using public/data avatar URL for brand interaction image");
           }
+          referenceImages.push({ url: avatarUrl, label: "Target Persona - generate this person in the scene" });
         } catch (avatarError) {
-          console.error("Failed to refresh avatar URL:", avatarError);
+          console.error("Failed to process avatar URL:", avatarError);
           referenceImages.push({ url: audience.aiPortraitImageUrl, label: "Target Persona - generate this person in the scene" });
         }
       }

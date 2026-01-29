@@ -97,13 +97,15 @@ export class ObjectStorageService {
   }
 
   async getLogoUploadURL(brandId: string, fileName: string): Promise<{ uploadUrl: string; publicUrl: string }> {
-    const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error("PRIVATE_OBJECT_DIR not set");
+    // Use PUBLIC storage for logos so they are always accessible
+    const publicSearchPaths = this.getPublicObjectSearchPaths();
+    if (publicSearchPaths.length === 0) {
+      throw new Error("PUBLIC_OBJECT_SEARCH_PATHS not set");
     }
 
+    const publicDir = publicSearchPaths[0]; // Use first public path
     const objectId = `logos/${brandId}/${randomUUID()}-${fileName}`;
-    const fullPath = `${privateObjectDir}/${objectId}`;
+    const fullPath = `${publicDir}/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
     const uploadUrl = await signObjectURL({
@@ -113,16 +115,20 @@ export class ObjectStorageService {
       ttlSec: 900,
     });
 
-    const publicUrl = `https://storage.googleapis.com${fullPath}`;
+    // Public URL that never expires
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
 
     return { uploadUrl, publicUrl };
   }
 
   async uploadLogoFromBase64(brandId: string, base64Data: string): Promise<string> {
-    const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error("PRIVATE_OBJECT_DIR not set");
+    // Use PUBLIC storage for logos so they are always accessible
+    const publicSearchPaths = this.getPublicObjectSearchPaths();
+    if (publicSearchPaths.length === 0) {
+      throw new Error("PUBLIC_OBJECT_SEARCH_PATHS not set");
     }
+
+    const publicDir = publicSearchPaths[0]; // Use first public path
 
     const match = base64Data.match(/^data:image\/([\w+]+);base64,(.+)$/);
     if (!match) {
@@ -136,7 +142,7 @@ export class ObjectStorageService {
     const buffer = Buffer.from(imageData, 'base64');
 
     const objectId = `logos/${brandId}/${randomUUID()}.${extension}`;
-    const fullPath = `${privateObjectDir}/${objectId}`;
+    const fullPath = `${publicDir}/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
     const bucket = objectStorageClient.bucket(bucketName);
@@ -151,15 +157,11 @@ export class ObjectStorageService {
       },
     });
 
-    // Generate a long-lived signed URL (7 days) since makePublic is not allowed
-    const signedUrl = await signObjectURL({
-      bucketName,
-      objectName,
-      method: "GET",
-      ttlSec: 7 * 24 * 60 * 60, // 7 days
-    });
-
-    return signedUrl;
+    // Return permanent public URL (no signed URL needed for public storage)
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
+    console.log(`Logo uploaded to public storage: ${publicUrl}`);
+    
+    return publicUrl;
   }
 
   async getPublicUrl(objectPath: string): Promise<string> {
