@@ -16,7 +16,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   ArrowLeft, Save, Loader2, Building2, Palette, Type, Target, 
   Users, Sparkles, ImagePlus, X, FileText, Megaphone, Eye, Heart, Zap,
-  Plus, Trash2, User, Quote, FolderOpen, ChevronDown, ChevronRight, Layers, Move
+  Plus, Trash2, User, Quote, FolderOpen, ChevronDown, ChevronRight, Layers, Move, Pencil
 } from "lucide-react";
 import { Link } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -91,6 +91,8 @@ export default function BrandEditPage() {
   const [newSegmentName, setNewSegmentName] = useState("");
   const [expandedSegments, setExpandedSegments] = useState<Set<string>>(new Set());
   const [assigningPersonaId, setAssigningPersonaId] = useState<string | null>(null);
+  const [editingSegment, setEditingSegment] = useState<{ id: string; name: string } | null>(null);
+  const [editingPersona, setEditingPersona] = useState<TargetAudience | null>(null);
 
   const { data: brand, isLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -224,9 +226,9 @@ export default function BrandEditPage() {
     },
   });
 
-  const assignToSegmentMutation = useMutation({
+  const addToSegmentMutation = useMutation({
     mutationFn: async ({ personaId, segmentId, subSegmentId }: { personaId: string; segmentId?: string | null; subSegmentId?: string | null }) => {
-      const response = await apiRequest("PATCH", `/api/target-audiences/${personaId}/assign-segment`, { segmentId, subSegmentId });
+      const response = await apiRequest("POST", `/api/target-audiences/${personaId}/segment-assignments`, { segmentId, subSegmentId });
       if (!response.ok) throw new Error("Failed to assign");
       return response.json();
     },
@@ -234,14 +236,85 @@ export default function BrandEditPage() {
       toast({ title: "Успішно", description: "Персону призначено" });
       queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
-      setAssigningPersonaId(null);
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося призначити персону", variant: "destructive" });
     },
   });
 
-  const unassignedPersonas = audiences.filter(a => !a.segmentId && !a.subSegmentId);
+  const removeFromSegmentMutation = useMutation({
+    mutationFn: async ({ personaId, assignmentId }: { personaId: string; assignmentId: string }) => {
+      const response = await apiRequest("DELETE", `/api/target-audiences/${personaId}/segment-assignments/${assignmentId}`);
+      if (!response.ok) throw new Error("Failed to remove");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Персону видалено з сегменту" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити призначення", variant: "destructive" });
+    },
+  });
+
+  const updateSegmentMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const response = await apiRequest("PATCH", `/api/demographic-segments/${id}`, { name });
+      if (!response.ok) throw new Error("Failed to update segment");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Сегмент оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      setEditingSegment(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося оновити сегмент", variant: "destructive" });
+    },
+  });
+
+  const updatePersonaMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<TargetAudience> }) => {
+      const response = await apiRequest("PATCH", `/api/target-audiences/${id}`, data);
+      if (!response.ok) throw new Error("Failed to update persona");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Персону оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      setEditingPersona(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося оновити персону", variant: "destructive" });
+    },
+  });
+
+  // Helper to get all assignments for a persona from segments data
+  const getPersonaAssignments = (personaId: string) => {
+    const assignments: { segmentName: string; subSegmentName?: string; segmentId: string; subSegmentId?: string }[] = [];
+    segments.forEach(seg => {
+      seg.personas.forEach(p => {
+        if (p?.id === personaId) {
+          assignments.push({ segmentName: seg.name, segmentId: seg.id });
+        }
+      });
+      seg.subSegments.forEach(sub => {
+        sub.personas.forEach(p => {
+          if (p?.id === personaId) {
+            assignments.push({ segmentName: seg.name, subSegmentName: sub.name, segmentId: seg.id, subSegmentId: sub.id });
+          }
+        });
+      });
+    });
+    return assignments;
+  };
+
+  // A persona is unassigned if it has no assignments in any segment
+  const getUnassignedPersonas = () => {
+    return audiences.filter(a => getPersonaAssignments(a.id).length === 0);
+  };
 
   const generatePersonaMutation = useMutation({
     mutationFn: async (type: "primary" | "secondary" | "niche") => {
@@ -1051,6 +1124,17 @@ export default function BrandEditPage() {
                                     className="h-7 w-7 p-0"
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      setEditingSegment({ id: segment.id, name: segment.name });
+                                    }}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       const name = prompt("Назва підсегменту:");
                                       if (name) createSubSegmentMutation.mutate({ segmentId: segment.id, name });
                                     }}
@@ -1094,7 +1178,9 @@ export default function BrandEditPage() {
                                       className="h-6 w-6 p-0 ml-auto"
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        assignToSegmentMutation.mutate({ personaId: persona.id, segmentId: null, subSegmentId: null });
+                                        // Remove from this segment - need to track assignment id
+                                        // For now, just don't allow removal here
+                                        toast({ title: "Видалення", description: "Персона може бути в декількох сегментах" });
                                       }}
                                     >
                                       <X className="h-3 w-3" />
@@ -1146,8 +1232,8 @@ export default function BrandEditPage() {
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-purple-500" />
                     <span className="font-medium text-sm">Персони без сегменту</span>
-                    {unassignedPersonas.length > 0 && (
-                      <Badge variant="secondary" className="text-xs">{unassignedPersonas.length}</Badge>
+                    {getUnassignedPersonas().length > 0 && (
+                      <Badge variant="secondary" className="text-xs">{getUnassignedPersonas().length}</Badge>
                     )}
                   </div>
                   
@@ -1155,7 +1241,7 @@ export default function BrandEditPage() {
                     <div className="flex justify-center py-4">
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
-                  ) : unassignedPersonas.length === 0 && audiences.length === 0 ? (
+                  ) : getUnassignedPersonas().length === 0 && audiences.length === 0 ? (
                     <div className="p-4 border border-dashed rounded-lg text-center">
                       <Users className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
                       <p className="text-sm text-muted-foreground mb-2">Ще немає персон</p>
@@ -1166,7 +1252,7 @@ export default function BrandEditPage() {
                     </div>
                   ) : (
                     <div className="grid gap-2">
-                      {unassignedPersonas.map((audience) => (
+                      {getUnassignedPersonas().map((audience) => (
                         <div key={audience.id} className="flex items-center gap-2">
                           <div className="flex-1">
                             <AudienceCardInline 
@@ -1182,10 +1268,10 @@ export default function BrandEditPage() {
                               value=""
                               onValueChange={(value) => {
                                 if (value.startsWith("seg:")) {
-                                  assignToSegmentMutation.mutate({ personaId: audience.id, segmentId: value.replace("seg:", ""), subSegmentId: null });
+                                  addToSegmentMutation.mutate({ personaId: audience.id, segmentId: value.replace("seg:", ""), subSegmentId: null });
                                 } else if (value.startsWith("sub:")) {
                                   const [, subId, segId] = value.split(":");
-                                  assignToSegmentMutation.mutate({ personaId: audience.id, segmentId: segId, subSegmentId: subId });
+                                  addToSegmentMutation.mutate({ personaId: audience.id, segmentId: segId, subSegmentId: subId });
                                 }
                               }}
                             >
@@ -1238,12 +1324,168 @@ export default function BrandEditPage() {
                     <DialogTitle className="flex items-center gap-2">
                       <User className="h-5 w-5" />
                       {selectedAudience.name}
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        setEditingPersona(selectedAudience);
+                        setSelectedAudience(null);
+                      }}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </DialogTitle>
                   </DialogHeader>
+                  {/* Show where persona is assigned */}
+                  {getPersonaAssignments(selectedAudience.id).length > 0 && (
+                    <div className="mb-4">
+                      <Label className="text-xs text-muted-foreground">Призначено до:</Label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {getPersonaAssignments(selectedAudience.id).map((assignment, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs">
+                            {assignment.subSegmentName ? `${assignment.segmentName} → ${assignment.subSegmentName}` : assignment.segmentName}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <AudienceDetailsCard 
                     audience={selectedAudience} 
                     onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] })}
                   />
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {/* Edit Segment Dialog */}
+            {editingSegment && (
+              <Dialog open={!!editingSegment} onOpenChange={() => setEditingSegment(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Редагувати сегмент</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Назва сегменту</Label>
+                      <Input
+                        value={editingSegment.name}
+                        onChange={(e) => setEditingSegment({ ...editingSegment, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setEditingSegment(null)}>
+                        Скасувати
+                      </Button>
+                      <Button
+                        onClick={() => updateSegmentMutation.mutate({ id: editingSegment.id, name: editingSegment.name })}
+                        disabled={!editingSegment.name.trim() || updateSegmentMutation.isPending}
+                      >
+                        {updateSegmentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Зберегти
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {/* Edit Persona Dialog */}
+            {editingPersona && (
+              <Dialog open={!!editingPersona} onOpenChange={() => setEditingPersona(null)}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Редагувати персону</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Ім'я</Label>
+                      <Input
+                        value={editingPersona.name}
+                        onChange={(e) => setEditingPersona({ ...editingPersona, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Опис</Label>
+                      <Textarea
+                        value={editingPersona.description || ""}
+                        onChange={(e) => setEditingPersona({ ...editingPersona, description: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Вікова група</Label>
+                        <Input
+                          value={editingPersona.ageRange || ""}
+                          onChange={(e) => setEditingPersona({ ...editingPersona, ageRange: e.target.value })}
+                          placeholder="25-35"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Стать</Label>
+                        <Select
+                          value={editingPersona.gender || "all"}
+                          onValueChange={(value) => setEditingPersona({ ...editingPersona, gender: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Всі</SelectItem>
+                            <SelectItem value="male">Чоловіки</SelectItem>
+                            <SelectItem value="female">Жінки</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Місце проживання</Label>
+                      <Input
+                        value={editingPersona.location || ""}
+                        onChange={(e) => setEditingPersona({ ...editingPersona, location: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Професія</Label>
+                      <Input
+                        value={editingPersona.occupation || ""}
+                        onChange={(e) => setEditingPersona({ ...editingPersona, occupation: e.target.value })}
+                      />
+                    </div>
+                    {/* Show segment assignments */}
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">Призначено до сегментів:</Label>
+                      <div className="flex flex-wrap gap-1">
+                        {getPersonaAssignments(editingPersona.id).length > 0 ? (
+                          getPersonaAssignments(editingPersona.id).map((assignment, idx) => (
+                            <Badge key={idx} variant="secondary">
+                              {assignment.subSegmentName ? `${assignment.segmentName} → ${assignment.subSegmentName}` : assignment.segmentName}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Не призначено до сегментів</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setEditingPersona(null)}>
+                        Скасувати
+                      </Button>
+                      <Button
+                        onClick={() => updatePersonaMutation.mutate({ 
+                          id: editingPersona.id, 
+                          data: {
+                            name: editingPersona.name,
+                            description: editingPersona.description,
+                            ageRange: editingPersona.ageRange,
+                            gender: editingPersona.gender,
+                            location: editingPersona.location,
+                            occupation: editingPersona.occupation,
+                          }
+                        })}
+                        disabled={!editingPersona.name.trim() || updatePersonaMutation.isPending}
+                      >
+                        {updatePersonaMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        Зберегти
+                      </Button>
+                    </div>
+                  </div>
                 </DialogContent>
               </Dialog>
             )}
