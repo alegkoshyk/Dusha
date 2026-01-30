@@ -419,10 +419,19 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
                 </div>
                 <div className="space-y-2">
                   <Label>Стать</Label>
-                  <Input
-                    value={editData.gender || ""}
-                    onChange={(e) => setEditData({ ...editData, gender: e.target.value })}
-                  />
+                  <Select 
+                    value={editData.gender || ""} 
+                    onValueChange={(value) => setEditData({ ...editData, gender: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Оберіть стать" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="чоловік">Чоловік</SelectItem>
+                      <SelectItem value="жінка">Жінка</SelectItem>
+                      <SelectItem value="інше">Інше</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Локація</Label>
