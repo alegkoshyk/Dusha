@@ -1875,7 +1875,7 @@ export default function BrandEditPage() {
                 <p className="text-muted-foreground">
                   Додавайте продукти, генеруйте описи та зображення за допомогою AI.
                 </p>
-                <Link href={`/products/${brandId}`}>
+                <Link href={`/products/${params.brandId}`}>
                   <Button className="gap-2">
                     <Package className="h-4 w-4" />
                     Перейти до продуктів

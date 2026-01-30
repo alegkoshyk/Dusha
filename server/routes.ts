@@ -2015,7 +2015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { customPrompt } = req.body;
       
-      const product = await storage.getProduct(id);
+      const product = await storage.getBrandProduct(id);
       if (!product) {
         return res.status(404).json({ error: "Продукт не знайдено" });
       }
@@ -2034,7 +2034,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Update product with new image
       const currentImages = (product.images as string[]) || [];
-      const updated = await storage.updateProduct(id, {
+      const updated = await storage.updateBrandProduct(id, {
         mainImageUrl: imageDataUrl,
         images: [...currentImages, imageDataUrl]
       });
@@ -2065,7 +2065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Зображення не надано" });
       }
 
-      const product = await storage.getProduct(id);
+      const product = await storage.getBrandProduct(id);
       if (!product) {
         return res.status(404).json({ error: "Продукт не знайдено" });
       }
@@ -2089,7 +2089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updateData.mainImageUrl = imageUrl;
       }
       
-      const updated = await storage.updateProduct(id, updateData);
+      const updated = await storage.updateBrandProduct(id, updateData);
 
       res.json({ 
         success: true, 
