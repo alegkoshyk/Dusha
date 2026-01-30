@@ -866,3 +866,211 @@ ${segmentsContext}${segmentContext}${customDirection}${nameInstruction}
 
   return JSON.parse(content) as GeneratedPersona;
 }
+
+// Generated Segment Data interface
+export interface GeneratedSegmentData {
+  // Standard parameters
+  name: string;
+  ageRange?: string;
+  income?: string;
+  needPain?: string;
+  lifeContext?: string;
+  awarenessLevel?: string;
+  readinessToAct?: string;
+  barrier?: string;
+  trigger?: string;
+  // Pro parameters - Demographics
+  gender?: string;
+  education?: string;
+  familyStatus?: string;
+  occupation?: string;
+  companySize?: string;
+  industry?: string;
+  companyRevenue?: string;
+  employeeCount?: string;
+  // Pro parameters - Geographic
+  location?: string;
+  citySize?: string;
+  climate?: string;
+  urbanization?: string;
+  localContext?: string;
+  // Pro parameters - Psychographics
+  values?: string;
+  beliefs?: string;
+  lifestyle?: string;
+  interests?: string;
+  fears?: string;
+  triggersPsycho?: string;
+  desires?: string;
+  selfIdentification?: string;
+  // Pro parameters - Behavioral
+  purchaseFrequency?: string;
+  usageScenarios?: string;
+  loyaltyLevel?: string;
+  willingnessToPay?: string;
+  priceSensitivity?: string;
+  interactionChannels?: string;
+  purchaseTriggers?: string;
+  purchaseBarriers?: string;
+  // Pro parameters - Needs & Tasks (JTBD)
+  taskToSolve?: string;
+  painToRelieve?: string;
+  desiredResult?: string;
+  currentAlternatives?: string;
+  // Pro parameters - Socio-cultural
+  socialRole?: string;
+  communities?: string;
+  socialStatus?: string;
+  influenceLevel?: string;
+  languageSymbolsCodes?: string;
+  // Pro parameters - Contextual
+  currentState?: string;
+  lifeStage?: string;
+  decisionSituation?: string;
+  timeSeasonEvent?: string;
+}
+
+export async function generateSegmentData(
+  brandData: {
+    name: string;
+    description?: string;
+    values?: string[];
+    mission?: string;
+    targetAudience?: string;
+  },
+  segmentDescription: string,
+  tier: "standard" | "pro" = "standard"
+): Promise<GeneratedSegmentData> {
+  const { client, config } = await getAIClient();
+
+  const standardFields = `{
+  "name": "назва сегменту (коротка, описова)",
+  "ageRange": "віковий діапазон (напр. '25-35', '45+')",
+  "income": "рівень доходу (низький/середній/вище середнього/високий)",
+  "needPain": "головна потреба або біль сегменту",
+  "lifeContext": "криза | спокій | пошук | розвиток",
+  "awarenessLevel": "не усвідомлює | усвідомлює | шукає рішення",
+  "readinessToAct": "зараз | пізніше | колись",
+  "barrier": "головний бар'єр (страх/гроші/недовіра/складність)",
+  "trigger": "що змусить діяти (рекомендація/приклад/проста дія)"
+}`;
+
+  const proFields = `{
+  "name": "назва сегменту",
+  "ageRange": "віковий діапазон",
+  "income": "рівень доходу",
+  "needPain": "головна потреба або біль",
+  "lifeContext": "криза | спокій | пошук | розвиток",
+  "awarenessLevel": "не усвідомлює | усвідомлює | шукає рішення",
+  "readinessToAct": "зараз | пізніше | колись",
+  "barrier": "головний бар'єр",
+  "trigger": "що змусить діяти",
+  
+  "gender": "стать (чоловіки/жінки/всі)",
+  "education": "рівень освіти",
+  "familyStatus": "сімейний стан",
+  "occupation": "професія/посада",
+  "companySize": "розмір компанії (для B2B)",
+  "industry": "галузь (для B2B)",
+  "companyRevenue": "оборот компанії (для B2B)",
+  "employeeCount": "кількість співробітників (для B2B)",
+  
+  "location": "країна/регіон/місто",
+  "citySize": "розмір міста",
+  "climate": "клімат",
+  "urbanization": "місто | село | передмістя",
+  "localContext": "локальний контекст (культура, економіка)",
+  
+  "values": "цінності сегменту",
+  "beliefs": "переконання",
+  "lifestyle": "стиль життя",
+  "interests": "інтереси",
+  "fears": "страхи",
+  "triggersPsycho": "психологічні тригери",
+  "desires": "бажання",
+  "selfIdentification": "самоідентифікація (я хто?)",
+  
+  "purchaseFrequency": "частота покупок",
+  "usageScenarios": "сценарії використання",
+  "loyaltyLevel": "рівень лояльності",
+  "willingnessToPay": "готовність платити",
+  "priceSensitivity": "чутливість до ціни",
+  "interactionChannels": "канали взаємодії",
+  "purchaseTriggers": "тригери покупки",
+  "purchaseBarriers": "бар'єри покупки",
+  
+  "taskToSolve": "яку задачу хоче вирішити",
+  "painToRelieve": "який біль зняти",
+  "desiredResult": "який результат отримати",
+  "currentAlternatives": "як вирішує зараз",
+  
+  "socialRole": "роль у суспільстві",
+  "communities": "спільноти",
+  "socialStatus": "соціальний статус",
+  "influenceLevel": "лідер | послідовник",
+  "languageSymbolsCodes": "мова, символи, коди",
+  
+  "currentState": "стрес | спокій | криза | зростання",
+  "lifeStage": "життєвий етап",
+  "decisionSituation": "ситуація прийняття рішення",
+  "timeSeasonEvent": "час, сезон, подія"
+}`;
+
+  const fieldsTemplate = tier === "pro" ? proFields : standardFields;
+
+  const prompt = `Ти - експерт з сегментації аудиторії та маркетингового аналізу. На основі опису сегменту створи детальну структуру з усіма параметрами.
+
+📌 Бренд: ${brandData.name}
+${brandData.description ? `📝 Опис бренду: ${brandData.description}` : ""}
+${brandData.values?.length ? `🎯 Цінності: ${brandData.values.join(", ")}` : ""}
+${brandData.mission ? `🚀 Місія: ${brandData.mission}` : ""}
+${brandData.targetAudience ? `👥 ЦА: ${brandData.targetAudience}` : ""}
+
+📋 ОПИС СЕГМЕНТУ ВІД КОРИСТУВАЧА:
+${segmentDescription}
+
+Створи JSON з параметрами сегменту (тип: ${tier === "pro" ? "PRO - повний набір" : "STANDARD - базовий набір"}):
+${fieldsTemplate}
+
+ВАЖЛИВО:
+- Всі значення мають бути конкретними та релевантними до опису
+- Якщо якийсь параметр не підходить для цього сегменту, залиш null
+- Відповідай ТІЛЬКИ валідним JSON без markdown
+- Для B2B полів заповнюй тільки якщо це бізнес-сегмент`;
+
+  const response = await client.chat.completions.create({
+    model: config.model,
+    messages: [
+      { role: "system", content: "Ти - експерт з маркетингу та сегментації. Відповідаєш ТІЛЬКИ валідним JSON." },
+      { role: "user", content: prompt },
+    ],
+    temperature: 0.7,
+    max_tokens: 2000,
+    response_format: { type: "json_object" },
+  });
+
+  const usage = response.usage;
+  if (usage) {
+    const costRates = {
+      input: config.provider === "perplexity" ? 0.001 : 0.0025,
+      output: config.provider === "perplexity" ? 0.001 : 0.01,
+    };
+    const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
+
+    await storage.logAIUsage({
+      provider: config.provider,
+      model: config.model,
+      tokensInput: usage.prompt_tokens,
+      tokensOutput: usage.completion_tokens,
+      costEstimate: estimatedCost.toFixed(6),
+      endpoint: "generateSegmentData",
+    });
+  }
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("Не вдалося згенерувати дані сегменту");
+  }
+
+  return JSON.parse(content) as GeneratedSegmentData;
+}

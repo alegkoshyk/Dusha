@@ -22,7 +22,7 @@ import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, isNull, inArray } from "drizzle-orm";
 import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable } from "@shared/schema";
-import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona } from "./openai";
+import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData } from "./openai";
 
 // Admin middleware
 const requireAdmin = async (req: any, res: any, next: any) => {
@@ -1039,6 +1039,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Delete demographic segment error:", error);
       res.status(500).json({ error: "Помилка видалення сегменту" });
+    }
+  });
+
+  // Generate segment data with AI
+  app.post("/api/brands/:brandId/generate-segment", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      const { description, tier = "standard" } = req.body;
+      
+      if (!description?.trim()) {
+        return res.status(400).json({ error: "Опис сегменту обов'язковий" });
+      }
+
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      const brandValues = brand.values as string[] | undefined;
+      const brandData = {
+        name: brand.name,
+        description: brand.description || undefined,
+        values: brandValues,
+        mission: brand.mission || undefined,
+        targetAudience: brand.targetAudience || undefined,
+      };
+
+      const generatedData = await generateSegmentData(brandData, description, tier);
+      res.json(generatedData);
+    } catch (error) {
+      console.error("Generate segment data error:", error);
+      res.status(500).json({ error: "Помилка генерації даних сегменту" });
     }
   });
 
