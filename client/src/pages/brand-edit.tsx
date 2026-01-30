@@ -1323,13 +1323,13 @@ export default function BrandEditPage() {
 
                 <Separator />
 
-                {/* Unassigned Personas */}
+                {/* All Personas */}
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-purple-500" />
-                    <span className="font-medium text-sm">Персони без сегменту</span>
-                    {getUnassignedPersonas().length > 0 && (
-                      <Badge variant="secondary" className="text-xs">{getUnassignedPersonas().length}</Badge>
+                    <span className="font-medium text-sm">Персони</span>
+                    {audiences.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">{audiences.length}</Badge>
                     )}
                   </div>
                   
@@ -1337,7 +1337,7 @@ export default function BrandEditPage() {
                     <div className="flex justify-center py-4">
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
-                  ) : getUnassignedPersonas().length === 0 && audiences.length === 0 ? (
+                  ) : audiences.length === 0 ? (
                     <div className="p-4 border border-dashed rounded-lg text-center">
                       <Users className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
                       <p className="text-sm text-muted-foreground mb-2">Ще немає персон</p>
@@ -1348,56 +1348,41 @@ export default function BrandEditPage() {
                     </div>
                   ) : (
                     <div className="grid gap-2">
-                      {getUnassignedPersonas().map((audience) => (
-                        <div key={audience.id} className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <AudienceCardInline 
-                              audience={audience}
-                              onSelect={() => setSelectedAudience(audience)}
-                              onDelete={() => deleteAudienceMutation.mutate(audience.id)}
-                              onGenerateAvatar={() => generateAvatarMutation.mutate(audience.id)}
-                              isGeneratingAvatar={generatingAvatarId === audience.id}
-                            />
-                          </div>
-                          {segments.length > 0 && (
-                            <Select
-                              value=""
-                              onValueChange={(value) => {
-                                if (value.startsWith("seg:")) {
-                                  addToSegmentMutation.mutate({ personaId: audience.id, segmentId: value.replace("seg:", ""), subSegmentId: null });
-                                } else if (value.startsWith("sub:")) {
-                                  const [, subId, segId] = value.split(":");
-                                  addToSegmentMutation.mutate({ personaId: audience.id, segmentId: segId, subSegmentId: subId });
-                                }
-                              }}
-                            >
-                              <SelectTrigger className="w-10 h-8 p-0 justify-center">
-                                <Move className="h-3 w-3" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {segments.map((seg) => (
-                                  <div key={seg.id}>
-                                    <SelectItem value={`seg:${seg.id}`}>
-                                      <div className="flex items-center gap-2">
-                                        <FolderOpen className="h-3 w-3" />
-                                        {seg.name}
-                                      </div>
-                                    </SelectItem>
-                                    {seg.subSegments.map((sub) => (
-                                      <SelectItem key={sub.id} value={`sub:${sub.id}:${seg.id}`}>
-                                        <div className="flex items-center gap-2 ml-4">
-                                          <Layers className="h-3 w-3" />
-                                          {sub.name}
-                                        </div>
-                                      </SelectItem>
+                      {audiences.map((audience) => {
+                        const assignments = getPersonaAssignments(audience.id);
+                        return (
+                          <div key={audience.id} className="p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => setSelectedAudience(audience)}>
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              {audience.aiPortraitImageUrl ? (
+                                <img src={audience.aiPortraitImageUrl} alt="" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full object-cover flex-shrink-0" />
+                              ) : (
+                                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center flex-shrink-0">
+                                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm truncate">{audience.name}</span>
+                                  {audience.isPrimary && <Badge variant="default" className="text-[10px] px-1.5 flex-shrink-0">Основна</Badge>}
+                                </div>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {audience.occupation ? `${audience.occupation}` : ''}{audience.ageRange ? `, ${audience.ageRange}` : ''}
+                                </p>
+                                {assignments.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1.5">
+                                    {assignments.map((a, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0 h-5" style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>
+                                        <FolderOpen className="h-2.5 w-2.5 mr-0.5" />
+                                        {a.subSegmentName ? `${a.segmentName} → ${a.subSegmentName}` : a.segmentName}
+                                      </Badge>
                                     ))}
                                   </div>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-                        </div>
-                      ))}
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
