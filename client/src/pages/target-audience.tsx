@@ -386,8 +386,8 @@ export default function TargetAudiencePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
+    <div className="min-h-screen bg-background pb-24 md:pb-8 overflow-x-hidden">
+      <div className="max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
         <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link href={`/brand/${params.brandId}`}>
@@ -582,36 +582,36 @@ export default function TargetAudiencePage() {
                       >
                         <div className="border rounded-lg group">
                           <CollapsibleTrigger className="w-full">
-                            <div className="flex items-center justify-between p-3 sm:p-4 hover:bg-muted/50 transition-colors gap-2">
-                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                            <div className="flex items-center justify-between p-2 sm:p-4 hover:bg-muted/50 transition-colors gap-1 sm:gap-2">
+                              <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
                                 {expandedSegments.has(segment.id) ? (
-                                  <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                 ) : (
-                                  <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                 )}
-                                <FolderOpen className="h-5 w-5 flex-shrink-0" style={{ color: segment.color || '#f59e0b' }} />
-                                <span className="font-medium truncate">{segment.name}</span>
-                                <Badge variant="secondary" className="whitespace-nowrap flex-shrink-0">
-                                  {segment.personas.length + segment.subSegments.reduce((acc, s) => acc + s.personas.length, 0)} персон
+                                <FolderOpen className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" style={{ color: segment.color || '#f59e0b' }} />
+                                <span className="font-medium truncate text-sm sm:text-base">{segment.name}</span>
+                                <Badge variant="secondary" className="whitespace-nowrap flex-shrink-0 text-[10px] sm:text-xs px-1.5 sm:px-2">
+                                  {segment.personas.length + segment.subSegments.reduce((acc, s) => acc + s.personas.length, 0)}
                                 </Badge>
                               </div>
-                              <div className="flex items-center gap-1 flex-shrink-0">
+                              <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                                  className="h-6 w-6 sm:h-8 sm:w-8 p-0"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setEditingSegment(segment);
                                   }}
                                   title="Налаштування сегменту"
                                 >
-                                  <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                                  className="h-6 w-6 sm:h-8 sm:w-8 p-0"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     const name = prompt("Назва підсегменту:");
@@ -619,25 +619,25 @@ export default function TargetAudiencePage() {
                                   }}
                                   title="Додати підсегмент"
                                 >
-                                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
+                                  className="h-6 w-6 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     if (confirm("Видалити сегмент?")) deleteSegmentMutation.mutate(segment.id);
                                   }}
                                   title="Видалити"
                                 >
-                                  <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                                 </Button>
                               </div>
                             </div>
                           </CollapsibleTrigger>
                           <CollapsibleContent>
-                            <div className="px-4 pb-4 space-y-3">
+                            <div className="px-2 sm:px-4 pb-3 sm:pb-4 space-y-2 sm:space-y-3">
                               {/* Personas directly in segment */}
                               {segment.personas.map((persona) => (
                                 <PersonaInline 
@@ -646,22 +646,22 @@ export default function TargetAudiencePage() {
                                   onSelect={() => setSelectedAudience(persona)}
                                   onGenerateAvatar={() => generateAvatarMutation.mutate(persona.id)}
                                   isGeneratingAvatar={generatingAvatarId === persona.id}
-                                  className="ml-8"
+                                  className="ml-4 sm:ml-8"
                                 />
                               ))}
                               
                               {/* Sub-segments */}
                               {segment.subSegments.map((subSegment) => (
-                                <div key={subSegment.id} className="ml-8 border-l-2 pl-4 space-y-2" style={{ borderColor: subSegment.color || '#60a5fa' }}>
-                                  <div className="flex items-center gap-2 py-2 group">
-                                    <Layers className="h-4 w-4" style={{ color: subSegment.color || '#60a5fa' }} />
-                                    <span className="text-sm font-medium flex-1">{subSegment.name}</span>
-                                    <Badge variant="outline" className="text-xs">{subSegment.personas.length}</Badge>
-                                    <div className="hidden group-hover:flex items-center gap-1">
+                                <div key={subSegment.id} className="ml-4 sm:ml-8 border-l-2 pl-2 sm:pl-4 space-y-2" style={{ borderColor: subSegment.color || '#60a5fa' }}>
+                                  <div className="flex items-center gap-1.5 sm:gap-2 py-1.5 sm:py-2 group">
+                                    <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" style={{ color: subSegment.color || '#60a5fa' }} />
+                                    <span className="text-xs sm:text-sm font-medium flex-1 truncate">{subSegment.name}</span>
+                                    <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 flex-shrink-0">{subSegment.personas.length}</Badge>
+                                    <div className="flex sm:hidden sm:group-hover:flex items-center gap-0.5">
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0"
+                                        className="h-6 w-6 sm:h-7 sm:w-7 p-0"
                                         onClick={() => setEditingSubSegment(subSegment)}
                                         title="Налаштування"
                                       >
@@ -670,16 +670,7 @@ export default function TargetAudiencePage() {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0"
-                                        onClick={() => setMovingSubSegment({ id: subSegment.id, currentSegmentId: segment.id })}
-                                        title="Перемістити"
-                                      >
-                                        <ArrowRightLeft className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                        className="h-6 w-6 sm:h-7 sm:w-7 p-0 text-destructive hover:text-destructive"
                                         onClick={() => {
                                           if (confirm("Видалити підсегмент?")) {
                                             deleteSubSegmentMutation.mutate(subSegment.id);
@@ -705,7 +696,7 @@ export default function TargetAudiencePage() {
                               ))}
                               
                               {segment.personas.length === 0 && segment.subSegments.length === 0 && (
-                                <p className="text-sm text-muted-foreground ml-8 py-2">Немає персон у цьому сегменті</p>
+                                <p className="text-xs sm:text-sm text-muted-foreground ml-4 sm:ml-8 py-2">Немає персон</p>
                               )}
                             </div>
                           </CollapsibleContent>
