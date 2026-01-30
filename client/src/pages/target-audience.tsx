@@ -1329,6 +1329,7 @@ export default function TargetAudiencePage() {
               queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
               queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
             }}
+            onManageTypes={() => setIsTypeManageOpen(true)}
           />
         )}
 

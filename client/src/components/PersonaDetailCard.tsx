@@ -66,9 +66,10 @@ interface PersonaDetailCardProps {
   onClose: () => void;
   onRefresh: () => void;
   onEdit?: (persona: TargetAudience) => void;
+  onManageTypes?: () => void;
 }
 
-export function PersonaDetailCard({ persona, assignments = [], segments = [], onClose, onRefresh, onEdit }: PersonaDetailCardProps) {
+export function PersonaDetailCard({ persona, assignments = [], segments = [], onClose, onRefresh, onEdit, onManageTypes }: PersonaDetailCardProps) {
   const { toast } = useToast();
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [lightboxGallery, setLightboxGallery] = useState<string[]>([]);
@@ -413,10 +414,18 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
           <div className="mb-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs text-muted-foreground">Типи аудиторії:</Label>
-              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setShowTypesDialog(true)}>
-                <Hash className="h-3 w-3 mr-1" />
-                Додати тип
-              </Button>
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setShowTypesDialog(true)}>
+                  <Hash className="h-3 w-3 mr-1" />
+                  Додати
+                </Button>
+                {onManageTypes && (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={onManageTypes}>
+                    <Settings className="h-3 w-3 mr-1" />
+                    Налаштувати
+                  </Button>
+                )}
+              </div>
             </div>
             {personaAudienceTypes.length > 0 ? (
               <div className="flex flex-wrap gap-1 mt-1">
