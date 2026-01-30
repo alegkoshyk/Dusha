@@ -14,7 +14,8 @@ import {
   FileText,
   MessageSquare,
   Map,
-  Gamepad2
+  Gamepad2,
+  Users
 } from 'lucide-react';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { Link, useLocation } from 'wouter';
@@ -289,6 +290,17 @@ export default function Brands() {
                           </Button>
                         </Link>
                       )}
+                      
+                      <Link href={`/target-audience/${brand.id}`} className="contents">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start gap-2 h-9"
+                        >
+                          <Users className="w-4 h-4 text-orange-500" />
+                          <span className="truncate">Аудиторія</span>
+                        </Button>
+                      </Link>
                       
                       {hasActiveGame ? (
                         <Button
