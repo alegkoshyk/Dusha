@@ -39,6 +39,20 @@ const requireAdmin = async (req: any, res: any, next: any) => {
   next();
 };
 
+// Build prompt for product image generation
+function buildProductImagePrompt(product: any, brand?: any): string {
+  const name = product.name || "product";
+  const category = product.category || "";
+  const shortDesc = product.shortDescription || "";
+  const features = Array.isArray(product.features) ? product.features.slice(0, 3).join(", ") : "";
+  
+  // Use brand colors if available
+  const brandColors = brand && Array.isArray(brand.brandColors) ? brand.brandColors : [];
+  const colorPalette = brandColors.map((c: any) => c.hex).filter(Boolean).slice(0, 2).join(" and ");
+  
+  return `Professional product photography of ${name}. ${category ? `Category: ${category}.` : ""} ${shortDesc ? shortDesc : ""} ${features ? `Key features: ${features}.` : ""} ${colorPalette ? `Brand colors: ${colorPalette}.` : ""} High quality, clean background, professional studio lighting, commercial product photography style, sharp focus, centered composition.`;
+}
+
 // Build prompt for avatar generation based on audience data
 function buildAvatarPrompt(audience: any): string {
   const gender = audience.gender || "person";
@@ -1987,6 +2001,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Generate product data error:", error);
       res.status(500).json({ error: "Помилка генерації даних продукту" });
+    }
+  });
+
+  // Generate product image with AI
+  app.post("/api/products/:id/generate-image", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const { customPrompt } = req.body;
+      
+      const product = await storage.getProduct(id);
+      if (!product) {
+        return res.status(404).json({ error: "Продукт не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(product.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Build prompt for product image
+      const prompt = customPrompt || buildProductImagePrompt(product, brand);
+      
+      // Generate image using Gemini
+      const { generateImage } = await import("./replit_integrations/image/client");
+      const imageDataUrl = await generateImage(prompt);
+      
+      // Update product with new image
+      const currentImages = (product.images as string[]) || [];
+      const updated = await storage.updateProduct(id, {
+        mainImageUrl: imageDataUrl,
+        images: [...currentImages, imageDataUrl]
+      });
+
+      res.json({ 
+        success: true, 
+        imageUrl: imageDataUrl,
+        product: updated 
+      });
+    } catch (error) {
+      console.error("Generate product image error:", error);
+      res.status(500).json({ error: "Помилка генерації зображення продукту" });
+    }
+  });
+
+  // Upload product image
+  app.post("/api/products/:id/upload-image", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const { base64Data, setAsMain } = req.body;
+      
+      if (!base64Data || typeof base64Data !== 'string') {
+        return res.status(400).json({ error: "Зображення не надано" });
+      }
+
+      const product = await storage.getProduct(id);
+      if (!product) {
+        return res.status(404).json({ error: "Продукт не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(product.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Upload to object storage
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      const imageUrl = await objectStorageService.uploadProductImage(id, base64Data);
+
+      // Update product images
+      const currentImages = (product.images as string[]) || [];
+      const updatedImages = [...currentImages, imageUrl];
+      
+      const updateData: any = { images: updatedImages };
+      if (setAsMain || !product.mainImageUrl) {
+        updateData.mainImageUrl = imageUrl;
+      }
+      
+      const updated = await storage.updateProduct(id, updateData);
+
+      res.json({ 
+        success: true, 
+        imageUrl,
+        product: updated 
+      });
+    } catch (error) {
+      console.error("Upload product image error:", error);
+      res.status(500).json({ error: "Помилка завантаження зображення" });
     }
   });
 

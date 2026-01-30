@@ -332,6 +332,49 @@ export class ObjectStorageService {
     return signedUrl;
   }
 
+  async uploadProductImage(productId: string, base64Data: string): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    if (!privateObjectDir) {
+      throw new Error("PRIVATE_OBJECT_DIR not set");
+    }
+
+    const match = base64Data.match(/^data:image\/([\w+]+);base64,(.+)$/);
+    if (!match) {
+      throw new Error("Invalid base64 image format");
+    }
+
+    let extension = match[1];
+    if (extension === 'svg+xml') extension = 'svg';
+    if (extension === 'jpeg') extension = 'jpg';
+    const imageData = match[2];
+    const buffer = Buffer.from(imageData, 'base64');
+
+    const objectId = `products/${productId}/${randomUUID()}.${extension}`;
+    const fullPath = `${privateObjectDir}/${objectId}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+
+    const contentType = extension === 'svg' ? 'image/svg+xml' : `image/${extension}`;
+    
+    await file.save(buffer, {
+      metadata: {
+        contentType,
+        cacheControl: 'public, max-age=31536000',
+      },
+    });
+
+    const signedUrl = await signObjectURL({
+      bucketName,
+      objectName,
+      method: "GET",
+      ttlSec: 365 * 24 * 60 * 60, // 1 year
+    });
+
+    return signedUrl;
+  }
+
   async uploadImageFromUrl(folder: string, imageUrl: string): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();
     if (!privateObjectDir) {

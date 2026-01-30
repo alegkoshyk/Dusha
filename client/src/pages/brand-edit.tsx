@@ -17,7 +17,7 @@ import {
   ArrowLeft, Save, Loader2, Building2, Palette, Type, Target, 
   Users, Sparkles, ImagePlus, X, FileText, Megaphone, Eye, Heart, Zap,
   Plus, Trash2, User, Quote, FolderOpen, ChevronDown, ChevronRight, Layers, Move, Pencil,
-  Settings, ArrowRightLeft, GripVertical
+  Settings, ArrowRightLeft, GripVertical, Package
 } from "lucide-react";
 import { Link } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -600,7 +600,7 @@ export default function BrandEditPage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-5 gap-1">
+            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-6 gap-1">
               <TabsTrigger value="basic" className="text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4">
                 <Building2 className="h-4 w-4 mr-1 hidden sm:inline" />
                 Основне
@@ -616,6 +616,10 @@ export default function BrandEditPage() {
               <TabsTrigger value="audience" className="text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4">
                 <Users className="h-4 w-4 mr-1 hidden sm:inline" />
                 Аудиторія
+              </TabsTrigger>
+              <TabsTrigger value="products" className="text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4">
+                <Package className="h-4 w-4 mr-1 hidden sm:inline" />
+                Продукти
               </TabsTrigger>
               <TabsTrigger value="voice" className="text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4">
                 <Megaphone className="h-4 w-4 mr-1 hidden sm:inline" />
@@ -1856,6 +1860,29 @@ export default function BrandEditPage() {
                 </DialogContent>
               </Dialog>
             )}
+          </TabsContent>
+
+          <TabsContent value="products" className="space-y-6">
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Package className="h-5 w-5 text-emerald-500" />
+                  Продукти та послуги
+                </CardTitle>
+                <CardDescription>Управляйте продуктами вашого бренду</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground">
+                  Додавайте продукти, генеруйте описи та зображення за допомогою AI.
+                </p>
+                <Link href={`/products/${brandId}`}>
+                  <Button className="gap-2">
+                    <Package className="h-4 w-4" />
+                    Перейти до продуктів
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="voice" className="space-y-6">
