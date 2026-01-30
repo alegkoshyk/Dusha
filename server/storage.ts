@@ -94,6 +94,12 @@ import {
   demographicSubSegmentsTable,
   audienceTypeCategoriesTable,
   audienceTypesTable,
+  type BrandProduct,
+  type InsertBrandProduct,
+  brandProductsTable,
+  type ProductCategory,
+  type InsertProductCategory,
+  productCategoriesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -287,6 +293,20 @@ export interface IStorage {
   createDemographicSubSegment(subSegment: InsertDemographicSubSegment): Promise<DemographicSubSegment>;
   updateDemographicSubSegment(id: string, updates: Partial<DemographicSubSegment>): Promise<DemographicSubSegment | undefined>;
   deleteDemographicSubSegment(id: string): Promise<boolean>;
+  
+  // Brand products operations
+  getBrandProducts(brandId: string): Promise<BrandProduct[]>;
+  getBrandProduct(id: string): Promise<BrandProduct | undefined>;
+  createBrandProduct(product: InsertBrandProduct): Promise<BrandProduct>;
+  updateBrandProduct(id: string, updates: Partial<BrandProduct>): Promise<BrandProduct | undefined>;
+  deleteBrandProduct(id: string): Promise<boolean>;
+  
+  // Product categories operations
+  getProductCategories(brandId: string): Promise<ProductCategory[]>;
+  getProductCategory(id: string): Promise<ProductCategory | undefined>;
+  createProductCategory(category: InsertProductCategory): Promise<ProductCategory>;
+  updateProductCategory(id: string, updates: Partial<ProductCategory>): Promise<ProductCategory | undefined>;
+  deleteProductCategory(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2885,6 +2905,88 @@ export class DatabaseStorage implements IStorage {
     }
 
     console.log(`Seeded ${categories.length} audience categories with types`);
+  }
+
+  // Brand products operations
+  async getBrandProducts(brandId: string): Promise<BrandProduct[]> {
+    return await db
+      .select()
+      .from(brandProductsTable)
+      .where(eq(brandProductsTable.brandId, brandId))
+      .orderBy(brandProductsTable.sortOrder);
+  }
+
+  async getBrandProduct(id: string): Promise<BrandProduct | undefined> {
+    const [product] = await db
+      .select()
+      .from(brandProductsTable)
+      .where(eq(brandProductsTable.id, id));
+    return product;
+  }
+
+  async createBrandProduct(product: InsertBrandProduct): Promise<BrandProduct> {
+    const [newProduct] = await db
+      .insert(brandProductsTable)
+      .values(product)
+      .returning();
+    return newProduct;
+  }
+
+  async updateBrandProduct(id: string, updates: Partial<BrandProduct>): Promise<BrandProduct | undefined> {
+    const [updated] = await db
+      .update(brandProductsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(brandProductsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBrandProduct(id: string): Promise<boolean> {
+    const result = await db
+      .delete(brandProductsTable)
+      .where(eq(brandProductsTable.id, id));
+    return true;
+  }
+
+  // Product categories operations
+  async getProductCategories(brandId: string): Promise<ProductCategory[]> {
+    return await db
+      .select()
+      .from(productCategoriesTable)
+      .where(eq(productCategoriesTable.brandId, brandId))
+      .orderBy(productCategoriesTable.sortOrder);
+  }
+
+  async getProductCategory(id: string): Promise<ProductCategory | undefined> {
+    const [category] = await db
+      .select()
+      .from(productCategoriesTable)
+      .where(eq(productCategoriesTable.id, id));
+    return category;
+  }
+
+  async createProductCategory(category: InsertProductCategory): Promise<ProductCategory> {
+    const [newCategory] = await db
+      .insert(productCategoriesTable)
+      .values(category)
+      .returning();
+    return newCategory;
+  }
+
+  async updateProductCategory(id: string, updates: Partial<ProductCategory>): Promise<ProductCategory | undefined> {
+    const [updated] = await db
+      .update(productCategoriesTable)
+      .set(updates)
+      .where(eq(productCategoriesTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteProductCategory(id: string): Promise<boolean> {
+    await db
+      .delete(productCategoriesTable)
+      .where(eq(productCategoriesTable.id, id));
+    return true;
   }
 }
 
