@@ -1175,6 +1175,7 @@ export const targetAudiencesRelations = relations(targetAudiencesTable, ({ one, 
   }),
   oldSegments: many(audienceSegmentsTable),
   segmentAssignments: many(personaSegmentAssignmentsTable),
+  audienceTypes: many(personaAudienceTypesTable),
 }));
 
 export const insertTargetAudienceSchema = createInsertSchema(targetAudiencesTable).omit({
@@ -1262,5 +1263,95 @@ export const insertAudienceSegmentSchema = createInsertSchema(audienceSegmentsTa
 export type AudienceSegment = typeof audienceSegmentsTable.$inferSelect;
 export type InsertAudienceSegment = z.infer<typeof insertAudienceSegmentSchema>;
 export type InsertBrandAnalysisTemplate = z.infer<typeof insertBrandAnalysisTemplateSchema>;
+
+// =========================================
+// Категорії типів аудиторії
+// =========================================
+export const audienceTypeCategoriesTable = pgTable("audience_type_categories", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull(),
+  nameEn: varchar("name_en", { length: 100 }),
+  icon: varchar("icon", { length: 50 }),
+  color: varchar("color", { length: 20 }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const audienceTypeCategoriesRelations = relations(audienceTypeCategoriesTable, ({ many }) => ({
+  types: many(audienceTypesTable),
+}));
+
+export const insertAudienceTypeCategorySchema = createInsertSchema(audienceTypeCategoriesTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AudienceTypeCategory = typeof audienceTypeCategoriesTable.$inferSelect;
+export type InsertAudienceTypeCategory = z.infer<typeof insertAudienceTypeCategorySchema>;
+
+// =========================================
+// Типи аудиторії (хештеги)
+// =========================================
+export const audienceTypesTable = pgTable("audience_types", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  categoryId: uuid("category_id").notNull().references(() => audienceTypeCategoriesTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 100 }).notNull(),
+  nameEn: varchar("name_en", { length: 100 }),
+  description: text("description"),
+  color: varchar("color", { length: 20 }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  categoryIdx: index("audience_types_category_idx").on(table.categoryId),
+}));
+
+export const audienceTypesRelations = relations(audienceTypesTable, ({ one, many }) => ({
+  category: one(audienceTypeCategoriesTable, {
+    fields: [audienceTypesTable.categoryId],
+    references: [audienceTypeCategoriesTable.id],
+  }),
+  personaAssignments: many(personaAudienceTypesTable),
+}));
+
+export const insertAudienceTypeSchema = createInsertSchema(audienceTypesTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AudienceType = typeof audienceTypesTable.$inferSelect;
+export type InsertAudienceType = z.infer<typeof insertAudienceTypeSchema>;
+
+// =========================================
+// Призначення типів аудиторії до персон (багато-до-багатьох)
+// =========================================
+export const personaAudienceTypesTable = pgTable("persona_audience_types", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  personaId: uuid("persona_id").notNull().references(() => targetAudiencesTable.id, { onDelete: "cascade" }),
+  audienceTypeId: uuid("audience_type_id").notNull().references(() => audienceTypesTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  personaIdx: index("persona_audience_types_persona_idx").on(table.personaId),
+  typeIdx: index("persona_audience_types_type_idx").on(table.audienceTypeId),
+  uniqueAssignment: index("persona_audience_types_unique").on(table.personaId, table.audienceTypeId),
+}));
+
+export const personaAudienceTypesRelations = relations(personaAudienceTypesTable, ({ one }) => ({
+  persona: one(targetAudiencesTable, {
+    fields: [personaAudienceTypesTable.personaId],
+    references: [targetAudiencesTable.id],
+  }),
+  audienceType: one(audienceTypesTable, {
+    fields: [personaAudienceTypesTable.audienceTypeId],
+    references: [audienceTypesTable.id],
+  }),
+}));
+
+export const insertPersonaAudienceTypeSchema = createInsertSchema(personaAudienceTypesTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type PersonaAudienceType = typeof personaAudienceTypesTable.$inferSelect;
+export type InsertPersonaAudienceType = z.infer<typeof insertPersonaAudienceTypeSchema>;
 
 export * from "./models/chat";
