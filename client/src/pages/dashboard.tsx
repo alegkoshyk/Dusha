@@ -117,8 +117,8 @@ export default function Dashboard() {
   const userName = profile?.firstName || user?.firstName || 'Користувач';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 pb-24 md:pb-8">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900 pb-24 md:pb-8 overflow-x-hidden">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-1">
             {greeting()}, {userName}!
@@ -248,21 +248,21 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader className="pb-3">
+        <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3 px-3 sm:px-6">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Активні ігри</CardTitle>
+                <CardTitle className="text-base sm:text-lg">Активні ігри</CardTitle>
                 {activeSessions.length > 0 && (
                   <Link href="/brands">
-                    <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                      Всі <ArrowRight className="w-4 h-4 ml-1" />
+                    <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 px-2">
+                      <span className="hidden sm:inline">Всі</span> <ArrowRight className="w-4 h-4 sm:ml-1" />
                     </Button>
                   </Link>
                 )}
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 sm:px-6">
               {activeSessions.length === 0 ? (
                 <div className="text-center py-6">
                   <TrendingUp className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
@@ -275,7 +275,7 @@ export default function Dashboard() {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {activeSessions.map((session) => {
                     const brand = brands.find(b => b.id === session.brandId);
                     const progress = Math.min(Math.round(session.progress || 0), 100);
@@ -284,28 +284,29 @@ export default function Dashboard() {
                     return (
                       <div 
                         key={session.id}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                        className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
                         onClick={() => setLocation(`/game/${session.id}`)}
                       >
                         {brand?.logo ? (
-                          <img src={brand.logo} alt="" className="w-10 h-10 rounded-lg object-contain bg-white border" />
+                          <img src={brand.logo} alt="" className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-contain bg-white border flex-shrink-0" />
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <span className="text-white font-bold">{brand?.name?.charAt(0) || '?'}</span>
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                            <span className="text-white font-bold text-sm sm:text-base">{brand?.name?.charAt(0) || '?'}</span>
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 dark:text-white truncate">{brand?.name || 'Бренд'}</p>
+                          <p className="font-medium text-gray-900 dark:text-white truncate text-sm sm:text-base">{brand?.name || 'Бренд'}</p>
                           <div className="flex items-center gap-2">
                             <Progress value={progress} className="h-1.5 flex-1" />
                             <span className="text-xs text-gray-500">{progress}%</span>
                           </div>
                         </div>
-                        <Badge variant="outline" className={getLevelColor(session.currentLevel)}>
+                        <Badge variant="outline" className={`${getLevelColor(session.currentLevel)} hidden sm:flex`}>
                           <LevelIcon className="w-3 h-3 mr-1" />
                           {getLevelName(session.currentLevel)}
                         </Badge>
-                        <Play className="w-4 h-4 text-blue-500" />
+                        <LevelIcon className={`w-4 h-4 sm:hidden flex-shrink-0 ${session.currentLevel === 'soul' ? 'text-pink-500' : session.currentLevel === 'mind' ? 'text-blue-500' : 'text-green-500'}`} />
+                        <Play className="w-4 h-4 text-blue-500 flex-shrink-0" />
                       </div>
                     );
                   })}
@@ -314,18 +315,18 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3 px-3 sm:px-6">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Мої бренди</CardTitle>
+                <CardTitle className="text-base sm:text-lg">Мої бренди</CardTitle>
                 <Link href="/brands">
-                  <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700">
-                    Всі <ArrowRight className="w-4 h-4 ml-1" />
+                  <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-700 px-2">
+                    <span className="hidden sm:inline">Всі</span> <ArrowRight className="w-4 h-4 sm:ml-1" />
                   </Button>
                 </Link>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-3 sm:px-6">
               {recentBrands.length === 0 ? (
                 <div className="text-center py-6">
                   <Users className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
@@ -338,7 +339,7 @@ export default function Dashboard() {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {recentBrands.map((brand) => {
                     const brandSessions = sessions.filter(s => s.brandId === brand.id);
                     const hasActiveGame = brandSessions.some(s => !s.completed);
@@ -347,29 +348,29 @@ export default function Dashboard() {
                     return (
                       <div 
                         key={brand.id}
-                        className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                        className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
                         onClick={() => setLocation(`/brand/${brand.id}`)}
                       >
                         {brand.logo ? (
-                          <img src={brand.logo} alt="" className="w-10 h-10 rounded-lg object-contain bg-white border" />
+                          <img src={brand.logo} alt="" className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-contain bg-white border flex-shrink-0" />
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                            <span className="text-white font-bold">{brand.name.charAt(0)}</span>
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                            <span className="text-white font-bold text-sm sm:text-base">{brand.name.charAt(0)}</span>
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 dark:text-white truncate">{brand.name}</p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                          <p className="font-medium text-gray-900 dark:text-white truncate text-sm sm:text-base">{brand.name}</p>
+                          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
                             {brand.description || 'Без опису'}
                           </p>
                         </div>
                         {hasActiveGame && (
-                          <Badge variant="secondary" className="text-xs">Активний</Badge>
+                          <Badge variant="secondary" className="text-[10px] sm:text-xs flex-shrink-0 px-1.5 sm:px-2">Актив</Badge>
                         )}
                         {isCompleted && (
-                          <Badge className="text-xs bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">Завершено</Badge>
+                          <Badge className="text-[10px] sm:text-xs bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 flex-shrink-0 px-1.5 sm:px-2">Готово</Badge>
                         )}
-                        <ArrowRight className="w-4 h-4 text-gray-400" />
+                        <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       </div>
                     );
                   })}
