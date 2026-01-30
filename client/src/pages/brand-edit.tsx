@@ -23,6 +23,7 @@ import { Link } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { UserBrand, TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
 import { BrandColorPicker, type BrandColor } from "@/components/brands/BrandColorPicker";
+import { PersonaDetailCard } from "@/components/PersonaDetailCard";
 
 interface GeneratedPersona {
   name: string;
@@ -1399,40 +1400,12 @@ export default function BrandEditPage() {
             </Card>
 
             {selectedAudience && (
-              <Dialog open={!!selectedAudience} onOpenChange={() => setSelectedAudience(null)}>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      {selectedAudience.name}
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        setEditingPersona(selectedAudience);
-                        setSelectedAudience(null);
-                      }}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </DialogTitle>
-                  </DialogHeader>
-                  {/* Show where persona is assigned */}
-                  {getPersonaAssignments(selectedAudience.id).length > 0 && (
-                    <div className="mb-4">
-                      <Label className="text-xs text-muted-foreground">Призначено до:</Label>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {getPersonaAssignments(selectedAudience.id).map((assignment, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs" style={{ borderColor: assignment.color, color: assignment.color }}>
-                            <FolderOpen className="h-3 w-3 mr-1" />
-                            {assignment.subSegmentName ? `${assignment.segmentName} → ${assignment.subSegmentName}` : assignment.segmentName}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <AudienceDetailsCard 
-                    audience={selectedAudience} 
-                    onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] })}
-                  />
-                </DialogContent>
-              </Dialog>
+              <PersonaDetailCard
+                persona={selectedAudience}
+                assignments={getPersonaAssignments(selectedAudience.id)}
+                onClose={() => setSelectedAudience(null)}
+                onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] })}
+              />
             )}
 
             {/* Edit Segment Dialog */}

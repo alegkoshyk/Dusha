@@ -21,6 +21,7 @@ import {
   ChevronDown, ChevronRight, Settings, ArrowRightLeft, Move, X, Image, Upload
 } from "lucide-react";
 import type { UserBrand, TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
+import { PersonaDetailCard } from "@/components/PersonaDetailCard";
 
 interface GeneratedPersona {
   name: string;
@@ -974,147 +975,12 @@ export default function TargetAudiencePage() {
 
         {/* Selected Audience Dialog */}
         {selectedAudience && (
-          <Dialog open={!!selectedAudience} onOpenChange={() => { setSelectedAudience(null); setIsEditMode(false); setEditingAudience(null); }}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <div className="flex items-center justify-between">
-                  <DialogTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    {isEditMode ? "Редагувати персону" : selectedAudience.name}
-                  </DialogTitle>
-                  {!isEditMode && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => {
-                        setEditingAudience({ ...selectedAudience });
-                        setIsEditMode(true);
-                      }}
-                    >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Редагувати
-                    </Button>
-                  )}
-                </div>
-              </DialogHeader>
-
-              {!isEditMode && (
-                <>
-                  {/* Photo and Quick Info Header */}
-                  <div className="flex items-start gap-4 py-2">
-                    <div className="relative group">
-                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center overflow-hidden shrink-0">
-                        {selectedAudience.aiPortraitImageUrl ? (
-                          <img 
-                            src={selectedAudience.aiPortraitImageUrl} 
-                            alt={selectedAudience.name} 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <User className="h-10 w-10 text-primary" />
-                        )}
-                      </div>
-                      {/* Photo actions overlay */}
-                      <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-white hover:text-white hover:bg-white/20"
-                          onClick={() => generateAvatarMutation.mutate(selectedAudience.id)}
-                          disabled={generatingAvatarId === selectedAudience.id}
-                          title="Згенерувати AI фото"
-                        >
-                          {generatingAvatarId === selectedAudience.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-white hover:text-white hover:bg-white/20"
-                          onClick={() => handleAvatarUpload(selectedAudience.id)}
-                          disabled={uploadAvatarMutation.isPending}
-                          title="Завантажити своє фото"
-                        >
-                          {uploadAvatarMutation.isPending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Upload className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <Badge variant={selectedAudience.isPrimary ? "default" : "secondary"}>
-                        {selectedAudience.isPrimary ? "Основна" : "Вторинна"}
-                      </Badge>
-                      {selectedAudience.occupation && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {selectedAudience.occupation}{selectedAudience.ageRange ? `, ${selectedAudience.ageRange}` : ''}
-                        </p>
-                      )}
-                      {/* Segment assignments */}
-                      {getPersonaAssignments(selectedAudience.id).length > 0 && (
-                        <div className="mt-2">
-                          <span className="text-xs text-muted-foreground">Призначено до:</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {getPersonaAssignments(selectedAudience.id).map((a, idx) => (
-                              <Badge key={idx} variant="outline" className="text-xs" style={{ borderColor: a.color, color: a.color }}>
-                                <FolderOpen className="h-3 w-3 mr-1" />
-                                {a.subSegmentName ? `${a.segmentName} → ${a.subSegmentName}` : a.segmentName}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <Separator />
-                </>
-              )}
-              {isEditMode && editingAudience ? (
-                <AudienceEditForm 
-                  audience={editingAudience}
-                  onChange={setEditingAudience}
-                  onSave={() => {
-                    updateAudienceMutation.mutate({
-                      id: editingAudience.id,
-                      data: {
-                        name: editingAudience.name,
-                        description: editingAudience.description,
-                        isPrimary: editingAudience.isPrimary,
-                        ageRange: editingAudience.ageRange,
-                        gender: editingAudience.gender,
-                        location: editingAudience.location,
-                        income: editingAudience.income,
-                        education: editingAudience.education,
-                        occupation: editingAudience.occupation,
-                        values: editingAudience.values,
-                        interests: editingAudience.interests,
-                        painPoints: editingAudience.painPoints,
-                        goals: editingAudience.goals,
-                        motivations: editingAudience.motivations,
-                        fears: editingAudience.fears,
-                        buyingBehavior: editingAudience.buyingBehavior,
-                        mediaConsumption: editingAudience.mediaConsumption,
-                        decisionFactors: editingAudience.decisionFactors,
-                        aiPortrait: editingAudience.aiPortrait,
-                      }
-                    });
-                  }}
-                  onCancel={() => {
-                    setIsEditMode(false);
-                    setEditingAudience(null);
-                  }}
-                  isSaving={updateAudienceMutation.isPending}
-                />
-              ) : (
-                <AudienceDetails audience={selectedAudience} />
-              )}
-            </DialogContent>
-          </Dialog>
+          <PersonaDetailCard
+            persona={selectedAudience}
+            assignments={getPersonaAssignments(selectedAudience.id)}
+            onClose={() => { setSelectedAudience(null); setIsEditMode(false); setEditingAudience(null); }}
+            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] })}
+          />
         )}
 
         {/* Edit Segment Dialog */}
