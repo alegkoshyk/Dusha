@@ -158,8 +158,8 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
 
   const assignToSegmentMutation = useMutation({
     mutationFn: async ({ segmentId, subSegmentId }: { segmentId: string; subSegmentId?: string }) => {
-      const response = await apiRequest("POST", `/api/demographic-segments/${segmentId}/personas`, { 
-        personaId: persona.id,
+      const response = await apiRequest("POST", `/api/target-audiences/${persona.id}/segment-assignments`, { 
+        segmentId,
         subSegmentId 
       });
       if (!response.ok) throw new Error("Failed to assign");
@@ -176,9 +176,16 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
 
   const unassignFromSegmentMutation = useMutation({
     mutationFn: async ({ segmentId, subSegmentId }: { segmentId: string; subSegmentId?: string }) => {
-      const response = await apiRequest("DELETE", `/api/demographic-segments/${segmentId}/personas/${persona.id}`, { 
-        subSegmentId 
-      });
+      // Find the assignment ID first
+      const assignmentsRes = await apiRequest("GET", `/api/target-audiences/${persona.id}/segment-assignments`);
+      if (!assignmentsRes.ok) throw new Error("Failed to get assignments");
+      const allAssignments = await assignmentsRes.json();
+      const assignment = allAssignments.find((a: { segmentId: string; subSegmentId?: string }) => 
+        a.segmentId === segmentId && (subSegmentId ? a.subSegmentId === subSegmentId : !a.subSegmentId)
+      );
+      if (!assignment) throw new Error("Assignment not found");
+      
+      const response = await apiRequest("DELETE", `/api/target-audiences/${persona.id}/segment-assignments/${assignment.id}`);
       if (!response.ok) throw new Error("Failed to unassign");
       return response.json();
     },
