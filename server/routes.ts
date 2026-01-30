@@ -1043,6 +1043,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate segment data with AI
+  const generateSegmentSchema = z.object({
+    description: z.string().min(1, "Опис сегменту обов'язковий"),
+    tier: z.enum(["standard", "pro"]).default("standard"),
+  });
+
   app.post("/api/brands/:brandId/generate-segment", requireAuth, async (req, res) => {
     try {
       const currentUser = getCurrentUserUnified(req);
@@ -1051,11 +1056,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { brandId } = req.params;
-      const { description, tier = "standard" } = req.body;
       
-      if (!description?.trim()) {
-        return res.status(400).json({ error: "Опис сегменту обов'язковий" });
+      const validationResult = generateSegmentSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ error: validationResult.error.errors[0]?.message || "Невалідні дані" });
       }
+      
+      const { description, tier } = validationResult.data;
 
       const brand = await storage.getUserBrand(brandId);
       if (!brand || brand.userId !== currentUser.id) {

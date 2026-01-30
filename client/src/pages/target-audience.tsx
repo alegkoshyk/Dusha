@@ -82,7 +82,6 @@ export default function TargetAudiencePage() {
   // Segment state
   const [expandedSegments, setExpandedSegments] = useState<Set<string>>(new Set());
   const [isSegmentDialogOpen, setIsSegmentDialogOpen] = useState(false);
-  const [newSegmentName, setNewSegmentName] = useState("");
   const [editingSegment, setEditingSegment] = useState<DemographicSegment | null>(null);
   const [editingSubSegment, setEditingSubSegment] = useState<DemographicSubSegment | null>(null);
   const [movingSubSegment, setMovingSubSegment] = useState<{ id: string; currentSegmentId: string } | null>(null);
@@ -456,23 +455,6 @@ export default function TargetAudiencePage() {
   const isAssignmentMutating = addAssignmentMutation.isPending || removeAssignmentMutation.isPending;
 
   // Segment mutations
-  const createSegmentMutation = useMutation({
-    mutationFn: async (name: string) => {
-      const response = await apiRequest("POST", `/api/brands/${params.brandId}/demographic-segments`, { name });
-      if (!response.ok) throw new Error("Failed to create segment");
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Успішно", description: "Сегмент створено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
-      setIsSegmentDialogOpen(false);
-      setNewSegmentName("");
-    },
-    onError: () => {
-      toast({ title: "Помилка", description: "Не вдалося створити сегмент", variant: "destructive" });
-    },
-  });
-
   const updateSegmentMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<DemographicSegment> }) => {
       const response = await apiRequest("PATCH", `/api/demographic-segments/${id}`, data);
