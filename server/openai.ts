@@ -1074,3 +1074,103 @@ ${fieldsTemplate}
 
   return JSON.parse(content) as GeneratedSegmentData;
 }
+
+// Types for generated product data
+export interface GeneratedProductData {
+  name: string;
+  shortDescription: string;
+  fullDescription: string;
+  category?: string;
+  subcategory?: string;
+  price?: string;
+  priceType?: string;
+  features?: string[];
+  benefits?: string[];
+  targetAudience?: string;
+  useCases?: string[];
+  keywords?: string[];
+  specifications?: Record<string, string>;
+}
+
+export async function generateProductData(
+  brandData: {
+    name: string;
+    description?: string;
+    values?: string[];
+    mission?: string;
+    targetAudience?: string;
+  },
+  productDescription: string
+): Promise<GeneratedProductData> {
+  const { client, config } = await getAIClient();
+
+  const prompt = `Ти - експерт з продуктового маркетингу та брендингу. На основі опису продукту створи детальну структуру для картки продукту.
+
+📌 Бренд: ${brandData.name}
+${brandData.description ? `📝 Опис бренду: ${brandData.description}` : ""}
+${brandData.values?.length ? `🎯 Цінності: ${brandData.values.join(", ")}` : ""}
+${brandData.mission ? `🚀 Місія: ${brandData.mission}` : ""}
+${brandData.targetAudience ? `👥 ЦА: ${brandData.targetAudience}` : ""}
+
+📋 ОПИС ПРОДУКТУ ВІД КОРИСТУВАЧА:
+${productDescription}
+
+Створи JSON з параметрами продукту:
+{
+  "name": "назва продукту (коротка, продаюча)",
+  "shortDescription": "короткий опис (1-2 речення, для превʼю)",
+  "fullDescription": "повний опис продукту (2-4 абзаци, маркетинговий текст)",
+  "category": "категорія продукту",
+  "subcategory": "підкатегорія (якщо є)",
+  "price": "рекомендована ціна (якщо можна визначити)",
+  "priceType": "fixed | range | from | negotiable",
+  "features": ["особливість 1", "особливість 2", "..."],
+  "benefits": ["перевага 1", "перевага 2", "..."],
+  "targetAudience": "для кого цей продукт",
+  "useCases": ["сценарій використання 1", "сценарій 2", "..."],
+  "keywords": ["ключове слово 1", "слово 2", "..."],
+  "specifications": {"параметр": "значення", "...": "..."}
+}
+
+ВАЖЛИВО:
+- Всі значення мають бути конкретними та релевантними до опису
+- Створюй продаючі тексти, що підкреслюють цінність
+- Якщо якийсь параметр неможливо визначити з опису, залиш null
+- Відповідай ТІЛЬКИ валідним JSON без markdown`;
+
+  const response = await client.chat.completions.create({
+    model: config.model,
+    messages: [
+      { role: "system", content: "Ти - експерт з продуктового маркетингу. Відповідаєш ТІЛЬКИ валідним JSON." },
+      { role: "user", content: prompt },
+    ],
+    temperature: 0.7,
+    max_tokens: 2000,
+    response_format: { type: "json_object" },
+  });
+
+  const usage = response.usage;
+  if (usage) {
+    const costRates = {
+      input: config.provider === "perplexity" ? 0.001 : 0.0025,
+      output: config.provider === "perplexity" ? 0.001 : 0.01,
+    };
+    const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
+
+    await storage.logAIUsage({
+      provider: config.provider,
+      model: config.model,
+      tokensInput: usage.prompt_tokens,
+      tokensOutput: usage.completion_tokens,
+      costEstimate: estimatedCost.toFixed(6),
+      endpoint: "generateProductData",
+    });
+  }
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("Не вдалося згенерувати дані продукту");
+  }
+
+  return JSON.parse(content) as GeneratedProductData;
+}
