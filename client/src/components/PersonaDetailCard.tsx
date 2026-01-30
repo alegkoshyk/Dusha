@@ -14,7 +14,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { 
   User, Heart, Target, AlertTriangle, Sparkles, Upload, 
   FolderOpen, Pencil, X, Loader2, Brain, ShoppingCart, 
-  TrendingUp, Zap, ImagePlus, Settings, Plus, Trash2
+  TrendingUp, Zap, ImagePlus, Settings, Plus, Trash2,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import type { TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
 
@@ -42,6 +43,8 @@ interface PersonaDetailCardProps {
 export function PersonaDetailCard({ persona, assignments = [], segments = [], onClose, onRefresh, onEdit }: PersonaDetailCardProps) {
   const { toast } = useToast();
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxGallery, setLightboxGallery] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<TargetAudience>>({});
@@ -226,13 +229,42 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
 
   return (
     <>
-      <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
+      <Dialog open={!!lightboxImage} onOpenChange={(open) => { if (!open) { setLightboxImage(null); setLightboxGallery([]); setLightboxIndex(0); } }}>
         <DialogContent className="max-w-2xl p-2">
           <DialogHeader className="sr-only">
             <DialogTitle>Перегляд зображення</DialogTitle>
           </DialogHeader>
           {lightboxImage && (
-            <img src={lightboxImage} alt="Повнорозмірне зображення" className="w-full h-auto rounded-lg" />
+            <div className="relative">
+              <img src={lightboxImage} alt="Повнорозмірне зображення" className="w-full h-auto rounded-lg" />
+              {lightboxGallery.length > 1 && (
+                <>
+                  <button
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+                    onClick={() => {
+                      const newIndex = lightboxIndex === 0 ? lightboxGallery.length - 1 : lightboxIndex - 1;
+                      setLightboxIndex(newIndex);
+                      setLightboxImage(lightboxGallery[newIndex]);
+                    }}
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                  <button
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+                    onClick={() => {
+                      const newIndex = lightboxIndex === lightboxGallery.length - 1 ? 0 : lightboxIndex + 1;
+                      setLightboxIndex(newIndex);
+                      setLightboxImage(lightboxGallery[newIndex]);
+                    }}
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+                    {lightboxIndex + 1} / {lightboxGallery.length}
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </DialogContent>
       </Dialog>
@@ -682,7 +714,11 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
                     {localInteractionImages.map((img, idx) => (
                       <button
                         key={idx}
-                        onClick={() => setLightboxImage(img)}
+                        onClick={() => {
+                          setLightboxGallery(localInteractionImages);
+                          setLightboxIndex(idx);
+                          setLightboxImage(img);
+                        }}
                         className="w-16 h-16 rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all"
                       >
                         <img src={img} alt="" className="w-full h-full object-cover" />
