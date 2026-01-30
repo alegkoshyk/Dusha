@@ -66,6 +66,10 @@ export default function BrandEditPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Read tab from URL query parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialTab = urlParams.get('tab') || 'basic';
 
   const [formData, setFormData] = useState({
     name: "",
@@ -97,7 +101,7 @@ export default function BrandEditPage() {
   const [editingSubSegment, setEditingSubSegment] = useState<DemographicSubSegment | null>(null);
   const [movingSubSegment, setMovingSubSegment] = useState<{ id: string; currentSegmentId: string } | null>(null);
   const [editingPersona, setEditingPersona] = useState<TargetAudience | null>(null);
-  const [activeTab, setActiveTab] = useState("basic");
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   const { data: brand, isLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],

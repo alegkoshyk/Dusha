@@ -496,7 +496,7 @@ export default function TargetAudiencePage() {
       <div className="max-w-6xl mx-auto py-4 sm:py-6 px-3 sm:px-4">
         <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-            <Link href={`/brand/${params.brandId}`}>
+            <Link href={`/brand/${params.brandId}?tab=audience`}>
               <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
                 <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
