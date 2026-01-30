@@ -735,13 +735,13 @@ export default function BrandEditPage() {
                       <Badge 
                         key={index} 
                         variant="secondary" 
-                        className="text-sm py-1.5 px-3 bg-background border border-border hover:bg-muted transition-colors"
+                        className="text-sm py-1.5 px-3 bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 transition-colors"
                       >
                         {value}
                         <button
                           type="button"
                           onClick={() => removeValue(index)}
-                          className="ml-2 hover:text-destructive transition-colors"
+                          className="ml-2 hover:text-rose-100 transition-colors"
                           data-testid={`button-remove-value-${index}`}
                         >
                           <X className="h-3 w-3" />
