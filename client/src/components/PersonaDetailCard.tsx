@@ -59,6 +59,16 @@ export function PersonaDetailCard({ persona, assignments = [], onClose, onRefres
         occupation: persona.occupation,
         income: persona.income,
         isPrimary: persona.isPrimary,
+        values: persona.values,
+        interests: persona.interests,
+        painPoints: persona.painPoints,
+        goals: persona.goals,
+        motivations: persona.motivations,
+        fears: persona.fears,
+        mediaConsumption: persona.mediaConsumption,
+        decisionFactors: persona.decisionFactors,
+        aiPortrait: persona.aiPortrait,
+        brandInteraction: persona.brandInteraction,
       });
     }
   }, [isEditing, persona]);
@@ -290,6 +300,8 @@ export function PersonaDetailCard({ persona, assignments = [], onClose, onRefres
                   onChange={(e) => setEditData({ ...editData, description: e.target.value })}
                 />
               </div>
+              <Separator className="my-2" />
+              <h4 className="font-medium text-sm">Демографія</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Вік</Label>
@@ -334,7 +346,111 @@ export function PersonaDetailCard({ persona, assignments = [], onClose, onRefres
                   />
                 </div>
               </div>
-              <div className="flex justify-end gap-2">
+
+              <Separator className="my-2" />
+              <h4 className="font-medium text-sm">Психографіка</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Цінності (через кому)</Label>
+                  <Textarea
+                    value={((editData.values as string[]) || []).join(", ")}
+                    onChange={(e) => setEditData({ ...editData, values: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Інтереси (через кому)</Label>
+                  <Textarea
+                    value={((editData.interests as string[]) || []).join(", ")}
+                    onChange={(e) => setEditData({ ...editData, interests: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              <Separator className="my-2" />
+              <h4 className="font-medium text-sm">Болі та цілі</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Болі (через кому)</Label>
+                  <Textarea
+                    value={((editData.painPoints as string[]) || []).join(", ")}
+                    onChange={(e) => setEditData({ ...editData, painPoints: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Цілі (через кому)</Label>
+                  <Textarea
+                    value={((editData.goals as string[]) || []).join(", ")}
+                    onChange={(e) => setEditData({ ...editData, goals: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              <Separator className="my-2" />
+              <h4 className="font-medium text-sm">Мотивації та страхи</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Мотивації (через кому)</Label>
+                  <Textarea
+                    value={((editData.motivations as string[]) || []).join(", ")}
+                    onChange={(e) => setEditData({ ...editData, motivations: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Страхи (через кому)</Label>
+                  <Textarea
+                    value={((editData.fears as string[]) || []).join(", ")}
+                    onChange={(e) => setEditData({ ...editData, fears: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              <Separator className="my-2" />
+              <h4 className="font-medium text-sm">Поведінка</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Фактори рішень (через кому)</Label>
+                  <Textarea
+                    value={((editData.decisionFactors as string[]) || []).join(", ")}
+                    onChange={(e) => setEditData({ ...editData, decisionFactors: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                    rows={2}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Споживання медіа (через кому)</Label>
+                  <Textarea
+                    value={((editData.mediaConsumption as string[]) || []).join(", ")}
+                    onChange={(e) => setEditData({ ...editData, mediaConsumption: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              <Separator className="my-2" />
+              <h4 className="font-medium text-sm">AI-портрет</h4>
+              <div className="space-y-2">
+                <Label>Загальний AI-портрет</Label>
+                <Textarea
+                  value={(editData.aiPortrait as string) || ""}
+                  onChange={(e) => setEditData({ ...editData, aiPortrait: e.target.value })}
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Взаємодія з брендом</Label>
+                <Textarea
+                  value={(editData.brandInteraction as string) || ""}
+                  onChange={(e) => setEditData({ ...editData, brandInteraction: e.target.value })}
+                  rows={2}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setIsEditing(false)}>Скасувати</Button>
                 <Button onClick={() => updatePersonaMutation.mutate(editData)} disabled={updatePersonaMutation.isPending}>
                   {updatePersonaMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
