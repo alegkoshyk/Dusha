@@ -365,44 +365,45 @@ export default function BrandBoard() {
         </div>
 
         {/* AI Insights Section */}
-        <Card id="ai-analysis-section" className="border-indigo-200 dark:border-indigo-800">
-          <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <CardTitle className="flex items-center gap-2 text-indigo-800 dark:text-indigo-200">
-                <Sparkles className="w-6 h-6" />
+        <Card id="ai-analysis-section" className="border-indigo-200 dark:border-indigo-800 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 px-3 sm:px-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 text-indigo-800 dark:text-indigo-200 text-base sm:text-lg">
+                <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
                 AI Аналіз Бренду
               </CardTitle>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {aiAnalysisHistory && aiAnalysisHistory.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowAnalysisHistory(true)}
-                    className="text-indigo-600 border-indigo-300 hover:bg-indigo-50 dark:text-indigo-300 dark:border-indigo-700 dark:hover:bg-indigo-900/30"
+                    className="text-indigo-600 border-indigo-300 hover:bg-indigo-50 dark:text-indigo-300 dark:border-indigo-700 dark:hover:bg-indigo-900/30 text-xs sm:text-sm"
                     data-testid="button-view-history"
                   >
-                    <History className="w-4 h-4 mr-2" />
+                    <History className="w-4 h-4 mr-1 sm:mr-2" />
                     Історія ({aiAnalysisHistory.length})
                   </Button>
                 )}
                 <Button
                   onClick={() => generateInsightsMutation.mutate()}
                   disabled={generateInsightsMutation.isPending || aiError === 'api_key_missing'}
-                  className={`${aiError === 'api_key_missing' ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} text-white`}
+                  size="sm"
+                  className={`${aiError === 'api_key_missing' ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'} text-white text-xs sm:text-sm`}
                   data-testid="button-generate-ai"
                 >
                 {generateInsightsMutation.isPending ? (
-                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Аналізую...</>
+                  <><Loader2 className="w-4 h-4 mr-1 sm:mr-2 animate-spin" /><span className="hidden sm:inline">Аналізую...</span><span className="sm:hidden">...</span></>
                 ) : aiError === 'api_key_missing' ? (
-                  <><Settings className="w-4 h-4 mr-2" />API не налаштовано</>
+                  <><Settings className="w-4 h-4 mr-1 sm:mr-2" /><span className="hidden sm:inline">API не налаштовано</span><span className="sm:hidden">Немає API</span></>
                 ) : (
-                  <><Sparkles className="w-4 h-4 mr-2" />{aiInsights ? 'Оновити аналіз' : 'Отримати AI аналіз'}</>
+                  <><Sparkles className="w-4 h-4 mr-1 sm:mr-2" />{aiInsights ? <><span className="hidden sm:inline">Оновити аналіз</span><span className="sm:hidden">Оновити</span></> : <><span className="hidden sm:inline">Отримати AI аналіз</span><span className="sm:hidden">AI аналіз</span></>}</>
                 )}
                 </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             {aiError === 'api_key_missing' && (
               <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
                 <div className="flex items-start gap-3">
