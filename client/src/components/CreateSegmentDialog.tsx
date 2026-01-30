@@ -341,10 +341,10 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
   };
 
   const renderStandardFields = () => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="space-y-2">
-          <Label>1. Вік (життєвий етап)</Label>
+          <Label className="text-sm">1. Вік (життєвий етап)</Label>
           <Input
             value={formData.ageRange}
             onChange={(e) => updateField("ageRange", e.target.value)}
@@ -352,7 +352,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
           />
         </div>
         <div className="space-y-2">
-          <Label>2. Доходи</Label>
+          <Label className="text-sm">2. Доходи</Label>
           <Select value={formData.income} onValueChange={(v) => updateField("income", v)}>
             <SelectTrigger>
               <SelectValue placeholder="Виберіть рівень" />
@@ -368,7 +368,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
       </div>
 
       <div className="space-y-2">
-        <Label>3. Потреба / біль</Label>
+        <Label className="text-sm">3. Потреба / біль</Label>
         <Textarea
           value={formData.needPain}
           onChange={(e) => updateField("needPain", e.target.value)}
@@ -377,9 +377,9 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div className="space-y-2">
-          <Label>4. Контекст</Label>
+          <Label className="text-sm">4. Контекст</Label>
           <Select value={formData.lifeContext} onValueChange={(v) => updateField("lifeContext", v)}>
             <SelectTrigger>
               <SelectValue placeholder="Ситуація" />
@@ -393,7 +393,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
           </Select>
         </div>
         <div className="space-y-2">
-          <Label>5. Рівень усвідомлення</Label>
+          <Label className="text-sm">5. Рівень усвідомлення</Label>
           <Select value={formData.awarenessLevel} onValueChange={(v) => updateField("awarenessLevel", v)}>
             <SelectTrigger>
               <SelectValue placeholder="Рівень" />
@@ -408,7 +408,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
       </div>
 
       <div className="space-y-2">
-        <Label>6. Готовність діяти</Label>
+        <Label className="text-sm">6. Готовність діяти</Label>
         <Select value={formData.readinessToAct} onValueChange={(v) => updateField("readinessToAct", v)}>
           <SelectTrigger>
             <SelectValue placeholder="Коли готовий?" />
@@ -422,7 +422,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
       </div>
 
       <div className="space-y-2">
-        <Label>7. Бар'єр</Label>
+        <Label className="text-sm">7. Бар'єр</Label>
         <Textarea
           value={formData.barrier}
           onChange={(e) => updateField("barrier", e.target.value)}
@@ -432,7 +432,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
       </div>
 
       <div className="space-y-2">
-        <Label>8. Тригер</Label>
+        <Label className="text-sm">8. Тригер</Label>
         <Textarea
           value={formData.trigger}
           onChange={(e) => updateField("trigger", e.target.value)}
@@ -447,16 +447,16 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
     <div className="space-y-3">
       <Collapsible open={expandedSections.has("demographic")} onOpenChange={() => toggleSection("demographic")}>
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="w-full justify-between p-3 h-auto">
+          <Button variant="ghost" className="w-full justify-between p-2 sm:p-3 h-auto">
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-blue-500" />
-              <span className="font-medium">1. Демографічні (ХТО)</span>
+              <span className="font-medium text-sm sm:text-base">1. Демографічні (ХТО)</span>
             </div>
             <ChevronDown className={`h-4 w-4 transition-transform ${expandedSections.has("demographic") ? "rotate-180" : ""}`} />
           </Button>
         </CollapsibleTrigger>
-        <CollapsibleContent className="px-3 pb-3 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+        <CollapsibleContent className="px-2 sm:px-3 pb-3 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Вік</Label>
               <Input value={formData.ageRange} onChange={(e) => updateField("ageRange", e.target.value)} placeholder="25-35" />
@@ -491,7 +491,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
           </div>
           <Separator />
           <p className="text-xs text-muted-foreground">Для B2B:</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Розмір компанії</Label>
               <Input value={formData.companySize} onChange={(e) => updateField("companySize", e.target.value)} placeholder="10-50 осіб" />
@@ -523,7 +523,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="px-3 pb-3 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Локація</Label>
               <Input value={formData.location} onChange={(e) => updateField("location", e.target.value)} placeholder="Україна, Київ" />
@@ -566,7 +566,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="px-3 pb-3 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Цінності</Label>
               <Textarea value={formData.values} onChange={(e) => updateField("values", e.target.value)} placeholder="Сім'я, кар'єра..." rows={2} />
@@ -610,7 +610,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="px-3 pb-3 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Частота покупок</Label>
               <Input value={formData.purchaseFrequency} onChange={(e) => updateField("purchaseFrequency", e.target.value)} placeholder="Раз на місяць" />
@@ -636,7 +636,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
             <Label className="text-xs">Канали взаємодії</Label>
             <Textarea value={formData.interactionChannels} onChange={(e) => updateField("interactionChannels", e.target.value)} placeholder="Instagram, email, телефон..." rows={2} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Тригери покупки</Label>
               <Textarea value={formData.purchaseTriggers} onChange={(e) => updateField("purchaseTriggers", e.target.value)} placeholder="Що спонукає" rows={2} />
@@ -690,7 +690,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="px-3 pb-3 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Роль у суспільстві</Label>
               <Input value={formData.socialRole} onChange={(e) => updateField("socialRole", e.target.value)} placeholder="Батько, лідер..." />
@@ -732,7 +732,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="px-3 pb-3 space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label className="text-xs">Поточний стан</Label>
               <Select value={formData.currentState} onValueChange={(v) => updateField("currentState", v)}>
@@ -765,53 +765,53 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>{isEditMode ? "Редагувати сегмент" : "Створити сегмент аудиторії"}</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">{isEditMode ? "Редагувати сегмент" : "Створити сегмент"}</DialogTitle>
         </DialogHeader>
         
         <Tabs value={formData.tier} onValueChange={(v) => updateField("tier", v as "standard" | "pro")} className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
-            <TabsTrigger value="standard">Стандарт (8 параметрів)</TabsTrigger>
-            <TabsTrigger value="pro">Про (повний набір)</TabsTrigger>
+            <TabsTrigger value="standard" className="text-xs sm:text-sm">Стандарт</TabsTrigger>
+            <TabsTrigger value="pro" className="text-xs sm:text-sm">Про (повний)</TabsTrigger>
           </TabsList>
 
-          <div className="space-y-4 py-4 flex-shrink-0">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Назва сегменту *</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => updateField("name", e.target.value)}
-                  placeholder="напр. Молоді підприємці"
+          <div className="space-y-3 sm:space-y-4 py-3 sm:py-4 flex-shrink-0">
+            <div className="space-y-2">
+              <Label>Назва сегменту *</Label>
+              <Input
+                value={formData.name}
+                onChange={(e) => updateField("name", e.target.value)}
+                placeholder="напр. Молоді підприємці"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                Опис для AI генерації
+                <Sparkles className="h-3 w-3 text-yellow-500" />
+              </Label>
+              <div className="flex gap-2">
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => updateField("description", e.target.value)}
+                  placeholder="Опишіть сегмент детально для AI генерації всіх полів..."
+                  className="flex-1 min-h-[80px] resize-none"
+                  rows={3}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  Опис для AI
-                  <Sparkles className="h-3 w-3 text-yellow-500" />
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={formData.description}
-                    onChange={(e) => updateField("description", e.target.value)}
-                    placeholder="Опишіть сегмент для генерації..."
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => generateMutation.mutate()}
-                    disabled={!formData.description.trim() || generateMutation.isPending}
-                  >
-                    {generateMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-[80px] w-12 flex-shrink-0"
+                  onClick={() => generateMutation.mutate()}
+                  disabled={!formData.description.trim() || generateMutation.isPending}
+                >
+                  {generateMutation.isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-5 w-5" />
+                  )}
+                </Button>
               </div>
             </div>
           </div>
