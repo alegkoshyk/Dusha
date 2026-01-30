@@ -52,6 +52,13 @@ app.use((req, res, next) => {
     console.error('Failed to seed subscription plans:', error);
   }
 
+  // Seed audience types if they don't exist
+  try {
+    await storage.seedAudienceTypes();
+  } catch (error) {
+    console.error('Failed to seed audience types:', error);
+  }
+
   // Start billing scheduler for recurring payments
   const { startBillingScheduler } = await import('./billingScheduler');
   startBillingScheduler();

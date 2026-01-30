@@ -92,6 +92,8 @@ import {
   type DemographicSubSegment,
   type InsertDemographicSubSegment,
   demographicSubSegmentsTable,
+  audienceTypeCategoriesTable,
+  audienceTypesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -2783,6 +2785,106 @@ export class DatabaseStorage implements IStorage {
       .delete(demographicSubSegmentsTable)
       .where(eq(demographicSubSegmentsTable.id, id));
     return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async seedAudienceTypes(): Promise<void> {
+    const existingCategories = await db.select().from(audienceTypeCategoriesTable);
+    if (existingCategories.length > 0) {
+      console.log(`Audience type categories already exist (${existingCategories.length} categories), skipping seed`);
+      return;
+    }
+
+    console.log('Seeding audience type categories and types...');
+
+    const categories = [
+      { name: 'За пріоритетністю', nameEn: 'By Priority', icon: 'Star', color: '#f59e0b', sortOrder: 0 },
+      { name: 'За рівнем залученості', nameEn: 'By Engagement Level', icon: 'Target', color: '#10b981', sortOrder: 1 },
+      { name: 'За роллю у прийнятті рішення', nameEn: 'By Decision Role', icon: 'Users', color: '#6366f1', sortOrder: 2 },
+      { name: 'За поведінкою', nameEn: 'By Behavior', icon: 'Zap', color: '#ec4899', sortOrder: 3 },
+      { name: 'За стадією шляху клієнта', nameEn: 'Customer Journey Stage', icon: 'ArrowRight', color: '#8b5cf6', sortOrder: 4 },
+      { name: 'За контекстом використання', nameEn: 'By Usage Context', icon: 'Briefcase', color: '#0ea5e9', sortOrder: 5 },
+      { name: 'За цінністю для бізнесу', nameEn: 'By Business Value', icon: 'DollarSign', color: '#22c55e', sortOrder: 6 },
+      { name: 'За культурною роллю', nameEn: 'By Cultural Role', icon: 'Heart', color: '#f43f5e', sortOrder: 7 },
+    ];
+
+    const typesData: Record<string, Array<{ name: string; nameEn: string; color: string; sortOrder: number }>> = {
+      'За пріоритетністю': [
+        { name: 'Основна', nameEn: 'Primary', color: '#f59e0b', sortOrder: 0 },
+        { name: 'Вторинна', nameEn: 'Secondary', color: '#eab308', sortOrder: 1 },
+        { name: 'Нішева', nameEn: 'Niche', color: '#ca8a04', sortOrder: 2 },
+      ],
+      'За рівнем залученості': [
+        { name: 'Ядро', nameEn: 'Core Audience', color: '#10b981', sortOrder: 0 },
+        { name: 'Потенційна', nameEn: 'Potential', color: '#34d399', sortOrder: 1 },
+        { name: 'Холодна', nameEn: 'Cold', color: '#6ee7b7', sortOrder: 2 },
+        { name: 'Втрачена', nameEn: 'Lost', color: '#a7f3d0', sortOrder: 3 },
+      ],
+      'За роллю у прийнятті рішення': [
+        { name: 'Користувачі', nameEn: 'Users', color: '#6366f1', sortOrder: 0 },
+        { name: 'Платники', nameEn: 'Payers', color: '#818cf8', sortOrder: 1 },
+        { name: 'Ініціатори', nameEn: 'Initiators', color: '#a5b4fc', sortOrder: 2 },
+        { name: 'Інфлюенсери', nameEn: 'Influencers', color: '#c7d2fe', sortOrder: 3 },
+        { name: 'Decision makers', nameEn: 'Decision Makers', color: '#4f46e5', sortOrder: 4 },
+      ],
+      'За поведінкою': [
+        { name: 'Раціональна', nameEn: 'Rational', color: '#ec4899', sortOrder: 0 },
+        { name: 'Емоційна', nameEn: 'Emotional', color: '#f472b6', sortOrder: 1 },
+        { name: 'Імпульсивна', nameEn: 'Impulsive', color: '#f9a8d4', sortOrder: 2 },
+        { name: 'Лояльна', nameEn: 'Loyal', color: '#fbcfe8', sortOrder: 3 },
+        { name: 'Нелояльна', nameEn: 'Disloyal', color: '#db2777', sortOrder: 4 },
+        { name: 'Цінові мисливці', nameEn: 'Price Hunters', color: '#be185d', sortOrder: 5 },
+      ],
+      'За стадією шляху клієнта': [
+        { name: 'Awareness', nameEn: 'Awareness', color: '#8b5cf6', sortOrder: 0 },
+        { name: 'Consideration', nameEn: 'Consideration', color: '#a78bfa', sortOrder: 1 },
+        { name: 'Decision', nameEn: 'Decision', color: '#c4b5fd', sortOrder: 2 },
+        { name: 'Retention', nameEn: 'Retention', color: '#ddd6fe', sortOrder: 3 },
+        { name: 'Advocacy', nameEn: 'Advocacy', color: '#7c3aed', sortOrder: 4 },
+      ],
+      'За контекстом використання': [
+        { name: 'B2C', nameEn: 'B2C', color: '#0ea5e9', sortOrder: 0 },
+        { name: 'B2B', nameEn: 'B2B', color: '#38bdf8', sortOrder: 1 },
+        { name: 'B2G', nameEn: 'B2G', color: '#7dd3fc', sortOrder: 2 },
+        { name: 'Масова', nameEn: 'Mass Market', color: '#bae6fd', sortOrder: 3 },
+        { name: 'Професійна', nameEn: 'Professional', color: '#0284c7', sortOrder: 4 },
+        { name: 'Early adopters', nameEn: 'Early Adopters', color: '#0369a1', sortOrder: 5 },
+      ],
+      'За цінністю для бізнесу': [
+        { name: 'High LTV', nameEn: 'High LTV', color: '#22c55e', sortOrder: 0 },
+        { name: 'Low LTV', nameEn: 'Low LTV', color: '#86efac', sortOrder: 1 },
+        { name: 'Стратегічна', nameEn: 'Strategic', color: '#4ade80', sortOrder: 2 },
+        { name: 'Транзакційна', nameEn: 'Transactional', color: '#bbf7d0', sortOrder: 3 },
+      ],
+      'За культурною роллю': [
+        { name: "Ком'юніті", nameEn: 'Community', color: '#f43f5e', sortOrder: 0 },
+        { name: 'Субкультура', nameEn: 'Subculture', color: '#fb7185', sortOrder: 1 },
+        { name: 'Місіонерська', nameEn: 'Missionary', color: '#fda4af', sortOrder: 2 },
+        { name: 'Скептична', nameEn: 'Skeptical', color: '#fecdd3', sortOrder: 3 },
+      ],
+    };
+
+    for (const cat of categories) {
+      const [insertedCat] = await db.insert(audienceTypeCategoriesTable).values({
+        name: cat.name,
+        nameEn: cat.nameEn,
+        icon: cat.icon,
+        color: cat.color,
+        sortOrder: cat.sortOrder,
+      }).returning();
+
+      const types = typesData[cat.name] || [];
+      for (const t of types) {
+        await db.insert(audienceTypesTable).values({
+          categoryId: insertedCat.id,
+          name: t.name,
+          nameEn: t.nameEn,
+          color: t.color,
+          sortOrder: t.sortOrder,
+        });
+      }
+    }
+
+    console.log(`Seeded ${categories.length} audience categories with types`);
   }
 }
 
