@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
@@ -69,6 +70,7 @@ export default function TargetAudiencePage() {
   const [editingAudience, setEditingAudience] = useState<TargetAudience | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
+  const [assigningPersona, setAssigningPersona] = useState<TargetAudience | null>(null);
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -183,6 +185,56 @@ export default function TargetAudiencePage() {
       toast({ title: "Помилка", description: "Не вдалося оновити персону", variant: "destructive" });
     },
   });
+
+  // Segment assignment mutations
+  interface SegmentAssignment {
+    id: string;
+    personaId: string;
+    segmentId: string | null;
+    subSegmentId: string | null;
+  }
+
+  const { data: personaAssignments = [], isLoading: assignmentsLoading } = useQuery<SegmentAssignment[]>({
+    queryKey: ["/api/target-audiences", assigningPersona?.id, "segment-assignments"],
+    queryFn: async () => {
+      const response = await fetch(`/api/target-audiences/${assigningPersona!.id}/segment-assignments`);
+      if (!response.ok) throw new Error("Failed to fetch assignments");
+      return response.json();
+    },
+    enabled: !!assigningPersona,
+  });
+
+  const addAssignmentMutation = useMutation({
+    mutationFn: async ({ personaId, segmentId, subSegmentId }: { personaId: string; segmentId?: string; subSegmentId?: string }) => {
+      const response = await apiRequest("POST", `/api/target-audiences/${personaId}/segment-assignments`, { segmentId, subSegmentId });
+      if (!response.ok) throw new Error("Failed to add assignment");
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/target-audiences", variables.personaId, "segment-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося призначити персону", variant: "destructive" });
+    },
+  });
+
+  const removeAssignmentMutation = useMutation({
+    mutationFn: async ({ personaId, assignmentId }: { personaId: string; assignmentId: string }) => {
+      const response = await apiRequest("DELETE", `/api/target-audiences/${personaId}/segment-assignments/${assignmentId}`);
+      if (!response.ok) throw new Error("Failed to remove assignment");
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/target-audiences", variables.personaId, "segment-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити призначення", variant: "destructive" });
+    },
+  });
+  
+  const isAssignmentMutating = addAssignmentMutation.isPending || removeAssignmentMutation.isPending;
 
   // Segment mutations
   const createSegmentMutation = useMutation({
@@ -646,6 +698,7 @@ export default function TargetAudiencePage() {
                                   onSelect={() => setSelectedAudience(persona)}
                                   onGenerateAvatar={() => generateAvatarMutation.mutate(persona.id)}
                                   isGeneratingAvatar={generatingAvatarId === persona.id}
+                                  onAssign={() => setAssigningPersona(persona)}
                                   className="ml-4 sm:ml-8"
                                 />
                               ))}
@@ -689,6 +742,7 @@ export default function TargetAudiencePage() {
                                       onSelect={() => setSelectedAudience(persona)}
                                       onGenerateAvatar={() => generateAvatarMutation.mutate(persona.id)}
                                       isGeneratingAvatar={generatingAvatarId === persona.id}
+                                      onAssign={() => setAssigningPersona(persona)}
                                       small
                                     />
                                   ))}
@@ -744,6 +798,7 @@ export default function TargetAudiencePage() {
                             onGenerateAvatar={() => generateAvatarMutation.mutate(audience.id)}
                             isGeneratingAvatar={generatingAvatarId === audience.id}
                             onDelete={() => deleteAudienceMutation.mutate(audience.id)}
+                            onAssign={() => setAssigningPersona(audience)}
                           />
                         </div>
                         {segments.length > 0 && (
@@ -1122,6 +1177,99 @@ export default function TargetAudiencePage() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Segment Assignment Dialog */}
+        <Dialog open={!!assigningPersona} onOpenChange={(open) => !open && setAssigningPersona(null)}>
+          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-base sm:text-lg">Призначити до сегментів</DialogTitle>
+              <DialogDescription className="text-xs sm:text-sm">
+                {assigningPersona?.name}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-3 py-2">
+              {assignmentsLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : segments.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Спочатку створіть сегменти
+                </p>
+              ) : (
+                segments.map((segment) => {
+                  const segmentAssignment = personaAssignments.find(a => a.segmentId === segment.id && !a.subSegmentId);
+                  const isAssignedToSegment = !!segmentAssignment;
+                  
+                  return (
+                    <div key={segment.id} className="space-y-2">
+                      <div 
+                        className={`flex items-center gap-2 p-2 rounded-lg hover:bg-muted/50 cursor-pointer ${isAssignmentMutating ? 'opacity-60 pointer-events-none' : ''}`}
+                        onClick={() => {
+                          if (!assigningPersona || isAssignmentMutating) return;
+                          if (isAssignedToSegment) {
+                            removeAssignmentMutation.mutate({ personaId: assigningPersona.id, assignmentId: segmentAssignment.id });
+                          } else {
+                            addAssignmentMutation.mutate({ personaId: assigningPersona.id, segmentId: segment.id });
+                          }
+                        }}
+                      >
+                        <Checkbox 
+                          checked={isAssignedToSegment} 
+                          className="flex-shrink-0"
+                          disabled={isAssignmentMutating}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <FolderOpen className="h-4 w-4 flex-shrink-0" style={{ color: segment.color || '#f59e0b' }} />
+                        <span className="font-medium text-sm truncate">{segment.name}</span>
+                      </div>
+                      
+                      {segment.subSegments.length > 0 && (
+                        <div className="ml-6 space-y-1 border-l-2 pl-3" style={{ borderColor: segment.color || '#f59e0b' }}>
+                          {segment.subSegments.map((subSegment) => {
+                            const subAssignment = personaAssignments.find(a => a.subSegmentId === subSegment.id);
+                            const isAssignedToSub = !!subAssignment;
+                            
+                            return (
+                              <div 
+                                key={subSegment.id}
+                                className={`flex items-center gap-2 p-2 rounded hover:bg-muted/50 cursor-pointer ${isAssignmentMutating ? 'opacity-60 pointer-events-none' : ''}`}
+                                onClick={() => {
+                                  if (!assigningPersona || isAssignmentMutating) return;
+                                  if (isAssignedToSub) {
+                                    removeAssignmentMutation.mutate({ personaId: assigningPersona.id, assignmentId: subAssignment.id });
+                                  } else {
+                                    addAssignmentMutation.mutate({ personaId: assigningPersona.id, segmentId: segment.id, subSegmentId: subSegment.id });
+                                  }
+                                }}
+                              >
+                                <Checkbox 
+                                  checked={isAssignedToSub}
+                                  className="flex-shrink-0"
+                                  disabled={isAssignmentMutating}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <Layers className="h-3.5 w-3.5 flex-shrink-0" style={{ color: subSegment.color || '#60a5fa' }} />
+                                <span className="text-sm truncate">{subSegment.name}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAssigningPersona(null)}>
+                Закрити
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
@@ -1133,6 +1281,7 @@ function PersonaInline({
   onDelete,
   onGenerateAvatar,
   isGeneratingAvatar,
+  onAssign,
   small,
   className
 }: { 
@@ -1141,6 +1290,7 @@ function PersonaInline({
   onDelete?: () => void;
   onGenerateAvatar?: () => void;
   isGeneratingAvatar?: boolean;
+  onAssign?: () => void;
   small?: boolean;
   className?: string;
 }) {
@@ -1181,12 +1331,26 @@ function PersonaInline({
           {values.length > 0 && <Badge variant="secondary" className="text-[10px] sm:text-xs px-1.5">+{values.length} цін.</Badge>}
         </div>
       </div>
-      <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
+      <div className="flex sm:hidden sm:group-hover:flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+        {onAssign && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 sm:h-7 sm:w-7 p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAssign();
+            }}
+            title="Призначити до сегментів"
+          >
+            <Layers className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+          </Button>
+        )}
         {!persona.aiPortraitImageUrl && onGenerateAvatar && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+            className="h-6 w-6 sm:h-7 sm:w-7 p-0"
             onClick={(e) => {
               e.stopPropagation();
               onGenerateAvatar();
@@ -1195,9 +1359,9 @@ function PersonaInline({
             title="Згенерувати аватар"
           >
             {isGeneratingAvatar ? (
-              <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+              <Loader2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 animate-spin" />
             ) : (
-              <Image className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <Image className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             )}
           </Button>
         )}
@@ -1205,14 +1369,14 @@ function PersonaInline({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
+            className="h-6 w-6 sm:h-7 sm:w-7 p-0 text-destructive hover:text-destructive"
             onClick={(e) => {
               e.stopPropagation();
               onDelete();
             }}
             title="Видалити"
           >
-            <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </Button>
         )}
       </div>
