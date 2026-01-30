@@ -566,7 +566,7 @@ export default function TargetAudiencePage() {
           {/* Left Column: Segments */}
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Segments Section */}
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
@@ -612,7 +612,7 @@ export default function TargetAudiencePage() {
                   </Dialog>
                 </div>
               </CardHeader>
-              <CardContent className="px-3 sm:px-6">
+              <CardContent className="px-3 sm:px-6 overflow-x-hidden">
                 {segments.length === 0 ? (
                   <div className="p-4 sm:p-6 border border-dashed rounded-lg text-center">
                     <FolderOpen className="h-8 w-8 sm:h-10 sm:w-10 mx-auto text-muted-foreground/50 mb-2 sm:mb-3" />
@@ -763,7 +763,7 @@ export default function TargetAudiencePage() {
             </Card>
 
             {/* Unassigned Personas */}
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500 flex-shrink-0" />
@@ -773,7 +773,7 @@ export default function TargetAudiencePage() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="px-3 sm:px-6">
+              <CardContent className="px-3 sm:px-6 overflow-x-hidden">
                 {getUnassignedPersonas().length === 0 && audiences.length === 0 ? (
                   <div className="p-4 sm:p-6 border border-dashed rounded-lg text-center">
                     <Users className="h-8 w-8 sm:h-10 sm:w-10 mx-auto text-muted-foreground/50 mb-2 sm:mb-3" />
@@ -848,7 +848,7 @@ export default function TargetAudiencePage() {
 
           {/* Right Column: Quick Stats */}
           <div className="space-y-4 sm:space-y-6">
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
                 <CardTitle className="text-base sm:text-lg">Статистика</CardTitle>
               </CardHeader>
@@ -880,7 +880,7 @@ export default function TargetAudiencePage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="overflow-hidden">
               <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
                 <CardTitle className="text-base sm:text-lg">Швидкі дії</CardTitle>
               </CardHeader>
