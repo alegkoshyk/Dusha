@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -664,18 +663,18 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId }: CreateSegme
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Створити сегмент аудиторії</DialogTitle>
         </DialogHeader>
         
-        <Tabs value={formData.tier} onValueChange={(v) => updateField("tier", v as "standard" | "pro")} className="flex-1 flex flex-col min-h-0">
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={formData.tier} onValueChange={(v) => updateField("tier", v as "standard" | "pro")} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
             <TabsTrigger value="standard">Стандарт (8 параметрів)</TabsTrigger>
             <TabsTrigger value="pro">Про (повний набір)</TabsTrigger>
           </TabsList>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 flex-shrink-0">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Назва сегменту *</Label>
@@ -715,14 +714,14 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId }: CreateSegme
             </div>
           </div>
 
-          <ScrollArea className="flex-1 min-h-0 pr-4">
+          <div className="flex-1 min-h-0 overflow-y-auto pr-2">
             <TabsContent value="standard" className="mt-0">
               {renderStandardFields()}
             </TabsContent>
             <TabsContent value="pro" className="mt-0">
               {renderProFields()}
             </TabsContent>
-          </ScrollArea>
+          </div>
         </Tabs>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
