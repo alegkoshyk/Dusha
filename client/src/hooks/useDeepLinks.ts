@@ -25,7 +25,7 @@ export function useDeepLinks() {
           
           if (authToken) {
             console.log('Auth token received from OAuth');
-            localStorage.setItem('auth_token', authToken);
+            localStorage.setItem('authToken', authToken);
             
             queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
           }

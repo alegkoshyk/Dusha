@@ -309,12 +309,14 @@ export function ProductDialog({ open, onOpenChange, brandId, product }: ProductD
           )}
 
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="basic">Основне</TabsTrigger>
-              <TabsTrigger value="details">Деталі</TabsTrigger>
-              <TabsTrigger value="marketing">Маркетинг</TabsTrigger>
-              <TabsTrigger value="specs">Характеристики</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+              <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-4">
+                <TabsTrigger value="basic" className="whitespace-nowrap">Основне</TabsTrigger>
+                <TabsTrigger value="details" className="whitespace-nowrap">Деталі</TabsTrigger>
+                <TabsTrigger value="marketing" className="whitespace-nowrap">Маркетинг</TabsTrigger>
+                <TabsTrigger value="specs" className="whitespace-nowrap">Характеристики</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="basic" className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-4">
