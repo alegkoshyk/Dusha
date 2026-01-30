@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Sparkles, ChevronDown, User, MapPin, Brain, ShoppingCart, Target, Users, Clock } from "lucide-react";
+import type { DemographicSegment } from "@shared/schema";
 
 interface CreateSegmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   brandId: string;
+  segment?: DemographicSegment | null;
 }
 
 interface SegmentFormData {
@@ -131,10 +133,74 @@ const initialFormData: SegmentFormData = {
   timeSeasonEvent: "",
 };
 
-export function CreateSegmentDialog({ open, onOpenChange, brandId }: CreateSegmentDialogProps) {
+export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: CreateSegmentDialogProps) {
   const { toast } = useToast();
   const [formData, setFormData] = useState<SegmentFormData>(initialFormData);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["demographic"]));
+  
+  const isEditMode = !!segment;
+
+  useEffect(() => {
+    if (segment) {
+      setFormData({
+        name: segment.name || "",
+        description: segment.description || "",
+        tier: (segment.tier as "standard" | "pro") || "standard",
+        ageRange: segment.ageRange || "",
+        income: segment.income || "",
+        needPain: segment.needPain || "",
+        lifeContext: segment.lifeContext || "",
+        awarenessLevel: segment.awarenessLevel || "",
+        readinessToAct: segment.readinessToAct || "",
+        barrier: segment.barrier || "",
+        trigger: segment.trigger || "",
+        gender: segment.gender || "",
+        education: segment.education || "",
+        familyStatus: segment.familyStatus || "",
+        occupation: segment.occupation || "",
+        companySize: segment.companySize || "",
+        industry: segment.industry || "",
+        companyRevenue: segment.companyRevenue || "",
+        employeeCount: segment.employeeCount || "",
+        location: segment.location || "",
+        citySize: segment.citySize || "",
+        climate: segment.climate || "",
+        urbanization: segment.urbanization || "",
+        localContext: segment.localContext || "",
+        values: segment.values || "",
+        beliefs: segment.beliefs || "",
+        lifestyle: segment.lifestyle || "",
+        interests: segment.interests || "",
+        fears: segment.fears || "",
+        triggersPsycho: segment.triggers || "",
+        desires: segment.desires || "",
+        selfIdentification: segment.selfIdentification || "",
+        purchaseFrequency: segment.purchaseFrequency || "",
+        usageScenarios: segment.usageScenarios || "",
+        loyaltyLevel: segment.loyaltyLevel || "",
+        willingnessToPay: segment.willingnessToPay || "",
+        priceSensitivity: segment.priceSensitivity || "",
+        interactionChannels: segment.interactionChannels || "",
+        purchaseTriggers: segment.purchaseTriggers || "",
+        purchaseBarriers: segment.purchaseBarriers || "",
+        taskToSolve: segment.taskToSolve || "",
+        painToRelieve: segment.painToRelieve || "",
+        desiredResult: segment.desiredResult || "",
+        currentAlternatives: segment.currentAlternatives || "",
+        socialRole: segment.socialRole || "",
+        communities: segment.communities || "",
+        socialStatus: segment.socialStatus || "",
+        influenceLevel: segment.influenceLevel || "",
+        languageSymbolsCodes: segment.languageSymbolsCodes || "",
+        currentState: segment.currentState || "",
+        lifeStage: segment.lifeStage || "",
+        decisionSituation: segment.decisionSituation || "",
+        timeSeasonEvent: segment.timeSeasonEvent || "",
+      });
+    } else {
+      setFormData(initialFormData);
+    }
+  }, [segment, open]);
 
   const toggleSection = (section: string) => {
     const newSet = new Set(expandedSections);
@@ -217,9 +283,17 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId }: CreateSegme
     },
   });
 
+  const preparePayload = () => {
+    const { triggersPsycho, ...rest } = formData;
+    return {
+      ...rest,
+      triggers: triggersPsycho,
+    };
+  };
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/brands/${brandId}/demographic-segments`, formData);
+      const response = await apiRequest("POST", `/api/brands/${brandId}/demographic-segments`, preparePayload());
       if (!response.ok) throw new Error("Failed to create segment");
       return response.json();
     },
@@ -233,6 +307,34 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId }: CreateSegme
       toast({ title: "Помилка", description: "Не вдалося створити сегмент", variant: "destructive" });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!segment) throw new Error("No segment to update");
+      const response = await apiRequest("PATCH", `/api/demographic-segments/${segment.id}`, preparePayload());
+      if (!response.ok) throw new Error("Failed to update segment");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Сегмент оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", brandId, "demographic-segments"] });
+      onOpenChange(false);
+      setFormData(initialFormData);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося оновити сегмент", variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = () => {
+    if (isEditMode) {
+      updateMutation.mutate();
+    } else {
+      createMutation.mutate();
+    }
+  };
+
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   const updateField = (field: keyof SegmentFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -665,7 +767,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId }: CreateSegme
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Створити сегмент аудиторії</DialogTitle>
+          <DialogTitle>{isEditMode ? "Редагувати сегмент" : "Створити сегмент аудиторії"}</DialogTitle>
         </DialogHeader>
         
         <Tabs value={formData.tier} onValueChange={(v) => updateField("tier", v as "standard" | "pro")} className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -724,18 +826,18 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId }: CreateSegme
           </div>
         </Tabs>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
+        <div className="flex justify-end gap-2 pt-4 border-t flex-shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Скасувати
           </Button>
           <Button
-            onClick={() => createMutation.mutate()}
-            disabled={!formData.name.trim() || createMutation.isPending}
+            onClick={handleSubmit}
+            disabled={!formData.name.trim() || isSubmitting}
           >
-            {createMutation.isPending ? (
+            {isSubmitting ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
-            Створити
+            {isEditMode ? "Зберегти" : "Створити"}
           </Button>
         </div>
       </DialogContent>

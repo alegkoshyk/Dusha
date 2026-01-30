@@ -1007,9 +1007,15 @@ export default function TargetAudiencePage() {
                     <span className="hidden sm:inline">Сегмент</span>
                   </Button>
                   <CreateSegmentDialog
-                    open={isSegmentDialogOpen}
-                    onOpenChange={setIsSegmentDialogOpen}
+                    open={isSegmentDialogOpen || !!editingSegment}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setIsSegmentDialogOpen(false);
+                        setEditingSegment(null);
+                      }
+                    }}
                     brandId={params.brandId!}
+                    segment={editingSegment}
                   />
                 </div>
               </CardHeader>
@@ -1348,98 +1354,6 @@ export default function TargetAudiencePage() {
           />
         )}
 
-        {/* Edit Segment Dialog */}
-        {editingSegment && (
-          <Dialog open={!!editingSegment} onOpenChange={() => setEditingSegment(null)}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Налаштування сегменту</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Назва</Label>
-                  <Input
-                    value={editingSegment.name}
-                    onChange={(e) => setEditingSegment({ ...editingSegment, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Колір</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={editingSegment.color || '#f59e0b'}
-                      onChange={(e) => setEditingSegment({ ...editingSegment, color: e.target.value })}
-                      className="w-10 h-10 rounded cursor-pointer"
-                    />
-                    <Input
-                      value={editingSegment.color || '#f59e0b'}
-                      onChange={(e) => setEditingSegment({ ...editingSegment, color: e.target.value })}
-                      className="flex-1"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Тон комунікації</Label>
-                  <Select
-                    value={editingSegment.communicationTone || ""}
-                    onValueChange={(v) => setEditingSegment({ ...editingSegment, communicationTone: v || null })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Оберіть тон..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="formal">Формальний</SelectItem>
-                      <SelectItem value="friendly">Дружній</SelectItem>
-                      <SelectItem value="professional">Професійний</SelectItem>
-                      <SelectItem value="casual">Неформальний</SelectItem>
-                      <SelectItem value="inspirational">Надихаючий</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Опис контексту</Label>
-                  <Textarea
-                    value={editingSegment.contextDescription || ""}
-                    onChange={(e) => setEditingSegment({ ...editingSegment, contextDescription: e.target.value })}
-                    placeholder="Опишіть контекст використання цього сегменту..."
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Маркетингова стратегія</Label>
-                  <Textarea
-                    value={editingSegment.marketingStrategy || ""}
-                    onChange={(e) => setEditingSegment({ ...editingSegment, marketingStrategy: e.target.value })}
-                    placeholder="Яка стратегія для цього сегменту..."
-                    rows={2}
-                  />
-                </div>
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setEditingSegment(null)}>
-                    Скасувати
-                  </Button>
-                  <Button
-                    onClick={() => updateSegmentMutation.mutate({ 
-                      id: editingSegment.id, 
-                      data: {
-                        name: editingSegment.name,
-                        color: editingSegment.color,
-                        communicationTone: editingSegment.communicationTone,
-                        contextDescription: editingSegment.contextDescription,
-                        marketingStrategy: editingSegment.marketingStrategy,
-                      }
-                    })}
-                    disabled={!editingSegment.name.trim() || updateSegmentMutation.isPending}
-                  >
-                    {updateSegmentMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Зберегти
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
 
         {/* Edit Sub-Segment Dialog */}
         {editingSubSegment && (
