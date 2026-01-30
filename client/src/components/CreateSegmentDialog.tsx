@@ -776,47 +776,47 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
             <TabsTrigger value="pro" className="text-xs sm:text-sm">Про (повний)</TabsTrigger>
           </TabsList>
 
-          <div className="space-y-3 sm:space-y-4 py-3 sm:py-4 flex-shrink-0">
-            <div className="space-y-2">
-              <Label>Назва сегменту *</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => updateField("name", e.target.value)}
-                placeholder="напр. Молоді підприємці"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                Опис для AI генерації
-                <Sparkles className="h-3 w-3 text-yellow-500" />
-              </Label>
-              <div className="flex gap-2">
-                <Textarea
-                  value={formData.description}
-                  onChange={(e) => updateField("description", e.target.value)}
-                  placeholder="Опишіть сегмент детально для AI генерації всіх полів..."
-                  className="flex-1 min-h-[80px] resize-none"
-                  rows={3}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-2 pt-3 sm:pt-4">
+            <div className="space-y-3 sm:space-y-4 mb-4">
+              <div className="space-y-2">
+                <Label>Назва сегменту *</Label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => updateField("name", e.target.value)}
+                  placeholder="напр. Молоді підприємці"
                 />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="outline"
-                  className="h-[80px] w-12 flex-shrink-0"
-                  onClick={() => generateMutation.mutate()}
-                  disabled={!formData.description.trim() || generateMutation.isPending}
-                >
-                  {generateMutation.isPending ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-5 w-5" />
-                  )}
-                </Button>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  Опис для AI генерації
+                  <Sparkles className="h-3 w-3 text-yellow-500" />
+                </Label>
+                <div className="flex gap-2">
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) => updateField("description", e.target.value)}
+                    placeholder="Опишіть сегмент детально для AI генерації всіх полів..."
+                    className="flex-1 min-h-[80px] resize-none"
+                    rows={3}
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-[80px] w-12 flex-shrink-0"
+                    onClick={() => generateMutation.mutate()}
+                    disabled={!formData.description.trim() || generateMutation.isPending}
+                  >
+                    {generateMutation.isPending ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-5 w-5" />
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto pr-2">
             <TabsContent value="standard" className="mt-0">
               {renderStandardFields()}
             </TabsContent>
