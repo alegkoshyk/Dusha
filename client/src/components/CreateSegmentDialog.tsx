@@ -776,7 +776,7 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
             <TabsTrigger value="pro" className="text-xs sm:text-sm">Про (повний)</TabsTrigger>
           </TabsList>
 
-          <div className="flex-1 min-h-0 overflow-y-auto pr-2 pt-3 sm:pt-4">
+          <div className="flex-1 min-h-0 overflow-y-auto px-1 pt-3 sm:pt-4 pb-4">
             <div className="space-y-3 sm:space-y-4 mb-4">
               <div className="space-y-2">
                 <Label>Назва сегменту *</Label>
