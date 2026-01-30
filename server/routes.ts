@@ -1461,6 +1461,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =========================================
+  // Audience Type Categories CRUD
+  // =========================================
+
+  // Create a new category
+  app.post("/api/audience-type-categories", requireAuth, async (req, res) => {
+    try {
+      const { name, nameEn, color, sortOrder } = req.body;
+      if (!name) {
+        return res.status(400).json({ error: "Назва обов'язкова" });
+      }
+
+      const maxSort = await db.select({ max: audienceTypeCategoriesTable.sortOrder })
+        .from(audienceTypeCategoriesTable);
+      const newSortOrder = sortOrder ?? (maxSort[0]?.max ?? 0) + 1;
+
+      const [category] = await db.insert(audienceTypeCategoriesTable).values({
+        name,
+        nameEn: nameEn || name,
+        color: color || '#6b7280',
+        sortOrder: newSortOrder,
+      }).returning();
+
+      res.json(category);
+    } catch (error) {
+      console.error("Create audience type category error:", error);
+      res.status(500).json({ error: "Помилка створення категорії" });
+    }
+  });
+
+  // Update a category
+  app.patch("/api/audience-type-categories/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, nameEn, color, sortOrder } = req.body;
+
+      const [updated] = await db.update(audienceTypeCategoriesTable)
+        .set({ 
+          ...(name && { name }),
+          ...(nameEn && { nameEn }),
+          ...(color && { color }),
+          ...(sortOrder !== undefined && { sortOrder }),
+        })
+        .where(eq(audienceTypeCategoriesTable.id, id))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ error: "Категорію не знайдено" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Update audience type category error:", error);
+      res.status(500).json({ error: "Помилка оновлення категорії" });
+    }
+  });
+
+  // Delete a category
+  app.delete("/api/audience-type-categories/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // First delete all types in this category
+      await db.delete(audienceTypesTable).where(eq(audienceTypesTable.categoryId, id));
+      
+      await db.delete(audienceTypeCategoriesTable).where(eq(audienceTypeCategoriesTable.id, id));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete audience type category error:", error);
+      res.status(500).json({ error: "Помилка видалення категорії" });
+    }
+  });
+
+  // =========================================
+  // Audience Types CRUD
+  // =========================================
+
+  // Create a new type
+  app.post("/api/audience-types", requireAuth, async (req, res) => {
+    try {
+      const { categoryId, name, nameEn, color, sortOrder } = req.body;
+      if (!categoryId || !name) {
+        return res.status(400).json({ error: "categoryId та name обов'язкові" });
+      }
+
+      const maxSort = await db.select({ max: audienceTypesTable.sortOrder })
+        .from(audienceTypesTable)
+        .where(eq(audienceTypesTable.categoryId, categoryId));
+      const newSortOrder = sortOrder ?? (maxSort[0]?.max ?? 0) + 1;
+
+      const [type] = await db.insert(audienceTypesTable).values({
+        categoryId,
+        name,
+        nameEn: nameEn || name,
+        color: color || '#6b7280',
+        sortOrder: newSortOrder,
+      }).returning();
+
+      res.json(type);
+    } catch (error) {
+      console.error("Create audience type error:", error);
+      res.status(500).json({ error: "Помилка створення типу" });
+    }
+  });
+
+  // Update a type
+  app.patch("/api/audience-types/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, nameEn, color, categoryId, sortOrder } = req.body;
+
+      const [updated] = await db.update(audienceTypesTable)
+        .set({ 
+          ...(name && { name }),
+          ...(nameEn && { nameEn }),
+          ...(color && { color }),
+          ...(categoryId && { categoryId }),
+          ...(sortOrder !== undefined && { sortOrder }),
+        })
+        .where(eq(audienceTypesTable.id, id))
+        .returning();
+
+      if (!updated) {
+        return res.status(404).json({ error: "Тип не знайдено" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Update audience type error:", error);
+      res.status(500).json({ error: "Помилка оновлення типу" });
+    }
+  });
+
+  // Delete a type
+  app.delete("/api/audience-types/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      // First delete all assignments
+      await db.delete(personaAudienceTypesTable).where(eq(personaAudienceTypesTable.audienceTypeId, id));
+      
+      await db.delete(audienceTypesTable).where(eq(audienceTypesTable.id, id));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete audience type error:", error);
+      res.status(500).json({ error: "Помилка видалення типу" });
+    }
+  });
+
   // Generate AI persona for target audience
   app.post("/api/brands/:brandId/generate-persona", requireAuth, async (req, res) => {
     try {

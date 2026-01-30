@@ -94,6 +94,16 @@ export default function TargetAudiencePage() {
   const [selectedSubSegmentIds, setSelectedSubSegmentIds] = useState<Set<string>>(new Set());
   const [selectedAudienceTypeIds, setSelectedAudienceTypeIds] = useState<Set<string>>(new Set());
   const [typeSearchQuery, setTypeSearchQuery] = useState("");
+  
+  // Type management state
+  const [isTypeManageOpen, setIsTypeManageOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<AudienceTypeCategory | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("#6b7280");
+  const [editingType, setEditingType] = useState<{ type: AudienceType; categoryId: string } | null>(null);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [newTypeColor, setNewTypeColor] = useState("#6b7280");
+  const [addingTypeToCategoryId, setAddingTypeToCategoryId] = useState<string | null>(null);
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -266,6 +276,105 @@ export default function TargetAudiencePage() {
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося оновити персону", variant: "destructive" });
+    },
+  });
+
+  // Category CRUD mutations
+  const createCategoryMutation = useMutation({
+    mutationFn: async (data: { name: string; color: string }) => {
+      const response = await apiRequest("POST", "/api/audience-type-categories", data);
+      if (!response.ok) throw new Error("Failed to create category");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Категорію створено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      setNewCategoryName("");
+      setNewCategoryColor("#6b7280");
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося створити категорію", variant: "destructive" });
+    },
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name?: string; color?: string } }) => {
+      const response = await apiRequest("PATCH", `/api/audience-type-categories/${id}`, data);
+      if (!response.ok) throw new Error("Failed to update category");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Категорію оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      setEditingCategory(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося оновити категорію", variant: "destructive" });
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/audience-type-categories/${id}`);
+      if (!response.ok) throw new Error("Failed to delete category");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Категорію видалено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити категорію", variant: "destructive" });
+    },
+  });
+
+  // Type CRUD mutations
+  const createTypeMutation = useMutation({
+    mutationFn: async (data: { categoryId: string; name: string; color: string }) => {
+      const response = await apiRequest("POST", "/api/audience-types", data);
+      if (!response.ok) throw new Error("Failed to create type");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Тип створено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      setNewTypeName("");
+      setNewTypeColor("#6b7280");
+      setAddingTypeToCategoryId(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося створити тип", variant: "destructive" });
+    },
+  });
+
+  const updateTypeMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name?: string; color?: string } }) => {
+      const response = await apiRequest("PATCH", `/api/audience-types/${id}`, data);
+      if (!response.ok) throw new Error("Failed to update type");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Тип оновлено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      setEditingType(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося оновити тип", variant: "destructive" });
+    },
+  });
+
+  const deleteTypeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/audience-types/${id}`);
+      if (!response.ok) throw new Error("Failed to delete type");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Тип видалено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити тип", variant: "destructive" });
     },
   });
 
@@ -604,7 +713,7 @@ export default function TargetAudiencePage() {
               
               <div className="space-y-6 py-4">
                 <div className="space-y-2">
-                  <Label>Тип аудиторії</Label>
+                  <Label>Категорія</Label>
                   <Select value={audienceType} onValueChange={(v) => setAudienceType(v as "primary" | "secondary" | "niche")}>
                     <SelectTrigger>
                       <SelectValue />
@@ -739,10 +848,21 @@ export default function TargetAudiencePage() {
 
                 {/* Audience Types Selection */}
                 <div className="space-y-3">
-                  <Label className="flex items-center gap-2">
-                    <Hash className="h-4 w-4 text-purple-500" />
-                    Типи аудиторії (опціонально)
-                  </Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <Hash className="h-4 w-4 text-purple-500" />
+                      Типи аудиторії (опціонально)
+                    </Label>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setIsTypeManageOpen(true)}
+                    >
+                      <Settings className="h-3.5 w-3.5 mr-1" />
+                      Налаштувати
+                    </Button>
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Оберіть теги для класифікації персони
                   </p>
@@ -1514,6 +1634,223 @@ export default function TargetAudiencePage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Type Management Dialog */}
+        <Dialog open={isTypeManageOpen} onOpenChange={setIsTypeManageOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Налаштування типів аудиторії</DialogTitle>
+              <DialogDescription>
+                Додавайте та редагуйте категорії та типи для класифікації персон
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+              {/* Add new category */}
+              <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+                <Label className="font-medium">Нова категорія</Label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Назва категорії..."
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="color"
+                    value={newCategoryColor}
+                    onChange={(e) => setNewCategoryColor(e.target.value)}
+                    className="w-14 h-9 p-1 cursor-pointer"
+                  />
+                  <Button 
+                    size="sm"
+                    onClick={() => createCategoryMutation.mutate({ name: newCategoryName, color: newCategoryColor })}
+                    disabled={!newCategoryName.trim() || createCategoryMutation.isPending}
+                  >
+                    {createCategoryMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Existing categories */}
+              <div className="space-y-4">
+                {audienceTypeCategories.map((category) => (
+                  <div key={category.id} className="border rounded-lg overflow-hidden">
+                    {/* Category header */}
+                    <div className="p-3 bg-muted/50 flex items-center justify-between">
+                      {editingCategory?.id === category.id ? (
+                        <div className="flex gap-2 flex-1">
+                          <Input
+                            value={editingCategory.name}
+                            onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                            className="flex-1 h-8"
+                          />
+                          <Input
+                            type="color"
+                            value={editingCategory.color}
+                            onChange={(e) => setEditingCategory({ ...editingCategory, color: e.target.value })}
+                            className="w-10 h-8 p-0.5 cursor-pointer"
+                          />
+                          <Button 
+                            size="sm" 
+                            className="h-8"
+                            onClick={() => updateCategoryMutation.mutate({ id: category.id, data: { name: editingCategory.name, color: editingCategory.color } })}
+                            disabled={updateCategoryMutation.isPending}
+                          >
+                            Зберегти
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditingCategory(null)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }} />
+                            <span className="font-medium">{category.name}</span>
+                            <Badge variant="outline" className="text-xs">{category.types.length} типів</Badge>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-7"
+                              onClick={() => setEditingCategory(category)}
+                            >
+                              <Settings className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              className="h-7 text-destructive"
+                              onClick={() => {
+                                if (confirm(`Видалити категорію "${category.name}" та всі її типи?`)) {
+                                  deleteCategoryMutation.mutate(category.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Types list */}
+                    <div className="p-3 space-y-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        {category.types.map((type) => (
+                          editingType?.type.id === type.id ? (
+                            <div key={type.id} className="flex gap-1 items-center p-1 border rounded-lg bg-background">
+                              <Input
+                                value={editingType.type.name}
+                                onChange={(e) => setEditingType({ ...editingType, type: { ...editingType.type, name: e.target.value } })}
+                                className="h-6 text-xs w-24"
+                              />
+                              <Input
+                                type="color"
+                                value={editingType.type.color}
+                                onChange={(e) => setEditingType({ ...editingType, type: { ...editingType.type, color: e.target.value } })}
+                                className="w-6 h-6 p-0 cursor-pointer"
+                              />
+                              <Button 
+                                size="sm" 
+                                className="h-6 px-2 text-xs"
+                                onClick={() => updateTypeMutation.mutate({ id: type.id, data: { name: editingType.type.name, color: editingType.type.color } })}
+                              >
+                                OK
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-6 px-1" onClick={() => setEditingType(null)}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              key={type.id}
+                              className="group inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium hover:ring-2 ring-offset-1 transition-all"
+                              style={{ backgroundColor: `${type.color}20`, color: type.color }}
+                              onClick={() => setEditingType({ type, categoryId: category.id })}
+                            >
+                              <Hash className="h-3 w-3 mr-0.5" />
+                              {type.name}
+                              <X 
+                                className="h-3 w-3 ml-1 opacity-0 group-hover:opacity-100 text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm(`Видалити тип "${type.name}"?`)) {
+                                    deleteTypeMutation.mutate(type.id);
+                                  }
+                                }}
+                              />
+                            </button>
+                          )
+                        ))}
+                      </div>
+
+                      {/* Add type form */}
+                      {addingTypeToCategoryId === category.id ? (
+                        <div className="flex gap-1.5 items-center mt-2">
+                          <Input
+                            placeholder="Новий тип..."
+                            value={newTypeName}
+                            onChange={(e) => setNewTypeName(e.target.value)}
+                            className="h-7 text-xs flex-1"
+                            autoFocus
+                          />
+                          <Input
+                            type="color"
+                            value={newTypeColor}
+                            onChange={(e) => setNewTypeColor(e.target.value)}
+                            className="w-7 h-7 p-0 cursor-pointer"
+                          />
+                          <Button 
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => createTypeMutation.mutate({ categoryId: category.id, name: newTypeName, color: newTypeColor })}
+                            disabled={!newTypeName.trim() || createTypeMutation.isPending}
+                          >
+                            Додати
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="h-7 px-1"
+                            onClick={() => {
+                              setAddingTypeToCategoryId(null);
+                              setNewTypeName("");
+                              setNewTypeColor(category.color);
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 px-2 text-xs mt-1"
+                          onClick={() => {
+                            setAddingTypeToCategoryId(category.id);
+                            setNewTypeColor(category.color);
+                          }}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Додати тип
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsTypeManageOpen(false)}>
+                Закрити
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
@@ -1892,7 +2229,7 @@ function AudienceEditForm({
           />
         </div>
         <div className="space-y-2">
-          <Label>Тип аудиторії</Label>
+          <Label>Категорія</Label>
           <Select
             value={audience.isPrimary ? "primary" : "secondary"}
             onValueChange={(v) => onChange({ ...audience, isPrimary: v === "primary" })}
