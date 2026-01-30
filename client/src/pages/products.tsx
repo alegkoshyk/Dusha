@@ -51,7 +51,7 @@ export default function ProductsPage() {
   const { toast } = useToast();
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
-    queryKey: ["/api/brands", brandId],
+    queryKey: ["/api/user/brands", brandId],
     enabled: !!brandId,
   });
 
