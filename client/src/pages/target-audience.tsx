@@ -1333,7 +1333,6 @@ export default function TargetAudiencePage() {
                           checked={isAssignedToSegment} 
                           className="flex-shrink-0"
                           disabled={isAssignmentMutating}
-                          onClick={(e) => e.stopPropagation()}
                         />
                         <FolderOpen className="h-4 w-4 flex-shrink-0" style={{ color: segment.color || '#f59e0b' }} />
                         <span className="font-medium text-sm truncate">{segment.name}</span>
@@ -1362,7 +1361,6 @@ export default function TargetAudiencePage() {
                                   checked={isAssignedToSub}
                                   className="flex-shrink-0"
                                   disabled={isAssignmentMutating}
-                                  onClick={(e) => e.stopPropagation()}
                                 />
                                 <Layers className="h-3.5 w-3.5 flex-shrink-0" style={{ color: subSegment.color || '#60a5fa' }} />
                                 <span className="text-sm truncate">{subSegment.name}</span>
