@@ -293,36 +293,47 @@ export function CreateSegmentDialog({ open, onOpenChange, brandId, segment }: Cr
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/brands/${brandId}/demographic-segments`, preparePayload());
-      if (!response.ok) throw new Error("Failed to create segment");
+      const payload = preparePayload();
+      const response = await apiRequest("POST", `/api/brands/${brandId}/demographic-segments`, payload);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to create segment");
+      }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // Force refetch segments before closing dialog
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", brandId, "demographic-segments"] });
       toast({ title: "Успішно", description: "Сегмент створено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", brandId, "demographic-segments"] });
       onOpenChange(false);
       setFormData(initialFormData);
     },
-    onError: () => {
-      toast({ title: "Помилка", description: "Не вдалося створити сегмент", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: "Помилка", description: error.message || "Не вдалося створити сегмент", variant: "destructive" });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!segment) throw new Error("No segment to update");
-      const response = await apiRequest("PATCH", `/api/demographic-segments/${segment.id}`, preparePayload());
-      if (!response.ok) throw new Error("Failed to update segment");
+      const payload = preparePayload();
+      const response = await apiRequest("PATCH", `/api/demographic-segments/${segment.id}`, payload);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to update segment");
+      }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", brandId, "demographic-segments"] });
       toast({ title: "Успішно", description: "Сегмент оновлено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", brandId, "demographic-segments"] });
       onOpenChange(false);
       setFormData(initialFormData);
     },
-    onError: () => {
-      toast({ title: "Помилка", description: "Не вдалося оновити сегмент", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: "Помилка", description: error.message || "Не вдалося оновити сегмент", variant: "destructive" });
     },
   });
 
