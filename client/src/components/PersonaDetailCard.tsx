@@ -8,14 +8,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { 
   User, Heart, Target, AlertTriangle, Sparkles, Upload, 
   FolderOpen, Pencil, X, Loader2, Brain, ShoppingCart, 
-  TrendingUp, Zap, ImagePlus, Settings
+  TrendingUp, Zap, ImagePlus, Settings, Plus, Trash2
 } from "lucide-react";
-import type { TargetAudience } from "@shared/schema";
+import type { TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
 
 interface SegmentAssignment {
   segmentName: string;
@@ -25,17 +26,23 @@ interface SegmentAssignment {
   color?: string;
 }
 
+interface SegmentWithSubs extends DemographicSegment {
+  subSegments: DemographicSubSegment[];
+}
+
 interface PersonaDetailCardProps {
   persona: TargetAudience;
   assignments?: SegmentAssignment[];
+  segments?: SegmentWithSubs[];
   onClose: () => void;
   onRefresh: () => void;
   onEdit?: (persona: TargetAudience) => void;
 }
 
-export function PersonaDetailCard({ persona, assignments = [], onClose, onRefresh, onEdit }: PersonaDetailCardProps) {
+export function PersonaDetailCard({ persona, assignments = [], segments = [], onClose, onRefresh, onEdit }: PersonaDetailCardProps) {
   const { toast } = useToast();
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<TargetAudience>>({});
   const [selectedScenario, setSelectedScenario] = useState("using_product");
@@ -146,6 +153,48 @@ export function PersonaDetailCard({ persona, assignments = [], onClose, onRefres
     },
   });
 
+  const assignToSegmentMutation = useMutation({
+    mutationFn: async ({ segmentId, subSegmentId }: { segmentId: string; subSegmentId?: string }) => {
+      const response = await apiRequest("POST", `/api/demographic-segments/${segmentId}/personas`, { 
+        personaId: persona.id,
+        subSegmentId 
+      });
+      if (!response.ok) throw new Error("Failed to assign");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Персону призначено до сегменту" });
+      onRefresh();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося призначити персону", variant: "destructive" });
+    },
+  });
+
+  const unassignFromSegmentMutation = useMutation({
+    mutationFn: async ({ segmentId, subSegmentId }: { segmentId: string; subSegmentId?: string }) => {
+      const response = await apiRequest("DELETE", `/api/demographic-segments/${segmentId}/personas/${persona.id}`, { 
+        subSegmentId 
+      });
+      if (!response.ok) throw new Error("Failed to unassign");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Персону видалено з сегменту" });
+      onRefresh();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити персону з сегменту", variant: "destructive" });
+    },
+  });
+
+  const isAssignedTo = (segmentId: string, subSegmentId?: string) => {
+    return assignments.some(a => 
+      a.segmentId === segmentId && 
+      (subSegmentId ? a.subSegmentId === subSegmentId : !a.subSegmentId)
+    );
+  };
+
   const handleAvatarUpload = () => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -200,19 +249,38 @@ export function PersonaDetailCard({ persona, assignments = [], onClose, onRefres
             </DialogTitle>
           </DialogHeader>
 
-          {assignments.length > 0 && (
-            <div className="mb-2">
-              <Label className="text-xs text-muted-foreground">Призначено до:</Label>
+          <div className="mb-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Призначено до сегментів:</Label>
+              {segments.length > 0 && (
+                <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setShowAssignDialog(true)}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Призначити
+                </Button>
+              )}
+            </div>
+            {assignments.length > 0 ? (
               <div className="flex flex-wrap gap-1 mt-1">
                 {assignments.map((a, idx) => (
-                  <Badge key={idx} variant="outline" className="text-xs" style={{ borderColor: a.color, color: a.color }}>
+                  <Badge key={idx} variant="outline" className="text-xs group" style={{ borderColor: a.color, color: a.color }}>
                     <FolderOpen className="h-3 w-3 mr-1" />
                     {a.subSegmentName ? `${a.segmentName} → ${a.subSegmentName}` : a.segmentName}
+                    <button
+                      className="ml-1 opacity-50 hover:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        unassignFromSegmentMutation.mutate({ segmentId: a.segmentId, subSegmentId: a.subSegmentId });
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
                   </Badge>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-xs text-muted-foreground mt-1">Не призначено до жодного сегменту</p>
+            )}
+          </div>
 
           <div className="flex items-start gap-4">
             <div className="relative group shrink-0">
@@ -648,6 +716,74 @@ export function PersonaDetailCard({ persona, assignments = [], onClose, onRefres
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Segment Assignment Dialog */}
+      <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5" />
+              Призначити до сегменту
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {segments.map((seg) => (
+              <div key={seg.id} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={isAssignedTo(seg.id)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        assignToSegmentMutation.mutate({ segmentId: seg.id });
+                      } else {
+                        unassignFromSegmentMutation.mutate({ segmentId: seg.id });
+                      }
+                    }}
+                  />
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: seg.color || '#f59e0b' }}
+                  />
+                  <span className="font-medium text-sm">{seg.name}</span>
+                </div>
+                {seg.subSegments && seg.subSegments.length > 0 && (
+                  <div className="ml-6 space-y-1">
+                    {seg.subSegments.map((sub) => (
+                      <div key={sub.id} className="flex items-center gap-2">
+                        <Checkbox
+                          checked={isAssignedTo(seg.id, sub.id)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              assignToSegmentMutation.mutate({ segmentId: seg.id, subSegmentId: sub.id });
+                            } else {
+                              unassignFromSegmentMutation.mutate({ segmentId: seg.id, subSegmentId: sub.id });
+                            }
+                          }}
+                        />
+                        <div 
+                          className="w-2 h-2 rounded-full" 
+                          style={{ backgroundColor: sub.color || '#60a5fa' }}
+                        />
+                        <span className="text-sm text-muted-foreground">{sub.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            {segments.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Немає доступних сегментів. Створіть сегменти для призначення персон.
+              </p>
+            )}
+          </div>
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setShowAssignDialog(false)}>
+              Закрити
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

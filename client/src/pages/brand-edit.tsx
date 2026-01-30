@@ -97,6 +97,7 @@ export default function BrandEditPage() {
   const [editingSubSegment, setEditingSubSegment] = useState<DemographicSubSegment | null>(null);
   const [movingSubSegment, setMovingSubSegment] = useState<{ id: string; currentSegmentId: string } | null>(null);
   const [editingPersona, setEditingPersona] = useState<TargetAudience | null>(null);
+  const [activeTab, setActiveTab] = useState("basic");
 
   const { data: brand, isLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -593,7 +594,7 @@ export default function BrandEditPage() {
           </Button>
         </div>
 
-        <Tabs defaultValue="basic" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
             <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-5 gap-1">
               <TabsTrigger value="basic" className="text-xs sm:text-sm whitespace-nowrap px-3 sm:px-4">
@@ -1403,8 +1404,12 @@ export default function BrandEditPage() {
               <PersonaDetailCard
                 persona={selectedAudience}
                 assignments={getPersonaAssignments(selectedAudience.id)}
+                segments={segments}
                 onClose={() => setSelectedAudience(null)}
-                onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] })}
+                onRefresh={() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+                  queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+                }}
               />
             )}
 

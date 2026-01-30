@@ -978,8 +978,12 @@ export default function TargetAudiencePage() {
           <PersonaDetailCard
             persona={selectedAudience}
             assignments={getPersonaAssignments(selectedAudience.id)}
+            segments={segments}
             onClose={() => { setSelectedAudience(null); setIsEditMode(false); setEditingAudience(null); }}
-            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] })}
+            onRefresh={() => {
+              queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+            }}
           />
         )}
 
