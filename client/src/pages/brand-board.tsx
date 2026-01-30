@@ -307,10 +307,10 @@ export default function BrandBoard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24 md:pb-8 overflow-x-hidden">
       <Header />
       
-      <div className="container mx-auto px-4 py-4 md:py-8">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 md:py-8">
         {/* Mobile-friendly header */}
         <div className="flex flex-col gap-4 mb-6 md:mb-8">
           {/* Top row: Back button, logo and title */}
