@@ -1038,21 +1038,94 @@ export const demographicSegmentsTable = pgTable("demographic_segments", {
   brandId: uuid("brand_id").notNull().references(() => userBrandsTable.id, { onDelete: "cascade" }),
   name: varchar("name", { length: 255 }).notNull(), // Назва сегменту (напр. "Молодь 18-25")
   description: text("description"),
-  // Демографічні характеристики сегменту
+  // Тип сегменту: standard або pro
+  tier: varchar("tier", { length: 20 }).notNull().default("standard"),
+  
+  // ========== STANDARD ПАРАМЕТРИ (8 базових) ==========
+  // 1. Вік (життєвий етап)
   ageRange: varchar("age_range", { length: 50 }),
-  gender: varchar("gender", { length: 50 }),
-  location: text("location"),
+  // 2. Доходи
   income: varchar("income", { length: 100 }),
+  // 3. Потреба / біль
+  needPain: text("need_pain"),
+  // 4. Контекст (криза / спокій / пошук / розвиток)
+  lifeContext: varchar("life_context", { length: 100 }),
+  // 5. Рівень усвідомлення (не усвідомлює / усвідомлює / шукає рішення)
+  awarenessLevel: varchar("awareness_level", { length: 100 }),
+  // 6. Готовність діяти (зараз / пізніше / колись)
+  readinessToAct: varchar("readiness_to_act", { length: 100 }),
+  // 7. Бар'єр (страх, гроші, недовіра, складність)
+  barrier: text("barrier"),
+  // 8. Тригер (рекомендація, приклад, проста дія)
+  trigger: text("trigger"),
+  
+  // ========== PRO ПАРАМЕТРИ (7 категорій) ==========
+  // 1. Демографічні параметри (ХТО)
+  gender: varchar("gender", { length: 50 }),
   education: varchar("education", { length: 100 }),
+  familyStatus: varchar("family_status", { length: 100 }),
   occupation: text("occupation"),
-  // Контекстні налаштування сегменту
-  contextDescription: text("context_description"), // Детальний контекст та призначення сегменту
-  marketingStrategy: text("marketing_strategy"), // Маркетингова стратегія для сегменту
-  targetBehavior: text("target_behavior"), // Типова поведінка та звички
-  communicationTone: varchar("communication_tone", { length: 100 }), // Тон комунікації (формальний, дружній, тощо)
-  keyMessages: json("key_messages").default(sql`'[]'`), // Ключові повідомлення для сегменту
+  // B2B параметри
+  companySize: varchar("company_size", { length: 100 }),
+  industry: varchar("industry", { length: 255 }),
+  companyRevenue: varchar("company_revenue", { length: 100 }),
+  employeeCount: varchar("employee_count", { length: 100 }),
+  
+  // 2. Географічні параметри (ДЕ)
+  location: text("location"),
+  citySize: varchar("city_size", { length: 100 }),
+  climate: varchar("climate", { length: 100 }),
+  urbanization: varchar("urbanization", { length: 100 }), // місто / село
+  localContext: text("local_context"), // культура, війна, міграція, економіка
+  
+  // 3. Психографічні параметри (ХТО ВІН ВСЕРЕДИНІ)
+  values: text("values"),
+  beliefs: text("beliefs"),
+  lifestyle: text("lifestyle"),
+  interests: text("interests"),
+  fears: text("fears"),
+  triggers: text("triggers_psycho"), // Психографічні тригери
+  desires: text("desires"),
+  selfIdentification: text("self_identification"), // "я хто?"
+  
+  // 4. Поведінкові параметри (ЯК ВІН ДІЄ)
+  purchaseFrequency: varchar("purchase_frequency", { length: 100 }),
+  usageScenarios: text("usage_scenarios"),
+  loyaltyLevel: varchar("loyalty_level", { length: 100 }),
+  willingnessToPay: varchar("willingness_to_pay", { length: 100 }),
+  priceSensitivity: varchar("price_sensitivity", { length: 100 }),
+  interactionChannels: text("interaction_channels"),
+  purchaseTriggers: text("purchase_triggers"),
+  purchaseBarriers: text("purchase_barriers"),
+  
+  // 5. Параметри потреб і задач (ЧОМУ) - Jobs To Be Done
+  taskToSolve: text("task_to_solve"),
+  painToRelieve: text("pain_to_relieve"),
+  desiredResult: text("desired_result"),
+  currentAlternatives: text("current_alternatives"),
+  
+  // 6. Соціально-культурні параметри
+  socialRole: text("social_role"),
+  communities: text("communities"),
+  socialStatus: varchar("social_status", { length: 100 }),
+  influenceLevel: varchar("influence_level", { length: 100 }), // лідер / послідовник
+  languageSymbolsCodes: text("language_symbols_codes"),
+  
+  // 7. Контекстні параметри (КОЛИ І ЗА ЯКИХ УМОВ)
+  currentState: varchar("current_state", { length: 100 }), // стрес / спокій / криза / зростання
+  lifeStage: varchar("life_stage", { length: 100 }),
+  decisionSituation: text("decision_situation"),
+  timeSeasonEvent: text("time_season_event"),
+  
+  // Збережені старі поля для сумісності
+  contextDescription: text("context_description"),
+  marketingStrategy: text("marketing_strategy"),
+  targetBehavior: text("target_behavior"),
+  communicationTone: varchar("communication_tone", { length: 100 }),
+  keyMessages: json("key_messages").default(sql`'[]'`),
+  
   // Метадані
-  color: varchar("color", { length: 20 }), // Колір для візуалізації
+  color: varchar("color", { length: 20 }),
   priority: integer("priority").notNull().default(0),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
