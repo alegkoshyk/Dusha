@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { UserBrand, TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
 import { PersonaDetailCard } from "@/components/PersonaDetailCard";
+import { CreateSegmentDialog } from "@/components/CreateSegmentDialog";
 
 interface AudienceType {
   id: string;
@@ -1014,43 +1015,20 @@ export default function TargetAudiencePage() {
                     <Layers className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 flex-shrink-0" />
                     <CardTitle className="text-base sm:text-lg truncate">Сегменти аудиторії</CardTitle>
                   </div>
-                  <Dialog open={isSegmentDialogOpen} onOpenChange={setIsSegmentDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex-shrink-0 text-xs sm:text-sm">
-                        <Plus className="h-4 w-4 sm:mr-1" />
-                        <span className="hidden sm:inline">Сегмент</span>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Створити сегмент</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label>Назва сегменту</Label>
-                          <Input
-                            value={newSegmentName}
-                            onChange={(e) => setNewSegmentName(e.target.value)}
-                            placeholder="напр. Молодь 18-25"
-                          />
-                        </div>
-                        <div className="flex justify-end gap-2">
-                          <Button variant="outline" onClick={() => setIsSegmentDialogOpen(false)}>
-                            Скасувати
-                          </Button>
-                          <Button
-                            onClick={() => createSegmentMutation.mutate(newSegmentName)}
-                            disabled={!newSegmentName.trim() || createSegmentMutation.isPending}
-                          >
-                            {createSegmentMutation.isPending ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : null}
-                            Створити
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-shrink-0 text-xs sm:text-sm"
+                    onClick={() => setIsSegmentDialogOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Сегмент</span>
+                  </Button>
+                  <CreateSegmentDialog
+                    open={isSegmentDialogOpen}
+                    onOpenChange={setIsSegmentDialogOpen}
+                    brandId={params.brandId!}
+                  />
                 </div>
               </CardHeader>
               <CardContent className="px-3 sm:px-6 overflow-x-hidden">
