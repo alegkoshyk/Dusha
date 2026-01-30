@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,14 +10,42 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   User, Heart, Target, AlertTriangle, Sparkles, Upload, 
   FolderOpen, Pencil, X, Loader2, Brain, ShoppingCart, 
   TrendingUp, Zap, ImagePlus, Settings, Plus, Trash2,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Hash, Search
 } from "lucide-react";
 import type { TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
+
+interface AudienceType {
+  id: string;
+  categoryId: string;
+  name: string;
+  nameEn: string | null;
+  color: string;
+  sortOrder: number;
+}
+
+interface AudienceTypeCategory {
+  id: string;
+  name: string;
+  nameEn: string | null;
+  color: string;
+  sortOrder: number;
+  types: AudienceType[];
+}
+
+interface PersonaAudienceType {
+  id: string;
+  audienceTypeId: string;
+  typeName: string;
+  typeColor: string;
+  categoryId: string;
+  categoryName: string;
+  categoryColor: string;
+}
 
 interface SegmentAssignment {
   segmentName: string;
@@ -52,6 +80,18 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
   const [localInteractionImages, setLocalInteractionImages] = useState<string[]>(
     (persona.brandInteractionImages || []) as string[]
   );
+  const [showTypesDialog, setShowTypesDialog] = useState(false);
+  const [typeSearchQuery, setTypeSearchQuery] = useState("");
+
+  // Fetch all audience type categories with types
+  const { data: audienceTypeCategories = [] } = useQuery<AudienceTypeCategory[]>({
+    queryKey: ['/api/audience-types'],
+  });
+
+  // Fetch persona's assigned audience types
+  const { data: personaAudienceTypes = [] } = useQuery<PersonaAudienceType[]>({
+    queryKey: [`/api/target-audiences/${persona.id}/audience-types`],
+  });
 
   useEffect(() => {
     setLocalInteractionImages((persona.brandInteractionImages || []) as string[]);
@@ -198,12 +238,60 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
     },
   });
 
+  const addAudienceTypeMutation = useMutation({
+    mutationFn: async (audienceTypeId: string) => {
+      const response = await apiRequest("POST", `/api/target-audiences/${persona.id}/audience-types`, { audienceTypeId });
+      if (!response.ok) throw new Error("Failed to add type");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Тип аудиторії додано" });
+      queryClient.invalidateQueries({ queryKey: [`/api/target-audiences/${persona.id}/audience-types`] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося додати тип аудиторії", variant: "destructive" });
+    },
+  });
+
+  const removeAudienceTypeMutation = useMutation({
+    mutationFn: async (assignmentId: string) => {
+      const response = await apiRequest("DELETE", `/api/target-audiences/${persona.id}/audience-types/${assignmentId}`);
+      if (!response.ok) throw new Error("Failed to remove type");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Тип аудиторії видалено" });
+      queryClient.invalidateQueries({ queryKey: [`/api/target-audiences/${persona.id}/audience-types`] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити тип аудиторії", variant: "destructive" });
+    },
+  });
+
   const isAssignedTo = (segmentId: string, subSegmentId?: string) => {
     return assignments.some(a => 
       a.segmentId === segmentId && 
       (subSegmentId ? a.subSegmentId === subSegmentId : !a.subSegmentId)
     );
   };
+
+  const isTypeAssigned = (typeId: string) => {
+    return personaAudienceTypes.some(pat => pat.audienceTypeId === typeId);
+  };
+
+  const getTypeAssignmentId = (typeId: string) => {
+    return personaAudienceTypes.find(pat => pat.audienceTypeId === typeId)?.id;
+  };
+
+  const filteredCategories = typeSearchQuery.trim()
+    ? audienceTypeCategories.map(cat => ({
+        ...cat,
+        types: cat.types.filter(t => 
+          t.name.toLowerCase().includes(typeSearchQuery.toLowerCase()) ||
+          (t.nameEn && t.nameEn.toLowerCase().includes(typeSearchQuery.toLowerCase()))
+        )
+      })).filter(cat => cat.types.length > 0)
+    : audienceTypeCategories;
 
   const handleAvatarUpload = () => {
     const input = document.createElement('input');
@@ -318,6 +406,47 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
               </div>
             ) : (
               <p className="text-xs text-muted-foreground mt-1">Не призначено до жодного сегменту</p>
+            )}
+          </div>
+
+          {/* Audience Types Section */}
+          <div className="mb-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Типи аудиторії:</Label>
+              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setShowTypesDialog(true)}>
+                <Hash className="h-3 w-3 mr-1" />
+                Додати тип
+              </Button>
+            </div>
+            {personaAudienceTypes.length > 0 ? (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {personaAudienceTypes.map((pat) => (
+                  <Badge 
+                    key={pat.id} 
+                    variant="outline" 
+                    className="text-xs group cursor-pointer hover:opacity-80"
+                    style={{ 
+                      borderColor: pat.typeColor, 
+                      backgroundColor: `${pat.typeColor}15`,
+                      color: pat.typeColor 
+                    }}
+                  >
+                    <Hash className="h-3 w-3 mr-0.5" />
+                    {pat.typeName}
+                    <button
+                      className="ml-1 opacity-50 hover:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeAudienceTypeMutation.mutate(pat.id);
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-1">Типи аудиторії не призначено</p>
             )}
           </div>
 
@@ -833,6 +962,98 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
           </div>
           <div className="flex justify-end">
             <Button variant="outline" onClick={() => setShowAssignDialog(false)}>
+              Закрити
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Audience Types Selection Dialog */}
+      <Dialog open={showTypesDialog} onOpenChange={(open) => {
+        setShowTypesDialog(open);
+        if (!open) setTypeSearchQuery("");
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Hash className="h-5 w-5" />
+              Типи аудиторії
+            </DialogTitle>
+          </DialogHeader>
+          
+          {/* Search input */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Пошук типів..."
+              value={typeSearchQuery}
+              onChange={(e) => setTypeSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <div className="space-y-4 max-h-[50vh] overflow-y-auto">
+            {filteredCategories.map((category) => (
+              <div key={category.id}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div 
+                    className="w-2 h-2 rounded-full" 
+                    style={{ backgroundColor: category.color }}
+                  />
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {category.name}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {category.types.map((type) => {
+                    const assigned = isTypeAssigned(type.id);
+                    return (
+                      <button
+                        key={type.id}
+                        onClick={() => {
+                          if (assigned) {
+                            const assignmentId = getTypeAssignmentId(type.id);
+                            if (assignmentId) {
+                              removeAudienceTypeMutation.mutate(assignmentId);
+                            }
+                          } else {
+                            addAudienceTypeMutation.mutate(type.id);
+                          }
+                        }}
+                        disabled={addAudienceTypeMutation.isPending || removeAudienceTypeMutation.isPending}
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-all hover:scale-105 ${
+                          assigned 
+                            ? 'ring-2 ring-offset-1' 
+                            : 'opacity-70 hover:opacity-100'
+                        }`}
+                        style={{ 
+                          backgroundColor: `${type.color}20`,
+                          color: type.color,
+                          borderColor: type.color,
+                          ...(assigned ? { ringColor: type.color } : {})
+                        }}
+                      >
+                        <Hash className="h-3 w-3 mr-0.5" />
+                        {type.name}
+                        {assigned && <X className="h-3 w-3 ml-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {filteredCategories.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                {typeSearchQuery ? "Нічого не знайдено" : "Немає доступних типів аудиторії"}
+              </p>
+            )}
+          </div>
+          
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => {
+              setShowTypesDialog(false);
+              setTypeSearchQuery("");
+            }}>
               Закрити
             </Button>
           </div>
