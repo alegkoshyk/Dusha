@@ -1447,4 +1447,79 @@ export const insertPersonaCategorySchema = createInsertSchema(personaCategoriesT
 export type PersonaCategory = typeof personaCategoriesTable.$inferSelect;
 export type InsertPersonaCategory = z.infer<typeof insertPersonaCategorySchema>;
 
+// =========================================
+// Продукти бренду
+// =========================================
+export const brandProductsTable = pgTable("brand_products", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  brandId: uuid("brand_id").notNull().references(() => userBrandsTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 300 }).notNull(),
+  shortDescription: text("short_description"),
+  fullDescription: text("full_description"),
+  category: varchar("category", { length: 100 }),
+  subcategory: varchar("subcategory", { length: 100 }),
+  price: varchar("price", { length: 50 }),
+  currency: varchar("currency", { length: 10 }).default("UAH"),
+  priceType: varchar("price_type", { length: 50 }).default("fixed"),
+  sku: varchar("sku", { length: 100 }),
+  status: varchar("status", { length: 30 }).notNull().default("draft"),
+  images: json("images").default(sql`'[]'`),
+  mainImageUrl: text("main_image_url"),
+  features: json("features").default(sql`'[]'`),
+  specifications: json("specifications").default(sql`'{}'`),
+  benefits: json("benefits").default(sql`'[]'`),
+  targetAudience: text("target_audience"),
+  useCases: json("use_cases").default(sql`'[]'`),
+  keywords: json("keywords").default(sql`'[]'`),
+  relatedProductIds: json("related_product_ids").default(sql`'[]'`),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isHighlighted: boolean("is_highlighted").notNull().default(false),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  brandIdx: index("brand_products_brand_idx").on(table.brandId),
+  statusIdx: index("brand_products_status_idx").on(table.status),
+  categoryIdx: index("brand_products_category_idx").on(table.category),
+}));
+
+export const brandProductsRelations = relations(brandProductsTable, ({ one }) => ({
+  brand: one(userBrandsTable, {
+    fields: [brandProductsTable.brandId],
+    references: [userBrandsTable.id],
+  }),
+}));
+
+export const insertBrandProductSchema = createInsertSchema(brandProductsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type BrandProduct = typeof brandProductsTable.$inferSelect;
+export type InsertBrandProduct = z.infer<typeof insertBrandProductSchema>;
+
+// =========================================
+// Категорії продуктів (опціонально для організації)
+// =========================================
+export const productCategoriesTable = pgTable("product_categories", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  brandId: uuid("brand_id").notNull().references(() => userBrandsTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  color: varchar("color", { length: 20 }),
+  icon: varchar("icon", { length: 50 }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  brandIdx: index("product_categories_brand_idx").on(table.brandId),
+}));
+
+export const insertProductCategorySchema = createInsertSchema(productCategoriesTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ProductCategory = typeof productCategoriesTable.$inferSelect;
+export type InsertProductCategory = z.infer<typeof insertProductCategorySchema>;
+
 export * from "./models/chat";
