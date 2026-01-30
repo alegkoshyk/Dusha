@@ -72,6 +72,8 @@ export default function TargetAudiencePage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [customPrompt, setCustomPrompt] = useState("");
   const [assigningPersona, setAssigningPersona] = useState<TargetAudience | null>(null);
+  const [selectedSegmentIds, setSelectedSegmentIds] = useState<Set<string>>(new Set());
+  const [selectedSubSegmentIds, setSelectedSubSegmentIds] = useState<Set<string>>(new Set());
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -135,10 +137,19 @@ export default function TargetAudiencePage() {
   };
 
   const generatePersonaMutation = useMutation({
-    mutationFn: async ({ type, customPrompt }: { type: "primary" | "secondary" | "niche"; customPrompt?: string }) => {
+    mutationFn: async ({ type, customPrompt, personaName, segmentIds, subSegmentIds }: { 
+      type: "primary" | "secondary" | "niche"; 
+      customPrompt?: string;
+      personaName?: string;
+      segmentIds?: string[];
+      subSegmentIds?: string[];
+    }) => {
       const response = await apiRequest("POST", `/api/brands/${params.brandId}/generate-persona`, { 
         audienceType: type,
-        customPrompt 
+        customPrompt,
+        personaName: personaName?.trim() || undefined,
+        segmentIds,
+        subSegmentIds
       });
       if (!response.ok) throw new Error("Failed to generate persona");
       return response.json() as Promise<GeneratedPersona>;
@@ -153,7 +164,7 @@ export default function TargetAudiencePage() {
   });
 
   const createAudienceMutation = useMutation({
-    mutationFn: async (data: Partial<TargetAudience>) => {
+    mutationFn: async (data: Partial<TargetAudience> & { segmentIds?: string[]; subSegmentIds?: string[] }) => {
       const response = await apiRequest("POST", `/api/brands/${params.brandId}/target-audiences`, data);
       if (!response.ok) throw new Error("Failed to create audience");
       return response.json();
@@ -164,6 +175,9 @@ export default function TargetAudiencePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setIsCreateOpen(false);
       setNewAudienceName("");
+      setSelectedSegmentIds(new Set());
+      setSelectedSubSegmentIds(new Set());
+      setCustomPrompt("");
       generatePersonaMutation.reset();
     },
     onError: () => {
@@ -436,7 +450,13 @@ export default function TargetAudiencePage() {
   };
 
   const handleGeneratePersona = () => {
-    generatePersonaMutation.mutate({ type: audienceType, customPrompt: customPrompt.trim() || undefined });
+    generatePersonaMutation.mutate({ 
+      type: audienceType, 
+      customPrompt: customPrompt.trim() || undefined,
+      personaName: newAudienceName.trim() || undefined,
+      segmentIds: selectedSegmentIds.size > 0 ? Array.from(selectedSegmentIds) : undefined,
+      subSegmentIds: selectedSubSegmentIds.size > 0 ? Array.from(selectedSubSegmentIds) : undefined
+    });
   };
 
   const handleCreateFromPersona = () => {
@@ -445,7 +465,7 @@ export default function TargetAudiencePage() {
 
     createAudienceMutation.mutate({
       brandId: params.brandId!,
-      name: persona.name,
+      name: newAudienceName.trim() || persona.name,
       description: `${persona.occupation}, ${persona.age} років`,
       isPrimary: audienceType === "primary",
       ageRange: `${persona.age - 5}-${persona.age + 5}`,
@@ -464,6 +484,8 @@ export default function TargetAudiencePage() {
       mediaConsumption: persona.mediaConsumption,
       decisionFactors: persona.decisionFactors,
       aiPortrait: `${persona.lifestyle}\n\n${persona.dayInLife}\n\n${persona.brandRelationship}`,
+      segmentIds: selectedSegmentIds.size > 0 ? Array.from(selectedSegmentIds) : undefined,
+      subSegmentIds: selectedSubSegmentIds.size > 0 ? Array.from(selectedSubSegmentIds) : undefined,
     });
   };
 
@@ -512,7 +534,13 @@ export default function TargetAudiencePage() {
           
           <Dialog open={isCreateOpen} onOpenChange={(open) => {
             setIsCreateOpen(open);
-            if (!open) setCustomPrompt("");
+            if (!open) {
+              setCustomPrompt("");
+              setNewAudienceName("");
+              setSelectedSegmentIds(new Set());
+              setSelectedSubSegmentIds(new Set());
+              generatePersonaMutation.reset();
+            }
           }}>
             <DialogTrigger asChild>
               <Button size="sm" className="flex-shrink-0 text-xs sm:text-sm">
@@ -586,16 +614,81 @@ export default function TargetAudiencePage() {
                   <PersonaPreview persona={generatePersonaMutation.data} />
                 )}
 
-                <Separator />
-
                 <div className="space-y-2">
                   <Label>Ім'я персони</Label>
                   <Input 
                     value={newAudienceName}
                     onChange={(e) => setNewAudienceName(e.target.value)}
-                    placeholder="Введіть ім'я або згенеруйте AI"
+                    placeholder="Введіть ім'я або залиште порожнім для AI-генерації"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Якщо залишити порожнім, AI підбере типове ім'я
+                  </p>
                 </div>
+
+                {segments.length > 0 && (
+                  <div className="space-y-3">
+                    <Label className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-blue-500" />
+                      Додати до сегментів (опціонально)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Обрані сегменти будуть враховані при генерації портрету персони
+                    </p>
+                    <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+                      {segments.map((segment) => (
+                        <div key={segment.id} className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id={`seg-${segment.id}`}
+                              checked={selectedSegmentIds.has(segment.id)}
+                              onCheckedChange={(checked) => {
+                                const newSet = new Set(selectedSegmentIds);
+                                if (checked) newSet.add(segment.id);
+                                else newSet.delete(segment.id);
+                                setSelectedSegmentIds(newSet);
+                              }}
+                            />
+                            <label 
+                              htmlFor={`seg-${segment.id}`} 
+                              className="text-sm font-medium cursor-pointer flex items-center gap-2"
+                            >
+                              <FolderOpen className="h-4 w-4" style={{ color: segment.color || '#f59e0b' }} />
+                              {segment.name}
+                            </label>
+                          </div>
+                          {segment.subSegments.length > 0 && (
+                            <div className="ml-6 space-y-1">
+                              {segment.subSegments.map((subSeg) => (
+                                <div key={subSeg.id} className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`subseg-${subSeg.id}`}
+                                    checked={selectedSubSegmentIds.has(subSeg.id)}
+                                    onCheckedChange={(checked) => {
+                                      const newSet = new Set(selectedSubSegmentIds);
+                                      if (checked) newSet.add(subSeg.id);
+                                      else newSet.delete(subSeg.id);
+                                      setSelectedSubSegmentIds(newSet);
+                                    }}
+                                  />
+                                  <label 
+                                    htmlFor={`subseg-${subSeg.id}`} 
+                                    className="text-xs cursor-pointer flex items-center gap-1.5"
+                                  >
+                                    <Layers className="h-3 w-3" style={{ color: subSeg.color || '#60a5fa' }} />
+                                    {subSeg.name}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
 
                 <div className="flex gap-2 justify-end">
                   <Button variant="outline" onClick={() => setIsCreateOpen(false)}>

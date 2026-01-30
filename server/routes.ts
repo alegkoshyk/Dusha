@@ -666,6 +666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { brandId } = req.params;
+      const { segmentIds, subSegmentIds, ...audienceData } = req.body;
       
       const brand = await storage.getUserBrand(brandId);
       if (!brand || brand.userId !== currentUser.id) {
@@ -674,8 +675,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const audience = await storage.createTargetAudience({
         brandId,
-        ...req.body
+        ...audienceData
       });
+
+      // Auto-assign to selected segments (validate brand ownership)
+      if (segmentIds && Array.isArray(segmentIds)) {
+        for (const segmentId of segmentIds) {
+          const segment = await storage.getDemographicSegment(segmentId);
+          // Only assign if segment belongs to this brand
+          if (segment && segment.brandId === brandId) {
+            await db.insert(personaSegmentAssignmentsTable).values({
+              personaId: audience.id,
+              segmentId,
+              subSegmentId: null,
+            }).onConflictDoNothing();
+          }
+        }
+      }
+
+      // Auto-assign to selected sub-segments (validate brand ownership)
+      if (subSegmentIds && Array.isArray(subSegmentIds)) {
+        for (const subSegmentId of subSegmentIds) {
+          const subSegment = await storage.getDemographicSubSegment(subSegmentId);
+          if (subSegment) {
+            // Validate parent segment belongs to this brand
+            const parentSegment = await storage.getDemographicSegment(subSegment.segmentId);
+            if (parentSegment && parentSegment.brandId === brandId) {
+              await db.insert(personaSegmentAssignmentsTable).values({
+                personaId: audience.id,
+                segmentId: subSegment.segmentId,
+                subSegmentId,
+              }).onConflictDoNothing();
+            }
+          }
+        }
+      }
+
       res.status(201).json(audience);
     } catch (error) {
       console.error("Create target audience error:", error);
@@ -1292,7 +1327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { brandId } = req.params;
-      const { audienceType = "primary", customPrompt } = req.body;
+      const { audienceType = "primary", customPrompt, personaName, segmentIds, subSegmentIds } = req.body;
       
       const brand = await storage.getUserBrand(brandId);
       if (!brand || brand.userId !== currentUser.id) {
@@ -1306,8 +1341,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: a.description || undefined
       }));
 
+      // Fetch selected segment data for context (only from this brand)
+      const selectedSegmentsData: { name: string; description?: string; ageRange?: string; gender?: string; location?: string; income?: string; education?: string; occupation?: string; contextDescription?: string; targetBehavior?: string }[] = [];
+      if (segmentIds && Array.isArray(segmentIds)) {
+        for (const segId of segmentIds) {
+          const segment = await storage.getDemographicSegment(segId);
+          // Validate segment belongs to this brand
+          if (segment && segment.brandId === brandId) {
+            selectedSegmentsData.push({
+              name: segment.name,
+              description: segment.description || undefined,
+              ageRange: segment.ageRange || undefined,
+              gender: segment.gender || undefined,
+              location: segment.location || undefined,
+              income: segment.income || undefined,
+              education: segment.education || undefined,
+              occupation: segment.occupation || undefined,
+              contextDescription: segment.contextDescription || undefined,
+              targetBehavior: segment.targetBehavior || undefined,
+            });
+          }
+        }
+      }
+
+      // Fetch selected sub-segment data for context (validate parent segment belongs to brand)
+      const selectedSubSegmentsData: { name: string; description?: string; contextDescription?: string; specificNeeds?: string; differentiators?: string }[] = [];
+      if (subSegmentIds && Array.isArray(subSegmentIds)) {
+        for (const subId of subSegmentIds) {
+          const subSegment = await storage.getDemographicSubSegment(subId);
+          if (subSegment) {
+            // Validate parent segment belongs to this brand
+            const parentSegment = await storage.getDemographicSegment(subSegment.segmentId);
+            if (parentSegment && parentSegment.brandId === brandId) {
+              selectedSubSegmentsData.push({
+                name: subSegment.name,
+                description: subSegment.description || undefined,
+                contextDescription: subSegment.contextDescription || undefined,
+                specificNeeds: subSegment.specificNeeds || undefined,
+                differentiators: subSegment.differentiators || undefined,
+              });
+            }
+          }
+        }
+      }
+
       // Extract full brand data from passport
-      const brandValues = brand.brandValues as string[] | undefined;
+      const brandValues = brand.values as string[] | undefined;
       const brandData = {
         name: brand.name,
         description: brand.description || undefined,
@@ -1319,7 +1398,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tagline: brand.tagline || undefined,
       };
 
-      const persona = await generateAudiencePersona(brandData, audienceType, existingSegments, customPrompt);
+      const persona = await generateAudiencePersona(
+        brandData, 
+        audienceType, 
+        existingSegments, 
+        customPrompt,
+        personaName,
+        selectedSegmentsData,
+        selectedSubSegmentsData
+      );
       res.json(persona);
     } catch (error) {
       console.error("Generate persona error:", error);

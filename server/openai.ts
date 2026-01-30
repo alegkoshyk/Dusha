@@ -734,7 +734,10 @@ export async function generateAudiencePersona(
   },
   audienceType: "primary" | "secondary" | "niche" = "primary",
   existingSegments?: { name: string; description?: string }[],
-  customPrompt?: string
+  customPrompt?: string,
+  personaName?: string,
+  selectedSegments?: { name: string; description?: string; ageRange?: string; gender?: string; location?: string; income?: string; education?: string; occupation?: string; contextDescription?: string; targetBehavior?: string }[],
+  selectedSubSegments?: { name: string; description?: string; contextDescription?: string; specificNeeds?: string; differentiators?: string }[]
 ): Promise<GeneratedPersona> {
   const { client, config } = await getAIClient();
 
@@ -752,6 +755,40 @@ export async function generateAudiencePersona(
     ? `\n\n🎯 ОСОБЛИВІ ВКАЗІВКИ ВІД КОРИСТУВАЧА:\n${customPrompt}\n\nВраховуй ці вказівки як пріоритетний напрямок для створення персони!`
     : "";
 
+  // Build segment context if selected
+  let segmentContext = "";
+  if (selectedSegments?.length) {
+    segmentContext += "\n\n📊 ОБРАНІ СЕГМЕНТИ (персона має відповідати цим характеристикам):\n";
+    selectedSegments.forEach((seg, i) => {
+      segmentContext += `\n${i + 1}. ${seg.name}`;
+      if (seg.description) segmentContext += `\n   Опис: ${seg.description}`;
+      if (seg.ageRange) segmentContext += `\n   Вік: ${seg.ageRange}`;
+      if (seg.gender) segmentContext += `\n   Стать: ${seg.gender}`;
+      if (seg.location) segmentContext += `\n   Локація: ${seg.location}`;
+      if (seg.income) segmentContext += `\n   Дохід: ${seg.income}`;
+      if (seg.education) segmentContext += `\n   Освіта: ${seg.education}`;
+      if (seg.occupation) segmentContext += `\n   Професія: ${seg.occupation}`;
+      if (seg.contextDescription) segmentContext += `\n   Контекст: ${seg.contextDescription}`;
+      if (seg.targetBehavior) segmentContext += `\n   Поведінка: ${seg.targetBehavior}`;
+    });
+  }
+
+  if (selectedSubSegments?.length) {
+    segmentContext += "\n\n📂 ОБРАНІ ПІДСЕГМЕНТИ:\n";
+    selectedSubSegments.forEach((sub, i) => {
+      segmentContext += `\n${i + 1}. ${sub.name}`;
+      if (sub.description) segmentContext += `\n   Опис: ${sub.description}`;
+      if (sub.contextDescription) segmentContext += `\n   Контекст: ${sub.contextDescription}`;
+      if (sub.specificNeeds) segmentContext += `\n   Потреби: ${sub.specificNeeds}`;
+      if (sub.differentiators) segmentContext += `\n   Відмінності: ${sub.differentiators}`;
+    });
+  }
+
+  // Handle provided name
+  const nameInstruction = personaName?.trim()
+    ? `\n\n⚠️ ВАЖЛИВО: Ім'я персони ПОВИННО бути "${personaName}" - не змінюй його!`
+    : "";
+
   const prompt = `Ти - експерт з маркетингу та сегментації аудиторії. Створи детальний портрет представника ${audienceTypeDesc} цільової аудиторії для бренду.
 
 📌 Бренд: ${brandData.name}
@@ -762,11 +799,11 @@ ${brandData.mission ? `🚀 Місія: ${brandData.mission}` : ""}
 ${brandData.vision ? `🔮 Візія: ${brandData.vision}` : ""}
 ${brandData.targetAudience ? `👥 Загальний опис ЦА: ${brandData.targetAudience}` : ""}
 ${brandData.uniqueValue ? `⭐ Унікальна цінність: ${brandData.uniqueValue}` : ""}
-${segmentsContext}${customDirection}
+${segmentsContext}${segmentContext}${customDirection}${nameInstruction}
 
 Створи JSON з детальним портретом персони:
 {
-  "name": "типове українське ім'я",
+  "name": "${personaName?.trim() || "типове українське ім'я"}",
   "age": число (реалістичний вік),
   "gender": "чоловік" або "жінка",
   "occupation": "професія/посада",
