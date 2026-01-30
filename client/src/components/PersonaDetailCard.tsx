@@ -94,6 +94,19 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
     queryKey: [`/api/target-audiences/${persona.id}/audience-types`],
   });
 
+  // Fetch persona categories (Primary/Secondary/Niche)
+  interface PersonaCategory {
+    id: string;
+    name: string;
+    nameEn: string | null;
+    color: string | null;
+    sortOrder: number;
+  }
+  
+  const { data: personaCategories = [] } = useQuery<PersonaCategory[]>({
+    queryKey: ['/api/persona-categories'],
+  });
+
   useEffect(() => {
     setLocalInteractionImages((persona.brandInteractionImages || []) as string[]);
   }, [persona.brandInteractionImages]);
@@ -526,14 +539,24 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
                   <Label>Тип</Label>
                   <Select
                     value={editData.isPrimary ? "primary" : "secondary"}
-                    onValueChange={(v) => setEditData({ ...editData, isPrimary: v === "primary" })}
+                    onValueChange={(v) => setEditData({ ...editData, isPrimary: v === "primary" || v.toLowerCase() === "основна" })}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="primary">Основна</SelectItem>
-                      <SelectItem value="secondary">Вторинна</SelectItem>
+                      {personaCategories.length > 0 ? (
+                        personaCategories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.name.toLowerCase()}>
+                            {cat.name}{cat.nameEn ? ` (${cat.nameEn})` : ''}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="primary">Основна</SelectItem>
+                          <SelectItem value="secondary">Вторинна</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
