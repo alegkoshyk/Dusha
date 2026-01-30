@@ -21,7 +21,7 @@ import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, isNull, inArray } from "drizzle-orm";
-import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable } from "@shared/schema";
+import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable } from "@shared/schema";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona } from "./openai";
 
 // Admin middleware
@@ -1315,6 +1315,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Assign persona to segment error:", error);
       res.status(500).json({ error: "Помилка призначення персони до сегменту" });
+    }
+  });
+
+  // =========================================
+  // Audience Types API (Global reference data)
+  // =========================================
+
+  // Get all audience type categories with their types
+  app.get("/api/audience-types", async (req, res) => {
+    try {
+      const categories = await db.select().from(audienceTypeCategoriesTable).orderBy(audienceTypeCategoriesTable.sortOrder);
+      const types = await db.select().from(audienceTypesTable).orderBy(audienceTypesTable.sortOrder);
+      
+      const categoriesWithTypes = categories.map(category => ({
+        ...category,
+        types: types.filter(t => t.categoryId === category.id)
+      }));
+      
+      res.json(categoriesWithTypes);
+    } catch (error) {
+      console.error("Get audience types error:", error);
+      res.status(500).json({ error: "Помилка отримання типів аудиторії" });
+    }
+  });
+
+  // Get persona's audience types
+  app.get("/api/target-audiences/:id/audience-types", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Персону не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const assignments = await db.select({
+        id: personaAudienceTypesTable.id,
+        audienceTypeId: personaAudienceTypesTable.audienceTypeId,
+        typeName: audienceTypesTable.name,
+        typeColor: audienceTypesTable.color,
+        categoryId: audienceTypesTable.categoryId,
+        categoryName: audienceTypeCategoriesTable.name,
+        categoryColor: audienceTypeCategoriesTable.color,
+      })
+        .from(personaAudienceTypesTable)
+        .leftJoin(audienceTypesTable, eq(personaAudienceTypesTable.audienceTypeId, audienceTypesTable.id))
+        .leftJoin(audienceTypeCategoriesTable, eq(audienceTypesTable.categoryId, audienceTypeCategoriesTable.id))
+        .where(eq(personaAudienceTypesTable.personaId, id));
+
+      res.json(assignments);
+    } catch (error) {
+      console.error("Get persona audience types error:", error);
+      res.status(500).json({ error: "Помилка отримання типів аудиторії персони" });
+    }
+  });
+
+  // Add audience type to persona
+  app.post("/api/target-audiences/:id/audience-types", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const { audienceTypeId } = req.body;
+
+      if (!audienceTypeId) {
+        return res.status(400).json({ error: "audienceTypeId обов'язковий" });
+      }
+
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Персону не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Check if already assigned
+      const existing = await db.select().from(personaAudienceTypesTable)
+        .where(and(
+          eq(personaAudienceTypesTable.personaId, id),
+          eq(personaAudienceTypesTable.audienceTypeId, audienceTypeId)
+        ));
+
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Тип вже призначено" });
+      }
+
+      const [assignment] = await db.insert(personaAudienceTypesTable).values({
+        personaId: id,
+        audienceTypeId,
+      }).returning();
+
+      res.json(assignment);
+    } catch (error) {
+      console.error("Add persona audience type error:", error);
+      res.status(500).json({ error: "Помилка додавання типу аудиторії" });
+    }
+  });
+
+  // Remove audience type from persona
+  app.delete("/api/target-audiences/:id/audience-types/:assignmentId", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id, assignmentId } = req.params;
+
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Персону не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await db.delete(personaAudienceTypesTable)
+        .where(and(
+          eq(personaAudienceTypesTable.id, assignmentId),
+          eq(personaAudienceTypesTable.personaId, id)
+        ));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Remove persona audience type error:", error);
+      res.status(500).json({ error: "Помилка видалення типу аудиторії" });
     }
   });
 
