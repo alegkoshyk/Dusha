@@ -1371,6 +1371,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Upload custom avatar image for target audience
+  app.post("/api/target-audiences/:id/upload-avatar", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const { base64Data } = req.body;
+      
+      if (!base64Data || typeof base64Data !== 'string') {
+        return res.status(400).json({ error: "Зображення не надано" });
+      }
+
+      // Get audience and verify ownership
+      const audience = await storage.getTargetAudience(id);
+      if (!audience) {
+        return res.status(404).json({ error: "Аудиторію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(audience.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Upload to object storage
+      const { ObjectStorageService } = await import("./objectStorage");
+      const objectStorage = new ObjectStorageService();
+      const uploadResult = await objectStorage.uploadMediaAsset({
+        userId: currentUser.id,
+        assetType: 'avatar',
+        brandId: brand.id,
+        base64Data,
+      });
+
+      // Update audience with avatar URL
+      const updated = await storage.updateTargetAudience(id, {
+        aiPortraitImageUrl: uploadResult.publicUrl
+      });
+
+      res.json({ 
+        success: true, 
+        aiPortraitImageUrl: uploadResult.publicUrl,
+        audience: updated 
+      });
+    } catch (error) {
+      console.error("Upload avatar error:", error);
+      res.status(500).json({ error: "Помилка завантаження аватара" });
+    }
+  });
+
   // Generate brand interaction image for target audience
   app.post("/api/target-audiences/:id/generate-interaction", requireAuth, async (req, res) => {
     try {

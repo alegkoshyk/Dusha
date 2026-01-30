@@ -343,17 +343,17 @@ export default function BrandEditPage() {
 
   // Helper to get all assignments for a persona from segments data
   const getPersonaAssignments = (personaId: string) => {
-    const assignments: { segmentName: string; subSegmentName?: string; segmentId: string; subSegmentId?: string }[] = [];
+    const assignments: { segmentName: string; subSegmentName?: string; segmentId: string; subSegmentId?: string; color?: string }[] = [];
     segments.forEach(seg => {
       seg.personas.forEach(p => {
         if (p?.id === personaId) {
-          assignments.push({ segmentName: seg.name, segmentId: seg.id });
+          assignments.push({ segmentName: seg.name, segmentId: seg.id, color: seg.color || '#f59e0b' });
         }
       });
       seg.subSegments.forEach(sub => {
         sub.personas.forEach(p => {
           if (p?.id === personaId) {
-            assignments.push({ segmentName: seg.name, subSegmentName: sub.name, segmentId: seg.id, subSegmentId: sub.id });
+            assignments.push({ segmentName: seg.name, subSegmentName: sub.name, segmentId: seg.id, subSegmentId: sub.id, color: sub.color || '#60a5fa' });
           }
         });
       });
@@ -1371,7 +1371,7 @@ export default function BrandEditPage() {
                                 {assignments.length > 0 && (
                                   <div className="flex flex-wrap gap-1 mt-1.5">
                                     {assignments.map((a, idx) => (
-                                      <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0 h-5" style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>
+                                      <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0 h-5" style={{ borderColor: a.color, color: a.color }}>
                                         <FolderOpen className="h-2.5 w-2.5 mr-0.5" />
                                         {a.subSegmentName ? `${a.segmentName} → ${a.subSegmentName}` : a.segmentName}
                                       </Badge>
@@ -1419,7 +1419,8 @@ export default function BrandEditPage() {
                       <Label className="text-xs text-muted-foreground">Призначено до:</Label>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {getPersonaAssignments(selectedAudience.id).map((assignment, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs">
+                          <Badge key={idx} variant="outline" className="text-xs" style={{ borderColor: assignment.color, color: assignment.color }}>
+                            <FolderOpen className="h-3 w-3 mr-1" />
                             {assignment.subSegmentName ? `${assignment.segmentName} → ${assignment.subSegmentName}` : assignment.segmentName}
                           </Badge>
                         ))}
@@ -1837,7 +1838,8 @@ export default function BrandEditPage() {
                       <div className="flex flex-wrap gap-1">
                         {getPersonaAssignments(editingPersona.id).length > 0 ? (
                           getPersonaAssignments(editingPersona.id).map((assignment, idx) => (
-                            <Badge key={idx} variant="secondary">
+                            <Badge key={idx} variant="outline" style={{ borderColor: assignment.color, color: assignment.color }}>
+                              <FolderOpen className="h-3 w-3 mr-1" />
                               {assignment.subSegmentName ? `${assignment.segmentName} → ${assignment.subSegmentName}` : assignment.segmentName}
                             </Badge>
                           ))
@@ -2117,6 +2119,53 @@ function AudienceDetailsCard({ audience, onRefresh }: { audience: TargetAudience
   useEffect(() => {
     setLocalInteractionImages((audience.brandInteractionImages || []) as string[]);
   }, [audience.brandInteractionImages]);
+
+  const generateAvatarMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/target-audiences/${audience.id}/generate-avatar`);
+      if (!response.ok) throw new Error("Failed to generate avatar");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Аватар згенеровано" });
+      onRefresh?.();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося згенерувати аватар", variant: "destructive" });
+    },
+  });
+
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async (base64Data: string) => {
+      const response = await apiRequest("POST", `/api/target-audiences/${audience.id}/upload-avatar`, { base64Data });
+      if (!response.ok) throw new Error("Failed to upload avatar");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Фото завантажено" });
+      onRefresh?.();
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося завантажити фото", variant: "destructive" });
+    },
+  });
+
+  const handleAvatarUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64Data = reader.result as string;
+        uploadAvatarMutation.mutate(base64Data);
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
 
   const generateInteractionMutation = useMutation({
     mutationFn: async (scenario: string) => {

@@ -18,7 +18,7 @@ import {
   ArrowLeft, Plus, Users, Sparkles, Loader2, Trash2, 
   User, MapPin, Briefcase, GraduationCap, Heart, Target, 
   DollarSign, Quote, Brain, ShoppingBag, FolderOpen, Layers,
-  ChevronDown, ChevronRight, Settings, ArrowRightLeft, Move, X, Image
+  ChevronDown, ChevronRight, Settings, ArrowRightLeft, Move, X, Image, Upload
 } from "lucide-react";
 import type { UserBrand, TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
 
@@ -112,6 +112,26 @@ export default function TargetAudiencePage() {
   });
 
   const getUnassignedPersonas = () => audiences.filter(a => !assignedPersonaIds.has(a.id));
+
+  // Helper to get all assignments for a persona from segments data
+  const getPersonaAssignments = (personaId: string) => {
+    const assignments: { segmentName: string; subSegmentName?: string; segmentId: string; subSegmentId?: string; color?: string }[] = [];
+    segments.forEach(seg => {
+      seg.personas.forEach(p => {
+        if (p?.id === personaId) {
+          assignments.push({ segmentName: seg.name, segmentId: seg.id, color: seg.color || '#f59e0b' });
+        }
+      });
+      seg.subSegments.forEach(sub => {
+        sub.personas.forEach(p => {
+          if (p?.id === personaId) {
+            assignments.push({ segmentName: seg.name, subSegmentName: sub.name, segmentId: seg.id, subSegmentId: sub.id, color: sub.color || '#60a5fa' });
+          }
+        });
+      });
+    });
+    return assignments;
+  };
 
   const generatePersonaMutation = useMutation({
     mutationFn: async ({ type, customPrompt }: { type: "primary" | "secondary" | "niche"; customPrompt?: string }) => {
@@ -380,6 +400,39 @@ export default function TargetAudiencePage() {
       setGeneratingAvatarId(null);
     },
   });
+
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async ({ audienceId, base64Data }: { audienceId: string; base64Data: string }) => {
+      const response = await apiRequest("POST", `/api/target-audiences/${audienceId}/upload-avatar`, { base64Data });
+      if (!response.ok) throw new Error("Failed to upload avatar");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Успішно", description: "Фото завантажено" });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося завантажити фото", variant: "destructive" });
+    },
+  });
+
+  const handleAvatarUpload = (audienceId: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64Data = reader.result as string;
+        uploadAvatarMutation.mutate({ audienceId, base64Data });
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
 
   const handleGeneratePersona = () => {
     generatePersonaMutation.mutate({ type: audienceType, customPrompt: customPrompt.trim() || undefined });
@@ -762,19 +815,19 @@ export default function TargetAudiencePage() {
               </CardContent>
             </Card>
 
-            {/* Unassigned Personas */}
+            {/* All Personas */}
             <Card className="overflow-hidden">
               <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 sm:h-5 sm:w-5 text-purple-500 flex-shrink-0" />
-                  <CardTitle className="text-base sm:text-lg">Персони без сегменту</CardTitle>
-                  {getUnassignedPersonas().length > 0 && (
-                    <Badge variant="secondary" className="text-xs">{getUnassignedPersonas().length}</Badge>
+                  <CardTitle className="text-base sm:text-lg">Персони</CardTitle>
+                  {audiences.length > 0 && (
+                    <Badge variant="secondary" className="text-xs">{audiences.length}</Badge>
                   )}
                 </div>
               </CardHeader>
               <CardContent className="px-3 sm:px-6 overflow-x-hidden">
-                {getUnassignedPersonas().length === 0 && audiences.length === 0 ? (
+                {audiences.length === 0 ? (
                   <div className="p-4 sm:p-6 border border-dashed rounded-lg text-center">
                     <Users className="h-8 w-8 sm:h-10 sm:w-10 mx-auto text-muted-foreground/50 mb-2 sm:mb-3" />
                     <p className="font-medium text-muted-foreground mb-1 text-sm sm:text-base">Ще немає персон</p>
@@ -783,63 +836,84 @@ export default function TargetAudiencePage() {
                       Створити персону
                     </Button>
                   </div>
-                ) : getUnassignedPersonas().length === 0 ? (
-                  <div className="p-3 sm:p-4 text-center text-muted-foreground">
-                    <p className="text-sm">Всі персони розподілені по сегментах</p>
-                  </div>
                 ) : (
                   <div className="space-y-2">
-                    {getUnassignedPersonas().map((audience) => (
-                      <div key={audience.id} className="flex items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                          <PersonaInline 
-                            persona={audience}
-                            onSelect={() => setSelectedAudience(audience)}
-                            onGenerateAvatar={() => generateAvatarMutation.mutate(audience.id)}
-                            isGeneratingAvatar={generatingAvatarId === audience.id}
-                            onDelete={() => deleteAudienceMutation.mutate(audience.id)}
-                            onAssign={() => setAssigningPersona(audience)}
-                          />
-                        </div>
-                        {segments.length > 0 && (
-                          <Select
-                            value=""
-                            onValueChange={(value) => {
-                              if (value.startsWith("seg:")) {
-                                addToSegmentMutation.mutate({ personaId: audience.id, segmentId: value.replace("seg:", ""), subSegmentId: null });
-                              } else if (value.startsWith("sub:")) {
-                                const [, subId, segId] = value.split(":");
-                                addToSegmentMutation.mutate({ personaId: audience.id, segmentId: segId, subSegmentId: subId });
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="w-9 h-8 sm:w-10 sm:h-9 p-0 justify-center flex-shrink-0">
-                              <Move className="h-4 w-4" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {segments.map((seg) => (
-                                <div key={seg.id}>
-                                  <SelectItem value={`seg:${seg.id}`}>
-                                    <div className="flex items-center gap-2">
-                                      <FolderOpen className="h-4 w-4" style={{ color: seg.color || '#f59e0b' }} />
-                                      {seg.name}
-                                    </div>
-                                  </SelectItem>
-                                  {seg.subSegments.map((sub) => (
-                                    <SelectItem key={sub.id} value={`sub:${sub.id}:${seg.id}`}>
-                                      <div className="flex items-center gap-2 ml-4">
-                                        <Layers className="h-4 w-4" style={{ color: sub.color || '#60a5fa' }} />
-                                        {sub.name}
-                                      </div>
-                                    </SelectItem>
+                    {audiences.map((audience) => {
+                      const assignments = getPersonaAssignments(audience.id);
+                      return (
+                        <div 
+                          key={audience.id} 
+                          className="p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => setSelectedAudience(audience)}
+                        >
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            {audience.aiPortraitImageUrl ? (
+                              <img src={audience.aiPortraitImageUrl} alt="" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full object-cover flex-shrink-0" />
+                            ) : (
+                              <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center flex-shrink-0">
+                                <User className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                                <span className="font-medium text-sm truncate max-w-[120px] sm:max-w-none">{audience.name}</span>
+                                {audience.isPrimary ? (
+                                  <Badge variant="default" className="text-[10px] px-1.5 flex-shrink-0">Основна</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[10px] px-1.5 flex-shrink-0">Вторинна</Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {audience.occupation ? `${audience.occupation}` : ''}{audience.ageRange ? `, ${audience.ageRange}` : ''}
+                              </p>
+                              {assignments.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                  {assignments.map((a, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-[10px] px-1.5 py-0 h-5" style={{ borderColor: a.color, color: a.color }}>
+                                      <FolderOpen className="h-2.5 w-2.5 mr-0.5" />
+                                      {a.subSegmentName ? `${a.segmentName} → ${a.subSegmentName}` : a.segmentName}
+                                    </Badge>
                                   ))}
                                 </div>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </div>
-                    ))}
+                              )}
+                            </div>
+                            <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 sm:h-7 sm:w-7 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAssigningPersona(audience);
+                                }}
+                                title="Призначити до сегментів"
+                              >
+                                <Layers className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                              </Button>
+                              {!audience.aiPortraitImageUrl && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 sm:h-7 sm:w-7 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    generateAvatarMutation.mutate(audience.id);
+                                  }}
+                                  disabled={generatingAvatarId === audience.id}
+                                  title="Згенерувати аватар"
+                                >
+                                  {generatingAvatarId === audience.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Image className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                  )}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -923,6 +997,83 @@ export default function TargetAudiencePage() {
                   )}
                 </div>
               </DialogHeader>
+
+              {!isEditMode && (
+                <>
+                  {/* Photo and Quick Info Header */}
+                  <div className="flex items-start gap-4 py-2">
+                    <div className="relative group">
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center overflow-hidden shrink-0">
+                        {selectedAudience.aiPortraitImageUrl ? (
+                          <img 
+                            src={selectedAudience.aiPortraitImageUrl} 
+                            alt={selectedAudience.name} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <User className="h-10 w-10 text-primary" />
+                        )}
+                      </div>
+                      {/* Photo actions overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-white hover:text-white hover:bg-white/20"
+                          onClick={() => generateAvatarMutation.mutate(selectedAudience.id)}
+                          disabled={generatingAvatarId === selectedAudience.id}
+                          title="Згенерувати AI фото"
+                        >
+                          {generatingAvatarId === selectedAudience.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-white hover:text-white hover:bg-white/20"
+                          onClick={() => handleAvatarUpload(selectedAudience.id)}
+                          disabled={uploadAvatarMutation.isPending}
+                          title="Завантажити своє фото"
+                        >
+                          {uploadAvatarMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Upload className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <Badge variant={selectedAudience.isPrimary ? "default" : "secondary"}>
+                        {selectedAudience.isPrimary ? "Основна" : "Вторинна"}
+                      </Badge>
+                      {selectedAudience.occupation && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {selectedAudience.occupation}{selectedAudience.ageRange ? `, ${selectedAudience.ageRange}` : ''}
+                        </p>
+                      )}
+                      {/* Segment assignments */}
+                      {getPersonaAssignments(selectedAudience.id).length > 0 && (
+                        <div className="mt-2">
+                          <span className="text-xs text-muted-foreground">Призначено до:</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {getPersonaAssignments(selectedAudience.id).map((a, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs" style={{ borderColor: a.color, color: a.color }}>
+                                <FolderOpen className="h-3 w-3 mr-1" />
+                                {a.subSegmentName ? `${a.segmentName} → ${a.subSegmentName}` : a.segmentName}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <Separator />
+                </>
+              )}
               {isEditMode && editingAudience ? (
                 <AudienceEditForm 
                   audience={editingAudience}
