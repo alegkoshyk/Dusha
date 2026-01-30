@@ -18,10 +18,28 @@ import {
   ArrowLeft, Plus, Users, Sparkles, Loader2, Trash2, 
   User, MapPin, Briefcase, GraduationCap, Heart, Target, 
   DollarSign, Quote, Brain, ShoppingBag, FolderOpen, Layers,
-  ChevronDown, ChevronRight, Settings, ArrowRightLeft, Move, X, Image, Upload
+  ChevronDown, ChevronRight, Settings, ArrowRightLeft, Move, X, Image, Upload, Hash, Search
 } from "lucide-react";
 import type { UserBrand, TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
 import { PersonaDetailCard } from "@/components/PersonaDetailCard";
+
+interface AudienceType {
+  id: string;
+  categoryId: string;
+  name: string;
+  nameEn: string | null;
+  color: string;
+  sortOrder: number;
+}
+
+interface AudienceTypeCategory {
+  id: string;
+  name: string;
+  nameEn: string | null;
+  color: string;
+  sortOrder: number;
+  types: AudienceType[];
+}
 
 interface GeneratedPersona {
   name: string;
@@ -74,6 +92,8 @@ export default function TargetAudiencePage() {
   const [assigningPersona, setAssigningPersona] = useState<TargetAudience | null>(null);
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<Set<string>>(new Set());
   const [selectedSubSegmentIds, setSelectedSubSegmentIds] = useState<Set<string>>(new Set());
+  const [selectedAudienceTypeIds, setSelectedAudienceTypeIds] = useState<Set<string>>(new Set());
+  const [typeSearchQuery, setTypeSearchQuery] = useState("");
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -104,6 +124,20 @@ export default function TargetAudiencePage() {
     },
     enabled: !!params.brandId,
   });
+
+  const { data: audienceTypeCategories = [] } = useQuery<AudienceTypeCategory[]>({
+    queryKey: ['/api/audience-types'],
+  });
+
+  const filteredCategories = typeSearchQuery.trim()
+    ? audienceTypeCategories.map(cat => ({
+        ...cat,
+        types: cat.types.filter(t => 
+          t.name.toLowerCase().includes(typeSearchQuery.toLowerCase()) ||
+          (t.nameEn && t.nameEn.toLowerCase().includes(typeSearchQuery.toLowerCase()))
+        )
+      })).filter(cat => cat.types.length > 0)
+    : audienceTypeCategories;
 
   // Get all persona IDs that are assigned to segments
   const assignedPersonaIds = new Set<string>();
@@ -164,10 +198,22 @@ export default function TargetAudiencePage() {
   });
 
   const createAudienceMutation = useMutation({
-    mutationFn: async (data: Partial<TargetAudience> & { segmentIds?: string[]; subSegmentIds?: string[] }) => {
-      const response = await apiRequest("POST", `/api/brands/${params.brandId}/target-audiences`, data);
+    mutationFn: async (data: Partial<TargetAudience> & { segmentIds?: string[]; subSegmentIds?: string[]; audienceTypeIds?: string[] }) => {
+      const { audienceTypeIds, ...audienceData } = data;
+      const response = await apiRequest("POST", `/api/brands/${params.brandId}/target-audiences`, audienceData);
       if (!response.ok) throw new Error("Failed to create audience");
-      return response.json();
+      const newAudience = await response.json();
+      
+      // Assign audience types if any selected
+      if (audienceTypeIds && audienceTypeIds.length > 0) {
+        await Promise.all(
+          audienceTypeIds.map(typeId =>
+            apiRequest("POST", `/api/target-audiences/${newAudience.id}/audience-types`, { audienceTypeId: typeId })
+          )
+        );
+      }
+      
+      return newAudience;
     },
     onSuccess: () => {
       toast({ title: "Успішно", description: "Цільову аудиторію створено" });
@@ -177,6 +223,8 @@ export default function TargetAudiencePage() {
       setNewAudienceName("");
       setSelectedSegmentIds(new Set());
       setSelectedSubSegmentIds(new Set());
+      setSelectedAudienceTypeIds(new Set());
+      setTypeSearchQuery("");
       setCustomPrompt("");
       generatePersonaMutation.reset();
     },
@@ -486,6 +534,7 @@ export default function TargetAudiencePage() {
       aiPortrait: `${persona.lifestyle}\n\n${persona.dayInLife}\n\n${persona.brandRelationship}`,
       segmentIds: selectedSegmentIds.size > 0 ? Array.from(selectedSegmentIds) : undefined,
       subSegmentIds: selectedSubSegmentIds.size > 0 ? Array.from(selectedSubSegmentIds) : undefined,
+      audienceTypeIds: selectedAudienceTypeIds.size > 0 ? Array.from(selectedAudienceTypeIds) : undefined,
     });
   };
 
@@ -687,6 +736,89 @@ export default function TargetAudiencePage() {
                     </div>
                   </div>
                 )}
+
+                {/* Audience Types Selection */}
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-purple-500" />
+                    Типи аудиторії (опціонально)
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Оберіть теги для класифікації персони
+                  </p>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Пошук типів..."
+                      value={typeSearchQuery}
+                      onChange={(e) => setTypeSearchQuery(e.target.value)}
+                      className="pl-9 h-9"
+                    />
+                  </div>
+                  <div className="space-y-3 max-h-48 overflow-y-auto border rounded-lg p-3">
+                    {filteredCategories.map((category) => (
+                      <div key={category.id}>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <div 
+                            className="w-2 h-2 rounded-full" 
+                            style={{ backgroundColor: category.color }}
+                          />
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {category.name}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {category.types.map((type) => {
+                            const isSelected = selectedAudienceTypeIds.has(type.id);
+                            return (
+                              <button
+                                key={type.id}
+                                type="button"
+                                onClick={() => {
+                                  const newSet = new Set(selectedAudienceTypeIds);
+                                  if (isSelected) newSet.delete(type.id);
+                                  else newSet.add(type.id);
+                                  setSelectedAudienceTypeIds(newSet);
+                                }}
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium transition-all hover:scale-105 ${
+                                  isSelected 
+                                    ? 'ring-2 ring-offset-1' 
+                                    : 'opacity-70 hover:opacity-100'
+                                }`}
+                                style={{ 
+                                  backgroundColor: `${type.color}20`,
+                                  color: type.color,
+                                }}
+                              >
+                                <Hash className="h-3 w-3 mr-0.5" />
+                                {type.name}
+                                {isSelected && <X className="h-3 w-3 ml-1" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {filteredCategories.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        {typeSearchQuery ? "Нічого не знайдено" : "Завантаження..."}
+                      </p>
+                    )}
+                  </div>
+                  {selectedAudienceTypeIds.size > 0 && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>Обрано: {selectedAudienceTypeIds.size}</span>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-5 px-1.5 text-xs"
+                        onClick={() => setSelectedAudienceTypeIds(new Set())}
+                      >
+                        Очистити
+                      </Button>
+                    </div>
+                  )}
+                </div>
 
                 <Separator />
 
