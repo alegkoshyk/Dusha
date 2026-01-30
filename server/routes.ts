@@ -1717,6 +1717,242 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =========================================
+  // Brand Products API
+  // =========================================
+
+  // Get all products for a brand
+  app.get("/api/brands/:brandId/products", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      const products = await storage.getBrandProducts(brandId);
+      res.json(products);
+    } catch (error) {
+      console.error("Get brand products error:", error);
+      res.status(500).json({ error: "Помилка отримання продуктів" });
+    }
+  });
+
+  // Get a single product
+  app.get("/api/products/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const product = await storage.getBrandProduct(id);
+      if (!product) {
+        return res.status(404).json({ error: "Продукт не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(product.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      res.json(product);
+    } catch (error) {
+      console.error("Get product error:", error);
+      res.status(500).json({ error: "Помилка отримання продукту" });
+    }
+  });
+
+  // Create a new product
+  app.post("/api/brands/:brandId/products", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const product = await storage.createBrandProduct({
+        brandId,
+        ...req.body
+      });
+      res.status(201).json(product);
+    } catch (error) {
+      console.error("Create product error:", error);
+      res.status(500).json({ error: "Помилка створення продукту" });
+    }
+  });
+
+  // Update a product
+  app.patch("/api/products/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const product = await storage.getBrandProduct(id);
+      if (!product) {
+        return res.status(404).json({ error: "Продукт не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(product.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const updated = await storage.updateBrandProduct(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update product error:", error);
+      res.status(500).json({ error: "Помилка оновлення продукту" });
+    }
+  });
+
+  // Delete a product
+  app.delete("/api/products/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const product = await storage.getBrandProduct(id);
+      if (!product) {
+        return res.status(404).json({ error: "Продукт не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(product.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await storage.deleteBrandProduct(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete product error:", error);
+      res.status(500).json({ error: "Помилка видалення продукту" });
+    }
+  });
+
+  // =========================================
+  // Product Categories API
+  // =========================================
+
+  // Get product categories for a brand
+  app.get("/api/brands/:brandId/product-categories", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      const categories = await storage.getProductCategories(brandId);
+      res.json(categories);
+    } catch (error) {
+      console.error("Get product categories error:", error);
+      res.status(500).json({ error: "Помилка отримання категорій продуктів" });
+    }
+  });
+
+  // Create product category
+  app.post("/api/brands/:brandId/product-categories", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const category = await storage.createProductCategory({
+        brandId,
+        ...req.body
+      });
+      res.status(201).json(category);
+    } catch (error) {
+      console.error("Create product category error:", error);
+      res.status(500).json({ error: "Помилка створення категорії" });
+    }
+  });
+
+  // Update product category
+  app.patch("/api/product-categories/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const category = await storage.getProductCategory(id);
+      if (!category) {
+        return res.status(404).json({ error: "Категорію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(category.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const updated = await storage.updateProductCategory(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Update product category error:", error);
+      res.status(500).json({ error: "Помилка оновлення категорії" });
+    }
+  });
+
+  // Delete product category
+  app.delete("/api/product-categories/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { id } = req.params;
+      const category = await storage.getProductCategory(id);
+      if (!category) {
+        return res.status(404).json({ error: "Категорію не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(category.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await storage.deleteProductCategory(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete product category error:", error);
+      res.status(500).json({ error: "Помилка видалення категорії" });
+    }
+  });
+
   // Generate AI persona for target audience
   app.post("/api/brands/:brandId/generate-persona", requireAuth, async (req, res) => {
     try {
