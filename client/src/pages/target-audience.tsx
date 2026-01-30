@@ -18,7 +18,7 @@ import {
   ArrowLeft, Plus, Users, Sparkles, Loader2, Trash2, 
   User, MapPin, Briefcase, GraduationCap, Heart, Target, 
   DollarSign, Quote, Brain, ShoppingBag, FolderOpen, Layers,
-  ChevronDown, ChevronRight, Settings, ArrowRightLeft, Move, X, Image, Upload, Hash, Search
+  ChevronDown, ChevronRight, Settings, ArrowRightLeft, Move, X, Image, Upload, Hash, Search, Check, Pencil
 } from "lucide-react";
 import type { UserBrand, TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
 import { PersonaDetailCard } from "@/components/PersonaDetailCard";
@@ -104,6 +104,12 @@ export default function TargetAudiencePage() {
   const [newTypeName, setNewTypeName] = useState("");
   const [newTypeColor, setNewTypeColor] = useState("#6b7280");
   const [addingTypeToCategoryId, setAddingTypeToCategoryId] = useState<string | null>(null);
+  
+  // Base categories (demographic segments) management state
+  const [isBaseCategoriesOpen, setIsBaseCategoriesOpen] = useState(false);
+  const [editingSegmentInManage, setEditingSegmentInManage] = useState<DemographicSegment | null>(null);
+  const [newBaseCategoryName, setNewBaseCategoryName] = useState("");
+  const [newBaseCategoryColor, setNewBaseCategoryColor] = useState("#6b7280");
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -1313,6 +1319,15 @@ export default function TargetAudiencePage() {
                   <FolderOpen className="h-4 w-4 mr-2" />
                   Створити сегмент
                 </Button>
+                <Separator className="my-2" />
+                <Button variant="outline" className="w-full justify-start" onClick={() => setIsTypeManageOpen(true)}>
+                  <Hash className="h-4 w-4 mr-2" />
+                  Налаштування типів аудиторії
+                </Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => setIsBaseCategoriesOpen(true)}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Налаштування базових категорій
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -1847,6 +1862,158 @@ export default function TargetAudiencePage() {
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsTypeManageOpen(false)}>
+                Закрити
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Base Categories (Demographic Segments) Management Dialog */}
+        <Dialog open={isBaseCategoriesOpen} onOpenChange={setIsBaseCategoriesOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Налаштування базових категорій</DialogTitle>
+              <DialogDescription>
+                Додавайте та редагуйте базові категорії сегментації (наприклад: Вік, Стать, Дохід)
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              {/* Add new segment */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Назва нової категорії..."
+                  value={newBaseCategoryName}
+                  onChange={(e) => setNewBaseCategoryName(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  type="color"
+                  value={newBaseCategoryColor}
+                  onChange={(e) => setNewBaseCategoryColor(e.target.value)}
+                  className="w-12 h-10 p-1 cursor-pointer"
+                />
+                <Button 
+                  onClick={async () => {
+                    if (!newBaseCategoryName.trim()) return;
+                    try {
+                      await apiRequest("POST", `/api/brands/${params.brandId}/demographic-segments`, { 
+                        name: newBaseCategoryName.trim(),
+                        color: newBaseCategoryColor,
+                        priority: segments.length
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+                      setNewBaseCategoryName("");
+                      setNewBaseCategoryColor("#6b7280");
+                      toast({ title: "Успішно", description: "Категорію створено" });
+                    } catch (error) {
+                      toast({ title: "Помилка", description: "Не вдалося створити категорію", variant: "destructive" });
+                    }
+                  }}
+                  disabled={!newBaseCategoryName.trim()}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Додати
+                </Button>
+              </div>
+
+              {/* List of segments */}
+              <div className="space-y-2">
+                {segments.map((segment) => (
+                  <div key={segment.id} className="border rounded-lg p-3">
+                    {editingSegmentInManage?.id === segment.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={editingSegmentInManage.name}
+                          onChange={(e) => setEditingSegmentInManage({ ...editingSegmentInManage, name: e.target.value })}
+                          className="flex-1"
+                        />
+                        <Input
+                          type="color"
+                          value={editingSegmentInManage.color || "#6b7280"}
+                          onChange={(e) => setEditingSegmentInManage({ ...editingSegmentInManage, color: e.target.value })}
+                          className="w-12 h-10 p-1 cursor-pointer"
+                        />
+                        <Button 
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              await apiRequest("PATCH", `/api/demographic-segments/${segment.id}`, { 
+                                name: editingSegmentInManage.name,
+                                color: editingSegmentInManage.color
+                              });
+                              queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+                              setEditingSegmentInManage(null);
+                              toast({ title: "Успішно", description: "Категорію оновлено" });
+                            } catch (error) {
+                              toast({ title: "Помилка", description: "Не вдалося оновити категорію", variant: "destructive" });
+                            }
+                          }}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          onClick={() => setEditingSegmentInManage(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-4 h-4 rounded-full" 
+                            style={{ backgroundColor: segment.color || "#6b7280" }}
+                          />
+                          <span className="font-medium">{segment.name}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {segment.subSegments?.length || 0} підкатегорій
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => setEditingSegmentInManage(segment)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={async () => {
+                              if (confirm(`Видалити категорію "${segment.name}" та всі її підкатегорії?`)) {
+                                try {
+                                  await apiRequest("DELETE", `/api/demographic-segments/${segment.id}`);
+                                  queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+                                  toast({ title: "Успішно", description: "Категорію видалено" });
+                                } catch (error) {
+                                  toast({ title: "Помилка", description: "Не вдалося видалити категорію", variant: "destructive" });
+                                }
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                
+                {segments.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">
+                    Немає базових категорій. Додайте першу категорію вище.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsBaseCategoriesOpen(false)}>
                 Закрити
               </Button>
             </DialogFooter>
