@@ -21,7 +21,7 @@ import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, isNull, inArray } from "drizzle-orm";
-import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable } from "@shared/schema";
+import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable } from "@shared/schema";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona } from "./openai";
 
 // Admin middleware
@@ -1609,6 +1609,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Delete audience type error:", error);
       res.status(500).json({ error: "Помилка видалення типу" });
+    }
+  });
+
+  // =========================================
+  // Persona Categories API (Primary/Secondary/Niche)
+  // =========================================
+
+  // Get all persona categories
+  app.get("/api/persona-categories", async (req, res) => {
+    try {
+      const categories = await db.select().from(personaCategoriesTable).orderBy(personaCategoriesTable.sortOrder);
+      res.json(categories);
+    } catch (error) {
+      console.error("Get persona categories error:", error);
+      res.status(500).json({ error: "Помилка отримання категорій персон" });
+    }
+  });
+
+  // Create persona category
+  app.post("/api/persona-categories", requireAuth, async (req, res) => {
+    try {
+      const { name, nameEn, color, sortOrder } = req.body;
+      
+      const [category] = await db.insert(personaCategoriesTable)
+        .values({ name, nameEn, color, sortOrder: sortOrder || 0 })
+        .returning();
+      
+      res.json(category);
+    } catch (error) {
+      console.error("Create persona category error:", error);
+      res.status(500).json({ error: "Помилка створення категорії" });
+    }
+  });
+
+  // Update persona category
+  app.patch("/api/persona-categories/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, nameEn, color, sortOrder } = req.body;
+      
+      const [category] = await db.update(personaCategoriesTable)
+        .set({ name, nameEn, color, sortOrder })
+        .where(eq(personaCategoriesTable.id, id))
+        .returning();
+      
+      res.json(category);
+    } catch (error) {
+      console.error("Update persona category error:", error);
+      res.status(500).json({ error: "Помилка оновлення категорії" });
+    }
+  });
+
+  // Delete persona category
+  app.delete("/api/persona-categories/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.delete(personaCategoriesTable).where(eq(personaCategoriesTable.id, id));
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete persona category error:", error);
+      res.status(500).json({ error: "Помилка видалення категорії" });
     }
   });
 

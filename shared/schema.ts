@@ -1354,4 +1354,24 @@ export const insertPersonaAudienceTypeSchema = createInsertSchema(personaAudienc
 export type PersonaAudienceType = typeof personaAudienceTypesTable.$inferSelect;
 export type InsertPersonaAudienceType = z.infer<typeof insertPersonaAudienceTypeSchema>;
 
+// =========================================
+// Категорії персон (Основна/Вторинна/Нішева)
+// =========================================
+export const personaCategoriesTable = pgTable("persona_categories", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 100 }).notNull(),
+  nameEn: varchar("name_en", { length: 100 }),
+  color: varchar("color", { length: 20 }),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const insertPersonaCategorySchema = createInsertSchema(personaCategoriesTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type PersonaCategory = typeof personaCategoriesTable.$inferSelect;
+export type InsertPersonaCategory = z.infer<typeof insertPersonaCategorySchema>;
+
 export * from "./models/chat";

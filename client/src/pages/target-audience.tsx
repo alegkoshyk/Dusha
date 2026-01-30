@@ -110,6 +110,13 @@ export default function TargetAudiencePage() {
   const [editingSegmentInManage, setEditingSegmentInManage] = useState<DemographicSegment | null>(null);
   const [newBaseCategoryName, setNewBaseCategoryName] = useState("");
   const [newBaseCategoryColor, setNewBaseCategoryColor] = useState("#6b7280");
+  
+  // Persona categories (Primary/Secondary/Niche) management state
+  const [isPersonaCategoriesOpen, setIsPersonaCategoriesOpen] = useState(false);
+  const [editingPersonaCategory, setEditingPersonaCategory] = useState<{ id: string; name: string; nameEn: string | null; color: string | null } | null>(null);
+  const [newPersonaCategoryName, setNewPersonaCategoryName] = useState("");
+  const [newPersonaCategoryNameEn, setNewPersonaCategoryNameEn] = useState("");
+  const [newPersonaCategoryColor, setNewPersonaCategoryColor] = useState("#6b7280");
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -143,6 +150,19 @@ export default function TargetAudiencePage() {
 
   const { data: audienceTypeCategories = [] } = useQuery<AudienceTypeCategory[]>({
     queryKey: ['/api/audience-types'],
+  });
+
+  // Persona categories (Primary/Secondary/Niche)
+  interface PersonaCategory {
+    id: string;
+    name: string;
+    nameEn: string | null;
+    color: string | null;
+    sortOrder: number;
+  }
+  
+  const { data: personaCategories = [] } = useQuery<PersonaCategory[]>({
+    queryKey: ['/api/persona-categories'],
   });
 
   const filteredCategories = typeSearchQuery.trim()
@@ -719,15 +739,31 @@ export default function TargetAudiencePage() {
               
               <div className="space-y-6 py-4">
                 <div className="space-y-2">
-                  <Label>Категорія</Label>
+                  <div className="flex items-center justify-between">
+                    <Label>Категорія</Label>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setIsPersonaCategoriesOpen(true)}>
+                      <Settings className="h-3 w-3 mr-1" />
+                      Налаштувати
+                    </Button>
+                  </div>
                   <Select value={audienceType} onValueChange={(v) => setAudienceType(v as "primary" | "secondary" | "niche")}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="primary">Основна (Primary)</SelectItem>
-                      <SelectItem value="secondary">Вторинна (Secondary)</SelectItem>
-                      <SelectItem value="niche">Нішева (Niche)</SelectItem>
+                      {personaCategories.length > 0 ? (
+                        personaCategories.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.name.toLowerCase()}>
+                            {cat.name}{cat.nameEn ? ` (${cat.nameEn})` : ''}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <>
+                          <SelectItem value="primary">Основна (Primary)</SelectItem>
+                          <SelectItem value="secondary">Вторинна (Secondary)</SelectItem>
+                          <SelectItem value="niche">Нішева (Niche)</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1322,11 +1358,15 @@ export default function TargetAudiencePage() {
                 <Separator className="my-2" />
                 <Button variant="outline" className="w-full justify-start" onClick={() => setIsTypeManageOpen(true)}>
                   <Hash className="h-4 w-4 mr-2" />
-                  Налаштування типів аудиторії
+                  Типи аудиторії
                 </Button>
                 <Button variant="outline" className="w-full justify-start" onClick={() => setIsBaseCategoriesOpen(true)}>
+                  <Layers className="h-4 w-4 mr-2" />
+                  Сегменти
+                </Button>
+                <Button variant="outline" className="w-full justify-start" onClick={() => setIsPersonaCategoriesOpen(true)}>
                   <Settings className="h-4 w-4 mr-2" />
-                  Налаштування базових категорій
+                  Категорії
                 </Button>
               </CardContent>
             </Card>
@@ -2014,6 +2054,183 @@ export default function TargetAudiencePage() {
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsBaseCategoriesOpen(false)}>
+                Закрити
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Persona Categories (Primary/Secondary/Niche) Management Dialog */}
+        <Dialog open={isPersonaCategoriesOpen} onOpenChange={setIsPersonaCategoriesOpen}>
+          <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Налаштування категорій</DialogTitle>
+              <DialogDescription>
+                Додавайте та редагуйте категорії персон (наприклад: Основна, Вторинна, Нішева)
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4 py-4">
+              {/* Add new persona category */}
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Назва українською..."
+                    value={newPersonaCategoryName}
+                    onChange={(e) => setNewPersonaCategoryName(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    placeholder="English name..."
+                    value={newPersonaCategoryNameEn}
+                    onChange={(e) => setNewPersonaCategoryNameEn(e.target.value)}
+                    className="flex-1"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="color"
+                    value={newPersonaCategoryColor}
+                    onChange={(e) => setNewPersonaCategoryColor(e.target.value)}
+                    className="w-12 h-10 p-1 cursor-pointer"
+                  />
+                  <Button 
+                    className="flex-1"
+                    onClick={async () => {
+                      if (!newPersonaCategoryName.trim()) return;
+                      try {
+                        await apiRequest("POST", "/api/persona-categories", { 
+                          name: newPersonaCategoryName.trim(),
+                          nameEn: newPersonaCategoryNameEn.trim() || null,
+                          color: newPersonaCategoryColor,
+                          sortOrder: personaCategories.length
+                        });
+                        queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
+                        setNewPersonaCategoryName("");
+                        setNewPersonaCategoryNameEn("");
+                        setNewPersonaCategoryColor("#6b7280");
+                        toast({ title: "Успішно", description: "Категорію створено" });
+                      } catch (error) {
+                        toast({ title: "Помилка", description: "Не вдалося створити категорію", variant: "destructive" });
+                      }
+                    }}
+                    disabled={!newPersonaCategoryName.trim()}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Додати
+                  </Button>
+                </div>
+              </div>
+
+              {/* List of persona categories */}
+              <div className="space-y-2">
+                {personaCategories.map((cat) => (
+                  <div key={cat.id} className="border rounded-lg p-3">
+                    {editingPersonaCategory?.id === cat.id ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editingPersonaCategory.name}
+                            onChange={(e) => setEditingPersonaCategory({ ...editingPersonaCategory, name: e.target.value })}
+                            placeholder="Назва українською"
+                            className="flex-1"
+                          />
+                          <Input
+                            value={editingPersonaCategory.nameEn || ""}
+                            onChange={(e) => setEditingPersonaCategory({ ...editingPersonaCategory, nameEn: e.target.value })}
+                            placeholder="English name"
+                            className="flex-1"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            value={editingPersonaCategory.color || "#6b7280"}
+                            onChange={(e) => setEditingPersonaCategory({ ...editingPersonaCategory, color: e.target.value })}
+                            className="w-12 h-10 p-1 cursor-pointer"
+                          />
+                          <Button 
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                await apiRequest("PATCH", `/api/persona-categories/${cat.id}`, { 
+                                  name: editingPersonaCategory.name,
+                                  nameEn: editingPersonaCategory.nameEn,
+                                  color: editingPersonaCategory.color
+                                });
+                                queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
+                                setEditingPersonaCategory(null);
+                                toast({ title: "Успішно", description: "Категорію оновлено" });
+                              } catch (error) {
+                                toast({ title: "Помилка", description: "Не вдалося оновити категорію", variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => setEditingPersonaCategory(null)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-4 h-4 rounded-full" 
+                            style={{ backgroundColor: cat.color || "#6b7280" }}
+                          />
+                          <span className="font-medium">{cat.name}</span>
+                          {cat.nameEn && (
+                            <span className="text-muted-foreground text-sm">({cat.nameEn})</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => setEditingPersonaCategory(cat)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive"
+                            onClick={async () => {
+                              if (confirm(`Видалити категорію "${cat.name}"?`)) {
+                                try {
+                                  await apiRequest("DELETE", `/api/persona-categories/${cat.id}`);
+                                  queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
+                                  toast({ title: "Успішно", description: "Категорію видалено" });
+                                } catch (error) {
+                                  toast({ title: "Помилка", description: "Не вдалося видалити категорію", variant: "destructive" });
+                                }
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                
+                {personaCategories.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">
+                    Немає категорій. Додайте першу категорію вище.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsPersonaCategoriesOpen(false)}>
                 Закрити
               </Button>
             </DialogFooter>
