@@ -958,36 +958,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : [];
       console.log("Found", allAssignments.length, "assignments");
       
+      step = "getAllSubSegments";
+      // Fetch all sub-segments in one batch query to avoid N+1 problem
+      const segmentIds = segments.map(s => s.id);
+      const allSubSegments = segmentIds.length > 0
+        ? await db.select().from(demographicSubSegmentsTable)
+            .where(inArray(demographicSubSegmentsTable.segmentId, segmentIds))
+            .orderBy(demographicSubSegmentsTable.priority)
+        : [];
+      console.log("Found", allSubSegments.length, "sub-segments");
+      
       step = "buildSegmentsWithData";
-      // Also get sub-segments and personas for each segment
-      const segmentsWithData = await Promise.all(segments.map(async (segment, idx) => {
-        try {
-          const subSegments = await storage.getDemographicSubSegments(segment.id);
-          const subSegmentsWithPersonas = subSegments.map(subSeg => {
-            // Find personas assigned to this sub-segment
-            const subSegmentAssignments = allAssignments.filter(a => a.subSegmentId === subSeg.id);
-            const subSegmentPersonas = subSegmentAssignments.map(a => 
-              allAudiences.find(p => p.id === a.personaId)
-            ).filter(Boolean);
-            return { ...subSeg, personas: subSegmentPersonas };
-          });
-          
-          // Find personas assigned to this segment (but not to any sub-segment)
-          const segmentAssignments = allAssignments.filter(a => a.segmentId === segment.id && !a.subSegmentId);
-          const segmentPersonas = segmentAssignments.map(a => 
+      // Build segments with data using in-memory filtering (no more N+1 queries)
+      const segmentsWithData = segments.map((segment) => {
+        // Get sub-segments for this segment from pre-fetched data
+        const subSegments = allSubSegments.filter(ss => ss.segmentId === segment.id);
+        const subSegmentsWithPersonas = subSegments.map(subSeg => {
+          // Find personas assigned to this sub-segment
+          const subSegmentAssignments = allAssignments.filter(a => a.subSegmentId === subSeg.id);
+          const subSegmentPersonas = subSegmentAssignments.map(a => 
             allAudiences.find(p => p.id === a.personaId)
           ).filter(Boolean);
-          
-          return { 
-            ...segment, 
-            subSegments: subSegmentsWithPersonas,
-            personas: segmentPersonas 
-          };
-        } catch (segErr: any) {
-          console.error(`Error processing segment ${idx} (${segment.id}):`, segErr?.message);
-          throw new Error(`Segment ${idx} (${segment.id}): ${segErr?.message}`);
-        }
-      }));
+          return { ...subSeg, personas: subSegmentPersonas };
+        });
+        
+        // Find personas assigned to this segment (but not to any sub-segment)
+        const segmentAssignments = allAssignments.filter(a => a.segmentId === segment.id && !a.subSegmentId);
+        const segmentPersonas = segmentAssignments.map(a => 
+          allAudiences.find(p => p.id === a.personaId)
+        ).filter(Boolean);
+        
+        return { 
+          ...segment, 
+          subSegments: subSegmentsWithPersonas,
+          personas: segmentPersonas 
+        };
+      });
 
       console.log("Returning", segmentsWithData.length, "segments with data");
       res.json(segmentsWithData);
