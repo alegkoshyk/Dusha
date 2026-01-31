@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ProductDialog } from "@/components/ProductDialog";
+import { ProductPersonasDialog } from "@/components/ProductPersonasDialog";
 import { 
   ArrowLeft, 
   Plus, 
@@ -20,7 +21,8 @@ import {
   Loader2,
   Image,
   DollarSign,
-  Tag
+  Tag,
+  Users
 } from "lucide-react";
 import type { BrandProduct, UserBrand } from "@shared/schema";
 import {
@@ -48,6 +50,7 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState<BrandProduct | null>(null);
   const [deleteProduct, setDeleteProduct] = useState<BrandProduct | null>(null);
   const [generatingImageFor, setGeneratingImageFor] = useState<string | null>(null);
+  const [personasProduct, setPersonasProduct] = useState<BrandProduct | null>(null);
   const { toast } = useToast();
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
@@ -222,6 +225,10 @@ export default function ProductsPage() {
                         <Pencil className="mr-2 h-4 w-4" />
                         Редагувати
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setPersonasProduct(product)}>
+                        <Users className="mr-2 h-4 w-4" />
+                        Цільова аудиторія
+                      </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => generateImageMutation.mutate(product.id)}
                         disabled={generatingImageFor === product.id}
@@ -300,6 +307,15 @@ export default function ProductsPage() {
         brandId={brandId!}
         product={selectedProduct}
       />
+
+      {personasProduct && (
+        <ProductPersonasDialog
+          open={!!personasProduct}
+          onOpenChange={(open) => !open && setPersonasProduct(null)}
+          brandId={brandId!}
+          product={personasProduct}
+        />
+      )}
 
       <AlertDialog open={!!deleteProduct} onOpenChange={(open) => !open && setDeleteProduct(null)}>
         <AlertDialogContent>
