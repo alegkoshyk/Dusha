@@ -923,6 +923,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get all demographic segments for a brand
   app.get("/api/brands/:brandId/demographic-segments", requireAuth, async (req, res) => {
+    let step = "init";
     try {
       const currentUser = getCurrentUserUnified(req);
       if (!currentUser) {
@@ -932,19 +933,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { brandId } = req.params;
       console.log("Getting segments for brand:", brandId, "user:", currentUser.id);
       
+      step = "getUserBrand";
       const brand = await storage.getUserBrand(brandId);
       if (!brand || brand.userId !== currentUser.id) {
         console.log("Brand not found or user mismatch. Brand:", brand?.id, "Brand userId:", brand?.userId, "Current user:", currentUser.id);
         return res.status(404).json({ error: "Бренд не знайдено" });
       }
 
+      step = "getDemographicSegments";
       console.log("Fetching segments...");
       const segments = await storage.getDemographicSegments(brandId);
       console.log("Found", segments.length, "segments");
       
+      step = "getTargetAudiences";
       const allAudiences = await storage.getTargetAudiences(brandId);
       console.log("Found", allAudiences.length, "audiences");
       
+      step = "getAssignments";
       // Get all assignments for this brand's personas
       const personaIds = allAudiences.map(a => a.id);
       const allAssignments = personaIds.length > 0 
@@ -953,37 +958,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : [];
       console.log("Found", allAssignments.length, "assignments");
       
+      step = "buildSegmentsWithData";
       // Also get sub-segments and personas for each segment
-      const segmentsWithData = await Promise.all(segments.map(async (segment) => {
-        const subSegments = await storage.getDemographicSubSegments(segment.id);
-        const subSegmentsWithPersonas = subSegments.map(subSeg => {
-          // Find personas assigned to this sub-segment
-          const subSegmentAssignments = allAssignments.filter(a => a.subSegmentId === subSeg.id);
-          const subSegmentPersonas = subSegmentAssignments.map(a => 
+      const segmentsWithData = await Promise.all(segments.map(async (segment, idx) => {
+        try {
+          const subSegments = await storage.getDemographicSubSegments(segment.id);
+          const subSegmentsWithPersonas = subSegments.map(subSeg => {
+            // Find personas assigned to this sub-segment
+            const subSegmentAssignments = allAssignments.filter(a => a.subSegmentId === subSeg.id);
+            const subSegmentPersonas = subSegmentAssignments.map(a => 
+              allAudiences.find(p => p.id === a.personaId)
+            ).filter(Boolean);
+            return { ...subSeg, personas: subSegmentPersonas };
+          });
+          
+          // Find personas assigned to this segment (but not to any sub-segment)
+          const segmentAssignments = allAssignments.filter(a => a.segmentId === segment.id && !a.subSegmentId);
+          const segmentPersonas = segmentAssignments.map(a => 
             allAudiences.find(p => p.id === a.personaId)
           ).filter(Boolean);
-          return { ...subSeg, personas: subSegmentPersonas };
-        });
-        
-        // Find personas assigned to this segment (but not to any sub-segment)
-        const segmentAssignments = allAssignments.filter(a => a.segmentId === segment.id && !a.subSegmentId);
-        const segmentPersonas = segmentAssignments.map(a => 
-          allAudiences.find(p => p.id === a.personaId)
-        ).filter(Boolean);
-        
-        return { 
-          ...segment, 
-          subSegments: subSegmentsWithPersonas,
-          personas: segmentPersonas 
-        };
+          
+          return { 
+            ...segment, 
+            subSegments: subSegmentsWithPersonas,
+            personas: segmentPersonas 
+          };
+        } catch (segErr: any) {
+          console.error(`Error processing segment ${idx} (${segment.id}):`, segErr?.message);
+          throw new Error(`Segment ${idx} (${segment.id}): ${segErr?.message}`);
+        }
       }));
 
       console.log("Returning", segmentsWithData.length, "segments with data");
       res.json(segmentsWithData);
     } catch (error: any) {
-      console.error("Get demographic segments error:", error?.message || error);
+      console.error("Get demographic segments error at step:", step, ":", error?.message || error);
       console.error("Stack:", error?.stack);
-      res.status(500).json({ error: "Помилка отримання сегментів", details: error?.message });
+      res.status(500).json({ error: "Помилка отримання сегментів", step, details: error?.message });
     }
   });
 
