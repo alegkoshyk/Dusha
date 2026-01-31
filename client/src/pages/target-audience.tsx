@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -147,7 +147,7 @@ export default function TargetAudiencePage() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Segments fetch error:", errorText);
-        throw new Error("Failed to fetch segments");
+        throw new Error("Failed to fetch segments: " + errorText);
       }
       const data = await response.json();
       console.log("Segments data received:", data.length, "segments");
@@ -158,10 +158,12 @@ export default function TargetAudiencePage() {
     refetchOnMount: true,
   });
   
-  // Log segments error
-  if (segmentsError) {
-    console.error("Segments query error:", segmentsError);
-  }
+  // Log segments error in useEffect
+  useEffect(() => {
+    if (segmentsError) {
+      console.error("Segments query error:", segmentsError);
+    }
+  }, [segmentsError]);
 
   const { data: audienceTypeCategories = [] } = useQuery<AudienceTypeCategory[]>({
     queryKey: ['/api/audience-types'],

@@ -930,13 +930,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { brandId } = req.params;
+      console.log("Getting segments for brand:", brandId, "user:", currentUser.id);
+      
       const brand = await storage.getUserBrand(brandId);
       if (!brand || brand.userId !== currentUser.id) {
+        console.log("Brand not found or user mismatch. Brand:", brand?.id, "Brand userId:", brand?.userId, "Current user:", currentUser.id);
         return res.status(404).json({ error: "Бренд не знайдено" });
       }
 
+      console.log("Fetching segments...");
       const segments = await storage.getDemographicSegments(brandId);
+      console.log("Found", segments.length, "segments");
+      
       const allAudiences = await storage.getTargetAudiences(brandId);
+      console.log("Found", allAudiences.length, "audiences");
       
       // Get all assignments for this brand's personas
       const personaIds = allAudiences.map(a => a.id);
@@ -944,6 +951,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? await db.select().from(personaSegmentAssignmentsTable)
             .where(inArray(personaSegmentAssignmentsTable.personaId, personaIds))
         : [];
+      console.log("Found", allAssignments.length, "assignments");
       
       // Also get sub-segments and personas for each segment
       const segmentsWithData = await Promise.all(segments.map(async (segment) => {
@@ -970,10 +978,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }));
 
+      console.log("Returning", segmentsWithData.length, "segments with data");
       res.json(segmentsWithData);
-    } catch (error) {
-      console.error("Get demographic segments error:", error);
-      res.status(500).json({ error: "Помилка отримання сегментів" });
+    } catch (error: any) {
+      console.error("Get demographic segments error:", error?.message || error);
+      console.error("Stack:", error?.stack);
+      res.status(500).json({ error: "Помилка отримання сегментів", details: error?.message });
     }
   });
 
