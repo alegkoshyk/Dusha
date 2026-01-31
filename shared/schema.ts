@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, serial, text, json, timestamp, integer, boolean, varchar, primaryKey, uuid, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, json, timestamp, integer, boolean, varchar, primaryKey, uuid, index, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -1521,5 +1521,38 @@ export const insertProductCategorySchema = createInsertSchema(productCategoriesT
 
 export type ProductCategory = typeof productCategoriesTable.$inferSelect;
 export type InsertProductCategory = z.infer<typeof insertProductCategorySchema>;
+
+// =========================================
+// Зв'язок продуктів з персонами (аудиторіями)
+// =========================================
+export const productPersonasTable = pgTable("product_personas", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: uuid("product_id").notNull().references(() => brandProductsTable.id, { onDelete: "cascade" }),
+  personaId: uuid("persona_id").notNull().references(() => targetAudiencesTable.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  productIdx: index("product_personas_product_idx").on(table.productId),
+  personaIdx: index("product_personas_persona_idx").on(table.personaId),
+  uniqueProductPersona: unique("product_personas_unique").on(table.productId, table.personaId),
+}));
+
+export const productPersonasRelations = relations(productPersonasTable, ({ one }) => ({
+  product: one(brandProductsTable, {
+    fields: [productPersonasTable.productId],
+    references: [brandProductsTable.id],
+  }),
+  persona: one(targetAudiencesTable, {
+    fields: [productPersonasTable.personaId],
+    references: [targetAudiencesTable.id],
+  }),
+}));
+
+export const insertProductPersonaSchema = createInsertSchema(productPersonasTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ProductPersona = typeof productPersonasTable.$inferSelect;
+export type InsertProductPersona = z.infer<typeof insertProductPersonaSchema>;
 
 export * from "./models/chat";
