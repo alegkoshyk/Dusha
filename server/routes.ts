@@ -21,7 +21,7 @@ import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, isNull, inArray } from "drizzle-orm";
-import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable } from "@shared/schema";
+import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable } from "@shared/schema";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData } from "./openai";
 
 // Admin middleware
@@ -1915,6 +1915,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Delete product error:", error);
       res.status(500).json({ error: "Помилка видалення продукту" });
+    }
+  });
+
+  // =========================================
+  // Product Personas API
+  // =========================================
+
+  // Get all personas for a product
+  app.get("/api/products/:productId/personas", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { productId } = req.params;
+      const product = await storage.getBrandProduct(productId);
+      if (!product) {
+        return res.status(404).json({ error: "Продукт не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(product.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Get product personas with full persona data
+      const productPersonas = await db
+        .select()
+        .from(productPersonasTable)
+        .where(eq(productPersonasTable.productId, productId));
+
+      // Get full persona data for each assignment
+      const personaIds = productPersonas.map(pp => pp.personaId);
+      const personas = personaIds.length > 0 
+        ? await storage.getTargetAudiences(brand.id)
+            .then(all => all.filter(p => personaIds.includes(p.id)))
+        : [];
+
+      res.json(personas);
+    } catch (error) {
+      console.error("Get product personas error:", error);
+      res.status(500).json({ error: "Помилка отримання персон продукту" });
+    }
+  });
+
+  // Add a persona to a product
+  app.post("/api/products/:productId/personas", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { productId } = req.params;
+      const { personaId } = req.body;
+
+      if (!personaId) {
+        return res.status(400).json({ error: "personaId є обов'язковим" });
+      }
+
+      const product = await storage.getBrandProduct(productId);
+      if (!product) {
+        return res.status(404).json({ error: "Продукт не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(product.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Check if already assigned
+      const existing = await db
+        .select()
+        .from(productPersonasTable)
+        .where(and(
+          eq(productPersonasTable.productId, productId),
+          eq(productPersonasTable.personaId, personaId)
+        ));
+
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Персона вже додана до продукту" });
+      }
+
+      const [result] = await db
+        .insert(productPersonasTable)
+        .values({ productId, personaId })
+        .returning();
+
+      res.json(result);
+    } catch (error) {
+      console.error("Add product persona error:", error);
+      res.status(500).json({ error: "Помилка додавання персони до продукту" });
+    }
+  });
+
+  // Bulk add personas to a product (for adding entire segment/sub-segment)
+  app.post("/api/products/:productId/personas/bulk", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { productId } = req.params;
+      const { personaIds } = req.body;
+
+      if (!personaIds || !Array.isArray(personaIds) || personaIds.length === 0) {
+        return res.status(400).json({ error: "personaIds масив є обов'язковим" });
+      }
+
+      const product = await storage.getBrandProduct(productId);
+      if (!product) {
+        return res.status(404).json({ error: "Продукт не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(product.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      // Get existing assignments to avoid duplicates
+      const existing = await db
+        .select()
+        .from(productPersonasTable)
+        .where(eq(productPersonasTable.productId, productId));
+
+      const existingPersonaIds = new Set(existing.map(e => e.personaId));
+      const newPersonaIds = personaIds.filter((id: string) => !existingPersonaIds.has(id));
+
+      if (newPersonaIds.length === 0) {
+        return res.json({ added: 0, message: "Всі персони вже додані" });
+      }
+
+      // Insert new assignments
+      const insertValues = newPersonaIds.map((personaId: string) => ({ productId, personaId }));
+      await db.insert(productPersonasTable).values(insertValues);
+
+      res.json({ added: newPersonaIds.length });
+    } catch (error) {
+      console.error("Bulk add product personas error:", error);
+      res.status(500).json({ error: "Помилка додавання персон до продукту" });
+    }
+  });
+
+  // Remove a persona from a product
+  app.delete("/api/products/:productId/personas/:personaId", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { productId, personaId } = req.params;
+
+      const product = await storage.getBrandProduct(productId);
+      if (!product) {
+        return res.status(404).json({ error: "Продукт не знайдено" });
+      }
+
+      const brand = await storage.getUserBrand(product.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      await db
+        .delete(productPersonasTable)
+        .where(and(
+          eq(productPersonasTable.productId, productId),
+          eq(productPersonasTable.personaId, personaId)
+        ));
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Remove product persona error:", error);
+      res.status(500).json({ error: "Помилка видалення персони з продукту" });
     }
   });
 
