@@ -197,6 +197,7 @@ export default function BrandEditPage() {
     onSuccess: () => {
       toast({ title: "Успішно", description: "Сегмент створено" });
       queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setIsSegmentDialogOpen(false);
       setNewSegmentName("");
     },
@@ -213,6 +214,7 @@ export default function BrandEditPage() {
     },
     onSuccess: () => {
       toast({ title: "Успішно", description: "Сегмент видалено" });
+      queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
