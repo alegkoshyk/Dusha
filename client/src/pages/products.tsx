@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ProductDialog } from "@/components/ProductDialog";
 import { ProductPersonasDialog } from "@/components/ProductPersonasDialog";
+import { ProductPersonasPreview } from "@/components/ProductPersonasPreview";
 import { 
   ArrowLeft, 
   Plus, 
@@ -22,9 +23,11 @@ import {
   Image,
   DollarSign,
   Tag,
-  Users
+  Users,
+  User
 } from "lucide-react";
-import type { BrandProduct, UserBrand } from "@shared/schema";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { BrandProduct, UserBrand, TargetAudience } from "@shared/schema";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -295,6 +298,8 @@ export default function ProductsPage() {
                     )}
                   </div>
                 )}
+
+                <ProductPersonasPreview productId={product.id} />
               </CardContent>
             </Card>
           ))}

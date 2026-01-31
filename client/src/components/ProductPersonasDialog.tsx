@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Users, ChevronRight, ChevronDown, Loader2, Check, X, Target } from "lucide-react";
+import { Users, ChevronRight, ChevronDown, Loader2, Check, X, Target, User } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { BrandProduct, TargetAudience, DemographicSegment, DemographicSubSegment } from "@shared/schema";
 import {
   Accordion,
@@ -229,6 +230,12 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
                                     checked={selectedPersonaIds.has(persona.id)}
                                     onCheckedChange={() => togglePersona(persona.id)}
                                   />
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarImage src={persona.aiPortraitImageUrl || undefined} alt={persona.name} />
+                                    <AvatarFallback>
+                                      <User className="h-4 w-4" />
+                                    </AvatarFallback>
+                                  </Avatar>
                                   <div className="flex-1 min-w-0">
                                     <span className="font-medium">{persona.name}</span>
                                     {persona.ageRange && (
@@ -270,6 +277,12 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
                                       checked={selectedPersonaIds.has(persona.id)}
                                       onCheckedChange={() => togglePersona(persona.id)}
                                     />
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarImage src={persona.aiPortraitImageUrl || undefined} alt={persona.name} />
+                                      <AvatarFallback>
+                                        <User className="h-4 w-4" />
+                                      </AvatarFallback>
+                                    </Avatar>
                                     <div className="flex-1 min-w-0">
                                       <span className="font-medium">{persona.name}</span>
                                       {persona.ageRange && (
