@@ -89,8 +89,8 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
 
   const toggleSegment = (segment: SegmentWithPersonas) => {
     const segmentPersonaIds = [
-      ...segment.personas.map(p => p.id),
-      ...segment.subSegments.flatMap(ss => ss.personas.map(p => p.id)),
+      ...(segment.personas || []).map(p => p.id),
+      ...(segment.subSegments || []).flatMap(ss => (ss.personas || []).map(p => p.id)),
     ];
 
     const allSelected = segmentPersonaIds.every(id => selectedPersonaIds.has(id));
@@ -107,7 +107,7 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
   };
 
   const toggleSubSegment = (subSegment: DemographicSubSegment & { personas: TargetAudience[] }) => {
-    const subSegmentPersonaIds = subSegment.personas.map(p => p.id);
+    const subSegmentPersonaIds = (subSegment.personas || []).map(p => p.id);
     const allSelected = subSegmentPersonaIds.every(id => selectedPersonaIds.has(id));
 
     setSelectedPersonaIds(prev => {
@@ -123,8 +123,8 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
 
   const getSegmentSelectionState = (segment: SegmentWithPersonas): "none" | "partial" | "all" => {
     const segmentPersonaIds = [
-      ...segment.personas.map(p => p.id),
-      ...segment.subSegments.flatMap(ss => ss.personas.map(p => p.id)),
+      ...(segment.personas || []).map(p => p.id),
+      ...(segment.subSegments || []).flatMap(ss => (ss.personas || []).map(p => p.id)),
     ];
     if (segmentPersonaIds.length === 0) return "none";
     const selectedCount = segmentPersonaIds.filter(id => selectedPersonaIds.has(id)).length;
@@ -134,7 +134,7 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
   };
 
   const getSubSegmentSelectionState = (subSegment: DemographicSubSegment & { personas: TargetAudience[] }): "none" | "partial" | "all" => {
-    const personaIds = subSegment.personas.map(p => p.id);
+    const personaIds = (subSegment.personas || []).map(p => p.id);
     if (personaIds.length === 0) return "none";
     const selectedCount = personaIds.filter(id => selectedPersonaIds.has(id)).length;
     if (selectedCount === 0) return "none";
@@ -145,8 +145,8 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
   const isLoading = segmentsLoading || personasLoading;
 
   const allPersonas = segments?.flatMap(s => [
-    ...s.personas,
-    ...s.subSegments.flatMap(ss => ss.personas),
+    ...(s.personas || []),
+    ...(s.subSegments || []).flatMap(ss => ss.personas || []),
   ]) || [];
 
   return (
@@ -184,9 +184,11 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
               className="space-y-2"
             >
               {segments.map(segment => {
+                const segmentPersonas = segment.personas || [];
+                const segmentSubSegments = segment.subSegments || [];
                 const selectionState = getSegmentSelectionState(segment);
-                const totalPersonas = segment.personas.length + 
-                  segment.subSegments.reduce((sum, ss) => sum + ss.personas.length, 0);
+                const totalPersonas = segmentPersonas.length + 
+                  segmentSubSegments.reduce((sum, ss) => sum + (ss.personas || []).length, 0);
 
                 return (
                   <AccordionItem 
@@ -212,13 +214,13 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
                     </div>
                     <AccordionContent className="pb-0">
                       <div className="p-3 space-y-3">
-                        {segment.personas.length > 0 && (
+                        {segmentPersonas.length > 0 && (
                           <div className="space-y-2">
                             <p className="text-xs text-muted-foreground uppercase tracking-wide">
                               Персони сегменту
                             </p>
                             <div className="grid gap-2">
-                              {segment.personas.map(persona => (
+                              {segmentPersonas.map(persona => (
                                 <label
                                   key={persona.id}
                                   className="flex items-center gap-3 p-2 rounded border cursor-pointer hover:bg-muted/50 transition-colors"
@@ -241,8 +243,9 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
                           </div>
                         )}
 
-                        {segment.subSegments.map(subSegment => {
+                        {segmentSubSegments.map(subSegment => {
                           const ssState = getSubSegmentSelectionState(subSegment);
+                          const subSegmentPersonas = subSegment.personas || [];
                           return (
                             <div key={subSegment.id} className="space-y-2">
                               <div className="flex items-center gap-2">
@@ -254,11 +257,11 @@ export function ProductPersonasDialog({ open, onOpenChange, brandId, product }: 
                                 />
                                 <span className="text-sm font-medium">{subSegment.name}</span>
                                 <Badge variant="outline" className="text-xs">
-                                  {subSegment.personas.length}
+                                  {subSegmentPersonas.length}
                                 </Badge>
                               </div>
                               <div className="grid gap-2 ml-6">
-                                {subSegment.personas.map(persona => (
+                                {subSegmentPersonas.map(persona => (
                                   <label
                                     key={persona.id}
                                     className="flex items-center gap-3 p-2 rounded border cursor-pointer hover:bg-muted/50 transition-colors"
