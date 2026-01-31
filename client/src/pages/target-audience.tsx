@@ -138,15 +138,30 @@ export default function TargetAudiencePage() {
     enabled: !!params.brandId,
   });
 
-  const { data: segments = [], isLoading: segmentsLoading } = useQuery<SegmentWithData[]>({
+  const { data: segments = [], isLoading: segmentsLoading, error: segmentsError } = useQuery<SegmentWithData[]>({
     queryKey: ["/api/brands", params.brandId, "demographic-segments"],
     queryFn: async () => {
+      console.log("Fetching segments for brand:", params.brandId);
       const response = await fetch(`/api/brands/${params.brandId}/demographic-segments`, { credentials: 'include' });
-      if (!response.ok) throw new Error("Failed to fetch segments");
-      return response.json();
+      console.log("Segments response status:", response.status);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Segments fetch error:", errorText);
+        throw new Error("Failed to fetch segments");
+      }
+      const data = await response.json();
+      console.log("Segments data received:", data.length, "segments");
+      return data;
     },
     enabled: !!params.brandId,
+    staleTime: 0,
+    refetchOnMount: true,
   });
+  
+  // Log segments error
+  if (segmentsError) {
+    console.error("Segments query error:", segmentsError);
+  }
 
   const { data: audienceTypeCategories = [] } = useQuery<AudienceTypeCategory[]>({
     queryKey: ['/api/audience-types'],
