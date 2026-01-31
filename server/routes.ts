@@ -931,42 +931,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { brandId } = req.params;
-      console.log("Getting segments for brand:", brandId, "user:", currentUser.id);
+      console.log("[demographic-segments] Getting segments for brand:", brandId, "user:", currentUser.id);
       
       step = "getUserBrand";
-      const brand = await storage.getUserBrand(brandId);
+      let brand;
+      try {
+        brand = await storage.getUserBrand(brandId);
+      } catch (brandErr: any) {
+        console.error("[demographic-segments] Error getting brand:", brandErr?.message);
+        return res.status(500).json({ error: "Помилка отримання бренду", step, details: brandErr?.message });
+      }
+      
       if (!brand || brand.userId !== currentUser.id) {
-        console.log("Brand not found or user mismatch. Brand:", brand?.id, "Brand userId:", brand?.userId, "Current user:", currentUser.id);
+        console.log("[demographic-segments] Brand not found or user mismatch. Brand:", brand?.id, "Brand userId:", brand?.userId, "Current user:", currentUser.id);
         return res.status(404).json({ error: "Бренд не знайдено" });
       }
 
       step = "getDemographicSegments";
-      console.log("Fetching segments...");
-      const segments = await storage.getDemographicSegments(brandId);
-      console.log("Found", segments.length, "segments");
+      console.log("[demographic-segments] Fetching segments...");
+      let segments;
+      try {
+        segments = await storage.getDemographicSegments(brandId);
+      } catch (segErr: any) {
+        console.error("[demographic-segments] Error getting segments:", segErr?.message);
+        return res.status(500).json({ error: "Помилка отримання сегментів", step, details: segErr?.message });
+      }
+      console.log("[demographic-segments] Found", segments.length, "segments");
       
       step = "getTargetAudiences";
-      const allAudiences = await storage.getTargetAudiences(brandId);
-      console.log("Found", allAudiences.length, "audiences");
+      let allAudiences;
+      try {
+        allAudiences = await storage.getTargetAudiences(brandId);
+      } catch (audErr: any) {
+        console.error("[demographic-segments] Error getting audiences:", audErr?.message);
+        return res.status(500).json({ error: "Помилка отримання аудиторій", step, details: audErr?.message });
+      }
+      console.log("[demographic-segments] Found", allAudiences.length, "audiences");
       
       step = "getAssignments";
-      // Get all assignments for this brand's personas
-      const personaIds = allAudiences.map(a => a.id);
-      const allAssignments = personaIds.length > 0 
-        ? await db.select().from(personaSegmentAssignmentsTable)
-            .where(inArray(personaSegmentAssignmentsTable.personaId, personaIds))
-        : [];
-      console.log("Found", allAssignments.length, "assignments");
+      let allAssignments: any[] = [];
+      try {
+        const personaIds = allAudiences.map(a => a.id);
+        allAssignments = personaIds.length > 0 
+          ? await db.select().from(personaSegmentAssignmentsTable)
+              .where(inArray(personaSegmentAssignmentsTable.personaId, personaIds))
+          : [];
+      } catch (assErr: any) {
+        console.error("[demographic-segments] Error getting assignments:", assErr?.message);
+        return res.status(500).json({ error: "Помилка отримання призначень", step, details: assErr?.message });
+      }
+      console.log("[demographic-segments] Found", allAssignments.length, "assignments");
       
       step = "getAllSubSegments";
-      // Fetch all sub-segments in one batch query to avoid N+1 problem
-      const segmentIds = segments.map(s => s.id);
-      const allSubSegments = segmentIds.length > 0
-        ? await db.select().from(demographicSubSegmentsTable)
-            .where(inArray(demographicSubSegmentsTable.segmentId, segmentIds))
-            .orderBy(demographicSubSegmentsTable.priority)
-        : [];
-      console.log("Found", allSubSegments.length, "sub-segments");
+      let allSubSegments: any[] = [];
+      try {
+        const segmentIds = segments.map(s => s.id);
+        allSubSegments = segmentIds.length > 0
+          ? await db.select().from(demographicSubSegmentsTable)
+              .where(inArray(demographicSubSegmentsTable.segmentId, segmentIds))
+              .orderBy(demographicSubSegmentsTable.priority)
+          : [];
+      } catch (subErr: any) {
+        console.error("[demographic-segments] Error getting sub-segments:", subErr?.message);
+        return res.status(500).json({ error: "Помилка отримання підсегментів", step, details: subErr?.message });
+      }
+      console.log("[demographic-segments] Found", allSubSegments.length, "sub-segments");
       
       step = "buildSegmentsWithData";
       // Build segments with data using in-memory filtering (no more N+1 queries)
@@ -995,12 +1024,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
 
-      console.log("Returning", segmentsWithData.length, "segments with data");
-      res.json(segmentsWithData);
+      console.log("[demographic-segments] Returning", segmentsWithData.length, "segments with data");
+      return res.json(segmentsWithData);
     } catch (error: any) {
-      console.error("Get demographic segments error at step:", step, ":", error?.message || error);
-      console.error("Stack:", error?.stack);
-      res.status(500).json({ error: "Помилка отримання сегментів", step, details: error?.message });
+      console.error("[demographic-segments] Unexpected error at step:", step, ":", error?.message || error);
+      console.error("[demographic-segments] Stack:", error?.stack);
+      return res.status(500).json({ error: "Помилка отримання сегментів", step, details: error?.message || "Unknown error" });
     }
   });
 
