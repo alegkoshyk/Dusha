@@ -121,7 +121,7 @@ export default function TargetAudiencePage() {
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
     queryFn: async () => {
-      const response = await fetch(`/api/user/brands/${params.brandId}`);
+      const response = await fetch(`/api/user/brands/${params.brandId}`, { credentials: 'include' });
       if (!response.ok) throw new Error("Failed to fetch brand");
       return response.json();
     },
@@ -131,7 +131,7 @@ export default function TargetAudiencePage() {
   const { data: audiences = [], isLoading: audiencesLoading } = useQuery<TargetAudience[]>({
     queryKey: ["/api/brands", params.brandId, "target-audiences"],
     queryFn: async () => {
-      const response = await fetch(`/api/brands/${params.brandId}/target-audiences`);
+      const response = await fetch(`/api/brands/${params.brandId}/target-audiences`, { credentials: 'include' });
       if (!response.ok) throw new Error("Failed to fetch audiences");
       return response.json();
     },
@@ -141,7 +141,7 @@ export default function TargetAudiencePage() {
   const { data: segments = [], isLoading: segmentsLoading } = useQuery<SegmentWithData[]>({
     queryKey: ["/api/brands", params.brandId, "demographic-segments"],
     queryFn: async () => {
-      const response = await fetch(`/api/brands/${params.brandId}/demographic-segments`);
+      const response = await fetch(`/api/brands/${params.brandId}/demographic-segments`, { credentials: 'include' });
       if (!response.ok) throw new Error("Failed to fetch segments");
       return response.json();
     },
@@ -415,7 +415,7 @@ export default function TargetAudiencePage() {
   const { data: personaAssignments = [], isLoading: assignmentsLoading } = useQuery<SegmentAssignment[]>({
     queryKey: ["/api/target-audiences", assigningPersona?.id, "segment-assignments"],
     queryFn: async () => {
-      const response = await fetch(`/api/target-audiences/${assigningPersona!.id}/segment-assignments`);
+      const response = await fetch(`/api/target-audiences/${assigningPersona!.id}/segment-assignments`, { credentials: 'include' });
       if (!response.ok) throw new Error("Failed to fetch assignments");
       return response.json();
     },

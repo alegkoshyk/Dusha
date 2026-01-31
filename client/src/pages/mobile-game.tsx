@@ -83,7 +83,7 @@ export default function MobileGame() {
   const { data: sessionResponses = {} } = useQuery<Record<string, any>>({
     queryKey: ["/api/game-sessions", activeSessionId, "responses-map", "raw"],
     queryFn: async () => {
-      const res = await fetch(`/api/game-sessions/${activeSessionId}/responses-map?raw=true`);
+      const res = await fetch(`/api/game-sessions/${activeSessionId}/responses-map?raw=true`, { credentials: 'include' });
       if (!res.ok) throw new Error("Failed to fetch responses");
       return res.json();
     },
