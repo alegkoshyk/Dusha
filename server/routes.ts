@@ -5781,7 +5781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use Gemini to generate agent data
       const { GoogleGenAI } = await import("@google/genai");
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      const ai = new GoogleGenAI({ apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "" });
       
       const prompt = `Based on the following description, generate an AI agent configuration in JSON format:
 
