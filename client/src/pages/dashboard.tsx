@@ -18,7 +18,8 @@ import {
   Map,
   Image,
   Search,
-  MessageSquare
+  MessageSquare,
+  Bot
 } from 'lucide-react';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { Link, useLocation } from 'wouter';
@@ -170,7 +171,7 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <Link href="/brands" className="contents">
             <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-blue-200 dark:hover:border-blue-800">
               <CardContent className="p-5">
@@ -242,6 +243,25 @@ export default function Dashboard() {
                     <p className="text-sm text-gray-500 dark:text-gray-400">Дослідження</p>
                   </div>
                   <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/agents" className="contents">
+            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-purple-200 dark:hover:border-purple-800">
+              <CardContent className="p-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                      AI Агенти
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Помічники</p>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-purple-500 group-hover:translate-x-1 transition-all" />
                 </div>
               </CardContent>
             </Card>
