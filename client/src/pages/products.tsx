@@ -11,6 +11,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ProductDialog } from "@/components/ProductDialog";
 import { ProductPersonasDialog } from "@/components/ProductPersonasDialog";
 import { ProductPersonasPreview } from "@/components/ProductPersonasPreview";
+import { ProductDetailDialog } from "@/components/ProductDetailDialog";
 import { 
   ArrowLeft, 
   Plus, 
@@ -39,6 +40,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -54,6 +65,9 @@ export default function ProductsPage() {
   const [deleteProduct, setDeleteProduct] = useState<BrandProduct | null>(null);
   const [generatingImageFor, setGeneratingImageFor] = useState<string | null>(null);
   const [personasProduct, setPersonasProduct] = useState<BrandProduct | null>(null);
+  const [imagePromptProduct, setImagePromptProduct] = useState<BrandProduct | null>(null);
+  const [additionalPrompt, setAdditionalPrompt] = useState("");
+  const [viewingProduct, setViewingProduct] = useState<BrandProduct | null>(null);
   const { toast } = useToast();
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
@@ -82,22 +96,40 @@ export default function ProductsPage() {
   });
 
   const generateImageMutation = useMutation({
-    mutationFn: async (productId: string) => {
+    mutationFn: async ({ productId, prompt }: { productId: string; prompt?: string }) => {
       setGeneratingImageFor(productId);
-      const response = await apiRequest("POST", `/api/products/${productId}/generate-image`);
+      const response = await apiRequest("POST", `/api/products/${productId}/generate-image`, {
+        additionalPrompt: prompt || undefined,
+      });
       if (!response.ok) throw new Error("Failed to generate image");
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Успішно", description: "Зображення згенеровано" });
+      toast({ title: "Успішно", description: "Зображення згенеровано на основі логотипу бренду" });
       queryClient.invalidateQueries({ queryKey: ["/api/brands", brandId, "products"] });
       setGeneratingImageFor(null);
+      setImagePromptProduct(null);
+      setAdditionalPrompt("");
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося згенерувати зображення", variant: "destructive" });
       setGeneratingImageFor(null);
     },
   });
+
+  const handleGenerateImage = (product: BrandProduct) => {
+    setImagePromptProduct(product);
+    setAdditionalPrompt("");
+  };
+
+  const confirmGenerateImage = () => {
+    if (imagePromptProduct) {
+      generateImageMutation.mutate({ 
+        productId: imagePromptProduct.id, 
+        prompt: additionalPrompt.trim() || undefined 
+      });
+    }
+  };
 
   const filteredProducts = products?.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -202,7 +234,11 @@ export default function ProductsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredProducts.map(product => (
-            <Card key={product.id} className={product.isHighlighted ? "ring-2 ring-primary" : ""}>
+            <Card 
+              key={product.id} 
+              className={`cursor-pointer transition-shadow hover:shadow-lg ${product.isHighlighted ? "ring-2 ring-primary" : ""}`}
+              onClick={() => setViewingProduct(product)}
+            >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -218,12 +254,12 @@ export default function ProductsPage() {
                     </div>
                   </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="icon">
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuItem onClick={() => handleEdit(product)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         Редагувати
@@ -233,7 +269,7 @@ export default function ProductsPage() {
                         Цільова аудиторія
                       </DropdownMenuItem>
                       <DropdownMenuItem 
-                        onClick={() => generateImageMutation.mutate(product.id)}
+                        onClick={() => handleGenerateImage(product)}
                         disabled={generatingImageFor === product.id}
                       >
                         {generatingImageFor === product.id ? (
@@ -241,7 +277,7 @@ export default function ProductsPage() {
                         ) : (
                           <Sparkles className="mr-2 h-4 w-4" />
                         )}
-                        Згенерувати фото
+                        Згенерувати фото (з логотипу)
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         className="text-destructive"
@@ -345,6 +381,75 @@ export default function ProductsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Image Generation Prompt Dialog */}
+      <Dialog open={!!imagePromptProduct} onOpenChange={(open) => !open && setImagePromptProduct(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Генерація фото продукту
+            </DialogTitle>
+            <DialogDescription>
+              Зображення буде згенеровано на основі логотипу вашого бренду. 
+              Додатково можете вказати особливі побажання.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Додаткові побажання (необов'язково)</Label>
+              <Textarea
+                placeholder="Наприклад: білий фон, мінімалістичний стиль, з тінями..."
+                value={additionalPrompt}
+                onChange={(e) => setAdditionalPrompt(e.target.value)}
+                rows={3}
+              />
+            </div>
+            {brand?.logo && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                <img src={brand.logo} alt="Логотип" className="w-12 h-12 object-contain rounded" />
+                <div className="text-sm">
+                  <p className="font-medium">Логотип бренду</p>
+                  <p className="text-muted-foreground">Буде використано як основа для генерації</p>
+                </div>
+              </div>
+            )}
+            {!brand?.logo && (
+              <p className="text-sm text-muted-foreground">
+                Увага: Логотип бренду не завантажено. Рекомендуємо спочатку додати логотип для кращих результатів.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImagePromptProduct(null)}>
+              Скасувати
+            </Button>
+            <Button onClick={confirmGenerateImage} disabled={generateImageMutation.isPending}>
+              {generateImageMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Генерація...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Згенерувати
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detailed Product View Dialog */}
+      <ProductDetailDialog
+        product={viewingProduct}
+        brand={brand}
+        open={!!viewingProduct}
+        onOpenChange={(open) => !open && setViewingProduct(null)}
+        onEdit={(p) => { setViewingProduct(null); handleEdit(p); }}
+        brandId={brandId!}
+      />
     </div>
   );
 }

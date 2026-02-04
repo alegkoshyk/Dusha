@@ -2236,7 +2236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate product image with AI
+  // Generate product image with AI based on brand logo
   app.post("/api/products/:id/generate-image", requireAuth, async (req, res) => {
     try {
       const currentUser = getCurrentUserUnified(req);
@@ -2245,7 +2245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { id } = req.params;
-      const { customPrompt } = req.body;
+      const { additionalPrompt } = req.body;
       
       const product = await storage.getBrandProduct(id);
       if (!product) {
@@ -2257,12 +2257,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Немає доступу" });
       }
 
-      // Build prompt for product image
-      const prompt = customPrompt || buildProductImagePrompt(product, brand);
+      // Build prompt for product image, including additional prompt if provided
+      let prompt = buildProductImagePrompt(product, brand);
+      if (additionalPrompt) {
+        prompt += ` Additional requirements: ${additionalPrompt}`;
+      }
       
-      // Generate image using Gemini
-      const { generateImage } = await import("./replit_integrations/image/client");
-      const imageDataUrl = await generateImage(prompt);
+      // Add instruction to incorporate brand logo if available
+      if (brand.logo) {
+        prompt += " Incorporate the brand logo subtly into the product image design, ensuring brand identity is visible.";
+      }
+
+      let imageDataUrl: string;
+      
+      // Generate image using Gemini with brand logo reference if available
+      if (brand.logo) {
+        const { generateImageWithReferences } = await import("./replit_integrations/image/client");
+        const referenceImages = [
+          { url: brand.logo, label: "Brand Logo - incorporate this logo into the product image" }
+        ];
+        imageDataUrl = await generateImageWithReferences(prompt, referenceImages);
+      } else {
+        const { generateImage } = await import("./replit_integrations/image/client");
+        imageDataUrl = await generateImage(prompt);
+      }
       
       // Update product with new image
       const currentImages = (product.images as string[]) || [];
