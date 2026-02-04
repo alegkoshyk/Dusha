@@ -100,6 +100,9 @@ import {
   type ProductCategory,
   type InsertProductCategory,
   productCategoriesTable,
+  type UserAgent,
+  type InsertUserAgent,
+  userAgentsTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -307,6 +310,13 @@ export interface IStorage {
   createProductCategory(category: InsertProductCategory): Promise<ProductCategory>;
   updateProductCategory(id: string, updates: Partial<ProductCategory>): Promise<ProductCategory | undefined>;
   deleteProductCategory(id: string): Promise<boolean>;
+  
+  // User agents operations
+  getUserAgents(userId: string): Promise<UserAgent[]>;
+  getUserAgent(id: string): Promise<UserAgent | undefined>;
+  createUserAgent(agent: InsertUserAgent): Promise<UserAgent>;
+  updateUserAgent(id: string, updates: Partial<UserAgent>): Promise<UserAgent | undefined>;
+  deleteUserAgent(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2986,6 +2996,47 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(productCategoriesTable)
       .where(eq(productCategoriesTable.id, id));
+    return true;
+  }
+
+  // User agents operations
+  async getUserAgents(userId: string): Promise<UserAgent[]> {
+    return await db
+      .select()
+      .from(userAgentsTable)
+      .where(eq(userAgentsTable.userId, userId))
+      .orderBy(userAgentsTable.sortOrder);
+  }
+
+  async getUserAgent(id: string): Promise<UserAgent | undefined> {
+    const [agent] = await db
+      .select()
+      .from(userAgentsTable)
+      .where(eq(userAgentsTable.id, id));
+    return agent;
+  }
+
+  async createUserAgent(agent: InsertUserAgent): Promise<UserAgent> {
+    const [newAgent] = await db
+      .insert(userAgentsTable)
+      .values(agent)
+      .returning();
+    return newAgent;
+  }
+
+  async updateUserAgent(id: string, updates: Partial<UserAgent>): Promise<UserAgent | undefined> {
+    const [updated] = await db
+      .update(userAgentsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(userAgentsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteUserAgent(id: string): Promise<boolean> {
+    await db
+      .delete(userAgentsTable)
+      .where(eq(userAgentsTable.id, id));
     return true;
   }
 }

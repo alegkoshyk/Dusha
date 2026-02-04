@@ -5628,6 +5628,174 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============= User Agents API =============
+  
+  // Get all user agents
+  app.get("/api/agents", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      // Check if user has paid subscription
+      const subscription = await storage.getUserSubscription(currentUser.id);
+      if (!subscription || subscription.planId === 1) { // Free tier
+        return res.status(403).json({ error: "Агенти доступні тільки для платних підписок" });
+      }
+
+      const agents = await storage.getUserAgents(currentUser.id);
+      res.json(agents);
+    } catch (error: any) {
+      console.error("Get agents error:", error);
+      res.status(500).json({ error: "Не вдалося отримати агентів" });
+    }
+  });
+
+  // Get single agent
+  app.get("/api/agents/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const agent = await storage.getUserAgent(req.params.id);
+      if (!agent || agent.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Агента не знайдено" });
+      }
+
+      res.json(agent);
+    } catch (error: any) {
+      console.error("Get agent error:", error);
+      res.status(500).json({ error: "Не вдалося отримати агента" });
+    }
+  });
+
+  // Create agent
+  app.post("/api/agents", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      // Check if user has paid subscription
+      const subscription = await storage.getUserSubscription(currentUser.id);
+      if (!subscription || subscription.planId === 1) {
+        return res.status(403).json({ error: "Агенти доступні тільки для платних підписок" });
+      }
+
+      // Check agent limit (max 10 per user)
+      const existingAgents = await storage.getUserAgents(currentUser.id);
+      if (existingAgents.length >= 10) {
+        return res.status(400).json({ error: "Досягнуто максимальну кількість агентів (10)" });
+      }
+
+      const agent = await storage.createUserAgent({
+        ...req.body,
+        userId: currentUser.id,
+      });
+      res.json(agent);
+    } catch (error: any) {
+      console.error("Create agent error:", error);
+      res.status(500).json({ error: "Не вдалося створити агента" });
+    }
+  });
+
+  // Update agent
+  app.patch("/api/agents/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const agent = await storage.getUserAgent(req.params.id);
+      if (!agent || agent.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Агента не знайдено" });
+      }
+
+      const updated = await storage.updateUserAgent(req.params.id, req.body);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Update agent error:", error);
+      res.status(500).json({ error: "Не вдалося оновити агента" });
+    }
+  });
+
+  // Delete agent
+  app.delete("/api/agents/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const agent = await storage.getUserAgent(req.params.id);
+      if (!agent || agent.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Агента не знайдено" });
+      }
+
+      await storage.deleteUserAgent(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Delete agent error:", error);
+      res.status(500).json({ error: "Не вдалося видалити агента" });
+    }
+  });
+
+  // Generate agent data with AI
+  app.post("/api/agents/generate", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { description } = req.body;
+      if (!description || description.length < 10) {
+        return res.status(400).json({ error: "Опис має бути не менше 10 символів" });
+      }
+
+      // Use Gemini to generate agent data
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      
+      const prompt = `Based on the following description, generate an AI agent configuration in JSON format:
+
+Description: "${description}"
+
+Generate a JSON object with these fields:
+- name: A short, memorable name for the agent (max 50 chars, Ukrainian)
+- icon: A lucide-react icon name that matches the agent's purpose (e.g., "Bot", "Sparkles", "Brain", "Target", "Lightbulb", "Rocket", "Star")
+- description: A 1-2 sentence description of the agent's purpose (Ukrainian)
+- context: Detailed instructions for how this agent should behave, its expertise, communication style, and what it focuses on (3-5 sentences, Ukrainian)
+- personality: Key personality traits of the agent (Ukrainian)
+- expertise: Array of 3-5 areas of expertise (Ukrainian strings)
+
+Return ONLY valid JSON, no markdown or explanation.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
+
+      const text = response.text || "";
+      // Extract JSON from response
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("Failed to parse AI response");
+      }
+      
+      const agentData = JSON.parse(jsonMatch[0]);
+      res.json(agentData);
+    } catch (error: any) {
+      console.error("Generate agent error:", error);
+      res.status(500).json({ error: "Не вдалося згенерувати дані агента" });
+    }
+  });
+
   // ============= Admin Subscription Management =============
 
   // Get all plans (admin)

@@ -542,6 +542,8 @@ export const aiChatMessagesTable = pgTable("ai_chat_messages", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   sessionId: uuid("session_id").notNull().references(() => gameSessionsTable.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  agentId: uuid("agent_id"), // ID агента, якщо повідомлення від агента
+  agentName: varchar("agent_name", { length: 100 }), // Назва агента для відображення в чаті
   role: varchar("role", { length: 20 }).notNull(), // 'user' | 'assistant' | 'system' | 'image'
   content: text("content").notNull(),
   imageUrl: text("image_url"), // URL згенерованого зображення
@@ -1554,5 +1556,41 @@ export const insertProductPersonaSchema = createInsertSchema(productPersonasTabl
 
 export type ProductPersona = typeof productPersonasTable.$inferSelect;
 export type InsertProductPersona = z.infer<typeof insertProductPersonaSchema>;
+
+// =========================================
+// AI Агенти користувача
+// =========================================
+export const userAgentsTable = pgTable("user_agents", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 100 }).notNull(),
+  icon: varchar("icon", { length: 50 }), // lucide icon name or emoji
+  description: text("description"), // Short description for display
+  context: text("context").notNull(), // Detailed context/instructions for AI
+  personality: text("personality"), // Agent personality traits
+  expertise: json("expertise").$type<string[]>(), // Areas of expertise
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  userIdx: index("user_agents_user_idx").on(table.userId),
+}));
+
+export const userAgentsRelations = relations(userAgentsTable, ({ one }) => ({
+  user: one(usersTable, {
+    fields: [userAgentsTable.userId],
+    references: [usersTable.id],
+  }),
+}));
+
+export const insertUserAgentSchema = createInsertSchema(userAgentsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserAgent = typeof userAgentsTable.$inferSelect;
+export type InsertUserAgent = z.infer<typeof insertUserAgentSchema>;
 
 export * from "./models/chat";
