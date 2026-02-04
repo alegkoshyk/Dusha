@@ -38,7 +38,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, apiRequestJson } from '@/lib/queryClient';
-import type { GameSession, UserBrand } from '@shared/schema';
+import type { GameSession, UserBrand, UserAgent } from '@shared/schema';
 
 const ASPECT_RATIOS = [
   { value: '1:1', label: '1:1 (Квадрат)' },
@@ -299,6 +299,7 @@ export default function BrandChat() {
   const [referenceImages, setReferenceImages] = useState<{ url: string; filename: string }[]>([]);
   const [uploadingReference, setUploadingReference] = useState(false);
   const [selectedGameSessionId, setSelectedGameSessionId] = useState<string | null>(null);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -358,7 +359,10 @@ export default function BrandChat() {
 
   const sendMessageMutation = useMutation({
     mutationFn: async (messageText: string) => {
-      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/chat`, { message: messageText });
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/chat`, { 
+        message: messageText,
+        agentId: selectedAgentId || undefined,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
@@ -403,6 +407,14 @@ export default function BrandChat() {
   const { data: merchTypes } = useQuery<MerchType[]>({
     queryKey: ['/api/merch-types'],
   });
+
+  // Fetch user agents (for paid users)
+  const { data: userAgents } = useQuery<UserAgent[]>({
+    queryKey: ['/api/agents'],
+  });
+  
+  // Get selected agent details
+  const selectedAgent = selectedAgentId ? userAgents?.find(a => a.id === selectedAgentId) : null;
 
   const generateImageMutation = useMutation({
     mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[] }) => {
@@ -1353,12 +1365,63 @@ export default function BrandChat() {
         </Collapsible>
 
         <form onSubmit={handleSend} className="p-2 sm:p-4 border-t dark:border-gray-700">
+          {/* Agent Selector */}
+          {userAgents && userAgents.length > 0 && (
+            <div className="mb-2 flex items-center gap-2">
+              <Bot className="w-4 h-4 text-muted-foreground shrink-0" />
+              <Select
+                value={selectedAgentId || "none"}
+                onValueChange={(value) => setSelectedAgentId(value === "none" ? null : value)}
+              >
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue placeholder="Без агента">
+                    {selectedAgent ? (
+                      <span className="flex items-center gap-1">
+                        <span className="font-medium">{selectedAgent.name}</span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Без агента</span>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    <span className="text-muted-foreground">Без агента (стандартний AI)</span>
+                  </SelectItem>
+                  {userAgents.filter(a => a.isActive).map((agent) => (
+                    <SelectItem key={agent.id} value={agent.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">{agent.name}</span>
+                        {agent.description && (
+                          <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                            — {agent.description}
+                          </span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedAgent && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => setSelectedAgentId(null)}
+                  title="Скинути агента"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          )}
           <div className="flex gap-1 sm:gap-2 items-center">
             <Input
               ref={inputRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Напишіть повідом..."
+              placeholder={selectedAgent ? `Чат з ${selectedAgent.name}...` : "Напишіть повідом..."}
               disabled={sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
               className="flex-1 min-w-0 text-sm sm:text-base"
               data-testid="input-message"

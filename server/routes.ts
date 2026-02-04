@@ -4467,7 +4467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { sessionId } = req.params;
-      const { message } = req.body;
+      const { message, agentId } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
@@ -4485,6 +4485,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (gameSession.userId !== userId) {
         return res.status(403).json({ error: "Немає доступу до цієї гри" });
+      }
+
+      // Get agent if provided
+      let agentContext: { name: string; context: string; personality?: string; expertise?: string[] } | undefined;
+      let agentName: string | undefined;
+      if (agentId) {
+        const agent = await storage.getUserAgent(agentId);
+        if (agent && agent.userId === userId && agent.isActive) {
+          agentContext = {
+            name: agent.name,
+            context: agent.context,
+            personality: agent.personality || undefined,
+            expertise: agent.expertise || undefined,
+          };
+          agentName = agent.name;
+        }
       }
 
       // Get brand info
@@ -4516,12 +4532,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           content: m.content
         }));
 
-      // Save user message
+      // Save user message with agent info
       await storage.addAiChatMessage({
         sessionId,
         userId,
         role: "user",
-        content: message
+        content: message,
+        agentId: agentId || null,
+        agentName: agentName || null,
       });
 
       // Get AI response
@@ -4531,18 +4549,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         {
           brandName,
           brandDescription,
-          responses: formattedResponses
+          responses: formattedResponses,
+          agentContext,
         },
         sessionId
       );
 
-      // Save AI response
+      // Save AI response with agent info
       const savedMessage = await storage.addAiChatMessage({
         sessionId,
         userId,
         role: "assistant",
         content: aiResponse.response,
-        metadata: aiResponse.tokensUsed ? { tokens: aiResponse.tokensUsed } : null
+        metadata: aiResponse.tokensUsed ? { tokens: aiResponse.tokensUsed } : null,
+        agentId: agentId || null,
+        agentName: agentName || null,
       });
 
       res.json({

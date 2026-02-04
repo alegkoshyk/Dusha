@@ -390,10 +390,18 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface AgentContext {
+  name: string;
+  context: string;
+  personality?: string;
+  expertise?: string[];
+}
+
 export interface BrandContext {
   brandName: string;
   brandDescription?: string;
   responses: { level: string; cardTitle: string; question?: string; response: any }[];
+  agentContext?: AgentContext;
 }
 
 export async function sendBrandChatMessage(
@@ -404,7 +412,14 @@ export async function sendBrandChatMessage(
 ): Promise<{ response: string; tokensUsed?: { input: number; output: number } }> {
   const config = await getAIConfig();
 
-  const systemPrompt = `Ти - експертний консультант з брендингу та маркетингу. Ти допомагаєш підприємцям розвивати їхні бренди.
+  const agentSection = brandContext.agentContext ? `
+🤖 Ти - AI агент "${brandContext.agentContext.name}".
+${brandContext.agentContext.context}
+${brandContext.agentContext.personality ? `Твоя особистість: ${brandContext.agentContext.personality}` : ''}
+${brandContext.agentContext.expertise && brandContext.agentContext.expertise.length > 0 ? `Твоя експертиза: ${brandContext.agentContext.expertise.join(', ')}` : ''}
+` : `Ти - експертний консультант з брендингу та маркетингу. Ти допомагаєш підприємцям розвивати їхні бренди.`;
+
+  const systemPrompt = `${agentSection}
 
 📌 Контекст бренду:
 - Назва: ${brandContext.brandName}
