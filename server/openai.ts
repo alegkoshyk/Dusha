@@ -1208,19 +1208,20 @@ export interface GeneratedAgentData {
 export async function generateAgentData(description: string): Promise<GeneratedAgentData> {
   const config = await getAIConfig();
   
-  const prompt = `Based on the following description, generate an AI agent configuration in JSON format:
+  const prompt = `На основі наступного опису, згенеруй конфігурацію AI агента у форматі JSON. ВСІ ПОЛЯ МАЮТЬ БУТИ УКРАЇНСЬКОЮ МОВОЮ.
 
-Description: "${description}"
+Опис: "${description}"
 
-Generate a JSON object with these fields:
-- name: Short name for the agent (2-4 words)
-- icon: One emoji that represents this agent
-- context: Detailed instructions for the AI on how to behave as this agent (100-200 words). Include the role, expertise areas, communication style.
-- description: Brief description of what this agent does (1-2 sentences)
-- personality: Personality traits (e.g., "friendly", "professional", "creative")
-- expertise: Array of expertise areas (3-5 items)
+Згенеруй JSON об'єкт з такими полями (всі значення українською):
+- name: Коротка назва агента (2-4 слова, українською)
+- icon: Один емодзі, що представляє цього агента
+- context: Детальні інструкції для AI як поводитись як цей агент (100-200 слів, українською). Включи роль, сфери експертизи, стиль комунікації.
+- description: Короткий опис того, що робить цей агент (1-2 речення, українською)
+- personality: Риси особистості українською (наприклад, "дружній", "професійний", "креативний")
+- expertise: Масив сфер експертизи українською (3-5 елементів)
 
-Response must be valid JSON only, no markdown.`;
+ВАЖЛИВО: Усі текстові значення мають бути українською мовою!
+Відповідь має бути тільки валідний JSON, без markdown.`;
 
   if (config.provider === "claude") {
     const { client } = await getClaudeClient();
