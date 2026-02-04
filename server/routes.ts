@@ -22,7 +22,7 @@ import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, isNull, inArray } from "drizzle-orm";
 import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable } from "@shared/schema";
-import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData } from "./openai";
+import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData, generateAgentData } from "./openai";
 
 // Admin middleware
 const requireAdmin = async (req: any, res: any, next: any) => {
@@ -5779,37 +5779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Опис має бути не менше 10 символів" });
       }
 
-      // Use Gemini to generate agent data
-      const { GoogleGenAI } = await import("@google/genai");
-      const ai = new GoogleGenAI({ apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "" });
-      
-      const prompt = `Based on the following description, generate an AI agent configuration in JSON format:
-
-Description: "${description}"
-
-Generate a JSON object with these fields:
-- name: A short, memorable name for the agent (max 50 chars, Ukrainian)
-- icon: A lucide-react icon name that matches the agent's purpose (e.g., "Bot", "Sparkles", "Brain", "Target", "Lightbulb", "Rocket", "Star")
-- description: A 1-2 sentence description of the agent's purpose (Ukrainian)
-- context: Detailed instructions for how this agent should behave, its expertise, communication style, and what it focuses on (3-5 sentences, Ukrainian)
-- personality: Key personality traits of the agent (Ukrainian)
-- expertise: Array of 3-5 areas of expertise (Ukrainian strings)
-
-Return ONLY valid JSON, no markdown or explanation.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-      });
-
-      const text = response.text || "";
-      // Extract JSON from response
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("Failed to parse AI response");
-      }
-      
-      const agentData = JSON.parse(jsonMatch[0]);
+      const agentData = await generateAgentData(description);
       res.json(agentData);
     } catch (error: any) {
       console.error("Generate agent error:", error);

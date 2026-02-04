@@ -1189,3 +1189,58 @@ ${productDescription}
 
   return JSON.parse(content) as GeneratedProductData;
 }
+
+export interface GeneratedAgentData {
+  name: string;
+  icon: string;
+  context: string;
+  description: string;
+  personality?: string;
+  expertise?: string[];
+}
+
+export async function generateAgentData(description: string): Promise<GeneratedAgentData> {
+  const config = await getAIConfig();
+  
+  const prompt = `Based on the following description, generate an AI agent configuration in JSON format:
+
+Description: "${description}"
+
+Generate a JSON object with these fields:
+- name: Short name for the agent (2-4 words)
+- icon: One emoji that represents this agent
+- context: Detailed instructions for the AI on how to behave as this agent (100-200 words). Include the role, expertise areas, communication style.
+- description: Brief description of what this agent does (1-2 sentences)
+- personality: Personality traits (e.g., "friendly", "professional", "creative")
+- expertise: Array of expertise areas (3-5 items)
+
+Response must be valid JSON only, no markdown.`;
+
+  if (config.provider === "claude") {
+    const { client } = await getClaudeClient();
+    const response = await client.messages.create({
+      model: config.model,
+      max_tokens: 1000,
+      messages: [{ role: "user", content: prompt }]
+    });
+    const textBlock = response.content.find((c): c is Anthropic.TextBlock => c.type === "text");
+    if (!textBlock?.text) {
+      throw new Error("Не вдалося згенерувати дані агента");
+    }
+    return JSON.parse(textBlock.text) as GeneratedAgentData;
+  } else {
+    const { client } = await getAIClient();
+    const response = await client.chat.completions.create({
+      model: config.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 1000,
+      response_format: { type: "json_object" }
+    });
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("Не вдалося згенерувати дані агента");
+    }
+    return JSON.parse(content) as GeneratedAgentData;
+  }
+}
