@@ -96,6 +96,7 @@ export default function AgentsPage() {
     context: "",
     personality: "",
     expertise: [] as string[],
+    language: "uk",
     isActive: true
   });
   const [expertiseInput, setExpertiseInput] = useState("");
@@ -169,15 +170,16 @@ export default function AgentsPage() {
       return response.json();
     },
     onSuccess: (data) => {
-      setFormData({
+      setFormData(prev => ({
         name: data.name || "",
         icon: data.icon && ICON_OPTIONS.includes(data.icon) ? data.icon : "Bot",
         description: data.description || "",
         context: data.context || "",
         personality: data.personality || "",
         expertise: Array.isArray(data.expertise) ? data.expertise : [],
+        language: prev.language,
         isActive: true
-      });
+      }));
       setGenerateDescription("");
       toast({ title: "Успішно", description: "Дані агента згенеровано" });
     },
@@ -194,6 +196,7 @@ export default function AgentsPage() {
       context: "",
       personality: "",
       expertise: [],
+      language: "uk",
       isActive: true
     });
     setExpertiseInput("");
@@ -214,6 +217,7 @@ export default function AgentsPage() {
       context: agent.context,
       personality: agent.personality || "",
       expertise: agent.expertise || [],
+      language: agent.language || "uk",
       isActive: agent.isActive ?? true
     });
     setDialogOpen(true);
@@ -534,6 +538,22 @@ export default function AgentsPage() {
                 onChange={(e) => setFormData({ ...formData, personality: e.target.value })}
                 placeholder="Дружній, професійний, креативний"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Мова спілкування</Label>
+              <Select
+                value={formData.language}
+                onValueChange={(value) => setFormData({ ...formData, language: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Оберіть мову" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="uk">🇺🇦 Українська</SelectItem>
+                  <SelectItem value="en">🇬🇧 English</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

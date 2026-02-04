@@ -4488,7 +4488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get agent if provided
-      let agentContext: { name: string; context: string; personality?: string; expertise?: string[] } | undefined;
+      let agentContext: { name: string; context: string; personality?: string; expertise?: string[]; language?: string } | undefined;
       let agentName: string | undefined;
       if (agentId) {
         const agent = await storage.getUserAgent(agentId);
@@ -4498,6 +4498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             context: agent.context,
             personality: agent.personality || undefined,
             expertise: agent.expertise || undefined,
+            language: agent.language || undefined,
           };
           agentName = agent.name;
         }

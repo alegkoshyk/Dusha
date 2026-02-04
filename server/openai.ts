@@ -395,6 +395,7 @@ export interface AgentContext {
   context: string;
   personality?: string;
   expertise?: string[];
+  language?: string;
 }
 
 export interface BrandContext {
@@ -412,11 +413,16 @@ export async function sendBrandChatMessage(
 ): Promise<{ response: string; tokensUsed?: { input: number; output: number } }> {
   const config = await getAIConfig();
 
+  const agentLanguage = brandContext.agentContext?.language === 'en' 
+    ? 'IMPORTANT: Always respond in English only.' 
+    : 'ВАЖЛИВО: Завжди відповідай українською мовою.';
+  
   const agentSection = brandContext.agentContext ? `
 🤖 Ти - AI агент "${brandContext.agentContext.name}".
 ${brandContext.agentContext.context}
 ${brandContext.agentContext.personality ? `Твоя особистість: ${brandContext.agentContext.personality}` : ''}
 ${brandContext.agentContext.expertise && brandContext.agentContext.expertise.length > 0 ? `Твоя експертиза: ${brandContext.agentContext.expertise.join(', ')}` : ''}
+${agentLanguage}
 ` : `Ти - експертний консультант з брендингу та маркетингу. Ти допомагаєш підприємцям розвивати їхні бренди.`;
 
   const systemPrompt = `${agentSection}

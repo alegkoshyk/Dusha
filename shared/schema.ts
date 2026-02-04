@@ -1569,6 +1569,7 @@ export const userAgentsTable = pgTable("user_agents", {
   context: text("context").notNull(), // Detailed context/instructions for AI
   personality: text("personality"), // Agent personality traits
   expertise: json("expertise").$type<string[]>(), // Areas of expertise
+  language: varchar("language", { length: 10 }).default("uk"), // Communication language: uk, en
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
