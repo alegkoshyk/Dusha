@@ -162,6 +162,8 @@ interface ChatMessage {
   content: string;
   imageUrl?: string | null;
   metadata?: any;
+  agentId?: string | null;
+  agentName?: string | null;
   createdAt: string;
 }
 
@@ -949,14 +951,22 @@ export default function BrandChat() {
                       ) : (
                         formatMarkdown(msg.content)
                       )}
-                      <span className={`text-xs mt-2 block ${
+                      <div className={`flex items-center gap-2 mt-2 text-xs ${
                         msg.role === 'user' ? 'text-red-200' : 'text-gray-400'
                       }`}>
-                        {new Date(msg.createdAt).toLocaleTimeString('uk-UA', { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </span>
+                        <span>
+                          {new Date(msg.createdAt).toLocaleTimeString('uk-UA', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </span>
+                        {msg.agentName && msg.role === 'assistant' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded-full text-xs">
+                            <Bot className="w-3 h-3" />
+                            {msg.agentName}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
