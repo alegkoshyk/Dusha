@@ -569,8 +569,8 @@ export default function BrandChat() {
     
     const uploadPromises = Array.from(files).map(async (file) => {
       try {
-        // Compress and convert to base64
-        const base64Data = await compressImage(file, 1024, 0.7);
+        // Compress and convert to base64 (512px max, 50% quality for smaller size)
+        const base64Data = await compressImage(file, 512, 0.5);
         
         const imageId = nextImageId.current++;
         setAttachedImages(prev => [...prev, { id: imageId, url: base64Data, filename: file.name }]);
