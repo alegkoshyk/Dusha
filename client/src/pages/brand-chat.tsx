@@ -41,7 +41,8 @@ import {
   Gamepad2,
   CheckCircle2,
   MoreVertical,
-  Map
+  Map,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
@@ -1471,10 +1472,10 @@ export default function BrandChat() {
           </CollapsibleContent>
         </Collapsible>
 
-        <form onSubmit={handleSend} className="p-2 sm:p-4 border-t dark:border-gray-700">
-          {/* Agent Selector */}
+        <form onSubmit={handleSend} className="p-2 border-t dark:border-gray-700">
+          {/* Agent Selector - Desktop only */}
           {userAgents && userAgents.length > 0 && (
-            <div className="mb-2 flex items-center gap-2">
+            <div className="hidden sm:flex mb-2 items-center gap-2">
               <Bot className="w-4 h-4 text-muted-foreground shrink-0" />
               <Select
                 value={selectedAgentId || "none"}
@@ -1523,50 +1524,107 @@ export default function BrandChat() {
               )}
             </div>
           )}
-          <div className="flex gap-1 sm:gap-2 items-center">
+          <div className="flex gap-1 items-center">
+            {/* Plus button with dropdown menu (like ChatGPT) */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="icon" 
+                  className="shrink-0 w-9 h-9 rounded-full"
+                >
+                  <Plus className="w-5 h-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem onClick={() => setShowImageSettings(!showImageSettings)}>
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  Налаштування генерації
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onClick={handleGenerateImage}
+                  disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || generateDalleMutation.isPending}
+                >
+                  {imageGenerator === 'dalle' ? (
+                    <Sparkles className="w-4 h-4 mr-2" />
+                  ) : (
+                    <Image className="w-4 h-4 mr-2" />
+                  )}
+                  Згенерувати зображення
+                </DropdownMenuItem>
+                {userAgents && userAgents.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      AI Агент
+                    </div>
+                    <DropdownMenuItem onClick={() => setSelectedAgentId(null)}>
+                      <Bot className="w-4 h-4 mr-2" />
+                      {!selectedAgentId ? '✓ ' : ''}Без агента
+                    </DropdownMenuItem>
+                    {userAgents.filter(a => a.isActive).slice(0, 5).map((agent) => (
+                      <DropdownMenuItem 
+                        key={agent.id} 
+                        onClick={() => setSelectedAgentId(agent.id)}
+                      >
+                        <Bot className="w-4 h-4 mr-2" />
+                        {selectedAgentId === agent.id ? '✓ ' : ''}{agent.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             <Input
               ref={inputRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={selectedAgent ? `Чат з ${selectedAgent.name}...` : "Напишіть повідом..."}
+              placeholder={selectedAgent ? `${selectedAgent.name}...` : "Напишіть повідом..."}
               disabled={sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
-              className="flex-1 min-w-0 text-sm sm:text-base"
+              className="flex-1 min-w-0 text-sm h-10"
               data-testid="input-message"
             />
-            <Button
-              type="button"
-              variant={showImageSettings || selectedStyle || customContext ? "default" : "outline"}
-              size="icon"
-              onClick={() => setShowImageSettings(!showImageSettings)}
-              title="Налаштування генерації"
-              data-testid="button-toggle-settings"
-              className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 ${showImageSettings || selectedStyle || customContext ? "bg-purple-600 hover:bg-purple-700" : ""}`}
-            >
-              <Settings2 className="w-4 h-4" />
-            </Button>
-            <Button 
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={handleGenerateImage}
-              disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || generateDalleMutation.isPending || sendMessageMutation.isPending}
-              title={imageGenerator === 'dalle' ? "Згенерувати через DALL-E" : "Згенерувати через NanoBanana"}
-              className="shrink-0 w-9 h-9 sm:w-10 sm:h-10"
-              data-testid="button-generate-image"
-            >
-              {(generateImageMutation.isPending || generateDalleMutation.isPending) ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : imageGenerator === 'dalle' ? (
-                <Sparkles className="w-4 h-4" />
-              ) : (
-                <Image className="w-4 h-4" />
-              )}
-            </Button>
+            
+            {/* Desktop: show all buttons */}
+            <div className="hidden sm:flex gap-1">
+              <Button
+                type="button"
+                variant={showImageSettings || selectedStyle || customContext ? "default" : "outline"}
+                size="icon"
+                onClick={() => setShowImageSettings(!showImageSettings)}
+                title="Налаштування генерації"
+                data-testid="button-toggle-settings"
+                className={`shrink-0 w-10 h-10 ${showImageSettings || selectedStyle || customContext ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+              >
+                <Settings2 className="w-4 h-4" />
+              </Button>
+              <Button 
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleGenerateImage}
+                disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || generateDalleMutation.isPending || sendMessageMutation.isPending}
+                title={imageGenerator === 'dalle' ? "Згенерувати через DALL-E" : "Згенерувати через NanoBanana"}
+                className="shrink-0 w-10 h-10"
+                data-testid="button-generate-image"
+              >
+                {(generateImageMutation.isPending || generateDalleMutation.isPending) ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : imageGenerator === 'dalle' ? (
+                  <Sparkles className="w-4 h-4" />
+                ) : (
+                  <Image className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+            
             <Button 
               type="submit"
               size="icon"
               disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
-              className="shrink-0 w-9 h-9 sm:w-10 sm:h-10"
+              className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full"
               data-testid="button-send"
             >
               {sendMessageMutation.isPending ? (
