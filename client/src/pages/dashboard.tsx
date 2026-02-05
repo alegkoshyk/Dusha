@@ -164,97 +164,98 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        {/* Navigation cards - horizontal scroll on mobile, grid on desktop */}
+        <div className="flex gap-3 overflow-x-auto pb-2 mb-6 lg:grid lg:grid-cols-5 lg:overflow-visible">
           <Link href="/brands" className="contents">
-            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-blue-200 dark:hover:border-blue-800">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-white" />
+            <Card className="shrink-0 w-36 lg:w-auto hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-blue-200 dark:hover:border-blue-800">
+              <CardContent className="p-3 lg:p-4">
+                <div className="flex flex-col items-center text-center lg:flex-row lg:text-left lg:items-center gap-2 lg:gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5 text-white" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors truncate">
                       Мої бренди
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{totalBrands} брендів</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{totalBrands} брендів</p>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                  <ArrowRight className="hidden lg:block w-4 h-4 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all shrink-0" />
                 </div>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/brand-maps" className="contents">
-            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-indigo-200 dark:hover:border-indigo-800">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                    <Map className="w-6 h-6 text-white" />
+            <Card className="shrink-0 w-36 lg:w-auto hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-indigo-200 dark:hover:border-indigo-800">
+              <CardContent className="p-3 lg:p-4">
+                <div className="flex flex-col items-center text-center lg:flex-row lg:text-left lg:items-center gap-2 lg:gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0">
+                    <Map className="w-5 h-5 text-white" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
                       Карти брендів
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Візуалізації</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Візуалізації</p>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                  <ArrowRight className="hidden lg:block w-4 h-4 text-gray-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all shrink-0" />
                 </div>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/media" className="contents">
-            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-pink-200 dark:hover:border-pink-800">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
-                    <Image className="w-6 h-6 text-white" />
+            <Card className="shrink-0 w-36 lg:w-auto hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-pink-200 dark:hover:border-pink-800">
+              <CardContent className="p-3 lg:p-4">
+                <div className="flex flex-col items-center text-center lg:flex-row lg:text-left lg:items-center gap-2 lg:gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shrink-0">
+                    <Image className="w-5 h-5 text-white" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors truncate">
                       Медіа
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Бібліотека</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Бібліотека</p>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-pink-500 group-hover:translate-x-1 transition-all" />
+                  <ArrowRight className="hidden lg:block w-4 h-4 text-gray-400 group-hover:text-pink-500 group-hover:translate-x-1 transition-all shrink-0" />
                 </div>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/brand-analysis" className="contents">
-            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-emerald-200 dark:hover:border-emerald-800">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                    <Search className="w-6 h-6 text-white" />
+            <Card className="shrink-0 w-36 lg:w-auto hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-emerald-200 dark:hover:border-emerald-800">
+              <CardContent className="p-3 lg:p-4">
+                <div className="flex flex-col items-center text-center lg:flex-row lg:text-left lg:items-center gap-2 lg:gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0">
+                    <Search className="w-5 h-5 text-white" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
                       Аналіз
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Дослідження</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Дослідження</p>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                  <ArrowRight className="hidden lg:block w-4 h-4 text-gray-400 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all shrink-0" />
                 </div>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/agents" className="contents">
-            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-purple-200 dark:hover:border-purple-800">
-              <CardContent className="p-5">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
-                    <Bot className="w-6 h-6 text-white" />
+            <Card className="shrink-0 w-36 lg:w-auto hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-purple-200 dark:hover:border-purple-800">
+              <CardContent className="p-3 lg:p-4">
+                <div className="flex flex-col items-center text-center lg:flex-row lg:text-left lg:items-center gap-2 lg:gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shrink-0">
+                    <Bot className="w-5 h-5 text-white" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-sm text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors truncate">
                       AI Агенти
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Помічники</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">Помічники</p>
                   </div>
-                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-purple-500 group-hover:translate-x-1 transition-all" />
+                  <ArrowRight className="hidden lg:block w-4 h-4 text-gray-400 group-hover:text-purple-500 group-hover:translate-x-1 transition-all shrink-0" />
                 </div>
               </CardContent>
             </Card>
