@@ -517,49 +517,71 @@ export default function BrandChat() {
     setReferenceImages(prev => prev.filter(img => img.url !== url));
   };
 
-  // Chat image attachment upload
+  // Compress image and convert to base64
+  const compressImage = (file: File, maxWidth = 1024, quality = 0.8): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Scale down if larger than maxWidth
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context not available'));
+          return;
+        }
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to JPEG for better compression
+        const base64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(base64);
+      };
+      
+      img.onerror = () => reject(new Error('Failed to load image'));
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Chat image attachment upload with compression
   const handleChatImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
     setUploadingAttachment(true);
     
-    const uploadPromises = Array.from(files).map(file => {
-      return new Promise<void>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            const imageData = e.target?.result as string;
-            
-            const response = await apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/upload-reference`, {
-              imageData,
-              filename: file.name
-            });
-            
-            if (response.success) {
-              const imageId = nextImageId.current++;
-              setAttachedImages(prev => [...prev, { id: imageId, url: response.url, filename: file.name }]);
-              toast({ title: `Зображення #${imageId} додано` });
-            }
-          } catch (error: any) {
-            toast({
-              title: "Помилка завантаження",
-              description: error.message || "Не вдалося завантажити зображення",
-              variant: "destructive",
-            });
-          }
-          resolve();
-        };
-        reader.onerror = () => {
-          toast({
-            title: "Помилка читання файлу",
-            description: file.name,
-            variant: "destructive",
-          });
-          resolve();
-        };
-        reader.readAsDataURL(file);
-      });
+    const uploadPromises = Array.from(files).map(async (file) => {
+      try {
+        // Compress and convert to base64
+        const base64Data = await compressImage(file, 1024, 0.7);
+        
+        const imageId = nextImageId.current++;
+        setAttachedImages(prev => [...prev, { id: imageId, url: base64Data, filename: file.name }]);
+        toast({ title: `Зображення #${imageId} додано` });
+      } catch (error: any) {
+        toast({
+          title: "Помилка обробки зображення",
+          description: error.message || "Не вдалося обробити зображення",
+          variant: "destructive",
+        });
+      }
     });
     
     await Promise.all(uploadPromises);

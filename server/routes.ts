@@ -4478,11 +4478,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Повідомлення обов'язкове" });
       }
       
-      // Validate imageUrls if provided
+      // Validate imageUrls if provided (accepts both http URLs and base64 data URLs)
       const validImageUrls: string[] = [];
       if (imageUrls && Array.isArray(imageUrls)) {
         for (const url of imageUrls) {
-          if (typeof url === 'string' && url.startsWith('http')) {
+          if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('data:image/'))) {
             validImageUrls.push(url);
           }
         }
