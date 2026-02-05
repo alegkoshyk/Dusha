@@ -4838,7 +4838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls, usePro = false, agentId } = req.body;
+      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls, usePro = false, agentId, productId, audienceId } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
@@ -4905,6 +4905,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Get product context if specified (verify it belongs to the same brand)
+      let productContext = '';
+      if (productId && gameSession.brandId) {
+        const product = await storage.getBrandProduct(productId);
+        if (product && product.brandId === gameSession.brandId) {
+          productContext = `Product: ${product.name}`;
+          if (product.shortDescription) productContext += `. ${product.shortDescription}`;
+          if (product.category) productContext += `. Category: ${product.category}`;
+          if (product.targetAudience) productContext += `. Target audience: ${product.targetAudience}`;
+          console.log('Image generation using product context:', product.name);
+        }
+      }
+
+      // Get audience context if specified (verify it belongs to the same brand)
+      let audienceContext = '';
+      if (audienceId && gameSession.brandId) {
+        const audience = await storage.getTargetAudience(audienceId);
+        if (audience && audience.brandId === gameSession.brandId) {
+          audienceContext = `Target audience: ${audience.name}`;
+          if (audience.description) audienceContext += `. ${audience.description}`;
+          if (audience.ageRange) audienceContext += `. Age: ${audience.ageRange}`;
+          if (audience.gender && audience.gender !== 'all') audienceContext += `. Gender: ${audience.gender}`;
+          const values = audience.values as string[] | null;
+          if (values && values.length > 0) audienceContext += `. Values: ${values.join(', ')}`;
+          const interests = audience.interests as string[] | null;
+          if (interests && interests.length > 0) audienceContext += `. Interests: ${interests.join(', ')}`;
+          console.log('Image generation using audience context:', audience.name);
+        }
+      }
+
       // Combine prompts: merch type (primary) + template + user prompt (which includes style)
       let finalPrompt = merchTypePrompt || templatePrompt || prompt || '';
       if (merchTypePrompt && prompt) {
@@ -4919,6 +4949,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (agentContext) {
         finalPrompt = `${finalPrompt}\n\nDesign context and style requirements:\n${agentContext}`;
         console.log('Final prompt with agent context:', finalPrompt.substring(0, 200));
+      }
+      
+      // Add product context
+      if (productContext) {
+        finalPrompt = `${finalPrompt}\n\n${productContext}`;
+        console.log('Added product context to prompt');
+      }
+      
+      // Add audience context
+      if (audienceContext) {
+        finalPrompt = `${finalPrompt}\n\n${audienceContext}`;
+        console.log('Added audience context to prompt');
       }
 
       // Combine template reference and user-uploaded references

@@ -316,6 +316,8 @@ export default function BrandChat() {
   const [uploadingReference, setUploadingReference] = useState(false);
   const [selectedGameSessionId, setSelectedGameSessionId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [selectedAudienceId, setSelectedAudienceId] = useState<string | null>(null);
   const [attachedImages, setAttachedImages] = useState<{ id: number; url: string; filename: string }[]>([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -438,9 +440,34 @@ export default function BrandChat() {
   // Get selected agent details
   const selectedAgent = selectedAgentId ? userAgents?.find(a => a.id === selectedAgentId) : null;
 
+  // Fetch products for this brand
+  const brandIdForQueries = brandIdFromUrl || session?.brandId;
+  const { data: brandProducts } = useQuery<{ id: string; name: string; shortDescription: string | null; category: string | null }[]>({
+    queryKey: ['/api/brands', brandIdForQueries, 'products'],
+    queryFn: async () => {
+      if (!brandIdForQueries) return [];
+      return apiRequestJson('GET', `/api/brands/${brandIdForQueries}/products`);
+    },
+    enabled: !!brandIdForQueries,
+  });
+
+  // Fetch target audiences for this brand
+  const { data: brandAudiences } = useQuery<{ id: string; name: string; description: string | null; ageRange: string | null; gender: string | null }[]>({
+    queryKey: ['/api/brands', brandIdForQueries, 'target-audiences'],
+    queryFn: async () => {
+      if (!brandIdForQueries) return [];
+      return apiRequestJson('GET', `/api/brands/${brandIdForQueries}/target-audiences`);
+    },
+    enabled: !!brandIdForQueries,
+  });
+
+  // Get selected product and audience details
+  const selectedProduct = selectedProductId ? brandProducts?.find(p => p.id === selectedProductId) : null;
+  const selectedAudience = selectedAudienceId ? brandAudiences?.find(a => a.id === selectedAudienceId) : null;
+
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; agentId?: string }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId, productId, audienceId }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; agentId?: string; productId?: string; audienceId?: string }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId, productId, audienceId });
     },
     onError: (error: any) => {
       toast({
@@ -702,7 +729,9 @@ export default function BrandChat() {
             merchTypeId: item.type === 'merch' ? item.id : undefined,
             referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined,
             usePro: useNanoBananaPro,
-            agentId: selectedAgentId || undefined
+            agentId: selectedAgentId || undefined,
+            productId: selectedProductId || undefined,
+            audienceId: selectedAudienceId || undefined
           }, {
             onSuccess: (data) => {
               const imageData = data.imageBase64 || data.imageUrl;
@@ -1602,6 +1631,76 @@ export default function BrandChat() {
               )}
             </div>
           )}
+
+          {/* Product and Audience Selectors - Desktop only */}
+          <div className="hidden sm:flex gap-2 mb-2">
+            {/* Product Selector */}
+            {brandProducts && brandProducts.length > 0 && (
+              <Select
+                value={selectedProductId || "none"}
+                onValueChange={(value) => setSelectedProductId(value === "none" ? null : value)}
+              >
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue placeholder="Продукт">
+                    {selectedProduct ? (
+                      <span className="truncate">📦 {selectedProduct.name}</span>
+                    ) : (
+                      <span className="text-muted-foreground">📦 Продукт</span>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    <span className="text-muted-foreground">Без продукту</span>
+                  </SelectItem>
+                  {brandProducts.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">{product.name}</span>
+                        {product.category && (
+                          <span className="text-xs text-muted-foreground">({product.category})</span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Audience Selector */}
+            {brandAudiences && brandAudiences.length > 0 && (
+              <Select
+                value={selectedAudienceId || "none"}
+                onValueChange={(value) => setSelectedAudienceId(value === "none" ? null : value)}
+              >
+                <SelectTrigger className="h-8 text-xs flex-1">
+                  <SelectValue placeholder="Аудиторія">
+                    {selectedAudience ? (
+                      <span className="truncate">👥 {selectedAudience.name}</span>
+                    ) : (
+                      <span className="text-muted-foreground">👥 Аудиторія</span>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">
+                    <span className="text-muted-foreground">Без аудиторії</span>
+                  </SelectItem>
+                  {brandAudiences.map((audience) => (
+                    <SelectItem key={audience.id} value={audience.id}>
+                      <span className="flex items-center gap-2">
+                        <span className="font-medium">{audience.name}</span>
+                        {audience.ageRange && (
+                          <span className="text-xs text-muted-foreground">({audience.ageRange})</span>
+                        )}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
           {/* Hidden file input for chat images */}
             <input
               ref={chatImageInputRef}
@@ -1696,6 +1795,44 @@ export default function BrandChat() {
                       >
                         <Bot className="w-4 h-4 mr-2" />
                         {selectedAgentId === agent.id ? '✓ ' : ''}{agent.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+                {brandProducts && brandProducts.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      📦 Продукт
+                    </div>
+                    <DropdownMenuItem onClick={() => setSelectedProductId(null)}>
+                      {!selectedProductId ? '✓ ' : ''}Без продукту
+                    </DropdownMenuItem>
+                    {brandProducts.slice(0, 5).map((product) => (
+                      <DropdownMenuItem 
+                        key={product.id} 
+                        onClick={() => setSelectedProductId(product.id)}
+                      >
+                        {selectedProductId === product.id ? '✓ ' : ''}{product.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
+                {brandAudiences && brandAudiences.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      👥 Аудиторія
+                    </div>
+                    <DropdownMenuItem onClick={() => setSelectedAudienceId(null)}>
+                      {!selectedAudienceId ? '✓ ' : ''}Без аудиторії
+                    </DropdownMenuItem>
+                    {brandAudiences.slice(0, 5).map((audience) => (
+                      <DropdownMenuItem 
+                        key={audience.id} 
+                        onClick={() => setSelectedAudienceId(audience.id)}
+                      >
+                        {selectedAudienceId === audience.id ? '✓ ' : ''}{audience.name}
                       </DropdownMenuItem>
                     ))}
                   </>
