@@ -174,12 +174,14 @@ export async function generateImageWithNanoBanana(
   sessionId?: string,
   userId?: string,
   logoUrl?: string,
-  referenceImageUrl?: string
+  referenceImageUrl?: string,
+  usePro: boolean = false
 ): Promise<GenerateImageResult> {
   console.log('NanoBanana: Starting image generation...');
   console.log('NanoBanana: Aspect ratio:', aspectRatio);
   console.log('NanoBanana: Logo URL provided:', !!logoUrl);
   console.log('NanoBanana: Reference image URL:', referenceImageUrl || 'none');
+  console.log('NanoBanana: Pro mode:', usePro);
   
   const apiKey = decryptApiKey(encryptedApiKey);
   
@@ -222,6 +224,11 @@ export async function generateImageWithNanoBanana(
     // Note: API has typo in type values - IAMGE instead of IMAGE
     // Always set image_size for both modes
     requestBody.image_size = aspectRatio;
+    
+    // Add Pro mode flag if enabled (uses higher quality model)
+    if (usePro) {
+      requestBody.usePro = true;
+    }
     
     if (logoUrl) {
       requestBody.type = 'IMAGETOIAMGE'; // Image editing mode (API typo: IAMGE not IMAGE)
