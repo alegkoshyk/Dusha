@@ -538,8 +538,12 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
     lastRole = msg.role;
   }
   
-  // Build user message content with images if provided
-  if (imageUrls && imageUrls.length > 0) {
+  // Check if model supports vision (GPT-4o, GPT-4 Vision, Gemini Pro Vision, etc.)
+  const visionModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-vision', 'gpt-4-turbo', 'gemini-1.5', 'gemini-2', 'gemini-pro-vision', 'claude-3'];
+  const supportsVision = visionModels.some(vm => config.model.toLowerCase().includes(vm.toLowerCase()));
+  
+  // Build user message content with images if provided and model supports vision
+  if (imageUrls && imageUrls.length > 0 && supportsVision) {
     const userContent: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
       { type: "text", text: userMessage }
     ];
@@ -569,6 +573,10 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
     }
     
     allMessages.push({ role: "user", content: userContent });
+  } else if (imageUrls && imageUrls.length > 0 && !supportsVision) {
+    // Model doesn't support vision - add note about images to text
+    const imageNote = `\n\n[Користувач прикріпив ${imageUrls.length} зображень, але поточна модель (${config.model}) не підтримує аналіз зображень]`;
+    allMessages.push({ role: "user", content: userMessage + imageNote });
   } else if (lastRole === "user" && allMessages.length > 1) {
     const lastMsg = allMessages[allMessages.length - 1];
     if (typeof lastMsg.content === 'string') {
