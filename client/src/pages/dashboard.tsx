@@ -129,46 +129,39 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-8">
-          <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur">
-            <CardContent className="p-4 text-center">
-              <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 rounded-full mx-auto mb-2">
-                <Users className="w-5 h-5 md:w-6 md:h-6" />
-              </div>
-              <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{totalBrands}</p>
-              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Брендів</p>
-            </CardContent>
-          </Card>
+        {/* Compact stats row */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          <div className="flex items-center gap-2 px-3 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-full border border-gray-200 dark:border-gray-700 shrink-0">
+            <div className="w-7 h-7 bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400 rounded-full flex items-center justify-center">
+              <Users className="w-4 h-4" />
+            </div>
+            <span className="text-base font-bold text-gray-900 dark:text-white">{totalBrands}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">брендів</span>
+          </div>
           
-          <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur">
-            <CardContent className="p-4 text-center">
-              <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full mx-auto mb-2">
-                <Trophy className="w-5 h-5 md:w-6 md:h-6" />
-              </div>
-              <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{completedGames}</p>
-              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Завершено</p>
-            </CardContent>
-          </Card>
+          <div className="flex items-center gap-2 px-3 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-full border border-gray-200 dark:border-gray-700 shrink-0">
+            <div className="w-7 h-7 bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center">
+              <Trophy className="w-4 h-4" />
+            </div>
+            <span className="text-base font-bold text-gray-900 dark:text-white">{completedGames}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">завершено</span>
+          </div>
           
-          <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur">
-            <CardContent className="p-4 text-center">
-              <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full mx-auto mb-2">
-                <TrendingUp className="w-5 h-5 md:w-6 md:h-6" />
-              </div>
-              <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{activeGames}</p>
-              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">Активних</p>
-            </CardContent>
-          </Card>
+          <div className="flex items-center gap-2 px-3 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-full border border-gray-200 dark:border-gray-700 shrink-0">
+            <div className="w-7 h-7 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+            <span className="text-base font-bold text-gray-900 dark:text-white">{activeGames}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">активних</span>
+          </div>
           
-          <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur">
-            <CardContent className="p-4 text-center">
-              <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400 rounded-full mx-auto mb-2">
-                <Zap className="w-5 h-5 md:w-6 md:h-6" />
-              </div>
-              <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">{totalXP}</p>
-              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">XP</p>
-            </CardContent>
-          </Card>
+          <div className="flex items-center gap-2 px-3 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-full border border-gray-200 dark:border-gray-700 shrink-0">
+            <div className="w-7 h-7 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-600 dark:text-yellow-400 rounded-full flex items-center justify-center">
+              <Zap className="w-4 h-4" />
+            </div>
+            <span className="text-base font-bold text-gray-900 dark:text-white">{totalXP}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">XP</span>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
