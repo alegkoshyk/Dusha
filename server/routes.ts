@@ -4895,12 +4895,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Combine prompts: merch type (primary) + template + user prompt
-      let finalPrompt = merchTypePrompt || templatePrompt || prompt;
+      // Combine prompts: merch type (primary) + template + user prompt (which includes style)
+      let finalPrompt = merchTypePrompt || templatePrompt || prompt || '';
       if (merchTypePrompt && prompt) {
-        finalPrompt = `${merchTypePrompt}. Additional instructions: ${prompt}`;
+        // Append user's style/instructions to merch prompt
+        finalPrompt = `${merchTypePrompt}. Style: ${prompt}`;
       } else if (templatePrompt && prompt) {
-        finalPrompt = `${templatePrompt}. Additional context: ${prompt}`;
+        // Append user's style/instructions to template prompt
+        finalPrompt = `${templatePrompt}. Style: ${prompt}`;
       }
 
       // Combine template reference and user-uploaded references

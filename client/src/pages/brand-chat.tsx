@@ -674,8 +674,10 @@ export default function BrandChat() {
       setGenerationProgress({ current: i + 1, total: queue.length });
       
       let fullPrompt = userPrompt || '';
-      if (fullPrompt && selectedStyle && STYLE_PROMPTS[selectedStyle]) {
-        fullPrompt = `${fullPrompt}, ${STYLE_PROMPTS[selectedStyle]}`;
+      // Always include style in the prompt (even without user text)
+      const stylePrompt = selectedStyle && STYLE_PROMPTS[selectedStyle] ? STYLE_PROMPTS[selectedStyle] : '';
+      if (stylePrompt) {
+        fullPrompt = fullPrompt ? `${fullPrompt}, ${stylePrompt}` : stylePrompt;
       }
       
       const tempId = `img-${Date.now()}-${i}`;
