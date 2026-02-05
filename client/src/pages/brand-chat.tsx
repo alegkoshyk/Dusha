@@ -1476,7 +1476,7 @@ export default function BrandChat() {
           </CollapsibleContent>
         </Collapsible>
 
-        <form onSubmit={handleSend} className="p-2 border-t dark:border-gray-700">
+        <form onSubmit={handleSend} className="p-2 border-t dark:border-gray-700 relative">
           {/* Agent Selector - Desktop only */}
           {userAgents && userAgents.length > 0 && (
             <div className="hidden sm:flex mb-2 items-center gap-2">
@@ -1528,7 +1528,43 @@ export default function BrandChat() {
               )}
             </div>
           )}
-          <div className="flex gap-1 items-center">
+          {/* Hidden file input for chat images */}
+            <input
+              ref={chatImageInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleChatImageUpload}
+              className="hidden"
+              data-testid="input-chat-images"
+            />
+            
+            {/* Attached images display with numbered badges */}
+            {attachedImages.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2">
+                {attachedImages.map((img) => (
+                  <div key={img.id} className="relative group">
+                    <img 
+                      src={img.url} 
+                      alt={img.filename}
+                      className="w-14 h-14 object-cover rounded-lg border border-gray-300 dark:border-gray-600"
+                    />
+                    <span className="absolute -top-1 -left-1 w-5 h-5 bg-primary text-primary-foreground text-xs font-bold rounded-full flex items-center justify-center shadow-sm">
+                      {img.id}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachedImage(img.id)}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="flex gap-1 items-center w-full">
             {/* Plus button with dropdown menu (like ChatGPT) */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1542,20 +1578,17 @@ export default function BrandChat() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem onClick={() => chatImageInputRef.current?.click()}>
+                  <Image className="w-4 h-4 mr-2" />
+                  Додати зображення
+                  {attachedImages.length > 0 && (
+                    <span className="ml-auto text-xs text-muted-foreground">{attachedImages.length}</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setShowImageSettings(!showImageSettings)}>
                   <Settings2 className="w-4 h-4 mr-2" />
                   Налаштування генерації
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={handleGenerateImage}
-                  disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || generateDalleMutation.isPending}
-                >
-                  {imageGenerator === 'dalle' ? (
-                    <Sparkles className="w-4 h-4 mr-2" />
-                  ) : (
-                    <Image className="w-4 h-4 mr-2" />
-                  )}
-                  Згенерувати зображення
                 </DropdownMenuItem>
                 {userAgents && userAgents.length > 0 && (
                   <>
@@ -1624,19 +1657,37 @@ export default function BrandChat() {
               </Button>
             </div>
             
-            <Button 
-              type="submit"
-              size="icon"
-              disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
-              className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full"
-              data-testid="button-send"
-            >
-              {sendMessageMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </Button>
+            {/* Send button - changes to image generation when settings open */}
+            {showImageSettings ? (
+              <Button 
+                type="button"
+                size="icon"
+                onClick={handleGenerateImage}
+                disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || generateDalleMutation.isPending || sendMessageMutation.isPending}
+                className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-purple-600 hover:bg-purple-700"
+                data-testid="button-send"
+              >
+                {(generateImageMutation.isPending || generateDalleMutation.isPending) ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Image className="w-4 h-4" />
+                )}
+              </Button>
+            ) : (
+              <Button 
+                type="submit"
+                size="icon"
+                disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
+                className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full"
+                data-testid="button-send"
+              >
+                {sendMessageMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
+            )}
           </div>
         </form>
       </Card>
