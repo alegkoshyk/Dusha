@@ -312,9 +312,13 @@ export default function BrandChat() {
   const [uploadingReference, setUploadingReference] = useState(false);
   const [selectedGameSessionId, setSelectedGameSessionId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [attachedImages, setAttachedImages] = useState<{ id: number; url: string; filename: string }[]>([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatImageInputRef = useRef<HTMLInputElement>(null);
+  let nextImageId = useRef(1);
 
   // Detect mode - brand-based or session-based
   const isBrandMode = location.startsWith('/brand-chat/brand/');
@@ -509,6 +513,63 @@ export default function BrandChat() {
 
   const removeReference = (url: string) => {
     setReferenceImages(prev => prev.filter(img => img.url !== url));
+  };
+
+  // Chat image attachment upload
+  const handleChatImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingAttachment(true);
+    
+    const uploadPromises = Array.from(files).map(file => {
+      return new Promise<void>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          try {
+            const imageData = e.target?.result as string;
+            
+            const response = await apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/upload-reference`, {
+              imageData,
+              filename: file.name
+            });
+            
+            if (response.success) {
+              const imageId = nextImageId.current++;
+              setAttachedImages(prev => [...prev, { id: imageId, url: response.url, filename: file.name }]);
+              toast({ title: `Зображення #${imageId} додано` });
+            }
+          } catch (error: any) {
+            toast({
+              title: "Помилка завантаження",
+              description: error.message || "Не вдалося завантажити зображення",
+              variant: "destructive",
+            });
+          }
+          resolve();
+        };
+        reader.onerror = () => {
+          toast({
+            title: "Помилка читання файлу",
+            description: file.name,
+            variant: "destructive",
+          });
+          resolve();
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+    
+    await Promise.all(uploadPromises);
+    
+    setUploadingAttachment(false);
+    if (chatImageInputRef.current) {
+      chatImageInputRef.current.value = '';
+    }
+  };
+
+  const removeAttachedImage = (id: number) => {
+    setAttachedImages(prev => prev.filter(img => img.id !== id));
   };
 
   // Scroll to bottom when messages change or on initial load
@@ -1174,63 +1235,6 @@ export default function BrandChat() {
                     ? 'OpenAI DALL-E 3 - найкраща якість (референси не підтримуються напряму)' 
                     : 'NanoBanana - підтримує референси як URL для стилю, логотипи та мерч генерацію'}
                 </p>
-              </div>
-
-              {/* Reference Images Upload */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Референс-зображення
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={handleReferenceUpload}
-                    className="hidden"
-                    data-testid="input-reference-upload"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingReference}
-                    data-testid="button-upload-reference"
-                  >
-                    {uploadingReference ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4 mr-2" />
-                    )}
-                    Завантажити референс
-                  </Button>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {referenceImages.length > 0 ? `${referenceImages.length} зображ.` : 'Для стилю та натхнення'}
-                  </span>
-                </div>
-                {referenceImages.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {referenceImages.map((ref, idx) => (
-                      <div key={idx} className="relative group">
-                        <img 
-                          src={ref.url} 
-                          alt={ref.filename}
-                          className="w-16 h-16 object-cover rounded border border-gray-200 dark:border-gray-600"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeReference(ref.url)}
-                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          data-testid={`button-remove-ref-${idx}`}
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
