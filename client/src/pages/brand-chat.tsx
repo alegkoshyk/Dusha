@@ -12,6 +12,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { 
   Send, 
   ArrowLeft, 
   Trash2, 
@@ -32,7 +39,9 @@ import {
   Sparkles,
   Play,
   Gamepad2,
-  CheckCircle2
+  CheckCircle2,
+  MoreVertical,
+  Map
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
@@ -708,11 +717,13 @@ export default function BrandChat() {
             </p>
           </div>
         </div>
-        <div className="flex gap-1 sm:gap-2 shrink-0">
+        
+        {/* Desktop: show all buttons */}
+        <div className="hidden sm:flex gap-2 shrink-0">
           <Link href={`/brand-board/${activeSessionId}`}>
-            <Button variant="outline" size="sm" className="px-2 sm:px-3" data-testid="button-view-map">
-              <Eye className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Карта</span>
+            <Button variant="outline" size="sm" className="px-3" data-testid="button-view-map">
+              <Eye className="w-4 h-4 mr-2" />
+              Карта
             </Button>
           </Link>
           <Button 
@@ -726,12 +737,98 @@ export default function BrandChat() {
             <Trash2 className="w-4 h-4" />
           </Button>
         </div>
+        
+        {/* Mobile: dropdown menu */}
+        <div className="flex sm:hidden shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {activeSessionId && (
+                <DropdownMenuItem onClick={() => setLocation(`/brand-board/${activeSessionId}`)}>
+                  <Map className="w-4 h-4 mr-2" />
+                  Карта бренду
+                </DropdownMenuItem>
+              )}
+              {isBrandMode && completedBrandSessions.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Контекст гри
+                  </div>
+                  {completedBrandSessions
+                    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                    .slice(0, 5)
+                    .map((gameSession, index) => (
+                      <DropdownMenuItem 
+                        key={gameSession.id}
+                        onClick={() => {
+                          setSelectedGameSessionId(gameSession.id);
+                          queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', gameSession.id, 'chat'] });
+                        }}
+                      >
+                        <CheckCircle2 className={`w-4 h-4 mr-2 ${selectedGameSessionId === gameSession.id ? 'text-green-600' : 'text-gray-400'}`} />
+                        Гра #{completedBrandSessions.length - index} - {new Date(gameSession.updatedAt).toLocaleDateString('uk-UA')}
+                      </DropdownMenuItem>
+                    ))
+                  }
+                </>
+              )}
+              {isBrandMode && activeBrandSession && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setLocation(`/game/${activeBrandSession.id}`)}>
+                    <Play className="w-4 h-4 mr-2" />
+                    Продовжити активну гру
+                  </DropdownMenuItem>
+                </>
+              )}
+              {isBrandMode && !activeBrandSession && completedBrandSessions.length === 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={async () => {
+                    try {
+                      const response = await apiRequestJson('POST', '/api/game-sessions', {
+                        brandId: brandIdFromUrl,
+                        currentLevel: 'soul',
+                        currentCard: 'soul-start',
+                        progress: 0,
+                      });
+                      setLocation(`/game/${response.id}`);
+                    } catch (error) {
+                      toast({
+                        title: "Помилка",
+                        description: "Не вдалося створити гру",
+                        variant: "destructive",
+                      });
+                    }
+                  }}>
+                    <Play className="w-4 h-4 mr-2" />
+                    Почати гру
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={handleClearChat}
+                disabled={messages.length === 0 && imageMessages.length === 0}
+                className="text-red-600"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Очистити чат
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      {/* Game Context Selector - Show in brand mode */}
+      {/* Game Context Selector - Show in brand mode (Desktop only) */}
       {isBrandMode && (
-        <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        <div className="hidden sm:block mb-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex flex-row items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <Gamepad2 className="w-4 h-4" />
               <span>Контекст гри:</span>
