@@ -538,9 +538,17 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
     lastRole = msg.role;
   }
   
-  // Check if model supports vision (GPT-4o, GPT-4 Vision, Gemini Pro Vision, etc.)
-  const visionModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-vision', 'gpt-4-turbo', 'gemini-1.5', 'gemini-2', 'gemini-pro-vision', 'claude-3'];
-  const supportsVision = visionModels.some(vm => config.model.toLowerCase().includes(vm.toLowerCase()));
+  // Check if model supports vision
+  // Note: gpt-4-turbo (without date) does NOT support vision, only gpt-4o, gpt-4o-mini, gpt-4-turbo-2024-04-09, gpt-4-vision-preview
+  const modelLower = config.model.toLowerCase();
+  const supportsVision = 
+    modelLower.includes('gpt-4o') || 
+    modelLower.includes('gpt-4-vision') ||
+    modelLower.includes('gpt-4-turbo-2024') ||
+    modelLower.includes('gemini-1.5') || 
+    modelLower.includes('gemini-2') ||
+    modelLower.includes('gemini-pro-vision') ||
+    modelLower.includes('claude-3');
   console.log(`AI Chat - Model: ${config.model}, Provider: ${config.provider}, Supports vision: ${supportsVision}, Images: ${imageUrls?.length || 0}`);
   
   // Build user message content with images if provided and model supports vision
