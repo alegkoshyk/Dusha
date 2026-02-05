@@ -1726,7 +1726,7 @@ export default function BrandChat() {
               />
             </div>
             
-            {/* Desktop: show all buttons */}
+            {/* Desktop: show settings button only (generate button is the main send button) */}
             <div className="hidden sm:flex gap-1">
               <Button
                 type="button"
@@ -1741,24 +1741,6 @@ export default function BrandChat() {
                 className={`shrink-0 w-10 h-10 ${showImageSettings || imageGenerationMode || selectedStyle ? "bg-purple-600 hover:bg-purple-700" : ""}`}
               >
                 <Settings2 className="w-4 h-4" />
-              </Button>
-              <Button 
-                type="button"
-                variant={(selectedMerchTypeIds.length > 0 || selectedTemplateIds.length > 0) ? "default" : "outline"}
-                size="icon"
-                onClick={handleGenerateImage}
-                disabled={(!message.trim() && selectedMerchTypeIds.length === 0 && selectedTemplateIds.length === 0) || generateImageMutation.isPending || sendMessageMutation.isPending || !!generationProgress}
-                title="Згенерувати зображення через NanoBanana"
-                className={`shrink-0 w-10 h-10 ${(selectedMerchTypeIds.length > 0 || selectedTemplateIds.length > 0) ? "bg-orange-500 hover:bg-orange-600" : ""}`}
-                data-testid="button-generate-image"
-              >
-                {generationProgress ? (
-                  <span className="text-xs font-bold">{generationProgress.current}/{generationProgress.total}</span>
-                ) : generateImageMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Image className="w-4 h-4" />
-                )}
               </Button>
             </div>
             
