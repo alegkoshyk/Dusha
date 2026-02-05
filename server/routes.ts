@@ -4838,11 +4838,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls, usePro = false } = req.body;
+      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls, usePro = false, agentId } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
         return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      // Get agent context if specified
+      let agentContext = '';
+      if (agentId) {
+        const agent = await storage.getUserAgent(agentId);
+        if (agent && agent.userId === userId) {
+          agentContext = agent.context || '';
+          console.log('Image generation using agent context:', agent.name, agentContext?.substring(0, 100));
+        }
       }
 
       // Get template if specified
@@ -4903,6 +4913,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (templatePrompt && prompt) {
         // Append user's style/instructions to template prompt
         finalPrompt = `${templatePrompt}. Style: ${prompt}`;
+      }
+      
+      // Add agent context as additional style/design instructions
+      if (agentContext) {
+        finalPrompt = `${finalPrompt}\n\nDesign context and style requirements:\n${agentContext}`;
+        console.log('Final prompt with agent context:', finalPrompt.substring(0, 200));
       }
 
       // Combine template reference and user-uploaded references

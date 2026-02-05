@@ -439,8 +439,8 @@ export default function BrandChat() {
   const selectedAgent = selectedAgentId ? userAgents?.find(a => a.id === selectedAgentId) : null;
 
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; agentId?: string }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId });
     },
     onError: (error: any) => {
       toast({
@@ -701,7 +701,8 @@ export default function BrandChat() {
             templateId: item.type === 'template' ? item.id : undefined,
             merchTypeId: item.type === 'merch' ? item.id : undefined,
             referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined,
-            usePro: useNanoBananaPro
+            usePro: useNanoBananaPro,
+            agentId: selectedAgentId || undefined
           }, {
             onSuccess: (data) => {
               const imageData = data.imageBase64 || data.imageUrl;
