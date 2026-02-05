@@ -409,7 +409,8 @@ export async function sendBrandChatMessage(
   userMessage: string,
   chatHistory: ChatMessage[],
   brandContext: BrandContext,
-  sessionId?: string
+  sessionId?: string,
+  imageUrls?: string[]
 ): Promise<{ response: string; tokensUsed?: { input: number; output: number } }> {
   const config = await getAIConfig();
 
@@ -512,10 +513,12 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
     };
   }
   
-  // OpenAI / Perplexity path
+  // OpenAI / Perplexity / Gemini path
   const { client } = await getOpenAIClient();
   
-  const allMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+  // Build messages with potential image content
+  type MessageContent = string | Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }>;
+  const allMessages: Array<{ role: "system" | "user" | "assistant"; content: MessageContent }> = [
     { role: "system", content: systemPrompt }
   ];
   
@@ -523,7 +526,7 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
   for (const msg of historyMessages) {
     if (msg.role === lastRole && lastRole !== "system") {
       const prev = allMessages[allMessages.length - 1];
-      if (prev && prev.role === msg.role) {
+      if (prev && prev.role === msg.role && typeof prev.content === 'string') {
         prev.content += "\n\n" + msg.content;
         continue;
       }
@@ -535,16 +538,34 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
     lastRole = msg.role;
   }
   
-  if (lastRole === "user" && allMessages.length > 1) {
+  // Build user message content with images if provided
+  if (imageUrls && imageUrls.length > 0) {
+    const userContent: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
+      { type: "text", text: userMessage }
+    ];
+    
+    for (const imageUrl of imageUrls) {
+      userContent.push({
+        type: "image_url",
+        image_url: { url: imageUrl }
+      });
+    }
+    
+    allMessages.push({ role: "user", content: userContent });
+  } else if (lastRole === "user" && allMessages.length > 1) {
     const lastMsg = allMessages[allMessages.length - 1];
-    lastMsg.content += "\n\n" + userMessage;
+    if (typeof lastMsg.content === 'string') {
+      lastMsg.content += "\n\n" + userMessage;
+    } else {
+      allMessages.push({ role: "user", content: userMessage });
+    }
   } else {
     allMessages.push({ role: "user", content: userMessage });
   }
 
   const response = await client.chat.completions.create({
     model: config.model,
-    messages: allMessages,
+    messages: allMessages as any,
     max_tokens: 2048,
     temperature: 0.7
   });

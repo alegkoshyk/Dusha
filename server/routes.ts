@@ -4467,7 +4467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { sessionId } = req.params;
-      const { message, agentId } = req.body;
+      const { message, agentId, imageUrls } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
@@ -4476,6 +4476,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: "Повідомлення обов'язкове" });
+      }
+      
+      // Validate imageUrls if provided
+      const validImageUrls: string[] = [];
+      if (imageUrls && Array.isArray(imageUrls)) {
+        for (const url of imageUrls) {
+          if (typeof url === 'string' && url.startsWith('http')) {
+            validImageUrls.push(url);
+          }
+        }
       }
 
       const gameSession = await storage.getGameSession(sessionId);
@@ -4533,7 +4543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           content: m.content
         }));
 
-      // Save user message with agent info
+      // Save user message with agent info and image URLs
       await storage.addAiChatMessage({
         sessionId,
         userId,
@@ -4541,9 +4551,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         content: message,
         agentId: agentId || null,
         agentName: agentName || null,
+        metadata: validImageUrls.length > 0 ? { imageUrls: validImageUrls } : null,
       });
 
-      // Get AI response
+      // Get AI response with images
       const aiResponse = await sendBrandChatMessage(
         message,
         chatHistory,
@@ -4553,7 +4564,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           responses: formattedResponses,
           agentContext,
         },
-        sessionId
+        sessionId,
+        validImageUrls.length > 0 ? validImageUrls : undefined
       );
 
       // Save AI response with agent info

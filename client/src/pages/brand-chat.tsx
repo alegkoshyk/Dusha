@@ -374,15 +374,17 @@ export default function BrandChat() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (messageText: string) => {
+    mutationFn: async ({ messageText, images }: { messageText: string; images?: { url: string }[] }) => {
       return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/chat`, { 
         message: messageText,
         agentId: selectedAgentId || undefined,
+        imageUrls: images?.map(img => img.url),
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
       setMessage('');
+      setAttachedImages([]);
     },
     onError: (error: any) => {
       toast({
@@ -603,7 +605,10 @@ export default function BrandChat() {
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim() || sendMessageMutation.isPending) return;
-    sendMessageMutation.mutate(message.trim());
+    sendMessageMutation.mutate({
+      messageText: message.trim(),
+      images: attachedImages.length > 0 ? attachedImages : undefined,
+    });
   };
 
   const handleClearChat = () => {
@@ -1106,7 +1111,27 @@ export default function BrandChat() {
                         : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
                     }`}>
                       {msg.role === 'user' ? (
-                        <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                        <>
+                          {/* Show attached images if any */}
+                          {msg.metadata?.imageUrls && msg.metadata.imageUrls.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              {(msg.metadata.imageUrls as string[]).map((imgUrl, idx) => (
+                                <div key={idx} className="relative">
+                                  <img 
+                                    src={imgUrl} 
+                                    alt={`Attached #${idx + 1}`}
+                                    className="w-20 h-20 object-cover rounded-lg border border-red-400 cursor-pointer"
+                                    onClick={() => setModalImage(imgUrl)}
+                                  />
+                                  <span className="absolute -top-1 -left-1 w-5 h-5 bg-white text-red-600 text-xs font-bold rounded-full flex items-center justify-center shadow-sm">
+                                    #{idx + 1}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                        </>
                       ) : (
                         formatMarkdown(msg.content)
                       )}
@@ -1614,15 +1639,31 @@ export default function BrandChat() {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            <Input
-              ref={inputRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder={selectedAgent ? `${selectedAgent.name}...` : "Напишіть повідом..."}
-              disabled={sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
-              className="flex-1 min-w-0 text-sm h-10"
-              data-testid="input-message"
-            />
+            {/* Input with #N reference highlighting */}
+            <div className="flex-1 min-w-0 relative">
+              {/* Backdrop with highlighted #N references */}
+              <div 
+                className="absolute inset-0 px-3 py-2 text-sm pointer-events-none whitespace-pre overflow-hidden text-transparent"
+                aria-hidden="true"
+              >
+                {message.split(/(#\d+)/g).map((part, i) => 
+                  /^#\d+$/.test(part) ? (
+                    <span key={i} className="bg-primary/30 text-primary font-semibold rounded px-0.5">{part}</span>
+                  ) : (
+                    <span key={i}>{part}</span>
+                  )
+                )}
+              </div>
+              <Input
+                ref={inputRef}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={selectedAgent ? `${selectedAgent.name}...` : "Напишіть повідом..."}
+                disabled={sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
+                className="w-full text-sm h-10 bg-transparent"
+                data-testid="input-message"
+              />
+            </div>
             
             {/* Desktop: show all buttons */}
             <div className="hidden sm:flex gap-1">
