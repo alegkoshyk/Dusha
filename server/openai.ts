@@ -541,6 +541,7 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
   // Check if model supports vision (GPT-4o, GPT-4 Vision, Gemini Pro Vision, etc.)
   const visionModels = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-vision', 'gpt-4-turbo', 'gemini-1.5', 'gemini-2', 'gemini-pro-vision', 'claude-3'];
   const supportsVision = visionModels.some(vm => config.model.toLowerCase().includes(vm.toLowerCase()));
+  console.log(`AI Chat - Model: ${config.model}, Provider: ${config.provider}, Supports vision: ${supportsVision}, Images: ${imageUrls?.length || 0}`);
   
   // Build user message content with images if provided and model supports vision
   if (imageUrls && imageUrls.length > 0 && supportsVision) {
