@@ -560,7 +560,7 @@ export default function BrandChat() {
     });
   };
 
-  // Chat image attachment upload with compression
+  // Chat image attachment upload with compression and upload to storage
   const handleChatImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -569,16 +569,24 @@ export default function BrandChat() {
     
     const uploadPromises = Array.from(files).map(async (file) => {
       try {
-        // Compress and convert to base64 (512px max, 50% quality for smaller size)
-        const base64Data = await compressImage(file, 512, 0.5);
+        // Compress to 1024px and convert to base64
+        const base64Data = await compressImage(file, 1024, 0.8);
         
-        const imageId = nextImageId.current++;
-        setAttachedImages(prev => [...prev, { id: imageId, url: base64Data, filename: file.name }]);
-        toast({ title: `Зображення #${imageId} додано` });
+        // Upload compressed image to object storage
+        const response = await apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/upload-reference`, {
+          imageData: base64Data,
+          filename: file.name
+        });
+        
+        if (response.success) {
+          const imageId = nextImageId.current++;
+          setAttachedImages(prev => [...prev, { id: imageId, url: response.url, filename: file.name }]);
+          toast({ title: `Зображення #${imageId} додано` });
+        }
       } catch (error: any) {
         toast({
-          title: "Помилка обробки зображення",
-          description: error.message || "Не вдалося обробити зображення",
+          title: "Помилка завантаження",
+          description: error.message || "Не вдалося завантажити зображення",
           variant: "destructive",
         });
       }

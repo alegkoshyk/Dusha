@@ -544,10 +544,27 @@ ${config.context ? `\n📝 Додатковий контекст:\n${config.cont
       { type: "text", text: userMessage }
     ];
     
+    // Convert URLs to base64 data URLs for AI compatibility
     for (const imageUrl of imageUrls) {
+      let finalUrl = imageUrl;
+      
+      // If it's an http URL, fetch and convert to base64
+      if (imageUrl.startsWith('http')) {
+        try {
+          const response = await fetch(imageUrl);
+          const buffer = await response.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          const contentType = response.headers.get('content-type') || 'image/jpeg';
+          finalUrl = `data:${contentType};base64,${base64}`;
+        } catch (e) {
+          console.error('Failed to fetch image for AI:', e);
+          continue; // Skip this image if fetch fails
+        }
+      }
+      
       userContent.push({
         type: "image_url",
-        image_url: { url: imageUrl }
+        image_url: { url: finalUrl }
       });
     }
     
