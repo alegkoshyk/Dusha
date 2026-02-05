@@ -300,14 +300,16 @@ export default function BrandChat() {
   const [message, setMessage] = useState('');
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [selectedStyle, setSelectedStyle] = useState('');
-  const [customContext, setCustomContext] = useState('');
-  const [useLogo, setUseLogo] = useState(false);
+    const [useLogo, setUseLogo] = useState(false);
+  const [showMerchMenu, setShowMerchMenu] = useState(false);
+  const [showTemplatesMenu, setShowTemplatesMenu] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [selectedMerchTypeId, setSelectedMerchTypeId] = useState<number | null>(null);
   const [showImageSettings, setShowImageSettings] = useState(false);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
-  const [imageGenerator, setImageGenerator] = useState<'nanobanana' | 'dalle'>('nanobanana');
+  const [useNanoBananaPro, setUseNanoBananaPro] = useState(false);
+  const [imageGenerationMode, setImageGenerationMode] = useState(false);
   const [referenceImages, setReferenceImages] = useState<{ url: string; filename: string }[]>([]);
   const [uploadingReference, setUploadingReference] = useState(false);
   const [selectedGameSessionId, setSelectedGameSessionId] = useState<string | null>(null);
@@ -435,8 +437,8 @@ export default function BrandChat() {
   const selectedAgent = selectedAgentId ? userAgents?.find(a => a.id === selectedAgentId) : null;
 
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[] }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro });
     },
     onError: (error: any) => {
       toast({
@@ -447,20 +449,7 @@ export default function BrandChat() {
     },
   });
 
-  // DALL-E image generation mutation
-  const generateDalleMutation = useMutation({
-    mutationFn: async ({ prompt, size, quality, style }: { prompt: string; size?: string; quality?: string; style?: string }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-dalle`, { prompt, size, quality, style });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Помилка DALL-E",
-        description: error.message || "Не вдалося згенерувати зображення через DALL-E",
-        variant: "destructive",
-      });
-    },
-  });
-
+  
   // Reference image upload
   const handleReferenceUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -655,8 +644,8 @@ export default function BrandChat() {
     
     if (!hasMerchType && !hasTemplate && !hasPrompt) {
       toast({
-        title: "Виберіть тип мерчу або введіть опис",
-        description: "Оберіть тип мерчу, шаблон або напишіть опис зображення",
+        title: "Введіть опис зображення",
+        description: "Напишіть опис зображення для генерації",
         variant: "destructive",
       });
       return;
@@ -666,10 +655,6 @@ export default function BrandChat() {
     
     if (fullPrompt && selectedStyle && STYLE_PROMPTS[selectedStyle]) {
       fullPrompt = `${fullPrompt}, ${STYLE_PROMPTS[selectedStyle]}`;
-    }
-    
-    if (fullPrompt && customContext.trim()) {
-      fullPrompt = `${fullPrompt}. Additional context: ${customContext.trim()}`;
     }
     
     const tempId = `img-${Date.now()}`;
@@ -686,51 +671,28 @@ export default function BrandChat() {
     
     setMessage('');
     
-    // Choose generator based on selection
-    if (imageGenerator === 'dalle') {
-      // DALL-E generation
-      const dalleSize = aspectRatio === '16:9' ? '1792x1024' : aspectRatio === '9:16' ? '1024x1792' : '1024x1024';
-      
-      generateDalleMutation.mutate({ 
-        prompt: fullPrompt, 
-        size: dalleSize,
-        quality: 'standard',
-        style: 'vivid'
-      }, {
-        onSuccess: (data) => {
-          setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
-          queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
-          if (data.imageUrl) {
-            setModalImage(data.imageUrl);
-          }
-        },
-        onError: () => {
-          setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+    // NanoBanana generation with optional pro mode
+    generateImageMutation.mutate({ 
+      prompt: fullPrompt || undefined, 
+      aspectRatio,
+      logoUrl: useLogo && brand?.logo ? brand.logo : undefined,
+      templateId: useLogo && selectedTemplateId ? selectedTemplateId : undefined,
+      merchTypeId: useLogo && selectedMerchTypeId ? selectedMerchTypeId : undefined,
+      referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined,
+      usePro: useNanoBananaPro
+    }, {
+      onSuccess: (data) => {
+        const imageData = data.imageBase64 || data.imageUrl;
+        setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+        queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
+        if (imageData) {
+          setModalImage(imageData);
         }
-      });
-    } else {
-      // NanoBanana generation - pass reference URLs for style inspiration
-      generateImageMutation.mutate({ 
-        prompt: fullPrompt || undefined, 
-        aspectRatio,
-        logoUrl: useLogo && brand?.logo ? brand.logo : undefined,
-        templateId: useLogo && selectedTemplateId ? selectedTemplateId : undefined,
-        merchTypeId: useLogo && selectedMerchTypeId ? selectedMerchTypeId : undefined,
-        referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined
-      }, {
-        onSuccess: (data) => {
-          const imageData = data.imageBase64 || data.imageUrl;
-          setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
-          queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
-          if (imageData) {
-            setModalImage(imageData);
-          }
-        },
-        onError: () => {
-          setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
-        }
-      });
-    }
+      },
+      onError: () => {
+        setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+      }
+    });
   };
 
   const handleDownloadImage = (imageUrl?: string) => {
@@ -1257,41 +1219,6 @@ export default function BrandChat() {
                 </Button>
               </div>
               
-              {/* Image Generator Selection */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Генератор зображень
-                </label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={imageGenerator === 'nanobanana' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setImageGenerator('nanobanana')}
-                    className={imageGenerator === 'nanobanana' ? 'bg-orange-600 hover:bg-orange-700' : ''}
-                    data-testid="button-generator-nanobanana"
-                  >
-                    🍌 NanoBanana
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={imageGenerator === 'dalle' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setImageGenerator('dalle')}
-                    className={imageGenerator === 'dalle' ? 'bg-green-600 hover:bg-green-700' : ''}
-                    data-testid="button-generator-dalle"
-                  >
-                    <Sparkles className="w-4 h-4 mr-1" />
-                    DALL-E 3
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {imageGenerator === 'dalle' 
-                    ? 'OpenAI DALL-E 3 - найкраща якість (референси не підтримуються напряму)' 
-                    : 'NanoBanana - підтримує референси як URL для стилю, логотипи та мерч генерацію'}
-                </p>
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1371,165 +1298,160 @@ export default function BrandChat() {
                 </div>
               </div>
               
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Додатковий контекст / інструкції
-                </label>
-                <Textarea
-                  value={customContext}
-                  onChange={(e) => setCustomContext(e.target.value)}
-                  placeholder="Наприклад: використовуй кольори бренду, додай логотип в кутку, зроби фон світлим..."
-                  className="min-h-[80px] resize-none"
-                  data-testid="textarea-context"
+              {/* NanoBanana Pro toggle */}
+              <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col">
+                  <Label htmlFor="use-pro" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    🍌 NanoBanana Pro
+                  </Label>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Вища якість генерації (більше кредитів)
+                  </span>
+                </div>
+                <Switch
+                  id="use-pro"
+                  checked={useNanoBananaPro}
+                  onCheckedChange={setUseNanoBananaPro}
+                  data-testid="switch-use-pro"
                 />
               </div>
               
               {/* Logo toggle for image generation */}
               {brand?.logo && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-3">
-                      <img 
-                        src={brand.logo} 
-                        alt="Brand logo" 
-                        className="w-10 h-10 rounded object-contain bg-gray-100 dark:bg-gray-700 p-1"
-                        data-testid="img-logo-preview"
-                      />
-                      <div className="flex flex-col">
-                        <Label htmlFor="use-logo" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          Використовувати логотип
-                        </Label>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          Логотип буде референсом для генерації
-                        </span>
-                      </div>
-                    </div>
-                    <Switch
-                      id="use-logo"
-                      checked={useLogo}
-                      onCheckedChange={setUseLogo}
-                      data-testid="switch-use-logo"
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={brand.logo} 
+                      alt="Brand logo" 
+                      className="w-10 h-10 rounded object-contain bg-gray-100 dark:bg-gray-700 p-1"
+                      data-testid="img-logo-preview"
                     />
+                    <div className="flex flex-col">
+                      <Label htmlFor="use-logo" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Використовувати логотип
+                      </Label>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        Логотип буде референсом для генерації
+                      </span>
+                    </div>
                   </div>
-
-                  {/* Merch Types Selection */}
-                  {useLogo && merchTypes && merchTypes.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Тип мерчу
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedMerchTypeId(null)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
-                            selectedMerchTypeId === null 
-                              ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30' 
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                          }`}
-                          data-testid="merch-type-none"
-                        >
-                          <span className="text-xl">✨</span>
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Вільна генерація</span>
-                        </button>
-                        {merchTypes.map((mt) => (
-                          <button
-                            key={mt.id}
-                            type="button"
-                            onClick={() => setSelectedMerchTypeId(mt.id)}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
-                              selectedMerchTypeId === mt.id 
-                                ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30' 
-                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                            }`}
-                            data-testid={`merch-type-${mt.id}`}
-                          >
-                            <span className="text-xl">{mt.emoji}</span>
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{mt.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Generation Templates Selection (shown only if no merch type selected) */}
-                  {useLogo && !selectedMerchTypeId && generationTemplates && generationTemplates.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Шаблон генерації (опціонально)
-                      </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[200px] overflow-y-auto overscroll-contain touch-pan-y p-1">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTemplateId(null)}
-                          className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all ${
-                            selectedTemplateId === null 
-                              ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                          }`}
-                          data-testid="template-none"
-                        >
-                          <span className="text-2xl mb-1">🎨</span>
-                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Без шаблону</span>
-                        </button>
-                        {generationTemplates.map((template) => (
-                          <button
-                            key={template.id}
-                            type="button"
-                            onClick={() => setSelectedTemplateId(template.id)}
-                            className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all ${
-                              selectedTemplateId === template.id 
-                                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
-                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                            }`}
-                            data-testid={`template-${template.id}`}
-                          >
-                            {template.referenceImageUrl ? (
-                              <img 
-                                src={template.referenceImageUrl} 
-                                alt={template.name}
-                                className="w-12 h-12 object-cover rounded mb-1"
-                              />
-                            ) : (
-                              <span className="text-2xl mb-1">📦</span>
-                            )}
-                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center line-clamp-2">{template.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                      {selectedTemplateId && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {generationTemplates.find(t => t.id === selectedTemplateId)?.description || 'Шаблон буде використано для генерації'}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {(selectedStyle || customContext) && (
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                  <Settings2 className="w-4 h-4" />
-                  <span>
-                    Активні налаштування: 
-                    {selectedStyle && ` ${IMAGE_STYLES.find(s => s.value === selectedStyle)?.label}`}
-                    {selectedStyle && customContext && ','}
-                    {customContext && ' + власні інструкції'}
-                  </span>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => { setSelectedStyle(''); setCustomContext(''); }}
-                    className="text-xs h-6 px-2"
-                    data-testid="button-clear-settings"
-                  >
-                    Скинути
-                  </Button>
+                  <Switch
+                    id="use-logo"
+                    checked={useLogo}
+                    onCheckedChange={setUseLogo}
+                    data-testid="switch-use-logo"
+                  />
                 </div>
               )}
             </div>
           </CollapsibleContent>
         </Collapsible>
+
+        {/* Merch Dialog */}
+        <Dialog open={showMerchMenu} onOpenChange={setShowMerchMenu}>
+          <DialogContent className="max-w-md">
+            <DialogTitle>Створити мерч</DialogTitle>
+            <div className="space-y-4">
+              {brand?.logo && (
+                <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <img 
+                    src={brand.logo} 
+                    alt="Brand logo" 
+                    className="w-12 h-12 rounded object-contain bg-white dark:bg-gray-700 p-1"
+                  />
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Логотип бренду буде використано</span>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                {merchTypes?.map((mt) => (
+                  <button
+                    key={mt.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMerchTypeId(mt.id);
+                      setUseLogo(true);
+                      setShowMerchMenu(false);
+                      toast({ title: `Обрано: ${mt.emoji} ${mt.name}` });
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                      selectedMerchTypeId === mt.id 
+                        ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30' 
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <span className="text-xl">{mt.emoji}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{mt.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Templates Dialog */}
+        <Dialog open={showTemplatesMenu} onOpenChange={setShowTemplatesMenu}>
+          <DialogContent className="max-w-md">
+            <DialogTitle>Шаблони генерації</DialogTitle>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto p-1">
+              {generationTemplates?.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedTemplateId(template.id);
+                    setUseLogo(true);
+                    setShowTemplatesMenu(false);
+                    toast({ title: `Обрано шаблон: ${template.name}` });
+                  }}
+                  className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all ${
+                    selectedTemplateId === template.id 
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  {template.referenceImageUrl ? (
+                    <img 
+                      src={template.referenceImageUrl} 
+                      alt={template.name}
+                      className="w-12 h-12 object-cover rounded mb-1"
+                    />
+                  ) : (
+                    <span className="text-2xl mb-1">📦</span>
+                  )}
+                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center line-clamp-2">{template.name}</span>
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+              
+        {/* Active settings indicator */}
+        {(selectedStyle || selectedMerchTypeId || selectedTemplateId) && (
+          <div className="px-4 py-2 bg-purple-50 dark:bg-purple-900/30 border-t flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
+              <Settings2 className="w-4 h-4" />
+              <span>
+                {selectedStyle && IMAGE_STYLES.find(s => s.value === selectedStyle)?.label}
+                {selectedStyle && (selectedMerchTypeId || selectedTemplateId) && ' • '}
+                {selectedMerchTypeId && merchTypes?.find(m => m.id === selectedMerchTypeId)?.name}
+                {selectedTemplateId && !selectedMerchTypeId && generationTemplates?.find(t => t.id === selectedTemplateId)?.name}
+              </span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => { 
+                setSelectedStyle(''); 
+                setSelectedMerchTypeId(null); 
+                setSelectedTemplateId(null);
+                setUseLogo(false);
+              }}
+              className="text-xs h-6 px-2 text-purple-700 dark:text-purple-300"
+            >
+              Скинути
+            </Button>
+          </div>
+        )}
 
         <form onSubmit={handleSend} className="p-2 border-t dark:border-gray-700 relative">
           {/* Agent Selector - Desktop only */}
@@ -1641,10 +1563,25 @@ export default function BrandChat() {
                   )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowImageSettings(!showImageSettings)}>
-                  <Settings2 className="w-4 h-4 mr-2" />
-                  Налаштування генерації
+                <DropdownMenuItem onClick={() => {
+                  setImageGenerationMode(!imageGenerationMode);
+                  setShowImageSettings(!showImageSettings);
+                }}>
+                  <Palette className="w-4 h-4 mr-2" />
+                  {imageGenerationMode ? '✓ ' : ''}Генерація зображень
                 </DropdownMenuItem>
+                {merchTypes && merchTypes.length > 0 && (
+                  <DropdownMenuItem onClick={() => setShowMerchMenu(true)}>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Створити мерч
+                  </DropdownMenuItem>
+                )}
+                {generationTemplates && generationTemplates.length > 0 && (
+                  <DropdownMenuItem onClick={() => setShowTemplatesMenu(true)}>
+                    <Image className="w-4 h-4 mr-2" />
+                    Шаблони генерації
+                  </DropdownMenuItem>
+                )}
                 {userAgents && userAgents.length > 0 && (
                   <>
                     <DropdownMenuSeparator />
@@ -1689,7 +1626,7 @@ export default function BrandChat() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={selectedAgent ? `${selectedAgent.name}...` : "Напишіть повідом..."}
-                disabled={sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
+                disabled={sendMessageMutation.isPending || generateImageMutation.isPending}
                 className="w-full text-sm h-10 bg-transparent"
                 data-testid="input-message"
               />
@@ -1699,12 +1636,15 @@ export default function BrandChat() {
             <div className="hidden sm:flex gap-1">
               <Button
                 type="button"
-                variant={showImageSettings || selectedStyle || customContext ? "default" : "outline"}
+                variant={showImageSettings || imageGenerationMode || selectedStyle ? "default" : "outline"}
                 size="icon"
-                onClick={() => setShowImageSettings(!showImageSettings)}
-                title="Налаштування генерації"
+                onClick={() => {
+                  setImageGenerationMode(!imageGenerationMode);
+                  setShowImageSettings(!showImageSettings);
+                }}
+                title={imageGenerationMode ? "Режим генерації зображень" : "Налаштування генерації"}
                 data-testid="button-toggle-settings"
-                className={`shrink-0 w-10 h-10 ${showImageSettings || selectedStyle || customContext ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                className={`shrink-0 w-10 h-10 ${showImageSettings || imageGenerationMode || selectedStyle ? "bg-purple-600 hover:bg-purple-700" : ""}`}
               >
                 <Settings2 className="w-4 h-4" />
               </Button>
@@ -1713,15 +1653,13 @@ export default function BrandChat() {
                 variant="outline"
                 size="icon"
                 onClick={handleGenerateImage}
-                disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || generateDalleMutation.isPending || sendMessageMutation.isPending}
-                title={imageGenerator === 'dalle' ? "Згенерувати через DALL-E" : "Згенерувати через NanoBanana"}
+                disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || sendMessageMutation.isPending}
+                title="Згенерувати зображення через NanoBanana"
                 className="shrink-0 w-10 h-10"
                 data-testid="button-generate-image"
               >
-                {(generateImageMutation.isPending || generateDalleMutation.isPending) ? (
+                {generateImageMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
-                ) : imageGenerator === 'dalle' ? (
-                  <Sparkles className="w-4 h-4" />
                 ) : (
                   <Image className="w-4 h-4" />
                 )}
@@ -1734,11 +1672,11 @@ export default function BrandChat() {
                 type="button"
                 size="icon"
                 onClick={handleGenerateImage}
-                disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || generateDalleMutation.isPending || sendMessageMutation.isPending}
+                disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || sendMessageMutation.isPending}
                 className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-purple-600 hover:bg-purple-700"
                 data-testid="button-send"
               >
-                {(generateImageMutation.isPending || generateDalleMutation.isPending) ? (
+                {generateImageMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Image className="w-4 h-4" />
@@ -1748,7 +1686,7 @@ export default function BrandChat() {
               <Button 
                 type="submit"
                 size="icon"
-                disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending || generateDalleMutation.isPending}
+                disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending}
                 className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full"
                 data-testid="button-send"
               >
