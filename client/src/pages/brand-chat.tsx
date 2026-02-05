@@ -303,8 +303,10 @@ export default function BrandChat() {
     const [useLogo, setUseLogo] = useState(false);
   const [showMerchMenu, setShowMerchMenu] = useState(false);
   const [showTemplatesMenu, setShowTemplatesMenu] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
-  const [selectedMerchTypeId, setSelectedMerchTypeId] = useState<number | null>(null);
+  const [selectedTemplateIds, setSelectedTemplateIds] = useState<number[]>([]);
+  const [selectedMerchTypeIds, setSelectedMerchTypeIds] = useState<number[]>([]);
+  const [generationQueue, setGenerationQueue] = useState<{ type: 'merch' | 'template'; id: number }[]>([]);
+  const [generationProgress, setGenerationProgress] = useState<{ current: number; total: number } | null>(null);
   const [showImageSettings, setShowImageSettings] = useState(false);
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
@@ -636,63 +638,94 @@ export default function BrandChat() {
     }
   };
 
-  const handleGenerateImage = () => {
-    // Merch type or template or prompt is required
-    const hasMerchType = useLogo && selectedMerchTypeId;
-    const hasTemplate = useLogo && selectedTemplateId;
-    const hasPrompt = message.trim();
+  const handleGenerateImage = async () => {
+    // Build generation queue from selections
+    const queue: { type: 'merch' | 'template' | 'prompt'; id?: number; prompt?: string }[] = [];
     
-    if (!hasMerchType && !hasTemplate && !hasPrompt) {
+    // Add merch types to queue
+    selectedMerchTypeIds.forEach(id => queue.push({ type: 'merch', id }));
+    
+    // Add templates to queue
+    selectedTemplateIds.forEach(id => queue.push({ type: 'template', id }));
+    
+    // Add prompt-based generation if no merch/templates but has message
+    const hasPrompt = message.trim();
+    if (queue.length === 0 && hasPrompt) {
+      queue.push({ type: 'prompt', prompt: message.trim() });
+    }
+    
+    if (queue.length === 0) {
       toast({
-        title: "Введіть опис зображення",
-        description: "Напишіть опис зображення для генерації",
+        title: "Оберіть мерч, шаблон або введіть опис",
+        description: "Виберіть тип мерчу, шаблон або напишіть опис зображення",
         variant: "destructive",
       });
       return;
     }
     
-    let fullPrompt = message.trim() || '';
-    
-    if (fullPrompt && selectedStyle && STYLE_PROMPTS[selectedStyle]) {
-      fullPrompt = `${fullPrompt}, ${STYLE_PROMPTS[selectedStyle]}`;
-    }
-    
-    const tempId = `img-${Date.now()}`;
-    const selectedTemplate = generationTemplates?.find(t => t.id === selectedTemplateId);
-    const selectedMerchType = merchTypes?.find(mt => mt.id === selectedMerchTypeId);
-    
-    setImageMessages(prev => [...prev, {
-      id: tempId,
-      prompt: message.trim() || selectedMerchType?.name || selectedTemplate?.name || 'Генерація...',
-      imageUrl: null,
-      isLoading: true,
-      createdAt: new Date().toISOString()
-    }]);
-    
+    const userPrompt = message.trim();
     setMessage('');
     
-    // NanoBanana generation with optional pro mode
-    generateImageMutation.mutate({ 
-      prompt: fullPrompt || undefined, 
-      aspectRatio,
-      logoUrl: useLogo && brand?.logo ? brand.logo : undefined,
-      templateId: useLogo && selectedTemplateId ? selectedTemplateId : undefined,
-      merchTypeId: useLogo && selectedMerchTypeId ? selectedMerchTypeId : undefined,
-      referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined,
-      usePro: useNanoBananaPro
-    }, {
-      onSuccess: (data) => {
-        const imageData = data.imageBase64 || data.imageUrl;
-        setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
-        queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
-        if (imageData) {
-          setModalImage(imageData);
-        }
-      },
-      onError: () => {
-        setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+    // Start queue processing
+    setGenerationProgress({ current: 0, total: queue.length });
+    
+    for (let i = 0; i < queue.length; i++) {
+      const item = queue[i];
+      setGenerationProgress({ current: i + 1, total: queue.length });
+      
+      let fullPrompt = userPrompt || '';
+      if (fullPrompt && selectedStyle && STYLE_PROMPTS[selectedStyle]) {
+        fullPrompt = `${fullPrompt}, ${STYLE_PROMPTS[selectedStyle]}`;
       }
-    });
+      
+      const tempId = `img-${Date.now()}-${i}`;
+      const selectedTemplate = item.type === 'template' ? generationTemplates?.find(t => t.id === item.id) : null;
+      const selectedMerchType = item.type === 'merch' ? merchTypes?.find(mt => mt.id === item.id) : null;
+      
+      setImageMessages(prev => [...prev, {
+        id: tempId,
+        prompt: selectedMerchType?.name || selectedTemplate?.name || userPrompt || 'Генерація...',
+        imageUrl: null,
+        isLoading: true,
+        createdAt: new Date().toISOString()
+      }]);
+      
+      try {
+        await new Promise<void>((resolve, reject) => {
+          generateImageMutation.mutate({ 
+            prompt: fullPrompt || undefined, 
+            aspectRatio,
+            logoUrl: useLogo && brand?.logo ? brand.logo : undefined,
+            templateId: item.type === 'template' ? item.id : undefined,
+            merchTypeId: item.type === 'merch' ? item.id : undefined,
+            referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined,
+            usePro: useNanoBananaPro
+          }, {
+            onSuccess: (data) => {
+              const imageData = data.imageBase64 || data.imageUrl;
+              setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+              queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
+              if (imageData && i === queue.length - 1) {
+                setModalImage(imageData);
+              }
+              resolve();
+            },
+            onError: (error) => {
+              setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+              reject(error);
+            }
+          });
+        });
+      } catch (error) {
+        console.error('Generation error:', error);
+      }
+    }
+    
+    // Clear selections after queue completes
+    setGenerationProgress(null);
+    setSelectedMerchTypeIds([]);
+    setSelectedTemplateIds([]);
+    setUseLogo(false);
   };
 
   const handleDownloadImage = (imageUrl?: string) => {
@@ -1362,28 +1395,51 @@ export default function BrandChat() {
                   <span className="text-sm text-gray-600 dark:text-gray-400">Логотип бренду буде використано</span>
                 </div>
               )}
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                Оберіть один або декілька типів мерчу для генерації
+              </p>
               <div className="grid grid-cols-2 gap-2">
-                {merchTypes?.map((mt) => (
-                  <button
-                    key={mt.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedMerchTypeId(mt.id);
-                      setUseLogo(true);
-                      setShowMerchMenu(false);
-                      toast({ title: `Обрано: ${mt.emoji} ${mt.name}` });
-                    }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
-                      selectedMerchTypeId === mt.id 
-                        ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30' 
-                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                  >
-                    <span className="text-xl">{mt.emoji}</span>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{mt.name}</span>
-                  </button>
-                ))}
+                {merchTypes?.map((mt) => {
+                  const isSelected = selectedMerchTypeIds.includes(mt.id);
+                  return (
+                    <button
+                      key={mt.id}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          setSelectedMerchTypeIds(prev => prev.filter(id => id !== mt.id));
+                        } else {
+                          setSelectedMerchTypeIds(prev => [...prev, mt.id]);
+                        }
+                        setUseLogo(true);
+                      }}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                        isSelected 
+                          ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/30' 
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                    >
+                      {isSelected && <span className="text-yellow-600">✓</span>}
+                      <span className="text-xl">{mt.emoji}</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{mt.name}</span>
+                    </button>
+                  );
+                })}
               </div>
+              {selectedMerchTypeIds.length > 0 && (
+                <div className="mt-3 flex justify-between items-center">
+                  <span className="text-sm text-yellow-600 dark:text-yellow-400">
+                    Обрано: {selectedMerchTypeIds.length}
+                  </span>
+                  <Button 
+                    size="sm" 
+                    onClick={() => setShowMerchMenu(false)}
+                    className="bg-yellow-500 hover:bg-yellow-600"
+                  >
+                    Готово
+                  </Button>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -1392,59 +1448,97 @@ export default function BrandChat() {
         <Dialog open={showTemplatesMenu} onOpenChange={setShowTemplatesMenu}>
           <DialogContent className="max-w-md">
             <DialogTitle>Шаблони генерації</DialogTitle>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+              Оберіть один або декілька шаблонів для генерації
+            </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[400px] overflow-y-auto p-1">
-              {generationTemplates?.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedTemplateId(template.id);
-                    setUseLogo(true);
-                    setShowTemplatesMenu(false);
-                    toast({ title: `Обрано шаблон: ${template.name}` });
-                  }}
-                  className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all ${
-                    selectedTemplateId === template.id 
-                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
-                >
-                  {template.referenceImageUrl ? (
-                    <img 
-                      src={template.referenceImageUrl} 
-                      alt={template.name}
-                      className="w-12 h-12 object-cover rounded mb-1"
-                    />
-                  ) : (
-                    <span className="text-2xl mb-1">📦</span>
-                  )}
-                  <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center line-clamp-2">{template.name}</span>
-                </button>
-              ))}
+              {generationTemplates?.map((template) => {
+                const isSelected = selectedTemplateIds.includes(template.id);
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedTemplateIds(prev => prev.filter(id => id !== template.id));
+                      } else {
+                        setSelectedTemplateIds(prev => [...prev, template.id]);
+                      }
+                      setUseLogo(true);
+                    }}
+                    className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all relative ${
+                      isSelected 
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    {isSelected && (
+                      <span className="absolute top-1 right-1 text-purple-600 text-xs">✓</span>
+                    )}
+                    {template.referenceImageUrl ? (
+                      <img 
+                        src={template.referenceImageUrl} 
+                        alt={template.name}
+                        className="w-12 h-12 object-cover rounded mb-1"
+                      />
+                    ) : (
+                      <span className="text-2xl mb-1">📦</span>
+                    )}
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300 text-center line-clamp-2">{template.name}</span>
+                  </button>
+                );
+              })}
             </div>
+            {selectedTemplateIds.length > 0 && (
+              <div className="mt-3 flex justify-between items-center">
+                <span className="text-sm text-purple-600 dark:text-purple-400">
+                  Обрано: {selectedTemplateIds.length}
+                </span>
+                <Button 
+                  size="sm" 
+                  onClick={() => setShowTemplatesMenu(false)}
+                  className="bg-purple-500 hover:bg-purple-600"
+                >
+                  Готово
+                </Button>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
               
         {/* Active settings indicator */}
-        {(selectedStyle || selectedMerchTypeId || selectedTemplateId) && (
+        {(selectedStyle || selectedMerchTypeIds.length > 0 || selectedTemplateIds.length > 0 || generationProgress) && (
           <div className="px-4 py-2 bg-purple-50 dark:bg-purple-900/30 border-t flex items-center justify-between text-sm">
             <div className="flex items-center gap-2 text-purple-700 dark:text-purple-300">
-              <Settings2 className="w-4 h-4" />
-              <span>
-                {selectedStyle && IMAGE_STYLES.find(s => s.value === selectedStyle)?.label}
-                {selectedStyle && (selectedMerchTypeId || selectedTemplateId) && ' • '}
-                {selectedMerchTypeId && merchTypes?.find(m => m.id === selectedMerchTypeId)?.name}
-                {selectedTemplateId && !selectedMerchTypeId && generationTemplates?.find(t => t.id === selectedTemplateId)?.name}
-              </span>
+              {generationProgress ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="font-medium">
+                    Генерація {generationProgress.current}/{generationProgress.total}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Settings2 className="w-4 h-4" />
+                  <span>
+                    {selectedStyle && IMAGE_STYLES.find(s => s.value === selectedStyle)?.label}
+                    {selectedStyle && (selectedMerchTypeIds.length > 0 || selectedTemplateIds.length > 0) && ' • '}
+                    {selectedMerchTypeIds.length > 0 && `${selectedMerchTypeIds.length} мерч`}
+                    {selectedMerchTypeIds.length > 0 && selectedTemplateIds.length > 0 && ' + '}
+                    {selectedTemplateIds.length > 0 && `${selectedTemplateIds.length} шаблон`}
+                  </span>
+                </>
+              )}
             </div>
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={() => { 
                 setSelectedStyle(''); 
-                setSelectedMerchTypeId(null); 
-                setSelectedTemplateId(null);
+                setSelectedMerchTypeIds([]); 
+                setSelectedTemplateIds([]);
                 setUseLogo(false);
+                setGenerationProgress(null);
               }}
               className="text-xs h-6 px-2 text-purple-700 dark:text-purple-300"
             >
@@ -1650,15 +1744,17 @@ export default function BrandChat() {
               </Button>
               <Button 
                 type="button"
-                variant="outline"
+                variant={(selectedMerchTypeIds.length > 0 || selectedTemplateIds.length > 0) ? "default" : "outline"}
                 size="icon"
                 onClick={handleGenerateImage}
-                disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || sendMessageMutation.isPending}
+                disabled={(!message.trim() && selectedMerchTypeIds.length === 0 && selectedTemplateIds.length === 0) || generateImageMutation.isPending || sendMessageMutation.isPending || !!generationProgress}
                 title="Згенерувати зображення через NanoBanana"
-                className="shrink-0 w-10 h-10"
+                className={`shrink-0 w-10 h-10 ${(selectedMerchTypeIds.length > 0 || selectedTemplateIds.length > 0) ? "bg-orange-500 hover:bg-orange-600" : ""}`}
                 data-testid="button-generate-image"
               >
-                {generateImageMutation.isPending ? (
+                {generationProgress ? (
+                  <span className="text-xs font-bold">{generationProgress.current}/{generationProgress.total}</span>
+                ) : generateImageMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Image className="w-4 h-4" />
@@ -1666,17 +1762,19 @@ export default function BrandChat() {
               </Button>
             </div>
             
-            {/* Send button - changes to image generation when settings open */}
-            {showImageSettings ? (
+            {/* Send button - changes to image generation when settings open or merch/template selected */}
+            {(showImageSettings || selectedMerchTypeIds.length > 0 || selectedTemplateIds.length > 0) ? (
               <Button 
                 type="button"
                 size="icon"
                 onClick={handleGenerateImage}
-                disabled={(!message.trim() && !selectedMerchTypeId && !selectedTemplateId) || generateImageMutation.isPending || sendMessageMutation.isPending}
-                className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-purple-600 hover:bg-purple-700"
+                disabled={(!message.trim() && selectedMerchTypeIds.length === 0 && selectedTemplateIds.length === 0) || generateImageMutation.isPending || sendMessageMutation.isPending || !!generationProgress}
+                className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full ${(selectedMerchTypeIds.length > 0 || selectedTemplateIds.length > 0) ? "bg-orange-500 hover:bg-orange-600" : "bg-purple-600 hover:bg-purple-700"}`}
                 data-testid="button-send"
               >
-                {generateImageMutation.isPending ? (
+                {generationProgress ? (
+                  <span className="text-xs font-bold">{generationProgress.current}/{generationProgress.total}</span>
+                ) : generateImageMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Image className="w-4 h-4" />
