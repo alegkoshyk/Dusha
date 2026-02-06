@@ -17,6 +17,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { 
   Send, 
@@ -1580,126 +1583,36 @@ export default function BrandChat() {
         )}
 
         <form onSubmit={handleSend} className="p-2 border-t dark:border-gray-700 relative">
-          {/* Agent Selector - Desktop only */}
-          {userAgents && userAgents.length > 0 && (
-            <div className="hidden sm:flex mb-2 items-center gap-2">
-              <Bot className="w-4 h-4 text-muted-foreground shrink-0" />
-              <Select
-                value={selectedAgentId || "none"}
-                onValueChange={(value) => setSelectedAgentId(value === "none" ? null : value)}
-              >
-                <SelectTrigger className="h-8 text-xs flex-1">
-                  <SelectValue placeholder="Без агента">
-                    {selectedAgent ? (
-                      <span className="flex items-center gap-1">
-                        <span className="font-medium">{selectedAgent.name}</span>
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">Без агента</span>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">
-                    <span className="text-muted-foreground">Без агента (стандартний AI)</span>
-                  </SelectItem>
-                  {userAgents.filter(a => a.isActive).map((agent) => (
-                    <SelectItem key={agent.id} value={agent.id}>
-                      <span className="flex items-center gap-2">
-                        <span className="font-medium">{agent.name}</span>
-                        {agent.description && (
-                          <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                            — {agent.description}
-                          </span>
-                        )}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          {/* Selected context tags - Desktop only, shown only when something is selected */}
+          {(selectedAgent || selectedProduct || selectedAudience) && (
+            <div className="hidden sm:flex mb-2 items-center gap-1.5 flex-wrap">
               {selectedAgent && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  onClick={() => setSelectedAgentId(null)}
-                  title="Скинути агента"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                  <Bot className="w-3 h-3" />
+                  {selectedAgent.name}
+                  <button type="button" onClick={() => setSelectedAgentId(null)} className="ml-0.5 hover:text-purple-900 dark:hover:text-purple-100">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {selectedProduct && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                  📦 {selectedProduct.name}
+                  <button type="button" onClick={() => setSelectedProductId(null)} className="ml-0.5 hover:text-amber-900 dark:hover:text-amber-100">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {selectedAudience && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                  👥 {selectedAudience.name}
+                  <button type="button" onClick={() => setSelectedAudienceId(null)} className="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
               )}
             </div>
           )}
-
-          {/* Product and Audience Selectors - Desktop only */}
-          <div className="hidden sm:flex gap-2 mb-2">
-            {/* Product Selector */}
-            {brandProducts && brandProducts.length > 0 && (
-              <Select
-                value={selectedProductId || "none"}
-                onValueChange={(value) => setSelectedProductId(value === "none" ? null : value)}
-              >
-                <SelectTrigger className="h-8 text-xs flex-1">
-                  <SelectValue placeholder="Продукт">
-                    {selectedProduct ? (
-                      <span className="truncate">📦 {selectedProduct.name}</span>
-                    ) : (
-                      <span className="text-muted-foreground">📦 Продукт</span>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">
-                    <span className="text-muted-foreground">Без продукту</span>
-                  </SelectItem>
-                  {brandProducts.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      <span className="flex items-center gap-2">
-                        <span className="font-medium">{product.name}</span>
-                        {product.category && (
-                          <span className="text-xs text-muted-foreground">({product.category})</span>
-                        )}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Audience Selector */}
-            {brandAudiences && brandAudiences.length > 0 && (
-              <Select
-                value={selectedAudienceId || "none"}
-                onValueChange={(value) => setSelectedAudienceId(value === "none" ? null : value)}
-              >
-                <SelectTrigger className="h-8 text-xs flex-1">
-                  <SelectValue placeholder="Аудиторія">
-                    {selectedAudience ? (
-                      <span className="truncate">👥 {selectedAudience.name}</span>
-                    ) : (
-                      <span className="text-muted-foreground">👥 Аудиторія</span>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">
-                    <span className="text-muted-foreground">Без аудиторії</span>
-                  </SelectItem>
-                  {brandAudiences.map((audience) => (
-                    <SelectItem key={audience.id} value={audience.id}>
-                      <span className="flex items-center gap-2">
-                        <span className="font-medium">{audience.name}</span>
-                        {audience.ageRange && (
-                          <span className="text-xs text-muted-foreground">({audience.ageRange})</span>
-                        )}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
 
           {/* Hidden file input for chat images */}
             <input
@@ -1737,6 +1650,37 @@ export default function BrandChat() {
               </div>
             )}
             
+            {/* Selected context tags - Mobile only */}
+            {(selectedAgent || selectedProduct || selectedAudience) && (
+              <div className="sm:hidden flex mb-1.5 items-center gap-1 flex-wrap">
+                {selectedAgent && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                    <Bot className="w-2.5 h-2.5" />
+                    {selectedAgent.name}
+                    <button type="button" onClick={() => setSelectedAgentId(null)}>
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                )}
+                {selectedProduct && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                    📦 {selectedProduct.name}
+                    <button type="button" onClick={() => setSelectedProductId(null)}>
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                )}
+                {selectedAudience && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                    👥 {selectedAudience.name}
+                    <button type="button" onClick={() => setSelectedAudienceId(null)}>
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-1 items-center w-full">
             {/* Plus button with dropdown menu (like ChatGPT) */}
             <DropdownMenu>
@@ -1781,60 +1725,69 @@ export default function BrandChat() {
                 {userAgents && userAgents.length > 0 && (
                   <>
                     <DropdownMenuSeparator />
-                    <div className="px-2 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-                      AI Агент
-                    </div>
-                    <DropdownMenuItem onClick={() => setSelectedAgentId(null)}>
-                      <Bot className="w-4 h-4 mr-2" />
-                      {!selectedAgentId ? '✓ ' : ''}Без агента
-                    </DropdownMenuItem>
-                    {userAgents.filter(a => a.isActive).slice(0, 5).map((agent) => (
-                      <DropdownMenuItem 
-                        key={agent.id} 
-                        onClick={() => setSelectedAgentId(agent.id)}
-                      >
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
                         <Bot className="w-4 h-4 mr-2" />
-                        {selectedAgentId === agent.id ? '✓ ' : ''}{agent.name}
-                      </DropdownMenuItem>
-                    ))}
+                        {selectedAgent ? selectedAgent.name : 'AI Агент'}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem onClick={() => setSelectedAgentId(null)}>
+                          {!selectedAgentId ? '✓ ' : ''}Без агента
+                        </DropdownMenuItem>
+                        {userAgents.filter(a => a.isActive).map((agent) => (
+                          <DropdownMenuItem 
+                            key={agent.id} 
+                            onClick={() => setSelectedAgentId(agent.id)}
+                          >
+                            {selectedAgentId === agent.id ? '✓ ' : ''}{agent.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                   </>
                 )}
                 {brandProducts && brandProducts.length > 0 && (
                   <>
-                    <DropdownMenuSeparator />
-                    <div className="px-2 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-                      📦 Продукт
-                    </div>
-                    <DropdownMenuItem onClick={() => setSelectedProductId(null)}>
-                      {!selectedProductId ? '✓ ' : ''}Без продукту
-                    </DropdownMenuItem>
-                    {brandProducts.slice(0, 5).map((product) => (
-                      <DropdownMenuItem 
-                        key={product.id} 
-                        onClick={() => setSelectedProductId(product.id)}
-                      >
-                        {selectedProductId === product.id ? '✓ ' : ''}{product.name}
-                      </DropdownMenuItem>
-                    ))}
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        📦 {selectedProduct ? selectedProduct.name : 'Продукт'}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem onClick={() => setSelectedProductId(null)}>
+                          {!selectedProductId ? '✓ ' : ''}Без продукту
+                        </DropdownMenuItem>
+                        {brandProducts.map((product) => (
+                          <DropdownMenuItem 
+                            key={product.id} 
+                            onClick={() => setSelectedProductId(product.id)}
+                          >
+                            {selectedProductId === product.id ? '✓ ' : ''}{product.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                   </>
                 )}
                 {brandAudiences && brandAudiences.length > 0 && (
                   <>
-                    <DropdownMenuSeparator />
-                    <div className="px-2 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-                      👥 Аудиторія
-                    </div>
-                    <DropdownMenuItem onClick={() => setSelectedAudienceId(null)}>
-                      {!selectedAudienceId ? '✓ ' : ''}Без аудиторії
-                    </DropdownMenuItem>
-                    {brandAudiences.slice(0, 5).map((audience) => (
-                      <DropdownMenuItem 
-                        key={audience.id} 
-                        onClick={() => setSelectedAudienceId(audience.id)}
-                      >
-                        {selectedAudienceId === audience.id ? '✓ ' : ''}{audience.name}
-                      </DropdownMenuItem>
-                    ))}
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        👥 {selectedAudience ? selectedAudience.name : 'Аудиторія'}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem onClick={() => setSelectedAudienceId(null)}>
+                          {!selectedAudienceId ? '✓ ' : ''}Без аудиторії
+                        </DropdownMenuItem>
+                        {brandAudiences.map((audience) => (
+                          <DropdownMenuItem 
+                            key={audience.id} 
+                            onClick={() => setSelectedAudienceId(audience.id)}
+                          >
+                            {selectedAudienceId === audience.id ? '✓ ' : ''}{audience.name}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
                   </>
                 )}
               </DropdownMenuContent>
