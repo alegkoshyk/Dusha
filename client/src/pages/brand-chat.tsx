@@ -291,6 +291,92 @@ function formatMarkdown(text: string): JSX.Element {
   return <div className="space-y-0.5">{elements}</div>;
 }
 
+function AudienceItemWithSegments({ audience, isSelected, onSelect }: {
+  audience: { id: string; name: string; description: string | null; ageRange: string | null; gender: string | null };
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const { data: segments } = useQuery<{ id: string; name: string; personaName: string | null; personaAge: number | null; personaJob: string | null; personaStory: string | null; description: string | null }[]>({
+    queryKey: ['/api/target-audiences', audience.id, 'segments'],
+    enabled: expanded,
+    queryFn: async () => {
+      return apiRequestJson('GET', `/api/target-audiences/${audience.id}/segments`);
+    },
+  });
+
+  const hasSegments = true;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex gap-1">
+        <button
+          type="button"
+          onClick={onSelect}
+          className={`flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
+            isSelected 
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
+              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+          }`}
+        >
+          <span className="text-lg">👥</span>
+          <div className="text-left flex-1 min-w-0">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{audience.name}</span>
+            {audience.ageRange && (
+              <span className="block text-xs text-gray-400">{audience.ageRange}{audience.gender && audience.gender !== 'all' ? ` • ${audience.gender}` : ''}</span>
+            )}
+            {audience.description && (
+              <span className="block text-xs text-gray-400 truncate">{audience.description}</span>
+            )}
+          </div>
+          {isSelected && <span className="text-blue-600 shrink-0">✓</span>}
+        </button>
+        {hasSegments && (
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="px-2 flex items-center justify-center rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-400"
+          >
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+        )}
+      </div>
+      {expanded && segments && segments.length > 0 && (
+        <div className="ml-6 space-y-1">
+          <span className="text-[10px] uppercase tracking-wider text-gray-400 px-2">Персони / Сегменти</span>
+          {segments.map((seg) => (
+            <div
+              key={seg.id}
+              className="flex items-start gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700"
+            >
+              <span className="text-sm mt-0.5">🧑</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  {seg.personaName || seg.name}
+                </span>
+                {seg.personaAge && (
+                  <span className="text-xs text-gray-400">, {seg.personaAge} р.</span>
+                )}
+                {seg.personaJob && (
+                  <span className="block text-[11px] text-gray-400">{seg.personaJob}</span>
+                )}
+                {seg.description && (
+                  <span className="block text-[11px] text-gray-400 line-clamp-2">{seg.description}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {expanded && segments && segments.length === 0 && (
+        <div className="ml-6 px-3 py-2 text-xs text-gray-400">
+          Немає сегментів / персон
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BrandChat() {
   const params = useParams<{ sessionId?: string; brandId?: string }>();
   const [location, setLocation] = useLocation();
@@ -387,6 +473,8 @@ export default function BrandChat() {
       return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/chat`, { 
         message: messageText,
         agentId: selectedAgentId || undefined,
+        productId: selectedProductId || undefined,
+        audienceId: selectedAudienceId || undefined,
         imageUrls: images?.map(img => img.url),
       });
     },
@@ -1648,14 +1736,14 @@ export default function BrandChat() {
           </DialogContent>
         </Dialog>
 
-        {/* Audience Selection Dialog */}
+        {/* Audience Selection Dialog with Segments */}
         <Dialog open={showAudienceMenu} onOpenChange={setShowAudienceMenu}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-w-md">
             <DialogTitle>👥 Аудиторія</DialogTitle>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-              Оберіть цільову аудиторію для контексту генерації
+              Оберіть цільову аудиторію або окрему персону
             </p>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            <div className="space-y-2 max-h-[450px] overflow-y-auto pr-1">
               <button
                 type="button"
                 onClick={() => {
@@ -1673,28 +1761,15 @@ export default function BrandChat() {
                 {!selectedAudienceId && <span className="ml-auto text-blue-600">✓</span>}
               </button>
               {brandAudiences?.map((audience) => (
-                <button
+                <AudienceItemWithSegments
                   key={audience.id}
-                  type="button"
-                  onClick={() => {
+                  audience={audience}
+                  isSelected={selectedAudienceId === audience.id}
+                  onSelect={() => {
                     setSelectedAudienceId(audience.id);
                     setShowAudienceMenu(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
-                    selectedAudienceId === audience.id 
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
-                >
-                  <span className="text-lg">👥</span>
-                  <div className="text-left flex-1 min-w-0">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{audience.name}</span>
-                    {audience.ageRange && (
-                      <span className="block text-xs text-gray-400">{audience.ageRange}</span>
-                    )}
-                  </div>
-                  {selectedAudienceId === audience.id && <span className="ml-auto text-blue-600 shrink-0">✓</span>}
-                </button>
+                />
               ))}
             </div>
           </DialogContent>

@@ -4467,7 +4467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { sessionId } = req.params;
-      const { message, agentId, imageUrls } = req.body;
+      const { message, agentId, productId, audienceId, imageUrls } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
@@ -4554,6 +4554,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: validImageUrls.length > 0 ? { imageUrls: validImageUrls } : null,
       });
 
+      // Get product context if specified
+      let productContext: { name: string; shortDescription?: string; fullDescription?: string; category?: string; subcategory?: string; price?: string; currency?: string; targetAudience?: string; features?: string[]; benefits?: string[]; useCases?: string[]; keywords?: string[] } | undefined;
+      if (productId && gameSession.brandId) {
+        const product = await storage.getBrandProduct(productId);
+        if (product && product.brandId === gameSession.brandId) {
+          productContext = {
+            name: product.name,
+            shortDescription: product.shortDescription || undefined,
+            fullDescription: product.fullDescription || undefined,
+            category: product.category || undefined,
+            subcategory: product.subcategory || undefined,
+            price: product.price || undefined,
+            currency: product.currency || undefined,
+            targetAudience: product.targetAudience || undefined,
+            features: (product.features as string[]) || undefined,
+            benefits: (product.benefits as string[]) || undefined,
+            useCases: (product.useCases as string[]) || undefined,
+            keywords: (product.keywords as string[]) || undefined,
+          };
+          console.log('Chat using product context:', product.name);
+        }
+      }
+
+      // Get audience context if specified (with segments)
+      let audienceCtx: { name: string; description?: string; ageRange?: string; gender?: string; location?: string; income?: string; education?: string; occupation?: string; values?: string[]; interests?: string[]; painPoints?: string[]; goals?: string[]; motivations?: string[]; fears?: string[]; buyingBehavior?: string; brandInteraction?: string; aiPortrait?: string; segments?: any[] } | undefined;
+      if (audienceId && gameSession.brandId) {
+        const audience = await storage.getTargetAudience(audienceId);
+        if (audience && audience.brandId === gameSession.brandId) {
+          const segments = await storage.getAudienceSegments(audienceId);
+          audienceCtx = {
+            name: audience.name,
+            description: audience.description || undefined,
+            ageRange: audience.ageRange || undefined,
+            gender: audience.gender || undefined,
+            location: audience.location || undefined,
+            income: audience.income || undefined,
+            education: audience.education || undefined,
+            occupation: audience.occupation || undefined,
+            values: (audience.values as string[]) || undefined,
+            interests: (audience.interests as string[]) || undefined,
+            painPoints: (audience.painPoints as string[]) || undefined,
+            goals: (audience.goals as string[]) || undefined,
+            motivations: (audience.motivations as string[]) || undefined,
+            fears: (audience.fears as string[]) || undefined,
+            buyingBehavior: audience.buyingBehavior || undefined,
+            brandInteraction: audience.brandInteraction || undefined,
+            aiPortrait: audience.aiPortrait || undefined,
+            segments: segments.map(s => ({
+              name: s.name,
+              description: s.description || undefined,
+              personaName: s.personaName || undefined,
+              personaAge: s.personaAge || undefined,
+              personaJob: s.personaJob || undefined,
+              personaStory: s.personaStory || undefined,
+              personaQuote: s.personaQuote || undefined,
+              characteristics: (s.characteristics as string[]) || undefined,
+              specificNeeds: (s.specificNeeds as string[]) || undefined,
+              communicationStyle: s.communicationStyle || undefined,
+            })),
+          };
+          console.log('Chat using audience context:', audience.name, `with ${segments.length} segments`);
+        }
+      }
+
       // Get AI response with images
       const aiResponse = await sendBrandChatMessage(
         message,
@@ -4563,6 +4627,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           brandDescription,
           responses: formattedResponses,
           agentContext,
+          productContext,
+          audienceContext: audienceCtx,
         },
         sessionId,
         validImageUrls.length > 0 ? validImageUrls : undefined

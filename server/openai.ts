@@ -398,11 +398,60 @@ export interface AgentContext {
   language?: string;
 }
 
+export interface ProductContext {
+  name: string;
+  shortDescription?: string;
+  fullDescription?: string;
+  category?: string;
+  subcategory?: string;
+  price?: string;
+  currency?: string;
+  targetAudience?: string;
+  features?: string[];
+  benefits?: string[];
+  useCases?: string[];
+  keywords?: string[];
+}
+
+export interface AudienceContext {
+  name: string;
+  description?: string;
+  ageRange?: string;
+  gender?: string;
+  location?: string;
+  income?: string;
+  education?: string;
+  occupation?: string;
+  values?: string[];
+  interests?: string[];
+  painPoints?: string[];
+  goals?: string[];
+  motivations?: string[];
+  fears?: string[];
+  buyingBehavior?: string;
+  brandInteraction?: string;
+  aiPortrait?: string;
+  segments?: {
+    name: string;
+    description?: string;
+    personaName?: string;
+    personaAge?: number;
+    personaJob?: string;
+    personaStory?: string;
+    personaQuote?: string;
+    characteristics?: string[];
+    specificNeeds?: string[];
+    communicationStyle?: string;
+  }[];
+}
+
 export interface BrandContext {
   brandName: string;
   brandDescription?: string;
   responses: { level: string; cardTitle: string; question?: string; response: any }[];
   agentContext?: AgentContext;
+  productContext?: ProductContext;
+  audienceContext?: AudienceContext;
 }
 
 export async function sendBrandChatMessage(
@@ -441,9 +490,51 @@ ${brandContext.responses.map(r => {
 }).join('\n')}
 
 ${config.context ? `\n📝 Додатковий контекст:\n${config.context}` : ''}
+${brandContext.productContext ? `
+📦 Обраний продукт:
+- Назва: ${brandContext.productContext.name}
+${brandContext.productContext.shortDescription ? `- Короткий опис: ${brandContext.productContext.shortDescription}` : ''}
+${brandContext.productContext.fullDescription ? `- Повний опис: ${brandContext.productContext.fullDescription}` : ''}
+${brandContext.productContext.category ? `- Категорія: ${brandContext.productContext.category}${brandContext.productContext.subcategory ? ` / ${brandContext.productContext.subcategory}` : ''}` : ''}
+${brandContext.productContext.price ? `- Ціна: ${brandContext.productContext.price} ${brandContext.productContext.currency || 'UAH'}` : ''}
+${brandContext.productContext.targetAudience ? `- Цільова аудиторія продукту: ${brandContext.productContext.targetAudience}` : ''}
+${brandContext.productContext.features && brandContext.productContext.features.length > 0 ? `- Характеристики: ${brandContext.productContext.features.join(', ')}` : ''}
+${brandContext.productContext.benefits && brandContext.productContext.benefits.length > 0 ? `- Переваги: ${brandContext.productContext.benefits.join(', ')}` : ''}
+${brandContext.productContext.useCases && brandContext.productContext.useCases.length > 0 ? `- Сценарії використання: ${brandContext.productContext.useCases.join(', ')}` : ''}
+${brandContext.productContext.keywords && brandContext.productContext.keywords.length > 0 ? `- Ключові слова: ${brandContext.productContext.keywords.join(', ')}` : ''}
+ВАЖЛИВО: Ти знаєш цей продукт. Коли користувач запитує про продукт - відповідай на основі цих даних.` : ''}
+${brandContext.audienceContext ? `
+👥 Обрана цільова аудиторія:
+- Назва: ${brandContext.audienceContext.name}
+${brandContext.audienceContext.description ? `- Опис: ${brandContext.audienceContext.description}` : ''}
+${brandContext.audienceContext.ageRange ? `- Вік: ${brandContext.audienceContext.ageRange}` : ''}
+${brandContext.audienceContext.gender && brandContext.audienceContext.gender !== 'all' ? `- Стать: ${brandContext.audienceContext.gender}` : ''}
+${brandContext.audienceContext.location ? `- Локація: ${brandContext.audienceContext.location}` : ''}
+${brandContext.audienceContext.income ? `- Дохід: ${brandContext.audienceContext.income}` : ''}
+${brandContext.audienceContext.education ? `- Освіта: ${brandContext.audienceContext.education}` : ''}
+${brandContext.audienceContext.occupation ? `- Професія: ${brandContext.audienceContext.occupation}` : ''}
+${brandContext.audienceContext.values && brandContext.audienceContext.values.length > 0 ? `- Цінності: ${brandContext.audienceContext.values.join(', ')}` : ''}
+${brandContext.audienceContext.interests && brandContext.audienceContext.interests.length > 0 ? `- Інтереси: ${brandContext.audienceContext.interests.join(', ')}` : ''}
+${brandContext.audienceContext.painPoints && brandContext.audienceContext.painPoints.length > 0 ? `- Болі/проблеми: ${brandContext.audienceContext.painPoints.join(', ')}` : ''}
+${brandContext.audienceContext.goals && brandContext.audienceContext.goals.length > 0 ? `- Цілі: ${brandContext.audienceContext.goals.join(', ')}` : ''}
+${brandContext.audienceContext.motivations && brandContext.audienceContext.motivations.length > 0 ? `- Мотивації: ${brandContext.audienceContext.motivations.join(', ')}` : ''}
+${brandContext.audienceContext.fears && brandContext.audienceContext.fears.length > 0 ? `- Страхи: ${brandContext.audienceContext.fears.join(', ')}` : ''}
+${brandContext.audienceContext.buyingBehavior ? `- Поведінка при покупці: ${brandContext.audienceContext.buyingBehavior}` : ''}
+${brandContext.audienceContext.brandInteraction ? `- Взаємодія з брендами: ${brandContext.audienceContext.brandInteraction}` : ''}
+${brandContext.audienceContext.aiPortrait ? `- AI портрет: ${brandContext.audienceContext.aiPortrait}` : ''}
+${brandContext.audienceContext.segments && brandContext.audienceContext.segments.length > 0 ? `
+Сегменти/Персони аудиторії:
+${brandContext.audienceContext.segments.map((s, i) => `  ${i + 1}. ${s.personaName || s.name}${s.personaAge ? `, ${s.personaAge} р.` : ''}${s.personaJob ? `, ${s.personaJob}` : ''}
+${s.description ? `     Опис: ${s.description}` : ''}
+${s.personaStory ? `     Історія: ${s.personaStory}` : ''}
+${s.personaQuote ? `     Цитата: "${s.personaQuote}"` : ''}
+${s.characteristics && s.characteristics.length > 0 ? `     Характеристики: ${s.characteristics.join(', ')}` : ''}
+${s.specificNeeds && s.specificNeeds.length > 0 ? `     Потреби: ${s.specificNeeds.join(', ')}` : ''}
+${s.communicationStyle ? `     Стиль комунікації: ${s.communicationStyle}` : ''}`).join('\n')}` : ''}
+ВАЖЛИВО: Ти знаєш цю аудиторію. Коли користувач запитує про аудиторію - відповідай на основі цих даних.` : ''}
 
 Твоя роль:
-- Давай практичні поради на основі даних бренду
+- Давай практичні поради на основі даних бренду${brandContext.productContext ? ', продукту' : ''}${brandContext.audienceContext ? ' та аудиторії' : ''}
 - Допомагай уточнювати стратегію та позиціонування
 - Відповідай чітко, конструктивно та українською мовою
 - Пропонуй конкретні кроки та приклади`;
