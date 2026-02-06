@@ -1082,16 +1082,16 @@ export default function TargetAudiencePage() {
                         }}
                       >
                         <div className="border rounded-lg group overflow-hidden">
-                          <CollapsibleTrigger className="w-full overflow-hidden">
-                            <div className="flex items-center justify-between p-2 sm:p-4 hover:bg-muted/50 transition-colors gap-1 sm:gap-2 overflow-hidden">
-                              <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1 overflow-hidden">
+                          <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-2 sm:p-4 hover:bg-muted/50 transition-colors gap-1 sm:gap-2 cursor-pointer" style={{ maxWidth: '100%', overflow: 'hidden' }}>
+                              <div className="flex items-center gap-1.5 sm:gap-3" style={{ minWidth: 0, flex: '1 1 0%', overflow: 'hidden' }}>
                                 {expandedSegments.has(segment.id) ? (
                                   <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                 ) : (
                                   <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                 )}
                                 <FolderOpen className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" style={{ color: segment.color || '#f59e0b' }} />
-                                <span className="font-medium truncate text-sm sm:text-base block min-w-0">{segment.name}</span>
+                                <span className="font-medium text-sm sm:text-base text-left" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{segment.name}</span>
                                 <Badge variant="secondary" className="whitespace-nowrap flex-shrink-0 text-[10px] sm:text-xs px-1.5 sm:px-2">
                                   {segment.personas.length + segment.subSegments.reduce((acc, s) => acc + s.personas.length, 0)}
                                 </Badge>
