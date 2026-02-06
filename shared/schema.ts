@@ -1228,6 +1228,7 @@ export const targetAudiencesTable = pgTable("target_audiences", {
   brandInteractionImages: json("brand_interaction_images").default(sql`'[]'`), // Фото взаємодії з брендом
   // Метадані
   isPrimary: boolean("is_primary").notNull().default(false), // Основна ЦА
+  personaCategoryId: uuid("persona_category_id").references(() => personaCategoriesTable.id, { onDelete: "set null" }),
   priority: integer("priority").notNull().default(0), // Пріоритет (0 = найвищий)
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),

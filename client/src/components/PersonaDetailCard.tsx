@@ -123,6 +123,7 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
         occupation: persona.occupation,
         income: persona.income,
         isPrimary: persona.isPrimary,
+        personaCategoryId: persona.personaCategoryId,
         values: persona.values,
         interests: persona.interests,
         painPoints: persona.painPoints,
@@ -295,6 +296,14 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
 
   const getTypeAssignmentId = (typeId: string) => {
     return personaAudienceTypes.find(pat => pat.audienceTypeId === typeId)?.id;
+  };
+
+  const getPrimaryCategoryId = () => {
+    return personaCategories.find(c => c.nameEn?.toLowerCase() === "primary" || c.name === "Основна")?.id || "primary";
+  };
+  
+  const getSecondaryCategoryId = () => {
+    return personaCategories.find(c => c.nameEn?.toLowerCase() === "secondary" || c.name === "Вторинна")?.id || "secondary";
   };
 
   const filteredCategories = typeSearchQuery.trim()
@@ -510,8 +519,17 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <Badge variant={persona.isPrimary ? "default" : "secondary"}>
-                  {persona.isPrimary ? "Основна" : "Вторинна"}
+                <Badge 
+                  variant={persona.isPrimary ? "default" : "secondary"}
+                  style={persona.personaCategoryId ? { 
+                    backgroundColor: personaCategories.find(c => c.id === persona.personaCategoryId)?.color || undefined,
+                    color: '#fff'
+                  } : undefined}
+                >
+                  {persona.personaCategoryId 
+                    ? personaCategories.find(c => c.id === persona.personaCategoryId)?.name || (persona.isPrimary ? "Основна" : "Вторинна")
+                    : persona.isPrimary ? "Основна" : "Вторинна"
+                  }
                 </Badge>
               </div>
               {persona.description && (
@@ -538,8 +556,15 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
                 <div className="space-y-2">
                   <Label>Тип</Label>
                   <Select
-                    value={editData.isPrimary ? "primary" : "secondary"}
-                    onValueChange={(v) => setEditData({ ...editData, isPrimary: v === "primary" || v.toLowerCase() === "основна" })}
+                    value={editData.personaCategoryId || (editData.isPrimary ? getPrimaryCategoryId() : getSecondaryCategoryId()) || "primary"}
+                    onValueChange={(v) => {
+                      const category = personaCategories.find(c => c.id === v);
+                      setEditData({ 
+                        ...editData, 
+                        isPrimary: category ? category.nameEn?.toLowerCase() === "primary" || category.name === "Основна" : v === "primary",
+                        personaCategoryId: v,
+                      });
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -547,7 +572,7 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
                     <SelectContent>
                       {personaCategories.length > 0 ? (
                         personaCategories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.name.toLowerCase()}>
+                          <SelectItem key={cat.id} value={cat.id}>
                             {cat.name}{cat.nameEn ? ` (${cat.nameEn})` : ''}
                           </SelectItem>
                         ))
