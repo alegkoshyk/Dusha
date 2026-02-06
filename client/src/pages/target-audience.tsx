@@ -268,10 +268,12 @@ export default function TargetAudiencePage() {
       
       return newAudience;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Цільову аудиторію створено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setIsCreateOpen(false);
       setNewAudienceName("");
       setSelectedSegmentIds(new Set());
@@ -292,10 +294,12 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to delete audience");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Цільову аудиторію видалено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setSelectedAudience(null);
     },
     onError: () => {
@@ -309,10 +313,12 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to update audience");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Персону оновлено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setEditingAudience(null);
       setSelectedAudience(null);
       setIsEditMode(false);
@@ -329,9 +335,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to create category");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Категорію створено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/audience-types"] });
       setNewCategoryName("");
       setNewCategoryColor("#6b7280");
     },
@@ -346,9 +353,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to update category");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Категорію оновлено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/audience-types"] });
       setEditingCategory(null);
     },
     onError: () => {
@@ -362,9 +370,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to delete category");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Категорію видалено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/audience-types"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося видалити категорію", variant: "destructive" });
@@ -378,9 +387,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to create type");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Тип створено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/audience-types"] });
       setNewTypeName("");
       setNewTypeColor("#6b7280");
       setAddingTypeToCategoryId(null);
@@ -396,9 +406,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to update type");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Тип оновлено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/audience-types"] });
       setEditingType(null);
     },
     onError: () => {
@@ -412,9 +423,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to delete type");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Тип видалено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/audience-types"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/audience-types"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося видалити тип", variant: "destructive" });
@@ -445,9 +457,11 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to add assignment");
       return response.json();
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/target-audiences", variables.personaId, "segment-assignments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/target-audiences", variables.personaId, "segment-assignments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/target-audiences", variables.personaId, "segment-assignments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося призначити персону", variant: "destructive" });
@@ -460,9 +474,11 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to remove assignment");
       return response.json();
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/target-audiences", variables.personaId, "segment-assignments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+    onSuccess: async (_, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["/api/target-audiences", variables.personaId, "segment-assignments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/target-audiences", variables.personaId, "segment-assignments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося видалити призначення", variant: "destructive" });
@@ -478,9 +494,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to update segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Сегмент оновлено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setEditingSegment(null);
     },
     onError: () => {
@@ -494,9 +511,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to delete segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Сегмент видалено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося видалити сегмент", variant: "destructive" });
@@ -509,9 +527,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to create sub-segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Підсегмент створено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося створити підсегмент", variant: "destructive" });
@@ -524,9 +543,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to update sub-segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Підсегмент оновлено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setEditingSubSegment(null);
     },
     onError: () => {
@@ -540,9 +560,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to move sub-segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Підсегмент переміщено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setMovingSubSegment(null);
     },
     onError: () => {
@@ -556,9 +577,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to delete sub-segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Підсегмент видалено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося видалити підсегмент", variant: "destructive" });
@@ -571,9 +593,10 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to add to segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Персону додано до сегменту" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося додати персону до сегменту", variant: "destructive" });
@@ -587,10 +610,12 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to generate avatar");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Аватар згенеровано" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setGeneratingAvatarId(null);
     },
     onError: () => {
@@ -605,10 +630,12 @@ export default function TargetAudiencePage() {
       if (!response.ok) throw new Error("Failed to upload avatar");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Фото завантажено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося завантажити фото", variant: "destructive" });
@@ -1833,7 +1860,8 @@ export default function TargetAudiencePage() {
                         color: newBaseCategoryColor,
                         priority: segments.length
                       });
-                      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+                      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+                      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
                       setNewBaseCategoryName("");
                       setNewBaseCategoryColor("#6b7280");
                       toast({ title: "Успішно", description: "Категорію створено" });
@@ -1873,7 +1901,8 @@ export default function TargetAudiencePage() {
                                 name: editingSegmentInManage.name,
                                 color: editingSegmentInManage.color
                               });
-                              queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+                              await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+                              await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
                               setEditingSegmentInManage(null);
                               toast({ title: "Успішно", description: "Категорію оновлено" });
                             } catch (error) {
@@ -1919,7 +1948,8 @@ export default function TargetAudiencePage() {
                               if (confirm(`Видалити категорію "${segment.name}" та всі її підкатегорії?`)) {
                                 try {
                                   await apiRequest("DELETE", `/api/demographic-segments/${segment.id}`);
-                                  queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+                                  await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+                                  await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
                                   toast({ title: "Успішно", description: "Категорію видалено" });
                                 } catch (error) {
                                   toast({ title: "Помилка", description: "Не вдалося видалити категорію", variant: "destructive" });
@@ -1996,7 +2026,8 @@ export default function TargetAudiencePage() {
                           color: newPersonaCategoryColor,
                           sortOrder: personaCategories.length
                         });
-                        queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
+                        await queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
+                        await queryClient.refetchQueries({ queryKey: ["/api/persona-categories"] });
                         setNewPersonaCategoryName("");
                         setNewPersonaCategoryNameEn("");
                         setNewPersonaCategoryColor("#6b7280");
@@ -2049,7 +2080,8 @@ export default function TargetAudiencePage() {
                                   nameEn: editingPersonaCategory.nameEn,
                                   color: editingPersonaCategory.color
                                 });
-                                queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
+                                await queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
+                                await queryClient.refetchQueries({ queryKey: ["/api/persona-categories"] });
                                 setEditingPersonaCategory(null);
                                 toast({ title: "Успішно", description: "Категорію оновлено" });
                               } catch (error) {
@@ -2096,7 +2128,8 @@ export default function TargetAudiencePage() {
                               if (confirm(`Видалити категорію "${cat.name}"?`)) {
                                 try {
                                   await apiRequest("DELETE", `/api/persona-categories/${cat.id}`);
-                                  queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
+                                  await queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
+                                  await queryClient.refetchQueries({ queryKey: ["/api/persona-categories"] });
                                   toast({ title: "Успішно", description: "Категорію видалено" });
                                 } catch (error) {
                                   toast({ title: "Помилка", description: "Не вдалося видалити категорію", variant: "destructive" });
