@@ -42,7 +42,8 @@ import {
   CheckCircle2,
   MoreVertical,
   Map,
-  Plus
+  Plus,
+  Check
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
@@ -305,8 +306,6 @@ function AudienceItemWithSegments({ audience, isSelected, onSelect }: {
     },
   });
 
-  const hasSegments = true;
-
   return (
     <div className="space-y-1">
       <div className="flex gap-1">
@@ -319,6 +318,9 @@ function AudienceItemWithSegments({ audience, isSelected, onSelect }: {
               : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
           }`}
         >
+          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${isSelected ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300 dark:border-gray-600'}`}>
+            {isSelected && <Check className="w-3 h-3" />}
+          </div>
           <span className="text-lg">👥</span>
           <div className="text-left flex-1 min-w-0">
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{audience.name}</span>
@@ -329,17 +331,14 @@ function AudienceItemWithSegments({ audience, isSelected, onSelect }: {
               <span className="block text-xs text-gray-400 truncate">{audience.description}</span>
             )}
           </div>
-          {isSelected && <span className="text-blue-600 shrink-0">✓</span>}
         </button>
-        {hasSegments && (
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
-            className="px-2 flex items-center justify-center rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-400"
-          >
-            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="px-2 flex items-center justify-center rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-400"
+        >
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
       </div>
       {expanded && segments && segments.length > 0 && (
         <div className="ml-6 space-y-1">
@@ -405,8 +404,8 @@ export default function BrandChat() {
   const [uploadingReference, setUploadingReference] = useState(false);
   const [selectedGameSessionId, setSelectedGameSessionId] = useState<string | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [selectedAudienceId, setSelectedAudienceId] = useState<string | null>(null);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [selectedAudienceIds, setSelectedAudienceIds] = useState<string[]>([]);
   const [attachedImages, setAttachedImages] = useState<{ id: number; url: string; filename: string }[]>([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -473,8 +472,8 @@ export default function BrandChat() {
       return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/chat`, { 
         message: messageText,
         agentId: selectedAgentId || undefined,
-        productId: selectedProductId || undefined,
-        audienceId: selectedAudienceId || undefined,
+        productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
+        audienceIds: selectedAudienceIds.length > 0 ? selectedAudienceIds : undefined,
         imageUrls: images?.map(img => img.url),
       });
     },
@@ -533,7 +532,7 @@ export default function BrandChat() {
 
   // Fetch products for this brand
   const brandIdForQueries = brandIdFromUrl || session?.brandId;
-  const { data: brandProducts } = useQuery<{ id: string; name: string; shortDescription: string | null; category: string | null }[]>({
+  const { data: brandProducts } = useQuery<{ id: string; name: string; shortDescription: string | null; category: string | null; mainImageUrl: string | null }[]>({
     queryKey: ['/api/brands', brandIdForQueries, 'products'],
     queryFn: async () => {
       if (!brandIdForQueries) return [];
@@ -552,13 +551,14 @@ export default function BrandChat() {
     enabled: !!brandIdForQueries,
   });
 
-  // Get selected product and audience details
-  const selectedProduct = selectedProductId ? brandProducts?.find(p => p.id === selectedProductId) : null;
-  const selectedAudience = selectedAudienceId ? brandAudiences?.find(a => a.id === selectedAudienceId) : null;
+  const hasSelectedProducts = selectedProductIds.length > 0;
+  const hasSelectedAudiences = selectedAudienceIds.length > 0;
+  const allProductsSelected = brandProducts && brandProducts.length > 0 && selectedProductIds.length === brandProducts.length;
+  const allAudiencesSelected = brandAudiences && brandAudiences.length > 0 && selectedAudienceIds.length === brandAudiences.length;
 
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId, productId, audienceId }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; agentId?: string; productId?: string; audienceId?: string }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId, productId, audienceId });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId, productIds, audienceIds }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; agentId?: string; productIds?: string[]; audienceIds?: string[] }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId, productIds, audienceIds });
     },
     onError: (error: any) => {
       toast({
@@ -821,8 +821,8 @@ export default function BrandChat() {
             referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined,
             usePro: useNanoBananaPro,
             agentId: selectedAgentId || undefined,
-            productId: selectedProductId || undefined,
-            audienceId: selectedAudienceId || undefined
+            productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
+            audienceIds: selectedAudienceIds.length > 0 ? selectedAudienceIds : undefined
           }, {
             onSuccess: (data) => {
               const imageData = data.imageBase64 || data.imageUrl;
@@ -1684,93 +1684,141 @@ export default function BrandChat() {
           </DialogContent>
         </Dialog>
 
-        {/* Product Selection Dialog */}
+        {/* Product Selection Dialog - Multi-select with images */}
         <Dialog open={showProductMenu} onOpenChange={setShowProductMenu}>
-          <DialogContent className="max-w-sm">
-            <DialogTitle>📦 Продукт</DialogTitle>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-              Оберіть продукт для контексту генерації
-            </p>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedProductId(null);
-                  setShowProductMenu(false);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
-                  !selectedProductId 
-                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30' 
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                <span className="text-lg">📦</span>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Без продукту</span>
-                {!selectedProductId && <span className="ml-auto text-amber-600">✓</span>}
-              </button>
-              {brandProducts?.map((product) => (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedProductId(product.id);
-                    setShowProductMenu(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
-                    selectedProductId === product.id 
-                      ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
-                >
-                  <span className="text-lg">📦</span>
-                  <div className="text-left flex-1 min-w-0">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{product.name}</span>
-                    {product.category && (
-                      <span className="block text-xs text-gray-400">{product.category}</span>
-                    )}
-                  </div>
-                  {selectedProductId === product.id && <span className="ml-auto text-amber-600 shrink-0">✓</span>}
-                </button>
-              ))}
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* Audience Selection Dialog with Segments */}
-        <Dialog open={showAudienceMenu} onOpenChange={setShowAudienceMenu}>
           <DialogContent className="max-w-md">
-            <DialogTitle>👥 Аудиторія</DialogTitle>
+            <DialogTitle>📦 Продукти</DialogTitle>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-              Оберіть цільову аудиторію або окрему персону
+              Оберіть продукти для контексту генерації
             </p>
             <div className="space-y-2 max-h-[450px] overflow-y-auto pr-1">
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedAudienceId(null);
-                  setShowAudienceMenu(false);
+                  if (allProductsSelected) {
+                    setSelectedProductIds([]);
+                  } else {
+                    setSelectedProductIds(brandProducts?.map(p => p.id) || []);
+                  }
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
-                  !selectedAudienceId 
+                  allProductsSelected 
+                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30' 
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${allProductsSelected ? 'bg-amber-500 border-amber-500 text-white' : 'border-gray-300 dark:border-gray-600'}`}>
+                  {allProductsSelected && <Check className="w-3 h-3" />}
+                </div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Усі продукти</span>
+                {brandProducts && <span className="ml-auto text-xs text-gray-400">{brandProducts.length}</span>}
+              </button>
+              {brandProducts?.map((product) => {
+                const isSelected = selectedProductIds.includes(product.id);
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedProductIds(prev => 
+                        isSelected ? prev.filter(id => id !== product.id) : [...prev, product.id]
+                      );
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
+                      isSelected 
+                        ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30' 
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                  >
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${isSelected ? 'bg-amber-500 border-amber-500 text-white' : 'border-gray-300 dark:border-gray-600'}`}>
+                      {isSelected && <Check className="w-3 h-3" />}
+                    </div>
+                    {product.mainImageUrl ? (
+                      <img src={product.mainImageUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-gray-200 dark:border-gray-700" />
+                    ) : (
+                      <span className="text-lg">📦</span>
+                    )}
+                    <div className="text-left flex-1 min-w-0">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{product.name}</span>
+                      {product.category && (
+                        <span className="block text-xs text-gray-400">{product.category}</span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t dark:border-gray-700">
+              <span className="text-xs text-gray-400">Обрано: {selectedProductIds.length} з {brandProducts?.length || 0}</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setSelectedProductIds([]); setShowProductMenu(false); }}>
+                  Скасувати
+                </Button>
+                <Button size="sm" onClick={() => setShowProductMenu(false)}>
+                  <Check className="w-3.5 h-3.5 mr-1" />
+                  Зберегти
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Audience Selection Dialog - Multi-select with checkboxes */}
+        <Dialog open={showAudienceMenu} onOpenChange={setShowAudienceMenu}>
+          <DialogContent className="max-w-md">
+            <DialogTitle>👥 Аудиторія</DialogTitle>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+              Оберіть цільові аудиторії для контексту генерації
+            </p>
+            <div className="space-y-2 max-h-[450px] overflow-y-auto pr-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (allAudiencesSelected) {
+                    setSelectedAudienceIds([]);
+                  } else {
+                    setSelectedAudienceIds(brandAudiences?.map(a => a.id) || []);
+                  }
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
+                  allAudiencesSelected 
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
-                <span className="text-lg">👥</span>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Без аудиторії</span>
-                {!selectedAudienceId && <span className="ml-auto text-blue-600">✓</span>}
+                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${allAudiencesSelected ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300 dark:border-gray-600'}`}>
+                  {allAudiencesSelected && <Check className="w-3 h-3" />}
+                </div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Усі аудиторії</span>
+                {brandAudiences && <span className="ml-auto text-xs text-gray-400">{brandAudiences.length}</span>}
               </button>
-              {brandAudiences?.map((audience) => (
-                <AudienceItemWithSegments
-                  key={audience.id}
-                  audience={audience}
-                  isSelected={selectedAudienceId === audience.id}
-                  onSelect={() => {
-                    setSelectedAudienceId(audience.id);
-                    setShowAudienceMenu(false);
-                  }}
-                />
-              ))}
+              {brandAudiences?.map((audience) => {
+                const isSelected = selectedAudienceIds.includes(audience.id);
+                return (
+                  <AudienceItemWithSegments
+                    key={audience.id}
+                    audience={audience}
+                    isSelected={isSelected}
+                    onSelect={() => {
+                      setSelectedAudienceIds(prev => 
+                        isSelected ? prev.filter(id => id !== audience.id) : [...prev, audience.id]
+                      );
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t dark:border-gray-700">
+              <span className="text-xs text-gray-400">Обрано: {selectedAudienceIds.length} з {brandAudiences?.length || 0}</span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => { setSelectedAudienceIds([]); setShowAudienceMenu(false); }}>
+                  Скасувати
+                </Button>
+                <Button size="sm" onClick={() => setShowAudienceMenu(false)}>
+                  <Check className="w-3.5 h-3.5 mr-1" />
+                  Зберегти
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -1818,7 +1866,7 @@ export default function BrandChat() {
 
         <form onSubmit={handleSend} className="p-2 border-t dark:border-gray-700 relative">
           {/* Selected context tags - Desktop only, shown only when something is selected */}
-          {(selectedAgent || selectedProduct || selectedAudience) && (
+          {(selectedAgent || hasSelectedProducts || hasSelectedAudiences) && (
             <div className="hidden sm:flex mb-2 items-center gap-1.5 flex-wrap">
               {selectedAgent && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
@@ -1829,18 +1877,18 @@ export default function BrandChat() {
                   </button>
                 </span>
               )}
-              {selectedProduct && (
+              {hasSelectedProducts && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                  📦 {selectedProduct.name}
-                  <button type="button" onClick={() => setSelectedProductId(null)} className="ml-0.5 hover:text-amber-900 dark:hover:text-amber-100">
+                  📦 {allProductsSelected ? 'Усі продукти' : `Продукти (${selectedProductIds.length})`}
+                  <button type="button" onClick={() => setSelectedProductIds([])} className="ml-0.5 hover:text-amber-900 dark:hover:text-amber-100">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
               )}
-              {selectedAudience && (
+              {hasSelectedAudiences && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                  👥 {selectedAudience.name}
-                  <button type="button" onClick={() => setSelectedAudienceId(null)} className="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100">
+                  👥 {allAudiencesSelected ? 'Усі аудиторії' : `Аудиторії (${selectedAudienceIds.length})`}
+                  <button type="button" onClick={() => setSelectedAudienceIds([])} className="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -1885,7 +1933,7 @@ export default function BrandChat() {
             )}
             
             {/* Selected context tags - Mobile only */}
-            {(selectedAgent || selectedProduct || selectedAudience) && (
+            {(selectedAgent || hasSelectedProducts || hasSelectedAudiences) && (
               <div className="sm:hidden flex mb-1.5 items-center gap-1 flex-wrap">
                 {selectedAgent && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
@@ -1896,18 +1944,18 @@ export default function BrandChat() {
                     </button>
                   </span>
                 )}
-                {selectedProduct && (
+                {hasSelectedProducts && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                    📦 {selectedProduct.name}
-                    <button type="button" onClick={() => setSelectedProductId(null)}>
+                    📦 {allProductsSelected ? 'Усі' : selectedProductIds.length}
+                    <button type="button" onClick={() => setSelectedProductIds([])}>
                       <X className="w-2.5 h-2.5" />
                     </button>
                   </span>
                 )}
-                {selectedAudience && (
+                {hasSelectedAudiences && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                    👥 {selectedAudience.name}
-                    <button type="button" onClick={() => setSelectedAudienceId(null)}>
+                    👥 {allAudiencesSelected ? 'Усі' : selectedAudienceIds.length}
+                    <button type="button" onClick={() => setSelectedAudienceIds([])}>
                       <X className="w-2.5 h-2.5" />
                     </button>
                   </span>
@@ -1968,13 +2016,15 @@ export default function BrandChat() {
                 {brandProducts && brandProducts.length > 0 && (
                   <DropdownMenuItem onClick={() => setShowProductMenu(true)}>
                     <span className="mr-2">📦</span>
-                    {selectedProduct ? selectedProduct.name : 'Продукт'}
+                    Продукти
+                    {hasSelectedProducts && <span className="ml-auto text-xs text-amber-500">{selectedProductIds.length}</span>}
                   </DropdownMenuItem>
                 )}
                 {brandAudiences && brandAudiences.length > 0 && (
                   <DropdownMenuItem onClick={() => setShowAudienceMenu(true)}>
                     <span className="mr-2">👥</span>
-                    {selectedAudience ? selectedAudience.name : 'Аудиторія'}
+                    Аудиторія
+                    {hasSelectedAudiences && <span className="ml-auto text-xs text-blue-500">{selectedAudienceIds.length}</span>}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>

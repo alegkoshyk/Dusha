@@ -451,7 +451,57 @@ export interface BrandContext {
   responses: { level: string; cardTitle: string; question?: string; response: any }[];
   agentContext?: AgentContext;
   productContext?: ProductContext;
+  productsContext?: ProductContext[];
   audienceContext?: AudienceContext;
+  audiencesContext?: AudienceContext[];
+}
+
+function formatProductSection(product: ProductContext, index?: number): string {
+  const prefix = index !== undefined ? `📦 Продукт ${index + 1}:` : '📦 Обраний продукт:';
+  return `
+${prefix}
+- Назва: ${product.name}
+${product.shortDescription ? `- Короткий опис: ${product.shortDescription}` : ''}
+${product.fullDescription ? `- Повний опис: ${product.fullDescription}` : ''}
+${product.category ? `- Категорія: ${product.category}${product.subcategory ? ` / ${product.subcategory}` : ''}` : ''}
+${product.price ? `- Ціна: ${product.price} ${product.currency || 'UAH'}` : ''}
+${product.targetAudience ? `- Цільова аудиторія продукту: ${product.targetAudience}` : ''}
+${product.features && product.features.length > 0 ? `- Характеристики: ${product.features.join(', ')}` : ''}
+${product.benefits && product.benefits.length > 0 ? `- Переваги: ${product.benefits.join(', ')}` : ''}
+${product.useCases && product.useCases.length > 0 ? `- Сценарії використання: ${product.useCases.join(', ')}` : ''}
+${product.keywords && product.keywords.length > 0 ? `- Ключові слова: ${product.keywords.join(', ')}` : ''}`;
+}
+
+function formatAudienceSection(audience: AudienceContext, index?: number): string {
+  const prefix = index !== undefined ? `👥 Аудиторія ${index + 1}:` : '👥 Обрана цільова аудиторія:';
+  return `
+${prefix}
+- Назва: ${audience.name}
+${audience.description ? `- Опис: ${audience.description}` : ''}
+${audience.ageRange ? `- Вік: ${audience.ageRange}` : ''}
+${audience.gender && audience.gender !== 'all' ? `- Стать: ${audience.gender}` : ''}
+${audience.location ? `- Локація: ${audience.location}` : ''}
+${audience.income ? `- Дохід: ${audience.income}` : ''}
+${audience.education ? `- Освіта: ${audience.education}` : ''}
+${audience.occupation ? `- Професія: ${audience.occupation}` : ''}
+${audience.values && audience.values.length > 0 ? `- Цінності: ${audience.values.join(', ')}` : ''}
+${audience.interests && audience.interests.length > 0 ? `- Інтереси: ${audience.interests.join(', ')}` : ''}
+${audience.painPoints && audience.painPoints.length > 0 ? `- Болі/проблеми: ${audience.painPoints.join(', ')}` : ''}
+${audience.goals && audience.goals.length > 0 ? `- Цілі: ${audience.goals.join(', ')}` : ''}
+${audience.motivations && audience.motivations.length > 0 ? `- Мотивації: ${audience.motivations.join(', ')}` : ''}
+${audience.fears && audience.fears.length > 0 ? `- Страхи: ${audience.fears.join(', ')}` : ''}
+${audience.buyingBehavior ? `- Поведінка при покупці: ${audience.buyingBehavior}` : ''}
+${audience.brandInteraction ? `- Взаємодія з брендами: ${audience.brandInteraction}` : ''}
+${audience.aiPortrait ? `- AI портрет: ${audience.aiPortrait}` : ''}
+${audience.segments && audience.segments.length > 0 ? `
+Сегменти/Персони:
+${audience.segments.map((s: any, i: number) => `  ${i + 1}. ${s.personaName || s.name}${s.personaAge ? `, ${s.personaAge} р.` : ''}${s.personaJob ? `, ${s.personaJob}` : ''}
+${s.description ? `     Опис: ${s.description}` : ''}
+${s.personaStory ? `     Історія: ${s.personaStory}` : ''}
+${s.personaQuote ? `     Цитата: "${s.personaQuote}"` : ''}
+${s.characteristics && s.characteristics.length > 0 ? `     Характеристики: ${s.characteristics.join(', ')}` : ''}
+${s.specificNeeds && s.specificNeeds.length > 0 ? `     Потреби: ${s.specificNeeds.join(', ')}` : ''}
+${s.communicationStyle ? `     Стиль комунікації: ${s.communicationStyle}` : ''}`).join('\n')}` : ''}`;
 }
 
 export async function sendBrandChatMessage(
@@ -490,51 +540,13 @@ ${brandContext.responses.map(r => {
 }).join('\n')}
 
 ${config.context ? `\n📝 Додатковий контекст:\n${config.context}` : ''}
-${brandContext.productContext ? `
-📦 Обраний продукт:
-- Назва: ${brandContext.productContext.name}
-${brandContext.productContext.shortDescription ? `- Короткий опис: ${brandContext.productContext.shortDescription}` : ''}
-${brandContext.productContext.fullDescription ? `- Повний опис: ${brandContext.productContext.fullDescription}` : ''}
-${brandContext.productContext.category ? `- Категорія: ${brandContext.productContext.category}${brandContext.productContext.subcategory ? ` / ${brandContext.productContext.subcategory}` : ''}` : ''}
-${brandContext.productContext.price ? `- Ціна: ${brandContext.productContext.price} ${brandContext.productContext.currency || 'UAH'}` : ''}
-${brandContext.productContext.targetAudience ? `- Цільова аудиторія продукту: ${brandContext.productContext.targetAudience}` : ''}
-${brandContext.productContext.features && brandContext.productContext.features.length > 0 ? `- Характеристики: ${brandContext.productContext.features.join(', ')}` : ''}
-${brandContext.productContext.benefits && brandContext.productContext.benefits.length > 0 ? `- Переваги: ${brandContext.productContext.benefits.join(', ')}` : ''}
-${brandContext.productContext.useCases && brandContext.productContext.useCases.length > 0 ? `- Сценарії використання: ${brandContext.productContext.useCases.join(', ')}` : ''}
-${brandContext.productContext.keywords && brandContext.productContext.keywords.length > 0 ? `- Ключові слова: ${brandContext.productContext.keywords.join(', ')}` : ''}
-ВАЖЛИВО: Ти знаєш цей продукт. Коли користувач запитує про продукт - відповідай на основі цих даних.` : ''}
-${brandContext.audienceContext ? `
-👥 Обрана цільова аудиторія:
-- Назва: ${brandContext.audienceContext.name}
-${brandContext.audienceContext.description ? `- Опис: ${brandContext.audienceContext.description}` : ''}
-${brandContext.audienceContext.ageRange ? `- Вік: ${brandContext.audienceContext.ageRange}` : ''}
-${brandContext.audienceContext.gender && brandContext.audienceContext.gender !== 'all' ? `- Стать: ${brandContext.audienceContext.gender}` : ''}
-${brandContext.audienceContext.location ? `- Локація: ${brandContext.audienceContext.location}` : ''}
-${brandContext.audienceContext.income ? `- Дохід: ${brandContext.audienceContext.income}` : ''}
-${brandContext.audienceContext.education ? `- Освіта: ${brandContext.audienceContext.education}` : ''}
-${brandContext.audienceContext.occupation ? `- Професія: ${brandContext.audienceContext.occupation}` : ''}
-${brandContext.audienceContext.values && brandContext.audienceContext.values.length > 0 ? `- Цінності: ${brandContext.audienceContext.values.join(', ')}` : ''}
-${brandContext.audienceContext.interests && brandContext.audienceContext.interests.length > 0 ? `- Інтереси: ${brandContext.audienceContext.interests.join(', ')}` : ''}
-${brandContext.audienceContext.painPoints && brandContext.audienceContext.painPoints.length > 0 ? `- Болі/проблеми: ${brandContext.audienceContext.painPoints.join(', ')}` : ''}
-${brandContext.audienceContext.goals && brandContext.audienceContext.goals.length > 0 ? `- Цілі: ${brandContext.audienceContext.goals.join(', ')}` : ''}
-${brandContext.audienceContext.motivations && brandContext.audienceContext.motivations.length > 0 ? `- Мотивації: ${brandContext.audienceContext.motivations.join(', ')}` : ''}
-${brandContext.audienceContext.fears && brandContext.audienceContext.fears.length > 0 ? `- Страхи: ${brandContext.audienceContext.fears.join(', ')}` : ''}
-${brandContext.audienceContext.buyingBehavior ? `- Поведінка при покупці: ${brandContext.audienceContext.buyingBehavior}` : ''}
-${brandContext.audienceContext.brandInteraction ? `- Взаємодія з брендами: ${brandContext.audienceContext.brandInteraction}` : ''}
-${brandContext.audienceContext.aiPortrait ? `- AI портрет: ${brandContext.audienceContext.aiPortrait}` : ''}
-${brandContext.audienceContext.segments && brandContext.audienceContext.segments.length > 0 ? `
-Сегменти/Персони аудиторії:
-${brandContext.audienceContext.segments.map((s, i) => `  ${i + 1}. ${s.personaName || s.name}${s.personaAge ? `, ${s.personaAge} р.` : ''}${s.personaJob ? `, ${s.personaJob}` : ''}
-${s.description ? `     Опис: ${s.description}` : ''}
-${s.personaStory ? `     Історія: ${s.personaStory}` : ''}
-${s.personaQuote ? `     Цитата: "${s.personaQuote}"` : ''}
-${s.characteristics && s.characteristics.length > 0 ? `     Характеристики: ${s.characteristics.join(', ')}` : ''}
-${s.specificNeeds && s.specificNeeds.length > 0 ? `     Потреби: ${s.specificNeeds.join(', ')}` : ''}
-${s.communicationStyle ? `     Стиль комунікації: ${s.communicationStyle}` : ''}`).join('\n')}` : ''}
-ВАЖЛИВО: Ти знаєш цю аудиторію. Коли користувач запитує про аудиторію - відповідай на основі цих даних.` : ''}
+${brandContext.productContext ? formatProductSection(brandContext.productContext) + '\nВАЖЛИВО: Ти знаєш цей продукт. Коли користувач запитує про продукт - відповідай на основі цих даних.' : ''}
+${brandContext.productsContext && brandContext.productsContext.length > 0 ? brandContext.productsContext.map((p, i) => formatProductSection(p, i)).join('\n') + '\nВАЖЛИВО: Ти знаєш ці продукти. Коли користувач запитує про продукти - відповідай на основі цих даних.' : ''}
+${brandContext.audienceContext ? formatAudienceSection(brandContext.audienceContext) + '\nВАЖЛИВО: Ти знаєш цю аудиторію. Коли користувач запитує про аудиторію - відповідай на основі цих даних.' : ''}
+${brandContext.audiencesContext && brandContext.audiencesContext.length > 0 ? brandContext.audiencesContext.map((a, i) => formatAudienceSection(a, i)).join('\n') + '\nВАЖЛИВО: Ти знаєш ці аудиторії. Коли користувач запитує про аудиторію - відповідай на основі цих даних.' : ''}
 
 Твоя роль:
-- Давай практичні поради на основі даних бренду${brandContext.productContext ? ', продукту' : ''}${brandContext.audienceContext ? ' та аудиторії' : ''}
+- Давай практичні поради на основі даних бренду${brandContext.productContext || brandContext.productsContext ? ', продуктів' : ''}${brandContext.audienceContext || brandContext.audiencesContext ? ' та аудиторій' : ''}
 - Допомагай уточнювати стратегію та позиціонування
 - Відповідай чітко, конструктивно та українською мовою
 - Пропонуй конкретні кроки та приклади`;

@@ -4467,7 +4467,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { sessionId } = req.params;
-      const { message, agentId, productId, audienceId, imageUrls } = req.body;
+      const { message, agentId, productIds, audienceIds, imageUrls } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
@@ -4554,67 +4554,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: validImageUrls.length > 0 ? { imageUrls: validImageUrls } : null,
       });
 
-      // Get product context if specified
-      let productContext: { name: string; shortDescription?: string; fullDescription?: string; category?: string; subcategory?: string; price?: string; currency?: string; targetAudience?: string; features?: string[]; benefits?: string[]; useCases?: string[]; keywords?: string[] } | undefined;
-      if (productId && gameSession.brandId) {
-        const product = await storage.getBrandProduct(productId);
-        if (product && product.brandId === gameSession.brandId) {
-          productContext = {
-            name: product.name,
-            shortDescription: product.shortDescription || undefined,
-            fullDescription: product.fullDescription || undefined,
-            category: product.category || undefined,
-            subcategory: product.subcategory || undefined,
-            price: product.price || undefined,
-            currency: product.currency || undefined,
-            targetAudience: product.targetAudience || undefined,
-            features: (product.features as string[]) || undefined,
-            benefits: (product.benefits as string[]) || undefined,
-            useCases: (product.useCases as string[]) || undefined,
-            keywords: (product.keywords as string[]) || undefined,
-          };
-          console.log('Chat using product context:', product.name);
+      // Get product context if specified (supports multiple products)
+      let productsContext: { name: string; shortDescription?: string; fullDescription?: string; category?: string; subcategory?: string; price?: string; currency?: string; targetAudience?: string; features?: string[]; benefits?: string[]; useCases?: string[]; keywords?: string[] }[] = [];
+      const productIdList = Array.isArray(productIds) ? productIds : (productIds ? [productIds] : []);
+      if (productIdList.length > 0 && gameSession.brandId) {
+        for (const pid of productIdList) {
+          const product = await storage.getBrandProduct(pid);
+          if (product && product.brandId === gameSession.brandId) {
+            productsContext.push({
+              name: product.name,
+              shortDescription: product.shortDescription || undefined,
+              fullDescription: product.fullDescription || undefined,
+              category: product.category || undefined,
+              subcategory: product.subcategory || undefined,
+              price: product.price || undefined,
+              currency: product.currency || undefined,
+              targetAudience: product.targetAudience || undefined,
+              features: (product.features as string[]) || undefined,
+              benefits: (product.benefits as string[]) || undefined,
+              useCases: (product.useCases as string[]) || undefined,
+              keywords: (product.keywords as string[]) || undefined,
+            });
+          }
+        }
+        if (productsContext.length > 0) {
+          console.log('Chat using product context:', productsContext.map(p => p.name).join(', '));
         }
       }
 
-      // Get audience context if specified (with segments)
-      let audienceCtx: { name: string; description?: string; ageRange?: string; gender?: string; location?: string; income?: string; education?: string; occupation?: string; values?: string[]; interests?: string[]; painPoints?: string[]; goals?: string[]; motivations?: string[]; fears?: string[]; buyingBehavior?: string; brandInteraction?: string; aiPortrait?: string; segments?: any[] } | undefined;
-      if (audienceId && gameSession.brandId) {
-        const audience = await storage.getTargetAudience(audienceId);
-        if (audience && audience.brandId === gameSession.brandId) {
-          const segments = await storage.getAudienceSegments(audienceId);
-          audienceCtx = {
-            name: audience.name,
-            description: audience.description || undefined,
-            ageRange: audience.ageRange || undefined,
-            gender: audience.gender || undefined,
-            location: audience.location || undefined,
-            income: audience.income || undefined,
-            education: audience.education || undefined,
-            occupation: audience.occupation || undefined,
-            values: (audience.values as string[]) || undefined,
-            interests: (audience.interests as string[]) || undefined,
-            painPoints: (audience.painPoints as string[]) || undefined,
-            goals: (audience.goals as string[]) || undefined,
-            motivations: (audience.motivations as string[]) || undefined,
-            fears: (audience.fears as string[]) || undefined,
-            buyingBehavior: audience.buyingBehavior || undefined,
-            brandInteraction: audience.brandInteraction || undefined,
-            aiPortrait: audience.aiPortrait || undefined,
-            segments: segments.map(s => ({
-              name: s.name,
-              description: s.description || undefined,
-              personaName: s.personaName || undefined,
-              personaAge: s.personaAge || undefined,
-              personaJob: s.personaJob || undefined,
-              personaStory: s.personaStory || undefined,
-              personaQuote: s.personaQuote || undefined,
-              characteristics: (s.characteristics as string[]) || undefined,
-              specificNeeds: (s.specificNeeds as string[]) || undefined,
-              communicationStyle: s.communicationStyle || undefined,
-            })),
-          };
-          console.log('Chat using audience context:', audience.name, `with ${segments.length} segments`);
+      // Get audience context if specified (supports multiple audiences with segments)
+      let audiencesContext: { name: string; description?: string; ageRange?: string; gender?: string; location?: string; income?: string; education?: string; occupation?: string; values?: string[]; interests?: string[]; painPoints?: string[]; goals?: string[]; motivations?: string[]; fears?: string[]; buyingBehavior?: string; brandInteraction?: string; aiPortrait?: string; segments?: any[] }[] = [];
+      const audienceIdList = Array.isArray(audienceIds) ? audienceIds : (audienceIds ? [audienceIds] : []);
+      if (audienceIdList.length > 0 && gameSession.brandId) {
+        for (const aid of audienceIdList) {
+          const audience = await storage.getTargetAudience(aid);
+          if (audience && audience.brandId === gameSession.brandId) {
+            const segments = await storage.getAudienceSegments(aid);
+            audiencesContext.push({
+              name: audience.name,
+              description: audience.description || undefined,
+              ageRange: audience.ageRange || undefined,
+              gender: audience.gender || undefined,
+              location: audience.location || undefined,
+              income: audience.income || undefined,
+              education: audience.education || undefined,
+              occupation: audience.occupation || undefined,
+              values: (audience.values as string[]) || undefined,
+              interests: (audience.interests as string[]) || undefined,
+              painPoints: (audience.painPoints as string[]) || undefined,
+              goals: (audience.goals as string[]) || undefined,
+              motivations: (audience.motivations as string[]) || undefined,
+              fears: (audience.fears as string[]) || undefined,
+              buyingBehavior: audience.buyingBehavior || undefined,
+              brandInteraction: audience.brandInteraction || undefined,
+              aiPortrait: audience.aiPortrait || undefined,
+              segments: segments.map(s => ({
+                name: s.name,
+                description: s.description || undefined,
+                personaName: s.personaName || undefined,
+                personaAge: s.personaAge || undefined,
+                personaJob: s.personaJob || undefined,
+                personaStory: s.personaStory || undefined,
+                personaQuote: s.personaQuote || undefined,
+                characteristics: (s.characteristics as string[]) || undefined,
+                specificNeeds: (s.specificNeeds as string[]) || undefined,
+                communicationStyle: s.communicationStyle || undefined,
+              })),
+            });
+          }
+        }
+        if (audiencesContext.length > 0) {
+          console.log('Chat using audience context:', audiencesContext.map(a => a.name).join(', '));
         }
       }
 
@@ -4627,8 +4637,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           brandDescription,
           responses: formattedResponses,
           agentContext,
-          productContext,
-          audienceContext: audienceCtx,
+          productContext: productsContext.length === 1 ? productsContext[0] : undefined,
+          productsContext: productsContext.length > 1 ? productsContext : undefined,
+          audienceContext: audiencesContext.length === 1 ? audiencesContext[0] : undefined,
+          audiencesContext: audiencesContext.length > 1 ? audiencesContext : undefined,
         },
         sessionId,
         validImageUrls.length > 0 ? validImageUrls : undefined
@@ -4904,7 +4916,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls, usePro = false, agentId, productId, audienceId } = req.body;
+      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls, usePro = false, agentId, productIds, audienceIds } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
@@ -4971,34 +4983,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Get product context if specified (verify it belongs to the same brand)
+      // Get product context if specified (supports multiple products)
       let productContext = '';
-      if (productId && gameSession.brandId) {
-        const product = await storage.getBrandProduct(productId);
-        if (product && product.brandId === gameSession.brandId) {
-          productContext = `Product: ${product.name}`;
-          if (product.shortDescription) productContext += `. ${product.shortDescription}`;
-          if (product.category) productContext += `. Category: ${product.category}`;
-          if (product.targetAudience) productContext += `. Target audience: ${product.targetAudience}`;
-          console.log('Image generation using product context:', product.name);
+      const imgProductIds = Array.isArray(productIds) ? productIds : (productIds ? [productIds] : []);
+      if (imgProductIds.length > 0 && gameSession.brandId) {
+        const parts: string[] = [];
+        for (const pid of imgProductIds) {
+          const product = await storage.getBrandProduct(pid);
+          if (product && product.brandId === gameSession.brandId) {
+            let pCtx = `Product: ${product.name}`;
+            if (product.shortDescription) pCtx += `. ${product.shortDescription}`;
+            if (product.category) pCtx += `. Category: ${product.category}`;
+            if (product.targetAudience) pCtx += `. Target audience: ${product.targetAudience}`;
+            parts.push(pCtx);
+          }
         }
+        productContext = parts.join(' | ');
+        if (productContext) console.log('Image generation using product context:', productContext.substring(0, 100));
       }
 
-      // Get audience context if specified (verify it belongs to the same brand)
+      // Get audience context if specified (supports multiple audiences)
       let audienceContext = '';
-      if (audienceId && gameSession.brandId) {
-        const audience = await storage.getTargetAudience(audienceId);
-        if (audience && audience.brandId === gameSession.brandId) {
-          audienceContext = `Target audience: ${audience.name}`;
-          if (audience.description) audienceContext += `. ${audience.description}`;
-          if (audience.ageRange) audienceContext += `. Age: ${audience.ageRange}`;
-          if (audience.gender && audience.gender !== 'all') audienceContext += `. Gender: ${audience.gender}`;
-          const values = audience.values as string[] | null;
-          if (values && values.length > 0) audienceContext += `. Values: ${values.join(', ')}`;
-          const interests = audience.interests as string[] | null;
-          if (interests && interests.length > 0) audienceContext += `. Interests: ${interests.join(', ')}`;
-          console.log('Image generation using audience context:', audience.name);
+      const imgAudienceIds = Array.isArray(audienceIds) ? audienceIds : (audienceIds ? [audienceIds] : []);
+      if (imgAudienceIds.length > 0 && gameSession.brandId) {
+        const parts: string[] = [];
+        for (const aid of imgAudienceIds) {
+          const audience = await storage.getTargetAudience(aid);
+          if (audience && audience.brandId === gameSession.brandId) {
+            let aCtx = `Target audience: ${audience.name}`;
+            if (audience.description) aCtx += `. ${audience.description}`;
+            if (audience.ageRange) aCtx += `. Age: ${audience.ageRange}`;
+            if (audience.gender && audience.gender !== 'all') aCtx += `. Gender: ${audience.gender}`;
+            const values = audience.values as string[] | null;
+            if (values && values.length > 0) aCtx += `. Values: ${values.join(', ')}`;
+            const interests = audience.interests as string[] | null;
+            if (interests && interests.length > 0) aCtx += `. Interests: ${interests.join(', ')}`;
+            parts.push(aCtx);
+          }
         }
+        audienceContext = parts.join(' | ');
+        if (audienceContext) console.log('Image generation using audience context:', audienceContext.substring(0, 100));
       }
 
       // Combine prompts: merch type (primary) + template + user prompt (which includes style)

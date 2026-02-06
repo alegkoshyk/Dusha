@@ -194,10 +194,10 @@ export default function BrandEditPage() {
       if (!response.ok) throw new Error("Failed to create segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Сегмент створено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
-      queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setIsSegmentDialogOpen(false);
       setNewSegmentName("");
     },
@@ -212,10 +212,10 @@ export default function BrandEditPage() {
       if (!response.ok) throw new Error("Failed to delete segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Сегмент видалено" });
-      queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося видалити сегмент", variant: "destructive" });
@@ -228,9 +228,9 @@ export default function BrandEditPage() {
       if (!response.ok) throw new Error("Failed to create sub-segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Підсегмент створено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося створити підсегмент", variant: "destructive" });
@@ -323,9 +323,10 @@ export default function BrandEditPage() {
       if (!response.ok) throw new Error("Failed to delete sub-segment");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Підсегмент видалено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
     },
     onError: () => {
       toast({ title: "Помилка", description: "Не вдалося видалити підсегмент", variant: "destructive" });
@@ -413,9 +414,11 @@ export default function BrandEditPage() {
       if (!response.ok) throw new Error("Failed to delete audience");
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({ title: "Успішно", description: "Цільову аудиторію видалено" });
-      queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/brands", params.brandId, "target-audiences"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/brands", params.brandId, "demographic-segments"] });
       setSelectedAudience(null);
     },
     onError: () => {
@@ -1363,7 +1366,7 @@ export default function BrandEditPage() {
                       {audiences.map((audience) => {
                         const assignments = getPersonaAssignments(audience.id);
                         return (
-                          <div key={audience.id} className="p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => setSelectedAudience(audience)}>
+                          <div key={audience.id} className="p-2 sm:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors group" onClick={() => setSelectedAudience(audience)}>
                             <div className="flex items-center gap-2 sm:gap-3">
                               {audience.aiPortraitImageUrl ? (
                                 <img src={audience.aiPortraitImageUrl} alt="" className="h-9 w-9 sm:h-10 sm:w-10 rounded-full object-cover flex-shrink-0" />
@@ -1376,6 +1379,17 @@ export default function BrandEditPage() {
                                 <div className="flex items-center gap-2">
                                   <span className="font-medium text-sm truncate">{audience.name}</span>
                                   {audience.isPrimary && <Badge variant="default" className="text-[10px] px-1.5 flex-shrink-0">Основна</Badge>}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity ml-auto flex-shrink-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm("Видалити персону?")) deleteAudienceMutation.mutate(audience.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                  </Button>
                                 </div>
                                 <p className="text-xs text-muted-foreground truncate">
                                   {audience.occupation ? `${audience.occupation}` : ''}{audience.ageRange ? `, ${audience.ageRange}` : ''}
