@@ -17,9 +17,6 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { 
   Send, 
@@ -306,6 +303,9 @@ export default function BrandChat() {
     const [useLogo, setUseLogo] = useState(false);
   const [showMerchMenu, setShowMerchMenu] = useState(false);
   const [showTemplatesMenu, setShowTemplatesMenu] = useState(false);
+  const [showAgentMenu, setShowAgentMenu] = useState(false);
+  const [showProductMenu, setShowProductMenu] = useState(false);
+  const [showAudienceMenu, setShowAudienceMenu] = useState(false);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<number[]>([]);
   const [selectedMerchTypeIds, setSelectedMerchTypeIds] = useState<number[]>([]);
   const [generationQueue, setGenerationQueue] = useState<{ type: 'merch' | 'template'; id: number }[]>([]);
@@ -1540,6 +1540,165 @@ export default function BrandChat() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Agent Selection Dialog */}
+        <Dialog open={showAgentMenu} onOpenChange={setShowAgentMenu}>
+          <DialogContent className="max-w-sm">
+            <DialogTitle>AI Агент</DialogTitle>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+              Оберіть агента для генерації контенту
+            </p>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAgentId(null);
+                  setShowAgentMenu(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
+                  !selectedAgentId 
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                <Bot className="w-5 h-5 text-gray-400" />
+                <div className="text-left">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Без агента</span>
+                  <span className="block text-xs text-gray-400">Стандартний AI</span>
+                </div>
+                {!selectedAgentId && <span className="ml-auto text-purple-600">✓</span>}
+              </button>
+              {userAgents?.filter(a => a.isActive).map((agent) => (
+                <button
+                  key={agent.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedAgentId(agent.id);
+                    setShowAgentMenu(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
+                    selectedAgentId === agent.id 
+                      ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <Bot className="w-5 h-5 text-purple-500" />
+                  <div className="text-left flex-1 min-w-0">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{agent.name}</span>
+                    {agent.description && (
+                      <span className="block text-xs text-gray-400 truncate">{agent.description}</span>
+                    )}
+                  </div>
+                  {selectedAgentId === agent.id && <span className="ml-auto text-purple-600 shrink-0">✓</span>}
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Product Selection Dialog */}
+        <Dialog open={showProductMenu} onOpenChange={setShowProductMenu}>
+          <DialogContent className="max-w-sm">
+            <DialogTitle>📦 Продукт</DialogTitle>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+              Оберіть продукт для контексту генерації
+            </p>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedProductId(null);
+                  setShowProductMenu(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
+                  !selectedProductId 
+                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30' 
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                <span className="text-lg">📦</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Без продукту</span>
+                {!selectedProductId && <span className="ml-auto text-amber-600">✓</span>}
+              </button>
+              {brandProducts?.map((product) => (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedProductId(product.id);
+                    setShowProductMenu(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
+                    selectedProductId === product.id 
+                      ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/30' 
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <span className="text-lg">📦</span>
+                  <div className="text-left flex-1 min-w-0">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{product.name}</span>
+                    {product.category && (
+                      <span className="block text-xs text-gray-400">{product.category}</span>
+                    )}
+                  </div>
+                  {selectedProductId === product.id && <span className="ml-auto text-amber-600 shrink-0">✓</span>}
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Audience Selection Dialog */}
+        <Dialog open={showAudienceMenu} onOpenChange={setShowAudienceMenu}>
+          <DialogContent className="max-w-sm">
+            <DialogTitle>👥 Аудиторія</DialogTitle>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+              Оберіть цільову аудиторію для контексту генерації
+            </p>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedAudienceId(null);
+                  setShowAudienceMenu(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
+                  !selectedAudienceId 
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                <span className="text-lg">👥</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Без аудиторії</span>
+                {!selectedAudienceId && <span className="ml-auto text-blue-600">✓</span>}
+              </button>
+              {brandAudiences?.map((audience) => (
+                <button
+                  key={audience.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedAudienceId(audience.id);
+                    setShowAudienceMenu(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
+                    selectedAudienceId === audience.id 
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' 
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <span className="text-lg">👥</span>
+                  <div className="text-left flex-1 min-w-0">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{audience.name}</span>
+                    {audience.ageRange && (
+                      <span className="block text-xs text-gray-400">{audience.ageRange}</span>
+                    )}
+                  </div>
+                  {selectedAudienceId === audience.id && <span className="ml-auto text-blue-600 shrink-0">✓</span>}
+                </button>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
               
         {/* Active settings indicator */}
         {(selectedStyle || selectedMerchTypeIds.length > 0 || selectedTemplateIds.length > 0 || generationProgress) && (
@@ -1725,70 +1884,23 @@ export default function BrandChat() {
                 {userAgents && userAgents.length > 0 && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <Bot className="w-4 h-4 mr-2" />
-                        {selectedAgent ? selectedAgent.name : 'AI Агент'}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        <DropdownMenuItem onClick={() => setSelectedAgentId(null)}>
-                          {!selectedAgentId ? '✓ ' : ''}Без агента
-                        </DropdownMenuItem>
-                        {userAgents.filter(a => a.isActive).map((agent) => (
-                          <DropdownMenuItem 
-                            key={agent.id} 
-                            onClick={() => setSelectedAgentId(agent.id)}
-                          >
-                            {selectedAgentId === agent.id ? '✓ ' : ''}{agent.name}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
+                    <DropdownMenuItem onClick={() => setShowAgentMenu(true)}>
+                      <Bot className="w-4 h-4 mr-2" />
+                      {selectedAgent ? selectedAgent.name : 'AI Агент'}
+                    </DropdownMenuItem>
                   </>
                 )}
                 {brandProducts && brandProducts.length > 0 && (
-                  <>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        📦 {selectedProduct ? selectedProduct.name : 'Продукт'}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        <DropdownMenuItem onClick={() => setSelectedProductId(null)}>
-                          {!selectedProductId ? '✓ ' : ''}Без продукту
-                        </DropdownMenuItem>
-                        {brandProducts.map((product) => (
-                          <DropdownMenuItem 
-                            key={product.id} 
-                            onClick={() => setSelectedProductId(product.id)}
-                          >
-                            {selectedProductId === product.id ? '✓ ' : ''}{product.name}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </>
+                  <DropdownMenuItem onClick={() => setShowProductMenu(true)}>
+                    <span className="mr-2">📦</span>
+                    {selectedProduct ? selectedProduct.name : 'Продукт'}
+                  </DropdownMenuItem>
                 )}
                 {brandAudiences && brandAudiences.length > 0 && (
-                  <>
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        👥 {selectedAudience ? selectedAudience.name : 'Аудиторія'}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent>
-                        <DropdownMenuItem onClick={() => setSelectedAudienceId(null)}>
-                          {!selectedAudienceId ? '✓ ' : ''}Без аудиторії
-                        </DropdownMenuItem>
-                        {brandAudiences.map((audience) => (
-                          <DropdownMenuItem 
-                            key={audience.id} 
-                            onClick={() => setSelectedAudienceId(audience.id)}
-                          >
-                            {selectedAudienceId === audience.id ? '✓ ' : ''}{audience.name}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </>
+                  <DropdownMenuItem onClick={() => setShowAudienceMenu(true)}>
+                    <span className="mr-2">👥</span>
+                    {selectedAudience ? selectedAudience.name : 'Аудиторія'}
+                  </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
