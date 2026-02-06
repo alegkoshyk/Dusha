@@ -113,6 +113,11 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
 
   useEffect(() => {
     if (isEditing) {
+      const resolvedCategoryId = persona.personaCategoryId || 
+        (persona.isPrimary 
+          ? personaCategories.find(c => c.nameEn?.toLowerCase() === "primary" || c.name === "Основна")?.id 
+          : personaCategories.find(c => c.nameEn?.toLowerCase() === "secondary" || c.name === "Вторинна")?.id
+        ) || (personaCategories.length > 0 ? personaCategories[0].id : null);
       setEditData({
         name: persona.name,
         description: persona.description,
@@ -123,7 +128,7 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
         occupation: persona.occupation,
         income: persona.income,
         isPrimary: persona.isPrimary,
-        personaCategoryId: persona.personaCategoryId,
+        personaCategoryId: resolvedCategoryId,
         values: persona.values,
         interests: persona.interests,
         painPoints: persona.painPoints,
@@ -136,7 +141,7 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
         brandInteraction: persona.brandInteraction,
       });
     }
-  }, [isEditing, persona]);
+  }, [isEditing, persona, personaCategories]);
 
   const values = (persona.values || []) as string[];
   const interests = (persona.interests || []) as string[];
@@ -299,11 +304,16 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
   };
 
   const getPrimaryCategoryId = () => {
-    return personaCategories.find(c => c.nameEn?.toLowerCase() === "primary" || c.name === "Основна")?.id || "primary";
+    return personaCategories.find(c => c.nameEn?.toLowerCase() === "primary" || c.name === "Основна")?.id || null;
   };
   
   const getSecondaryCategoryId = () => {
-    return personaCategories.find(c => c.nameEn?.toLowerCase() === "secondary" || c.name === "Вторинна")?.id || "secondary";
+    return personaCategories.find(c => c.nameEn?.toLowerCase() === "secondary" || c.name === "Вторинна")?.id || null;
+  };
+  
+  const resolvePersonaCategoryId = () => {
+    if (persona.personaCategoryId) return persona.personaCategoryId;
+    return persona.isPrimary ? getPrimaryCategoryId() : getSecondaryCategoryId();
   };
 
   const filteredCategories = typeSearchQuery.trim()
@@ -554,34 +564,27 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Тип</Label>
+                  <Label>Категорія</Label>
                   <Select
-                    value={editData.personaCategoryId || (editData.isPrimary ? getPrimaryCategoryId() : getSecondaryCategoryId()) || "primary"}
+                    value={editData.personaCategoryId || ""}
                     onValueChange={(v) => {
                       const category = personaCategories.find(c => c.id === v);
                       setEditData({ 
                         ...editData, 
-                        isPrimary: category ? category.nameEn?.toLowerCase() === "primary" || category.name === "Основна" : v === "primary",
+                        isPrimary: category ? category.nameEn?.toLowerCase() === "primary" || category.name === "Основна" : false,
                         personaCategoryId: v,
                       });
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Оберіть категорію" />
                     </SelectTrigger>
                     <SelectContent>
-                      {personaCategories.length > 0 ? (
-                        personaCategories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>
-                            {cat.name}{cat.nameEn ? ` (${cat.nameEn})` : ''}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <>
-                          <SelectItem value="primary">Основна</SelectItem>
-                          <SelectItem value="secondary">Вторинна</SelectItem>
-                        </>
-                      )}
+                      {personaCategories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}{cat.nameEn ? ` (${cat.nameEn})` : ''}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
