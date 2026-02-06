@@ -1081,17 +1081,17 @@ export default function TargetAudiencePage() {
                           setExpandedSegments(newSet);
                         }}
                       >
-                        <div className="border rounded-lg group">
-                          <CollapsibleTrigger className="w-full">
-                            <div className="flex items-center justify-between p-2 sm:p-4 hover:bg-muted/50 transition-colors gap-1 sm:gap-2">
-                              <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
+                        <div className="border rounded-lg group overflow-hidden">
+                          <CollapsibleTrigger className="w-full overflow-hidden">
+                            <div className="flex items-center justify-between p-2 sm:p-4 hover:bg-muted/50 transition-colors gap-1 sm:gap-2 overflow-hidden">
+                              <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1 overflow-hidden">
                                 {expandedSegments.has(segment.id) ? (
                                   <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                 ) : (
                                   <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                                 )}
                                 <FolderOpen className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" style={{ color: segment.color || '#f59e0b' }} />
-                                <span className="font-medium truncate text-sm sm:text-base">{segment.name}</span>
+                                <span className="font-medium truncate text-sm sm:text-base block min-w-0">{segment.name}</span>
                                 <Badge variant="secondary" className="whitespace-nowrap flex-shrink-0 text-[10px] sm:text-xs px-1.5 sm:px-2">
                                   {segment.personas.length + segment.subSegments.reduce((acc, s) => acc + s.personas.length, 0)}
                                 </Badge>
@@ -2187,8 +2187,8 @@ function PersonaInline({
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
-          <span className={`font-medium truncate max-w-[120px] sm:max-w-none ${small ? 'text-sm' : 'text-sm sm:text-base'}`}>{persona.name}</span>
+        <div className="flex items-center gap-1 sm:gap-2 min-w-0 overflow-hidden">
+          <span className={`font-medium truncate ${small ? 'text-sm' : 'text-sm sm:text-base'}`}>{persona.name}</span>
           {(() => {
             const cat = persona.personaCategoryId 
               ? personaCategories.find(c => c.id === persona.personaCategoryId) 
@@ -2196,11 +2196,11 @@ function PersonaInline({
             const label = cat?.name || (persona.isPrimary ? "Основна" : "Вторинна");
             const color = cat?.color;
             return color ? (
-              <Badge className="text-[10px] sm:text-xs px-1.5 sm:px-2 text-white border-0" style={{ backgroundColor: color }}>{label}</Badge>
+              <Badge className="text-[10px] sm:text-xs px-1.5 sm:px-2 text-white border-0 flex-shrink-0 max-w-[100px] truncate" style={{ backgroundColor: color }}>{label}</Badge>
             ) : persona.isPrimary ? (
-              <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2">{label}</Badge>
+              <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2 flex-shrink-0 max-w-[100px] truncate">{label}</Badge>
             ) : (
-              <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2">{label}</Badge>
+              <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2 flex-shrink-0 max-w-[100px] truncate">{label}</Badge>
             );
           })()}
         </div>
