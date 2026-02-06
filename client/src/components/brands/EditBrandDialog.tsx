@@ -77,9 +77,9 @@ export function EditBrandDialog({ brand, open, onOpenChange, onBrandUpdated }: E
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/svg+xml'];
     if (!validTypes.includes(file.type)) {
-      alert('Підтримуються тільки PNG, JPG та SVG формати');
+      alert('Підтримуються тільки PNG, JPG, WebP або SVG формати');
       return;
     }
 
@@ -226,7 +226,7 @@ export function EditBrandDialog({ brand, open, onOpenChange, onBrandUpdated }: E
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/jpg,image/svg+xml"
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
               onChange={handleFileChange}
               className="hidden"
               data-testid="input-edit-logo-file"

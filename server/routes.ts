@@ -483,9 +483,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.json(updated);
         } else {
           // Validate data URL format and allowed MIME types
-          const dataUrlPattern = /^data:image\/(png|jpeg|jpg|svg\+xml);base64,/;
+          const dataUrlPattern = /^data:image\/(png|jpeg|jpg|webp|gif|svg\+xml);base64,/;
           if (!dataUrlPattern.test(logo)) {
-            return res.status(400).json({ error: "Лого має бути у форматі PNG, JPG або SVG (data URL)" });
+            console.log('Logo upload rejected - invalid format. First 50 chars:', logo.substring(0, 50));
+            return res.status(400).json({ error: "Лого має бути у форматі PNG, JPG, WebP або SVG (data URL)" });
           }
           
           // Check size limit (~2MB in base64, which is ~2.8MB in encoded form)

@@ -482,9 +482,9 @@ export default function BrandEditPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/svg+xml'];
     if (!validTypes.includes(file.type)) {
-      toast({ title: "Помилка", description: "Підтримуються тільки PNG, JPG та SVG формати", variant: "destructive" });
+      toast({ title: "Помилка", description: "Підтримуються тільки PNG, JPG, WebP або SVG формати", variant: "destructive" });
       return;
     }
 
@@ -679,7 +679,7 @@ export default function BrandEditPage() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/png,image/jpeg,image/jpg,image/svg+xml"
+                      accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
                       onChange={handleFileChange}
                       className="hidden"
                     />

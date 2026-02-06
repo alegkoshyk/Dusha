@@ -58,9 +58,9 @@ export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: Create
     if (!file) return;
 
     // Validate file type
-    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/svg+xml'];
     if (!validTypes.includes(file.type)) {
-      alert('Підтримуються тільки PNG, JPG та SVG формати');
+      alert('Підтримуються тільки PNG, JPG, WebP або SVG формати');
       return;
     }
 
@@ -196,7 +196,7 @@ export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: Create
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/png,image/jpeg,image/jpg,image/svg+xml"
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
               onChange={handleFileChange}
               className="hidden"
               data-testid="input-logo-file"
