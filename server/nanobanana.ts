@@ -262,9 +262,16 @@ export async function generateImageWithNanoBanana(
         };
       }
       
+      // If logo caused the error (media file unavailable), retry without logo
+      const errorText = JSON.stringify(errorData).toLowerCase();
+      if (logoUrl && (errorText.includes('media file') || errorText.includes('unavailable') || errorText.includes('replace it'))) {
+        console.log('NanoBanana: Logo caused API error, retrying without logo...');
+        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrl, usePro);
+      }
+      
       return {
         success: false,
-        error: `Помилка API: ${errorData.msg || errorData.message || response.statusText}`
+        error: `Помилка API: ${errorData.msg || errorData.message || errorData.error || response.statusText}`
       };
     }
 
@@ -294,6 +301,13 @@ export async function generateImageWithNanoBanana(
     if (result.data.successFlag === 2 || result.data.successFlag === 3) {
       const errorMsg = result.data.errorMessage || "Генерація зображення не вдалася";
       console.error('NanoBanana: Generation failed:', errorMsg);
+      
+      // If logo reference caused the failure, retry without logo
+      if (logoUrl && (errorMsg.toLowerCase().includes('media file') || errorMsg.toLowerCase().includes('unavailable') || errorMsg.toLowerCase().includes('image') && errorMsg.toLowerCase().includes('replace'))) {
+        console.log('NanoBanana: Logo reference failed, retrying without logo...');
+        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrl, usePro);
+      }
+      
       return {
         success: false,
         error: `${errorMsg}. Спробуйте інший запит.`

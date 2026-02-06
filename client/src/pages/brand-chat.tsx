@@ -839,8 +839,13 @@ export default function BrandChat() {
             }
           });
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Generation error:', error);
+        toast({
+          title: "Помилка генерації",
+          description: error?.message || "Не вдалося згенерувати зображення. Спробуйте ще раз.",
+          variant: "destructive",
+        });
       }
     }
     
