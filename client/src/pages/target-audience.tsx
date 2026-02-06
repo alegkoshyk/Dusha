@@ -1069,7 +1069,7 @@ export default function TargetAudiencePage() {
                     <p className="text-xs sm:text-sm text-muted-foreground">Створіть сегменти для групування персон</p>
                   </div>
                 ) : (
-                  <div className="space-y-2 sm:space-y-3">
+                  <div className="space-y-2 sm:space-y-3 overflow-hidden">
                     {segments.map((segment) => (
                       <Collapsible
                         key={segment.id}
@@ -1081,18 +1081,18 @@ export default function TargetAudiencePage() {
                           setExpandedSegments(newSet);
                         }}
                       >
-                        <div className="border rounded-lg group overflow-hidden">
+                        <div className="border rounded-lg group" style={{ overflow: 'hidden', maxWidth: '100%' }}>
                           <CollapsibleTrigger asChild>
-                            <div className="flex items-center justify-between p-2 sm:p-4 hover:bg-muted/50 transition-colors gap-1 sm:gap-2 cursor-pointer" style={{ maxWidth: '100%', overflow: 'hidden' }}>
-                              <div className="flex items-center gap-1.5 sm:gap-3" style={{ minWidth: 0, flex: '1 1 0%', overflow: 'hidden' }}>
+                            <div className="flex items-center p-2 sm:p-4 hover:bg-muted/50 transition-colors gap-1 sm:gap-2 cursor-pointer" style={{ overflow: 'hidden' }}>
+                              <div className="flex items-center gap-1.5 sm:gap-3 flex-1" style={{ minWidth: 0, overflow: 'hidden' }}>
                                 {expandedSegments.has(segment.id) ? (
-                                  <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                                  <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" style={{ flexShrink: 0 }} />
                                 ) : (
-                                  <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                                  <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" style={{ flexShrink: 0 }} />
                                 )}
-                                <FolderOpen className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" style={{ color: segment.color || '#f59e0b' }} />
-                                <span className="font-medium text-sm sm:text-base text-left" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{segment.name}</span>
-                                <Badge variant="secondary" className="whitespace-nowrap flex-shrink-0 text-[10px] sm:text-xs px-1.5 sm:px-2">
+                                <FolderOpen className="h-4 w-4 sm:h-5 sm:w-5" style={{ flexShrink: 0, color: segment.color || '#f59e0b' }} />
+                                <span className="font-medium text-sm sm:text-base text-left" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 0%', minWidth: 0 }}>{segment.name}</span>
+                                <Badge variant="secondary" className="whitespace-nowrap text-[10px] sm:text-xs px-1.5 sm:px-2" style={{ flexShrink: 0 }}>
                                   {segment.personas.length + segment.subSegments.reduce((acc, s) => acc + s.personas.length, 0)}
                                 </Badge>
                               </div>
@@ -1138,7 +1138,7 @@ export default function TargetAudiencePage() {
                             </div>
                           </CollapsibleTrigger>
                           <CollapsibleContent>
-                            <div className="px-2 sm:px-4 pb-3 sm:pb-4 space-y-2 sm:space-y-3">
+                            <div className="px-2 sm:px-4 pb-3 sm:pb-4 space-y-2 sm:space-y-3 overflow-hidden">
                               {/* Personas directly in segment */}
                               {segment.personas.map((persona) => (
                                 <PersonaInline 
@@ -1155,10 +1155,10 @@ export default function TargetAudiencePage() {
                               
                               {/* Sub-segments */}
                               {segment.subSegments.map((subSegment) => (
-                                <div key={subSegment.id} className="ml-4 sm:ml-8 border-l-2 pl-2 sm:pl-4 space-y-2" style={{ borderColor: subSegment.color || '#60a5fa' }}>
-                                  <div className="flex items-center gap-1.5 sm:gap-2 py-1.5 sm:py-2 group">
-                                    <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" style={{ color: subSegment.color || '#60a5fa' }} />
-                                    <span className="text-xs sm:text-sm font-medium flex-1 truncate">{subSegment.name}</span>
+                                <div key={subSegment.id} className="ml-4 sm:ml-8 border-l-2 pl-2 sm:pl-4 space-y-2 overflow-hidden" style={{ borderColor: subSegment.color || '#60a5fa' }}>
+                                  <div className="flex items-center gap-1.5 sm:gap-2 py-1.5 sm:py-2 group overflow-hidden">
+                                    <Layers className="h-3.5 w-3.5 sm:h-4 sm:w-4" style={{ flexShrink: 0, color: subSegment.color || '#60a5fa' }} />
+                                    <span className="text-xs sm:text-sm font-medium text-left" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 0%', minWidth: 0 }}>{subSegment.name}</span>
                                     <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 flex-shrink-0">{subSegment.personas.length}</Badge>
                                     <div className="flex sm:hidden sm:group-hover:flex items-center gap-0.5">
                                       <Button
