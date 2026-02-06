@@ -176,10 +176,12 @@ export class ObjectStorageService {
     brandId?: string;
     base64Data: string;
   }): Promise<{ publicUrl: string; storageKey: string; sizeBytes: number; mimeType: string }> {
-    const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error("PRIVATE_OBJECT_DIR not set");
+    const publicSearchPaths = this.getPublicObjectSearchPaths();
+    if (publicSearchPaths.length === 0) {
+      throw new Error("PUBLIC_OBJECT_SEARCH_PATHS not set");
     }
+
+    const publicDir = publicSearchPaths[0];
 
     const match = params.base64Data.match(/^data:image\/([\w+]+);base64,(.+)$/);
     if (!match) {
@@ -193,7 +195,6 @@ export class ObjectStorageService {
     const buffer = Buffer.from(imageData, 'base64');
     const sizeBytes = buffer.length;
 
-    // Build path based on asset type
     let pathPrefix: string;
     switch (params.assetType) {
       case 'logo':
@@ -217,7 +218,7 @@ export class ObjectStorageService {
     }
 
     const objectId = `${pathPrefix}/${randomUUID()}.${extension}`;
-    const fullPath = `${privateObjectDir}/${objectId}`;
+    const fullPath = `${publicDir}/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
     const bucket = objectStorageClient.bucket(bucketName);
@@ -232,15 +233,11 @@ export class ObjectStorageService {
       },
     });
 
-    const signedUrl = await signObjectURL({
-      bucketName,
-      objectName,
-      method: "GET",
-      ttlSec: 7 * 24 * 60 * 60, // 7 days
-    });
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
+    console.log(`Media asset uploaded to public storage: ${publicUrl}`);
 
     return {
-      publicUrl: signedUrl,
+      publicUrl,
       storageKey: objectId,
       sizeBytes,
       mimeType: contentType
@@ -248,10 +245,11 @@ export class ObjectStorageService {
   }
 
   async uploadAvatar(userId: string, base64Data: string): Promise<string> {
-    const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error("PRIVATE_OBJECT_DIR not set");
+    const publicSearchPaths = this.getPublicObjectSearchPaths();
+    if (publicSearchPaths.length === 0) {
+      throw new Error("PUBLIC_OBJECT_SEARCH_PATHS not set");
     }
+    const publicDir = publicSearchPaths[0];
 
     const match = base64Data.match(/^data:image\/([\w+]+);base64,(.+)$/);
     if (!match) {
@@ -264,7 +262,7 @@ export class ObjectStorageService {
     const buffer = Buffer.from(imageData, 'base64');
 
     const objectId = `avatars/${userId}/${randomUUID()}.${extension}`;
-    const fullPath = `${privateObjectDir}/${objectId}`;
+    const fullPath = `${publicDir}/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
     const bucket = objectStorageClient.bucket(bucketName);
@@ -279,21 +277,17 @@ export class ObjectStorageService {
       },
     });
 
-    const signedUrl = await signObjectURL({
-      bucketName,
-      objectName,
-      method: "GET",
-      ttlSec: 7 * 24 * 60 * 60, // 7 days
-    });
-
-    return signedUrl;
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
+    console.log(`Avatar uploaded to public storage: ${publicUrl}`);
+    return publicUrl;
   }
 
   async uploadTemplateReferenceImage(templateId: number, base64Data: string): Promise<string> {
-    const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error("PRIVATE_OBJECT_DIR not set");
+    const publicSearchPaths = this.getPublicObjectSearchPaths();
+    if (publicSearchPaths.length === 0) {
+      throw new Error("PUBLIC_OBJECT_SEARCH_PATHS not set");
     }
+    const publicDir = publicSearchPaths[0];
 
     const match = base64Data.match(/^data:image\/([\w+]+);base64,(.+)$/);
     if (!match) {
@@ -307,7 +301,7 @@ export class ObjectStorageService {
     const buffer = Buffer.from(imageData, 'base64');
 
     const objectId = `templates/${templateId}/${randomUUID()}.${extension}`;
-    const fullPath = `${privateObjectDir}/${objectId}`;
+    const fullPath = `${publicDir}/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
     const bucket = objectStorageClient.bucket(bucketName);
@@ -322,21 +316,17 @@ export class ObjectStorageService {
       },
     });
 
-    const signedUrl = await signObjectURL({
-      bucketName,
-      objectName,
-      method: "GET",
-      ttlSec: 365 * 24 * 60 * 60, // 1 year
-    });
-
-    return signedUrl;
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
+    console.log(`Template image uploaded to public storage: ${publicUrl}`);
+    return publicUrl;
   }
 
   async uploadProductImage(productId: string, base64Data: string): Promise<string> {
-    const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error("PRIVATE_OBJECT_DIR not set");
+    const publicSearchPaths = this.getPublicObjectSearchPaths();
+    if (publicSearchPaths.length === 0) {
+      throw new Error("PUBLIC_OBJECT_SEARCH_PATHS not set");
     }
+    const publicDir = publicSearchPaths[0];
 
     const match = base64Data.match(/^data:image\/([\w+]+);base64,(.+)$/);
     if (!match) {
@@ -350,7 +340,7 @@ export class ObjectStorageService {
     const buffer = Buffer.from(imageData, 'base64');
 
     const objectId = `products/${productId}/${randomUUID()}.${extension}`;
-    const fullPath = `${privateObjectDir}/${objectId}`;
+    const fullPath = `${publicDir}/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
     const bucket = objectStorageClient.bucket(bucketName);
@@ -365,32 +355,26 @@ export class ObjectStorageService {
       },
     });
 
-    const signedUrl = await signObjectURL({
-      bucketName,
-      objectName,
-      method: "GET",
-      ttlSec: 365 * 24 * 60 * 60, // 1 year
-    });
-
-    return signedUrl;
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
+    console.log(`Product image uploaded to public storage: ${publicUrl}`);
+    return publicUrl;
   }
 
   async uploadImageFromUrl(folder: string, imageUrl: string): Promise<string> {
-    const privateObjectDir = this.getPrivateObjectDir();
-    if (!privateObjectDir) {
-      throw new Error("PRIVATE_OBJECT_DIR not set");
+    const publicSearchPaths = this.getPublicObjectSearchPaths();
+    if (publicSearchPaths.length === 0) {
+      throw new Error("PUBLIC_OBJECT_SEARCH_PATHS not set");
     }
+    const publicDir = publicSearchPaths[0];
 
-    // Validate URL protocol
     if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
       throw new Error("Invalid URL protocol: only HTTP(S) allowed");
     }
 
     console.log('uploadImageFromUrl: Fetching image from:', imageUrl.substring(0, 100) + '...');
 
-    // Fetch with timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     
     let fetchResponse: globalThis.Response;
     try {
@@ -403,16 +387,14 @@ export class ObjectStorageService {
       throw new Error(`Failed to fetch image from URL: ${fetchResponse.status}`);
     }
 
-    // Check content length (max 10MB)
     const contentLength = fetchResponse.headers.get('content-length');
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 10 * 1024 * 1024;
     if (contentLength && parseInt(contentLength) > maxSize) {
       throw new Error("Image too large: max 10MB allowed");
     }
 
     const contentType = fetchResponse.headers.get('content-type') || 'image/png';
     
-    // Validate content type is an image
     if (!contentType.startsWith('image/')) {
       throw new Error("Invalid content type: only images allowed");
     }
@@ -424,7 +406,6 @@ export class ObjectStorageService {
 
     const arrayBuffer = await fetchResponse.arrayBuffer();
     
-    // Double-check size after download
     if (arrayBuffer.byteLength > maxSize) {
       throw new Error("Image too large: max 10MB allowed");
     }
@@ -433,7 +414,7 @@ export class ObjectStorageService {
     console.log('uploadImageFromUrl: Downloaded image, size:', buffer.length);
 
     const objectId = `${folder}/${randomUUID()}.${extension}`;
-    const fullPath = `${privateObjectDir}/${objectId}`;
+    const fullPath = `${publicDir}/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
     console.log('uploadImageFromUrl: Saving to bucket:', bucketName, 'object:', objectName);
@@ -448,17 +429,9 @@ export class ObjectStorageService {
       },
     });
 
-    console.log('uploadImageFromUrl: File saved, getting signed URL...');
-
-    const signedUrl = await signObjectURL({
-      bucketName,
-      objectName,
-      method: "GET",
-      ttlSec: 7 * 24 * 60 * 60, // 7 days (reduced from 1 year)
-    });
-
-    console.log('uploadImageFromUrl: Success');
-    return signedUrl;
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
+    console.log('uploadImageFromUrl: Success, public URL:', publicUrl);
+    return publicUrl;
   }
 }
 

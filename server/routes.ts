@@ -21,8 +21,23 @@ import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, isNull, inArray } from "drizzle-orm";
-import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable } from "@shared/schema";
+import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable, mediaAssetsTable, aiChatMessagesTable, userBrandsTable } from "@shared/schema";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData, generateAgentData } from "./openai";
+
+// Helper to parse object storage paths (mirrors objectStorage.ts parseObjectPath)
+function parseObjectPathForRoute(path: string): { bucketName: string; objectName: string } {
+  if (!path.startsWith("/")) {
+    path = "/" + path;
+  }
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length < 2) {
+    throw new Error(`Invalid object path: ${path}`);
+  }
+  return {
+    bucketName: parts[0],
+    objectName: parts.slice(1).join("/"),
+  };
+}
 
 // Admin middleware
 const requireAdmin = async (req: any, res: any, next: any) => {
@@ -5331,6 +5346,225 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============= Media Assets API =============
+
+  // Proxy endpoint for serving private storage objects (handles expired signed URLs)
+  app.get("/api/media/proxy", requireAuth, async (req, res) => {
+    try {
+      const { key } = req.query;
+      if (!key || typeof key !== 'string') {
+        return res.status(400).json({ error: "Missing storage key" });
+      }
+
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      
+      // Try private dir first, then public dir
+      const privateDir = objectStorageService.getPrivateObjectDir();
+      const publicPaths = objectStorageService.getPublicObjectSearchPaths();
+      
+      const dirs = [privateDir, ...publicPaths].filter(Boolean);
+      
+      for (const dir of dirs) {
+        try {
+          const fullPath = `${dir}/${key}`;
+          const { bucketName, objectName } = parseObjectPathForRoute(fullPath);
+          const { objectStorageClient } = await import('./objectStorage');
+          const bucket = objectStorageClient.bucket(bucketName);
+          const file = bucket.file(objectName);
+          const [exists] = await file.exists();
+          
+          if (exists) {
+            const [metadata] = await file.getMetadata();
+            res.set({
+              "Content-Type": metadata.contentType || "image/png",
+              "Cache-Control": "public, max-age=86400",
+            });
+            file.createReadStream().pipe(res);
+            return;
+          }
+        } catch (e) {
+          // try next dir
+        }
+      }
+      
+      res.status(404).json({ error: "File not found" });
+    } catch (error) {
+      console.error("Media proxy error:", error);
+      res.status(500).json({ error: "Помилка при завантаженні файлу" });
+    }
+  });
+
+  // Admin endpoint to migrate old signed URLs to permanent public URLs
+  app.post("/api/admin/migrate-media-urls", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+      
+      // Check admin role
+      const user = await storage.getUser(currentUser.id);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).json({ error: "Тільки для адміністраторів" });
+      }
+      
+      const { ObjectStorageService, objectStorageClient: osClient } = await import('./objectStorage');
+      const objectStorageService = new ObjectStorageService();
+      const publicPaths = objectStorageService.getPublicObjectSearchPaths();
+      const privateDir = objectStorageService.getPrivateObjectDir();
+      
+      if (publicPaths.length === 0) {
+        return res.status(500).json({ error: "PUBLIC_OBJECT_SEARCH_PATHS not set" });
+      }
+      
+      let migratedCount = 0;
+      let errorCount = 0;
+      
+      // Get all media assets with signed URLs (contain "X-Goog-Signature" or similar)
+      const allAssets = await db.select().from(mediaAssetsTable);
+      
+      for (const asset of allAssets) {
+        if (asset.publicUrl && (asset.publicUrl.includes('X-Goog-Signature') || asset.publicUrl.includes('Signature='))) {
+          try {
+            // Try to find and re-upload from private to public storage
+            const fullPrivatePath = `${privateDir}/${asset.storageKey}`;
+            const { bucketName: privBucket, objectName: privObject } = parseObjectPathForRoute(fullPrivatePath);
+            const privFile = osClient.bucket(privBucket).file(privObject);
+            const [exists] = await privFile.exists();
+            
+            if (exists) {
+              // Download from private and upload to public
+              const [buffer] = await privFile.download();
+              const [metadata] = await privFile.getMetadata();
+              
+              const publicDir = publicPaths[0];
+              const fullPublicPath = `${publicDir}/${asset.storageKey}`;
+              const { bucketName: pubBucket, objectName: pubObject } = parseObjectPathForRoute(fullPublicPath);
+              
+              const pubFile = osClient.bucket(pubBucket).file(pubObject);
+              await pubFile.save(buffer, {
+                metadata: {
+                  contentType: metadata.contentType || asset.mimeType || 'image/png',
+                  cacheControl: 'public, max-age=31536000',
+                },
+              });
+              
+              const newPublicUrl = `https://storage.googleapis.com/${pubBucket}/${pubObject}`;
+              
+              await db.update(mediaAssetsTable)
+                .set({ publicUrl: newPublicUrl, updatedAt: new Date() })
+                .where(eq(mediaAssetsTable.id, asset.id));
+              
+              migratedCount++;
+            }
+          } catch (err) {
+            console.error(`Failed to migrate media asset ${asset.id}:`, err);
+            errorCount++;
+          }
+        }
+      }
+      
+      // Also update brand logos that have signed URLs
+      const allBrands = await db.select().from(userBrandsTable);
+      for (const brand of allBrands) {
+        if (brand.logo && (brand.logo.includes('X-Goog-Signature') || brand.logo.includes('Signature='))) {
+          try {
+            // Find the logo in storage and re-upload to public
+            // The logo URL contains the object path after storage.googleapis.com/bucket/
+            const urlMatch = brand.logo.match(/storage\.googleapis\.com\/([^/]+)\/(.+?)(\?|$)/);
+            if (urlMatch) {
+              const origBucket = urlMatch[1];
+              const origObject = decodeURIComponent(urlMatch[2]);
+              
+              const origFile = osClient.bucket(origBucket).file(origObject);
+              const [exists] = await origFile.exists();
+              
+              if (exists) {
+                const [buffer] = await origFile.download();
+                const [metadata] = await origFile.getMetadata();
+                
+                const publicDir = publicPaths[0];
+                const { bucketName: pubBucket, objectName: pubObject } = parseObjectPathForRoute(`${publicDir}/${origObject}`);
+                
+                const pubFile = osClient.bucket(pubBucket).file(pubObject);
+                await pubFile.save(buffer, {
+                  metadata: {
+                    contentType: metadata.contentType || 'image/png',
+                    cacheControl: 'public, max-age=31536000',
+                  },
+                });
+                
+                const newPublicUrl = `https://storage.googleapis.com/${pubBucket}/${pubObject}`;
+                
+                await db.update(userBrandsTable)
+                  .set({ logo: newPublicUrl })
+                  .where(eq(userBrandsTable.id, brand.id));
+                
+                migratedCount++;
+              }
+            }
+          } catch (err) {
+            console.error(`Failed to migrate brand logo ${brand.id}:`, err);
+            errorCount++;
+          }
+        }
+      }
+      
+      // Also update chat message image URLs
+      const chatMessagesWithImages = await db.select().from(aiChatMessagesTable)
+        .where(eq(aiChatMessagesTable.role, 'image'));
+      
+      for (const msg of chatMessagesWithImages) {
+        if (msg.imageUrl && (msg.imageUrl.includes('X-Goog-Signature') || msg.imageUrl.includes('Signature='))) {
+          try {
+            const urlMatch = msg.imageUrl.match(/storage\.googleapis\.com\/([^/]+)\/(.+?)(\?|$)/);
+            if (urlMatch) {
+              const origBucket = urlMatch[1];
+              const origObject = decodeURIComponent(urlMatch[2]);
+              
+              const origFile = osClient.bucket(origBucket).file(origObject);
+              const [exists] = await origFile.exists();
+              
+              if (exists) {
+                const [buffer] = await origFile.download();
+                const [metadata] = await origFile.getMetadata();
+                
+                const publicDir = publicPaths[0];
+                const { bucketName: pubBucket, objectName: pubObject } = parseObjectPathForRoute(`${publicDir}/${origObject}`);
+                
+                const pubFile = osClient.bucket(pubBucket).file(pubObject);
+                await pubFile.save(buffer, {
+                  metadata: {
+                    contentType: metadata.contentType || 'image/png',
+                    cacheControl: 'public, max-age=31536000',
+                  },
+                });
+                
+                const newPublicUrl = `https://storage.googleapis.com/${pubBucket}/${pubObject}`;
+                
+                await db.update(aiChatMessagesTable)
+                  .set({ imageUrl: newPublicUrl })
+                  .where(eq(aiChatMessagesTable.id, msg.id));
+                
+                migratedCount++;
+              }
+            }
+          } catch (err) {
+            console.error(`Failed to migrate chat image ${msg.id}:`, err);
+            errorCount++;
+          }
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Міграція завершена. Оновлено: ${migratedCount}, помилок: ${errorCount}` 
+      });
+    } catch (error) {
+      console.error("Media URL migration error:", error);
+      res.status(500).json({ error: "Помилка міграції" });
+    }
+  });
 
   // Upload media asset
   app.post("/api/media/upload", requireAuth, async (req, res) => {
