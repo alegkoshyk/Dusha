@@ -33,6 +33,14 @@ interface AudienceType {
   sortOrder: number;
 }
 
+interface PersonaCategory {
+  id: string;
+  name: string;
+  nameEn: string | null;
+  color: string | null;
+  sortOrder: number;
+}
+
 interface AudienceTypeCategory {
   id: string;
   name: string;
@@ -169,15 +177,6 @@ export default function TargetAudiencePage() {
     queryKey: ['/api/audience-types'],
   });
 
-  // Persona categories (Primary/Secondary/Niche)
-  interface PersonaCategory {
-    id: string;
-    name: string;
-    nameEn: string | null;
-    color: string | null;
-    sortOrder: number;
-  }
-  
   const { data: personaCategories = [] } = useQuery<PersonaCategory[]>({
     queryKey: ['/api/persona-categories'],
   });
@@ -1151,6 +1150,7 @@ export default function TargetAudiencePage() {
                                   isGeneratingAvatar={generatingAvatarId === persona.id}
                                   onAssign={() => setAssigningPersona(persona)}
                                   className="ml-4 sm:ml-8"
+                                  personaCategories={personaCategories}
                                 />
                               ))}
                               
@@ -1195,6 +1195,7 @@ export default function TargetAudiencePage() {
                                       isGeneratingAvatar={generatingAvatarId === persona.id}
                                       onAssign={() => setAssigningPersona(persona)}
                                       small
+                                      personaCategories={personaCategories}
                                     />
                                   ))}
                                 </div>
@@ -1255,11 +1256,20 @@ export default function TargetAudiencePage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
                                 <span className="font-medium text-sm truncate max-w-[120px] sm:max-w-none">{audience.name}</span>
-                                {audience.isPrimary ? (
-                                  <Badge variant="default" className="text-[10px] px-1.5 flex-shrink-0">Основна</Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-[10px] px-1.5 flex-shrink-0">Вторинна</Badge>
-                                )}
+                                {(() => {
+                                  const cat = audience.personaCategoryId 
+                                    ? personaCategories.find(c => c.id === audience.personaCategoryId) 
+                                    : null;
+                                  const label = cat?.name || (audience.isPrimary ? "Основна" : "Вторинна");
+                                  const color = cat?.color;
+                                  return color ? (
+                                    <Badge className="text-[10px] px-1.5 flex-shrink-0 text-white border-0" style={{ backgroundColor: color }}>{label}</Badge>
+                                  ) : audience.isPrimary ? (
+                                    <Badge variant="default" className="text-[10px] px-1.5 flex-shrink-0">{label}</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[10px] px-1.5 flex-shrink-0">{label}</Badge>
+                                  );
+                                })()}
                               </div>
                               <p className="text-xs text-muted-foreground truncate">
                                 {audience.occupation ? `${audience.occupation}` : ''}{audience.ageRange ? `, ${audience.ageRange}` : ''}
@@ -2173,7 +2183,8 @@ function PersonaInline({
   isGeneratingAvatar,
   onAssign,
   small,
-  className
+  className,
+  personaCategories = []
 }: { 
   persona: TargetAudience;
   onSelect: () => void;
@@ -2183,6 +2194,7 @@ function PersonaInline({
   onAssign?: () => void;
   small?: boolean;
   className?: string;
+  personaCategories?: PersonaCategory[];
 }) {
   const values = (persona.values || []) as string[];
   
@@ -2205,12 +2217,20 @@ function PersonaInline({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
           <span className={`font-medium truncate max-w-[120px] sm:max-w-none ${small ? 'text-sm' : 'text-sm sm:text-base'}`}>{persona.name}</span>
-          {persona.isPrimary && (
-            <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2">Основна</Badge>
-          )}
-          {!persona.isPrimary && (
-            <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2">Вторинна</Badge>
-          )}
+          {(() => {
+            const cat = persona.personaCategoryId 
+              ? personaCategories.find(c => c.id === persona.personaCategoryId) 
+              : null;
+            const label = cat?.name || (persona.isPrimary ? "Основна" : "Вторинна");
+            const color = cat?.color;
+            return color ? (
+              <Badge className="text-[10px] sm:text-xs px-1.5 sm:px-2 text-white border-0" style={{ backgroundColor: color }}>{label}</Badge>
+            ) : persona.isPrimary ? (
+              <Badge variant="default" className="text-[10px] sm:text-xs px-1.5 sm:px-2">{label}</Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5 sm:px-2">{label}</Badge>
+            );
+          })()}
         </div>
         {persona.description && !small && (
           <p className="text-xs sm:text-sm text-muted-foreground truncate">{persona.description}</p>
