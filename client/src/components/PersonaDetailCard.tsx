@@ -582,7 +582,7 @@ export function PersonaDetailCard({ persona, assignments = [], segments = [], on
                     <SelectContent>
                       {personaCategories.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name}{cat.nameEn ? ` (${cat.nameEn})` : ''}
+                          {cat.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

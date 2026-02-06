@@ -123,7 +123,6 @@ export default function TargetAudiencePage() {
   const [isPersonaCategoriesOpen, setIsPersonaCategoriesOpen] = useState(false);
   const [editingPersonaCategory, setEditingPersonaCategory] = useState<{ id: string; name: string; nameEn: string | null; color: string | null } | null>(null);
   const [newPersonaCategoryName, setNewPersonaCategoryName] = useState("");
-  const [newPersonaCategoryNameEn, setNewPersonaCategoryNameEn] = useState("");
   const [newPersonaCategoryColor, setNewPersonaCategoryColor] = useState("#6b7280");
 
   const { data: brand, isLoading: brandLoading } = useQuery<UserBrand>({
@@ -2003,55 +2002,42 @@ export default function TargetAudiencePage() {
             
             <div className="space-y-4 py-4">
               {/* Add new persona category */}
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Назва українською..."
-                    value={newPersonaCategoryName}
-                    onChange={(e) => setNewPersonaCategoryName(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Input
-                    placeholder="English name..."
-                    value={newPersonaCategoryNameEn}
-                    onChange={(e) => setNewPersonaCategoryNameEn(e.target.value)}
-                    className="flex-1"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    type="color"
-                    value={newPersonaCategoryColor}
-                    onChange={(e) => setNewPersonaCategoryColor(e.target.value)}
-                    className="w-12 h-10 p-1 cursor-pointer"
-                  />
-                  <Button 
-                    className="flex-1"
-                    onClick={async () => {
-                      if (!newPersonaCategoryName.trim()) return;
-                      try {
-                        await apiRequest("POST", "/api/persona-categories", { 
-                          name: newPersonaCategoryName.trim(),
-                          nameEn: newPersonaCategoryNameEn.trim() || null,
-                          color: newPersonaCategoryColor,
-                          sortOrder: personaCategories.length
-                        });
-                        await queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
-                        await queryClient.refetchQueries({ queryKey: ["/api/persona-categories"] });
-                        setNewPersonaCategoryName("");
-                        setNewPersonaCategoryNameEn("");
-                        setNewPersonaCategoryColor("#6b7280");
-                        toast({ title: "Успішно", description: "Категорію створено" });
-                      } catch (error) {
-                        toast({ title: "Помилка", description: "Не вдалося створити категорію", variant: "destructive" });
-                      }
-                    }}
-                    disabled={!newPersonaCategoryName.trim()}
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Додати
-                  </Button>
-                </div>
+              <div className="flex gap-2 items-center">
+                <Input
+                  placeholder="Назва категорії..."
+                  value={newPersonaCategoryName}
+                  onChange={(e) => setNewPersonaCategoryName(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  type="color"
+                  value={newPersonaCategoryColor}
+                  onChange={(e) => setNewPersonaCategoryColor(e.target.value)}
+                  className="w-12 h-10 p-1 cursor-pointer"
+                />
+                <Button 
+                  onClick={async () => {
+                    if (!newPersonaCategoryName.trim()) return;
+                    try {
+                      await apiRequest("POST", "/api/persona-categories", { 
+                        name: newPersonaCategoryName.trim(),
+                        color: newPersonaCategoryColor,
+                        sortOrder: personaCategories.length
+                      });
+                      await queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
+                      await queryClient.refetchQueries({ queryKey: ["/api/persona-categories"] });
+                      setNewPersonaCategoryName("");
+                      setNewPersonaCategoryColor("#6b7280");
+                      toast({ title: "Успішно", description: "Категорію створено" });
+                    } catch (error) {
+                      toast({ title: "Помилка", description: "Не вдалося створити категорію", variant: "destructive" });
+                    }
+                  }}
+                  disabled={!newPersonaCategoryName.trim()}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Додати
+                </Button>
               </div>
 
               {/* List of persona categories */}
@@ -2059,22 +2045,13 @@ export default function TargetAudiencePage() {
                 {personaCategories.map((cat) => (
                   <div key={cat.id} className="border rounded-lg p-3">
                     {editingPersonaCategory?.id === cat.id ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                           <Input
                             value={editingPersonaCategory.name}
                             onChange={(e) => setEditingPersonaCategory({ ...editingPersonaCategory, name: e.target.value })}
-                            placeholder="Назва українською"
+                            placeholder="Назва категорії"
                             className="flex-1"
                           />
-                          <Input
-                            value={editingPersonaCategory.nameEn || ""}
-                            onChange={(e) => setEditingPersonaCategory({ ...editingPersonaCategory, nameEn: e.target.value })}
-                            placeholder="English name"
-                            className="flex-1"
-                          />
-                        </div>
-                        <div className="flex items-center gap-2">
                           <Input
                             type="color"
                             value={editingPersonaCategory.color || "#6b7280"}
@@ -2087,7 +2064,6 @@ export default function TargetAudiencePage() {
                               try {
                                 await apiRequest("PATCH", `/api/persona-categories/${cat.id}`, { 
                                   name: editingPersonaCategory.name,
-                                  nameEn: editingPersonaCategory.nameEn,
                                   color: editingPersonaCategory.color
                                 });
                                 await queryClient.invalidateQueries({ queryKey: ["/api/persona-categories"] });
@@ -2108,7 +2084,6 @@ export default function TargetAudiencePage() {
                           >
                             <X className="h-4 w-4" />
                           </Button>
-                        </div>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">
@@ -2118,9 +2093,6 @@ export default function TargetAudiencePage() {
                             style={{ backgroundColor: cat.color || "#6b7280" }}
                           />
                           <span className="font-medium">{cat.name}</span>
-                          {cat.nameEn && (
-                            <span className="text-muted-foreground text-sm">({cat.nameEn})</span>
-                          )}
                         </div>
                         <div className="flex items-center gap-1">
                           <Button 
