@@ -31,14 +31,38 @@ function parseImageData(dataOrUrl: string): { data: string; mimeType: string } {
 
 /**
  * Fetch image from URL and convert to base64
+ * Handles proxy URLs (/api/media/proxy?key=...) by reading directly from object storage
  */
 async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType: string }> {
-  // If it's already a data URL, parse it
   if (url.startsWith("data:")) {
     return parseImageData(url);
   }
   
-  // Fetch external URL
+  if (url.startsWith("/api/media/proxy")) {
+    const keyMatch = url.match(/[?&]key=([^&]+)/);
+    if (keyMatch) {
+      const storageKey = decodeURIComponent(keyMatch[1]);
+      try {
+        const { ObjectStorageService } = await import("../../objectStorage");
+        const service = new ObjectStorageService();
+        const file = await service.searchPublicObject(storageKey);
+        if (file) {
+          const [buffer] = await file.download();
+          const [metadata] = await file.getMetadata();
+          const mimeType = (metadata.contentType as string) || "image/png";
+          return { data: buffer.toString("base64"), mimeType };
+        }
+      } catch (e) {
+        console.error("Failed to read from object storage directly:", e);
+      }
+    }
+  }
+  
+  if (url.startsWith("/")) {
+    const port = process.env.PORT || "5000";
+    url = `http://127.0.0.1:${port}${url}`;
+  }
+
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch image: ${response.statusText}`);
