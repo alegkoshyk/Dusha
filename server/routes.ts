@@ -5164,8 +5164,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (referenceUrl && referenceUrl.startsWith('/api/media/proxy')) {
         try {
           const { ObjectStorageService } = await import('./objectStorage');
-          const directUrl = new ObjectStorageService().resolveProxyToDirectUrl(referenceUrl);
-          if (directUrl) referenceUrl = directUrl;
+          const signedUrl = await new ObjectStorageService().resolveProxyToSignedUrl(referenceUrl);
+          if (signedUrl) referenceUrl = signedUrl;
         } catch (e) { /* keep original */ }
       }
       
@@ -5184,10 +5184,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               base64Data: logoUrl
             });
             processedLogoUrl = uploadResult.publicUrl;
-            // If publicUrl is still a proxy URL, resolve to direct GCS URL
             if (processedLogoUrl.startsWith('/api/media/proxy')) {
-              const directUrl = objectStorageService.resolveProxyToDirectUrl(processedLogoUrl);
-              if (directUrl) processedLogoUrl = directUrl;
+              const signedUrl = await objectStorageService.resolveProxyToSignedUrl(processedLogoUrl);
+              if (signedUrl) processedLogoUrl = signedUrl;
             }
             console.log('Logo uploaded for generation, URL:', processedLogoUrl);
           } catch (uploadError) {
@@ -5199,11 +5198,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (logoUrl.startsWith('/api/media/proxy')) {
           try {
             const { ObjectStorageService } = await import('./objectStorage');
-            const objectStorageService = new ObjectStorageService();
-            const directUrl = objectStorageService.resolveProxyToDirectUrl(logoUrl);
-            if (directUrl) {
-              processedLogoUrl = directUrl;
-              console.log('Logo proxy URL resolved to direct URL:', processedLogoUrl);
+            const signedUrl = await new ObjectStorageService().resolveProxyToSignedUrl(logoUrl);
+            if (signedUrl) {
+              processedLogoUrl = signedUrl;
+              console.log('Logo proxy URL resolved to signed URL:', processedLogoUrl);
             }
           } catch (e) {
             console.error('Failed to resolve proxy logo URL:', e);
