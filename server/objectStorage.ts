@@ -169,6 +169,18 @@ export class ObjectStorageService {
     return `/api/media/proxy?key=${encodeURIComponent(keyPart)}`;
   }
 
+  resolveProxyToDirectUrl(proxyUrl: string): string | null {
+    if (!proxyUrl || !proxyUrl.startsWith('/api/media/proxy')) return null;
+    const keyMatch = proxyUrl.match(/[?&]key=([^&]+)/);
+    if (!keyMatch) return null;
+    const storageKey = decodeURIComponent(keyMatch[1]);
+    const publicSearchPaths = this.getPublicObjectSearchPaths();
+    if (publicSearchPaths.length === 0) return null;
+    const publicDir = publicSearchPaths[0];
+    const { bucketName, objectName } = parseObjectPath(`${publicDir}/${storageKey}`);
+    return `https://storage.googleapis.com/${bucketName}/${objectName}`;
+  }
+
   // Generic method for uploading media assets with structured paths
   async uploadMediaAsset(params: {
     userId: string;

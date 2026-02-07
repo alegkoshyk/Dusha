@@ -5159,29 +5159,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Added audience context to prompt');
       }
 
-      // Combine template reference and user-uploaded references
-      const referenceUrl = templateReferenceUrl || (referenceUrls && referenceUrls.length > 0 ? referenceUrls[0] : undefined);
-      
-      // If logoUrl is base64, upload it to object storage first to get a public URL
-      let processedLogoUrl = logoUrl;
-      if (logoUrl && logoUrl.startsWith('data:')) {
+      // Combine template reference and user-uploaded references, resolve proxy URLs
+      let referenceUrl = templateReferenceUrl || (referenceUrls && referenceUrls.length > 0 ? referenceUrls[0] : undefined);
+      if (referenceUrl && referenceUrl.startsWith('/api/media/proxy')) {
         try {
-          console.log('Logo is base64, uploading to object storage first...');
           const { ObjectStorageService } = await import('./objectStorage');
-          const objectStorageService = new ObjectStorageService();
-          const uploadResult = await objectStorageService.uploadMediaAsset({
-            userId,
-            assetType: 'logo',
-            brandId: gameSession.brandId || undefined,
-            base64Data: logoUrl
-          });
-          processedLogoUrl = uploadResult.publicUrl;
-          console.log('Logo uploaded for generation, URL:', processedLogoUrl);
-        } catch (uploadError) {
-          console.error('Failed to upload base64 logo for generation:', uploadError);
-          return res.status(400).json({ 
-            error: "Не вдалося підготувати лого для генерації. Спробуйте завантажити лого ще раз." 
-          });
+          const directUrl = new ObjectStorageService().resolveProxyToDirectUrl(referenceUrl);
+          if (directUrl) referenceUrl = directUrl;
+        } catch (e) { /* keep original */ }
+      }
+      
+      // Resolve logoUrl to a publicly accessible URL for external APIs
+      let processedLogoUrl = logoUrl;
+      if (logoUrl) {
+        if (logoUrl.startsWith('data:')) {
+          try {
+            console.log('Logo is base64, uploading to object storage first...');
+            const { ObjectStorageService } = await import('./objectStorage');
+            const objectStorageService = new ObjectStorageService();
+            const uploadResult = await objectStorageService.uploadMediaAsset({
+              userId,
+              assetType: 'logo',
+              brandId: gameSession.brandId || undefined,
+              base64Data: logoUrl
+            });
+            processedLogoUrl = uploadResult.publicUrl;
+            // If publicUrl is still a proxy URL, resolve to direct GCS URL
+            if (processedLogoUrl.startsWith('/api/media/proxy')) {
+              const directUrl = objectStorageService.resolveProxyToDirectUrl(processedLogoUrl);
+              if (directUrl) processedLogoUrl = directUrl;
+            }
+            console.log('Logo uploaded for generation, URL:', processedLogoUrl);
+          } catch (uploadError) {
+            console.error('Failed to upload base64 logo for generation:', uploadError);
+            return res.status(400).json({ 
+              error: "Не вдалося підготувати лого для генерації. Спробуйте завантажити лого ще раз." 
+            });
+          }
+        } else if (logoUrl.startsWith('/api/media/proxy')) {
+          try {
+            const { ObjectStorageService } = await import('./objectStorage');
+            const objectStorageService = new ObjectStorageService();
+            const directUrl = objectStorageService.resolveProxyToDirectUrl(logoUrl);
+            if (directUrl) {
+              processedLogoUrl = directUrl;
+              console.log('Logo proxy URL resolved to direct URL:', processedLogoUrl);
+            }
+          } catch (e) {
+            console.error('Failed to resolve proxy logo URL:', e);
+          }
         }
       }
       
