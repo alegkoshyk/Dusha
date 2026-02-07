@@ -52,6 +52,13 @@ app.use((req, res, next) => {
     console.error('Failed to seed subscription plans:', error);
   }
 
+  // Seed premium features if they don't exist
+  try {
+    await storage.seedPremiumFeatures();
+  } catch (error) {
+    console.error('Failed to seed premium features:', error);
+  }
+
   // Seed audience types if they don't exist
   try {
     await storage.seedAudienceTypes();

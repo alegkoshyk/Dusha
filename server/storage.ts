@@ -2369,6 +2369,35 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
+  async seedPremiumFeatures(): Promise<void> {
+    const existing = await this.getPremiumFeatures(false);
+    if (existing.length > 0) {
+      console.log(`Premium features already exist (${existing.length} features), skipping seed`);
+      return;
+    }
+
+    console.log('Seeding premium features...');
+    const features: InsertPremiumFeature[] = [
+      { key: 'ai_chat', name: 'AI чат-асистент', description: 'Персоналізований AI-асистент для розвитку бренду', icon: 'MessageSquare' },
+      { key: 'image_generation', name: 'Генерація зображень', description: 'AI-генерація логотипів та візуальних матеріалів', icon: 'Image' },
+      { key: 'export_pdf', name: 'Експорт PDF', description: 'Експорт карти бренду у PDF формат', icon: 'FileText' },
+      { key: 'ai_analysis', name: 'AI аналіз', description: 'Автоматичний аналіз відповідей за допомогою AI', icon: 'Brain' },
+      { key: 'merch_generation', name: 'Мерч-генератор', description: 'Створення брендованої продукції', icon: 'Shirt' },
+      { key: 'multi_brand', name: 'Мульти-бренд', description: 'Підтримка кількох брендів одночасно', icon: 'Building2' },
+      { key: 'priority_support', name: 'Пріоритетна підтримка', description: 'Прискорена технічна підтримка', icon: 'HeadphonesIcon' },
+      { key: 'advanced_templates', name: 'Розширені шаблони', description: 'Доступ до додаткових шаблонів гри', icon: 'Layout' },
+      { key: 'team_collaboration', name: 'Командна робота', description: 'Запрошення членів команди для спільної роботи', icon: 'Users' },
+      { key: 'api_access', name: 'API доступ', description: 'Інтеграція через API', icon: 'Code' },
+      { key: 'unlimited_games', name: 'Необмежені ігри', description: 'Необмежена кількість ігрових сесій', icon: 'Infinity' },
+      { key: 'custom_branding', name: 'Власний брендинг', description: 'Можливість кастомізації інтерфейсу', icon: 'Palette' },
+    ];
+
+    for (const feature of features) {
+      await this.createPremiumFeature(feature);
+    }
+    console.log(`Seeded ${features.length} premium features`);
+  }
+
   async seedSubscriptionPlans(): Promise<void> {
     const existingPlans = await this.getSubscriptionPlans(false);
     if (existingPlans.length > 0) {
