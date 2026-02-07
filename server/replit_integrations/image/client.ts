@@ -39,22 +39,15 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType
   }
   
   if (url.startsWith("/api/media/proxy")) {
-    const keyMatch = url.match(/[?&]key=([^&]+)/);
-    if (keyMatch) {
-      const storageKey = decodeURIComponent(keyMatch[1]);
-      try {
-        const { ObjectStorageService } = await import("../../objectStorage");
-        const service = new ObjectStorageService();
-        const file = await service.searchPublicObject(storageKey);
-        if (file) {
-          const [buffer] = await file.download();
-          const [metadata] = await file.getMetadata();
-          const mimeType = (metadata.contentType as string) || "image/png";
-          return { data: buffer.toString("base64"), mimeType };
-        }
-      } catch (e) {
-        console.error("Failed to read from object storage directly:", e);
+    try {
+      const { ObjectStorageService } = await import("../../objectStorage");
+      const service = new ObjectStorageService();
+      const signedUrl = await service.resolveProxyToSignedUrl(url);
+      if (signedUrl) {
+        url = signedUrl;
       }
+    } catch (e) {
+      console.error("Failed to resolve proxy URL to signed URL:", e);
     }
   }
   

@@ -302,9 +302,9 @@ export async function generateImageWithNanoBanana(
       const errorMsg = result.data.errorMessage || "Генерація зображення не вдалася";
       console.error('NanoBanana: Generation failed:', errorMsg);
       
-      // If logo reference caused the failure, retry without logo
-      if (logoUrl && (errorMsg.toLowerCase().includes('media file') || errorMsg.toLowerCase().includes('unavailable') || errorMsg.toLowerCase().includes('image') && errorMsg.toLowerCase().includes('replace'))) {
-        console.log('NanoBanana: Logo reference failed, retrying without logo...');
+      // If logo was used and generation failed, retry without logo (image-to-image mode often fails with external URLs)
+      if (logoUrl) {
+        console.log('NanoBanana: Generation failed with logo reference, retrying without logo in text-to-image mode...');
         return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrl, usePro);
       }
       
