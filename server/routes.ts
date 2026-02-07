@@ -2289,7 +2289,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { id } = req.params;
-      const { additionalPrompt } = req.body;
+      const { additionalPrompt, useLogo = true, overlayText } = req.body;
       
       const product = await storage.getBrandProduct(id);
       if (!product) {
@@ -2307,18 +2307,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         prompt += ` Additional requirements: ${additionalPrompt}`;
       }
       
-      // Add instruction to incorporate brand logo if available
-      if (brand.logo) {
+      if (overlayText) {
+        prompt += ` IMPORTANT: Include the following text prominently on the image: "${overlayText}". The text should be clearly readable, well-positioned, and styled to match the overall design.`;
+      }
+      
+      // Add instruction to incorporate brand logo if available and enabled
+      const shouldUseLogo = useLogo && !!brand.logo;
+      if (shouldUseLogo) {
         prompt += " Incorporate the brand logo subtly into the product image design, ensuring brand identity is visible.";
       }
 
       let imageDataUrl: string;
       
-      // Generate image using Gemini with brand logo reference if available
-      if (brand.logo) {
+      // Generate image using Gemini with brand logo reference if available and enabled
+      if (shouldUseLogo) {
         const { generateImageWithReferences } = await import("./replit_integrations/image/client");
         const referenceImages = [
-          { url: brand.logo, label: "Brand Logo - incorporate this logo into the product image" }
+          { url: brand.logo!, label: "Brand Logo - incorporate this logo into the product image" }
         ];
         imageDataUrl = await generateImageWithReferences(prompt, referenceImages);
       } else {

@@ -50,6 +50,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,6 +69,8 @@ export default function ProductsPage() {
   const [personasProduct, setPersonasProduct] = useState<BrandProduct | null>(null);
   const [imagePromptProduct, setImagePromptProduct] = useState<BrandProduct | null>(null);
   const [additionalPrompt, setAdditionalPrompt] = useState("");
+  const [useLogo, setUseLogo] = useState(true);
+  const [overlayText, setOverlayText] = useState("");
   const [viewingProduct, setViewingProduct] = useState<BrandProduct | null>(null);
   const { toast } = useToast();
 
@@ -97,16 +100,18 @@ export default function ProductsPage() {
   });
 
   const generateImageMutation = useMutation({
-    mutationFn: async ({ productId, prompt }: { productId: string; prompt?: string }) => {
+    mutationFn: async ({ productId, prompt, useLogo, overlayText }: { productId: string; prompt?: string; useLogo?: boolean; overlayText?: string }) => {
       setGeneratingImageFor(productId);
       const response = await apiRequest("POST", `/api/products/${productId}/generate-image`, {
         additionalPrompt: prompt || undefined,
+        useLogo: useLogo !== false,
+        overlayText: overlayText || undefined,
       });
       if (!response.ok) throw new Error("Failed to generate image");
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Успішно", description: "Зображення згенеровано на основі логотипу бренду" });
+      toast({ title: "Успішно", description: "Зображення продукту успішно згенеровано" });
       queryClient.invalidateQueries({ queryKey: ["/api/brands", brandId, "products"] });
       setGeneratingImageFor(null);
       setImagePromptProduct(null);
@@ -121,13 +126,17 @@ export default function ProductsPage() {
   const handleGenerateImage = (product: BrandProduct) => {
     setImagePromptProduct(product);
     setAdditionalPrompt("");
+    setUseLogo(true);
+    setOverlayText("");
   };
 
   const confirmGenerateImage = () => {
     if (imagePromptProduct) {
       generateImageMutation.mutate({ 
         productId: imagePromptProduct.id, 
-        prompt: additionalPrompt.trim() || undefined 
+        prompt: additionalPrompt.trim() || undefined,
+        useLogo,
+        overlayText: overlayText.trim() || undefined,
       });
     }
   };
@@ -406,13 +415,27 @@ export default function ProductsPage() {
                 rows={3}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Текст на фото (необов'язково)</Label>
+              <Input
+                placeholder="Наприклад: -20% знижка, New Collection..."
+                value={overlayText}
+                onChange={(e) => setOverlayText(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Цей текст буде додано на згенероване зображення</p>
+            </div>
             {brand?.logo && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                <img src={resolveMediaUrl(brand.logo)} alt="Логотип" className="w-12 h-12 object-contain rounded" />
-                <div className="text-sm">
-                  <p className="font-medium">Логотип бренду</p>
-                  <p className="text-muted-foreground">Буде використано як основа для генерації</p>
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <img src={resolveMediaUrl(brand.logo)} alt="Логотип" className="w-12 h-12 object-contain rounded" />
+                  <div className="text-sm">
+                    <p className="font-medium">Логотип бренду</p>
+                    <p className="text-muted-foreground">
+                      {useLogo ? "Буде використано як основа для генерації" : "Не буде використано"}
+                    </p>
+                  </div>
                 </div>
+                <Switch checked={useLogo} onCheckedChange={setUseLogo} />
               </div>
             )}
             {!brand?.logo && (
