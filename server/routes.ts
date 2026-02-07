@@ -547,8 +547,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               base64Data: logo
             });
             
-            logoUrl = uploadResult.publicUrl;
-            console.log('Logo uploaded to object storage:', logoUrl);
+            logoUrl = `/api/media/proxy?key=${encodeURIComponent(uploadResult.storageKey)}`;
+            console.log('Logo uploaded, proxy URL:', logoUrl);
 
             // Create media asset record
             await storage.createMediaAsset({
@@ -5376,28 +5376,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ============= Media Assets API =============
 
-  // Proxy endpoint for serving private storage objects (handles expired signed URLs)
-  app.get("/api/media/proxy", requireAuth, async (req, res) => {
+  // Proxy endpoint for serving storage objects
+  app.get("/api/media/proxy", async (req, res) => {
     try {
       const { key } = req.query;
       if (!key || typeof key !== 'string') {
         return res.status(400).json({ error: "Missing storage key" });
       }
 
-      const { ObjectStorageService } = await import('./objectStorage');
+      const sanitizedKey = key.replace(/\.\./g, '').replace(/^\/+/, '');
+      if (!sanitizedKey) {
+        return res.status(400).json({ error: "Invalid key" });
+      }
+
+      const { ObjectStorageService, objectStorageClient } = await import('./objectStorage');
       const objectStorageService = new ObjectStorageService();
       
-      // Try private dir first, then public dir
-      const privateDir = objectStorageService.getPrivateObjectDir();
       const publicPaths = objectStorageService.getPublicObjectSearchPaths();
+      const isAuthenticated = !!(req as any).session?.user || !!(req as any).headers?.['x-auth-token'];
+      const privateDir = isAuthenticated ? objectStorageService.getPrivateObjectDir() : '';
       
-      const dirs = [privateDir, ...publicPaths].filter(Boolean);
+      const dirs = [...publicPaths, privateDir].filter(Boolean);
       
       for (const dir of dirs) {
         try {
-          const fullPath = `${dir}/${key}`;
+          const fullPath = `${dir}/${sanitizedKey}`;
           const { bucketName, objectName } = parseObjectPathForRoute(fullPath);
-          const { objectStorageClient } = await import('./objectStorage');
           const bucket = objectStorageClient.bucket(bucketName);
           const file = bucket.file(objectName);
           const [exists] = await file.exists();
@@ -5406,7 +5410,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const [metadata] = await file.getMetadata();
             res.set({
               "Content-Type": metadata.contentType || "image/png",
-              "Cache-Control": "public, max-age=86400",
+              "Cache-Control": "public, max-age=604800",
+              "X-Content-Type-Options": "nosniff",
             });
             file.createReadStream().pipe(res);
             return;
@@ -5478,10 +5483,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 },
               });
               
-              const newPublicUrl = `https://storage.googleapis.com/${pubBucket}/${pubObject}`;
+              const newProxyUrl = `/api/media/proxy?key=${encodeURIComponent(asset.storageKey)}`;
               
               await db.update(mediaAssetsTable)
-                .set({ publicUrl: newPublicUrl, updatedAt: new Date() })
+                .set({ publicUrl: newProxyUrl, updatedAt: new Date() })
                 .where(eq(mediaAssetsTable.id, asset.id));
               
               migratedCount++;
@@ -5523,10 +5528,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   },
                 });
                 
-                const newPublicUrl = `https://storage.googleapis.com/${pubBucket}/${pubObject}`;
+                const newProxyUrl = `/api/media/proxy?key=${encodeURIComponent(origObject)}`;
                 
                 await db.update(userBrandsTable)
-                  .set({ logo: newPublicUrl })
+                  .set({ logo: newProxyUrl })
                   .where(eq(userBrandsTable.id, brand.id));
                 
                 migratedCount++;
@@ -5569,10 +5574,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   },
                 });
                 
-                const newPublicUrl = `https://storage.googleapis.com/${pubBucket}/${pubObject}`;
+                const newProxyUrl = `/api/media/proxy?key=${encodeURIComponent(origObject)}`;
                 
                 await db.update(aiChatMessagesTable)
-                  .set({ imageUrl: newPublicUrl })
+                  .set({ imageUrl: newProxyUrl })
                   .where(eq(aiChatMessagesTable.id, msg.id));
                 
                 migratedCount++;

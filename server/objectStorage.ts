@@ -157,16 +157,16 @@ export class ObjectStorageService {
       },
     });
 
-    // Return permanent public URL (no signed URL needed for public storage)
-    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
-    console.log(`Logo uploaded to public storage: ${publicUrl}`);
+    const proxyUrl = `/api/media/proxy?key=${encodeURIComponent(objectId)}`;
+    console.log(`Logo uploaded, proxy URL: ${proxyUrl}`);
     
-    return publicUrl;
+    return proxyUrl;
   }
 
   async getPublicUrl(objectPath: string): Promise<string> {
-    const { bucketName, objectName } = parseObjectPath(objectPath);
-    return `https://storage.googleapis.com/${bucketName}/${objectName}`;
+    const { objectName } = parseObjectPath(objectPath);
+    const keyPart = objectName.replace(/^(?:public\/|\.private\/)/, '');
+    return `/api/media/proxy?key=${encodeURIComponent(keyPart)}`;
   }
 
   // Generic method for uploading media assets with structured paths
@@ -233,11 +233,11 @@ export class ObjectStorageService {
       },
     });
 
-    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
-    console.log(`Media asset uploaded to public storage: ${publicUrl}`);
+    const proxyUrl = `/api/media/proxy?key=${encodeURIComponent(objectId)}`;
+    console.log(`Media asset uploaded, proxy URL: ${proxyUrl}`);
 
     return {
-      publicUrl,
+      publicUrl: proxyUrl,
       storageKey: objectId,
       sizeBytes,
       mimeType: contentType
@@ -277,9 +277,9 @@ export class ObjectStorageService {
       },
     });
 
-    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
-    console.log(`Avatar uploaded to public storage: ${publicUrl}`);
-    return publicUrl;
+    const proxyUrl = `/api/media/proxy?key=${encodeURIComponent(objectId)}`;
+    console.log(`Avatar uploaded, proxy URL: ${proxyUrl}`);
+    return proxyUrl;
   }
 
   async uploadTemplateReferenceImage(templateId: number, base64Data: string): Promise<string> {
@@ -316,9 +316,9 @@ export class ObjectStorageService {
       },
     });
 
-    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
-    console.log(`Template image uploaded to public storage: ${publicUrl}`);
-    return publicUrl;
+    const proxyUrl = `/api/media/proxy?key=${encodeURIComponent(objectId)}`;
+    console.log(`Template image uploaded, proxy URL: ${proxyUrl}`);
+    return proxyUrl;
   }
 
   async uploadProductImage(productId: string, base64Data: string): Promise<string> {
@@ -355,9 +355,9 @@ export class ObjectStorageService {
       },
     });
 
-    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
-    console.log(`Product image uploaded to public storage: ${publicUrl}`);
-    return publicUrl;
+    const proxyUrl = `/api/media/proxy?key=${encodeURIComponent(objectId)}`;
+    console.log(`Product image uploaded, proxy URL: ${proxyUrl}`);
+    return proxyUrl;
   }
 
   async uploadImageFromUrl(folder: string, imageUrl: string): Promise<string> {
@@ -429,9 +429,9 @@ export class ObjectStorageService {
       },
     });
 
-    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
-    console.log('uploadImageFromUrl: Success, public URL:', publicUrl);
-    return publicUrl;
+    const proxyUrl = `/api/media/proxy?key=${encodeURIComponent(objectId)}`;
+    console.log('uploadImageFromUrl: Success, proxy URL:', proxyUrl);
+    return proxyUrl;
   }
 }
 
