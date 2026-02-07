@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { resolveMediaUrl } from "@/lib/utils";
 import { Download, Trash2, Image, User, Palette, Package, FileImage, X, Loader2, Building2 } from "lucide-react";
 
 type Brand = {
@@ -101,7 +102,7 @@ export default function MediaLibrary() {
 
   const handleDownload = (asset: MediaAsset) => {
     const link = document.createElement("a");
-    link.href = asset.publicUrl;
+    link.href = resolveMediaUrl(asset.publicUrl);
     link.download = asset.filename || `image-${asset.id}`;
     link.target = "_blank";
     document.body.appendChild(link);
@@ -203,7 +204,7 @@ export default function MediaLibrary() {
                 >
                   <div className="aspect-square relative bg-gray-100 dark:bg-gray-800">
                     <img
-                      src={asset.publicUrl}
+                      src={resolveMediaUrl(asset.publicUrl)}
                       alt={asset.altText || "Image"}
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -262,7 +263,7 @@ export default function MediaLibrary() {
             <div className="space-y-4">
               <div className="relative bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
                 <img
-                  src={selectedAsset.publicUrl}
+                  src={resolveMediaUrl(selectedAsset.publicUrl)}
                   alt={selectedAsset.altText || "Image"}
                   className="w-full max-h-[60vh] object-contain"
                 />

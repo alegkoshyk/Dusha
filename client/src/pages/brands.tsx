@@ -1,4 +1,5 @@
 import { useState, createElement, useLayoutEffect } from 'react';
+import { resolveMediaUrl } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -200,7 +201,7 @@ export default function Brands() {
                     <div className="flex items-start gap-4 mb-4">
                       {brand.logo ? (
                         <img 
-                          src={brand.logo} 
+                          src={resolveMediaUrl(brand.logo)} 
                           alt={`${brand.name} logo`}
                           className="w-14 h-14 md:w-16 md:h-16 object-contain rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0"
                         />

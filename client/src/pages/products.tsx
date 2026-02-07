@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { resolveMediaUrl } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -407,7 +408,7 @@ export default function ProductsPage() {
             </div>
             {brand?.logo && (
               <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                <img src={brand.logo} alt="Логотип" className="w-12 h-12 object-contain rounded" />
+                <img src={resolveMediaUrl(brand.logo)} alt="Логотип" className="w-12 h-12 object-contain rounded" />
                 <div className="text-sm">
                   <p className="font-medium">Логотип бренду</p>
                   <p className="text-muted-foreground">Буде використано як основа для генерації</p>

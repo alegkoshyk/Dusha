@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { resolveMediaUrl } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -134,7 +135,7 @@ export default function BrandEditPage() {
       setTypography((brand as any).typography || {});
       setVoiceTone((brand as any).voiceTone || {});
       setCompetitors((brand as any).competitors || []);
-      setLogoPreview(brand.logo || null);
+      setLogoPreview(brand.logo ? resolveMediaUrl(brand.logo) : null);
     }
   }, [brand]);
 
@@ -181,9 +182,18 @@ export default function BrandEditPage() {
       }
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      toast({ title: "Логотип збережено", description: "Логотип бренду оновлено успішно" });
+      if (data?.logo) {
+        setLogoPreview(data.logo);
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/user/brands"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/brands", params.brandId] });
+    },
+    onError: (error: any) => {
+      if (error?.message !== "quota_exceeded") {
+        toast({ title: "Помилка", description: error.message || "Не вдалося завантажити логотип", variant: "destructive" });
+      }
     },
   });
 
@@ -519,16 +529,19 @@ export default function BrandEditPage() {
 
     const reader = new FileReader();
     reader.onload = () => {
-      setLogoPreview(reader.result as string);
-      setLogoChanged(true);
+      const base64 = reader.result as string;
+      setLogoPreview(base64);
+      setLogoChanged(false);
+      uploadLogoMutation.mutate(base64);
     };
     reader.readAsDataURL(file);
   };
 
   const removeLogo = () => {
     setLogoPreview(null);
-    setLogoChanged(true);
+    setLogoChanged(false);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    uploadLogoMutation.mutate(null);
   };
 
   const addValue = () => {
@@ -563,15 +576,8 @@ export default function BrandEditPage() {
         voiceTone,
         competitors,
       });
-
-      if (logoChanged) {
-        await uploadLogoMutation.mutateAsync(logoPreview);
-        setLogoChanged(false);
-      }
     } catch (error: any) {
-      if (error?.message !== "quota_exceeded") {
-        console.error("Save error:", error);
-      }
+      console.error("Save error:", error);
     }
   };
 
@@ -678,17 +684,24 @@ export default function BrandEditPage() {
                           <img 
                             src={logoPreview} 
                             alt="Logo" 
-                            className="w-20 h-20 object-contain rounded-lg border-2 border-border bg-white dark:bg-gray-800 p-2"
+                            className={`w-20 h-20 object-contain rounded-lg border-2 border-border bg-white dark:bg-gray-800 p-2 ${uploadLogoMutation.isPending ? 'opacity-50' : ''}`}
                             data-testid="img-brand-logo"
                           />
-                          <button
-                            type="button"
-                            onClick={removeLogo}
-                            className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 hover:bg-destructive/90 shadow-sm"
-                            data-testid="button-remove-logo"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
+                          {uploadLogoMutation.isPending && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                            </div>
+                          )}
+                          {!uploadLogoMutation.isPending && (
+                            <button
+                              type="button"
+                              onClick={removeLogo}
+                              className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 hover:bg-destructive/90 shadow-sm"
+                              data-testid="button-remove-logo"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <button

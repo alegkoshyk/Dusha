@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { resolveMediaUrl } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -90,7 +91,7 @@ export function EditBrandDialog({ brand, open, onOpenChange, onBrandUpdated }: E
     if (brand && open) {
       setValue('name', brand.name);
       setValue('description', brand.description || '');
-      setLogoPreview(brand.logo || null);
+      setLogoPreview(brand.logo ? resolveMediaUrl(brand.logo) : null);
       setLogoChanged(false);
     }
   }, [brand, open, setValue]);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect } from 'react';
+import { resolveMediaUrl } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -302,7 +303,7 @@ export default function Dashboard() {
                         onClick={() => setLocation(`/game/${session.id}`)}
                       >
                         {brand?.logo ? (
-                          <img src={brand.logo} alt="" className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-contain bg-white border flex-shrink-0" />
+                          <img src={resolveMediaUrl(brand.logo)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-contain bg-white border flex-shrink-0" />
                         ) : (
                           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
                             <span className="text-white font-bold text-sm sm:text-base">{brand?.name?.charAt(0) || '?'}</span>
@@ -366,7 +367,7 @@ export default function Dashboard() {
                         onClick={() => setLocation(`/brand/${brand.id}`)}
                       >
                         {brand.logo ? (
-                          <img src={brand.logo} alt="" className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-contain bg-white border flex-shrink-0" />
+                          <img src={resolveMediaUrl(brand.logo)} alt="" className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-contain bg-white border flex-shrink-0" />
                         ) : (
                           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
                             <span className="text-white font-bold text-sm sm:text-base">{brand.name.charAt(0)}</span>

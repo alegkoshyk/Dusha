@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { resolveMediaUrl } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -815,7 +816,7 @@ export default function BrandChat() {
           generateImageMutation.mutate({ 
             prompt: fullPrompt || undefined, 
             aspectRatio,
-            logoUrl: useLogo && brand?.logo ? brand.logo : undefined,
+            logoUrl: useLogo && brand?.logo ? resolveMediaUrl(brand.logo) : undefined,
             templateId: item.type === 'template' ? item.id : undefined,
             merchTypeId: item.type === 'merch' ? item.id : undefined,
             referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined,
@@ -1482,7 +1483,7 @@ export default function BrandChat() {
                 <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center gap-3">
                     <img 
-                      src={brand.logo} 
+                      src={resolveMediaUrl(brand.logo)} 
                       alt="Brand logo" 
                       className="w-10 h-10 rounded object-contain bg-gray-100 dark:bg-gray-700 p-1"
                       data-testid="img-logo-preview"
@@ -1516,7 +1517,7 @@ export default function BrandChat() {
               {brand?.logo && (
                 <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <img 
-                    src={brand.logo} 
+                    src={resolveMediaUrl(brand.logo)} 
                     alt="Brand logo" 
                     className="w-12 h-12 rounded object-contain bg-white dark:bg-gray-700 p-1"
                   />

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { resolveMediaUrl } from '@/lib/utils';
 import { useParams, useLocation, Link } from 'wouter';
 import { apiRequest } from '@/lib/queryClient';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -321,7 +322,7 @@ export default function BrandBoard() {
             </Button>
             {currentBrand?.logo ? (
               <img 
-                src={currentBrand.logo} 
+                src={resolveMediaUrl(currentBrand.logo)} 
                 alt={`${currentBrand.name} logo`}
                 className="w-12 h-12 md:w-14 md:h-14 object-contain rounded-lg border border-gray-200 bg-white flex-shrink-0"
                 data-testid="brand-board-logo"
