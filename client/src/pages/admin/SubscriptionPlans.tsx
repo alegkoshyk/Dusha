@@ -278,8 +278,8 @@ function PlanForm({
     name: plan?.name || '',
     displayName: plan?.displayName || '',
     description: plan?.description || '',
-    priceMonthly: plan?.priceMonthly || 0,
-    priceYearly: plan?.priceYearly || 0,
+    priceMonthlyUAH: plan ? (plan.priceMonthly / 100) : 0,
+    priceYearlyUAH: plan ? (plan.priceYearly / 100) : 0,
     currency: plan?.currency || 'UAH',
     maxBrands: plan?.maxBrands || 1,
     maxTotalGames: plan?.maxTotalGames || 1,
@@ -299,9 +299,11 @@ function PlanForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const { maxStorageMB, ...rest } = formData;
+    const { maxStorageMB, priceMonthlyUAH, priceYearlyUAH, ...rest } = formData;
     onSubmit({
       ...rest,
+      priceMonthly: Math.round(priceMonthlyUAH * 100),
+      priceYearly: Math.round(priceYearlyUAH * 100),
       maxStorageBytes: maxStorageMB * 1048576,
       features: selectedFeatures,
     });
@@ -344,20 +346,22 @@ function PlanForm({
 
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <Label>Ціна/місяць (копійки)</Label>
+          <Label>Ціна/місяць (грн)</Label>
           <Input
             type="number"
-            value={formData.priceMonthly}
-            onChange={(e) => setFormData({ ...formData, priceMonthly: parseInt(e.target.value) || 0 })}
+            step="0.01"
+            value={formData.priceMonthlyUAH}
+            onChange={(e) => setFormData({ ...formData, priceMonthlyUAH: parseFloat(e.target.value) || 0 })}
             className="bg-gray-800 border-gray-600"
           />
         </div>
         <div>
-          <Label>Ціна/рік (копійки)</Label>
+          <Label>Ціна/рік (грн)</Label>
           <Input
             type="number"
-            value={formData.priceYearly}
-            onChange={(e) => setFormData({ ...formData, priceYearly: parseInt(e.target.value) || 0 })}
+            step="0.01"
+            value={formData.priceYearlyUAH}
+            onChange={(e) => setFormData({ ...formData, priceYearlyUAH: parseFloat(e.target.value) || 0 })}
             className="bg-gray-800 border-gray-600"
           />
         </div>
