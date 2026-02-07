@@ -7,11 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { insertUserBrandSchema, type UserBrand } from "@shared/schema";
-import { Building2, FileText, ImagePlus, X, Loader2 } from "lucide-react";
+import { Building2, FileText, ImagePlus, X, Loader2, Crown, Zap } from "lucide-react";
 import { z } from "zod";
 import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Link } from "wouter";
 
 const editBrandSchema = insertUserBrandSchema.omit({
   userId: true,
@@ -33,6 +34,10 @@ export function EditBrandDialog({ brand, open, onOpenChange, onBrandUpdated }: E
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoChanged, setLogoChanged] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [quotaError, setQuotaError] = useState<{
+    currentPlan: string;
+    nextPlan: { id: number; name: string; maxStorageBytes: number; maxMediaFiles: number; priceMonthly: number; currency: string } | null;
+  } | null>(null);
 
   const updateBrandMutation = useMutation({
     mutationFn: async ({ id, name, description }: { id: string; name: string; description?: string }) => {
@@ -46,8 +51,25 @@ export function EditBrandDialog({ brand, open, onOpenChange, onBrandUpdated }: E
 
   const uploadLogoMutation = useMutation({
     mutationFn: async ({ brandId, logo }: { brandId: string; logo: string | null }) => {
-      const response = await apiRequest("PATCH", `/api/user/brands/${brandId}/logo`, { logo: logo || '' });
-      return response.json();
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch(`/api/user/brands/${brandId}/logo`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { "x-auth-token": authToken } : {}),
+        },
+        body: JSON.stringify({ logo: logo || '' }),
+        credentials: "include",
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        if (response.status === 413 && result.error === "quota_exceeded") {
+          setQuotaError({ currentPlan: result.currentPlan, nextPlan: result.nextPlan });
+          throw new Error("quota_exceeded");
+        }
+        throw new Error(result.error || result.message);
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/brands"] });
@@ -76,6 +98,7 @@ export function EditBrandDialog({ brand, open, onOpenChange, onBrandUpdated }: E
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setQuotaError(null);
 
     const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/svg+xml'];
     if (!validTypes.includes(file.type)) {
@@ -233,12 +256,30 @@ export function EditBrandDialog({ brand, open, onOpenChange, onBrandUpdated }: E
             />
           </div>
 
-          {(updateBrandMutation.isError || uploadLogoMutation.isError) && (
+          {(updateBrandMutation.isError || uploadLogoMutation.isError) && !quotaError && (
             <Alert variant="destructive" data-testid="edit-brand-error">
               <AlertDescription>
                 Помилка оновлення бренду
               </AlertDescription>
             </Alert>
+          )}
+
+          {quotaError && (
+            <div className="border rounded-lg p-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+              <h4 className="font-semibold text-sm flex items-center gap-2">
+                <Crown className="h-4 w-4 text-amber-500" />
+                Ліміт зберігання вичерпано
+              </h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Тариф "{quotaError.currentPlan}" не дозволяє завантажити більше файлів.
+                {quotaError.nextPlan && ` Оновіть до "${quotaError.nextPlan.name}" для ${Math.round(quotaError.nextPlan.maxStorageBytes / (1024 * 1024))} МБ.`}
+              </p>
+              <Link href="/pricing">
+                <Button size="sm" variant="outline" className="mt-2 text-xs">
+                  <Zap className="h-3 w-3 mr-1" /> Обрати тариф
+                </Button>
+              </Link>
+            </div>
           )}
 
           <div className="flex gap-3 pt-4">

@@ -17,7 +17,7 @@ import {
   ArrowLeft, Save, Loader2, Building2, Palette, Type, Target, 
   Users, Sparkles, ImagePlus, X, FileText, Megaphone, Eye, Heart, Zap,
   Plus, Trash2, User, Quote, FolderOpen, ChevronDown, ChevronRight, Layers, Move, Pencil,
-  Settings, ArrowRightLeft, GripVertical, Package
+  Settings, ArrowRightLeft, GripVertical, Package, Crown
 } from "lucide-react";
 import { Link } from "wouter";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -102,6 +102,11 @@ export default function BrandEditPage() {
   const [movingSubSegment, setMovingSubSegment] = useState<{ id: string; currentSegmentId: string } | null>(null);
   const [editingPersona, setEditingPersona] = useState<TargetAudience | null>(null);
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [upgradeDialog, setUpgradeDialog] = useState<{
+    open: boolean;
+    currentPlan: string;
+    nextPlan: { id: number; name: string; maxStorageBytes: number; maxMediaFiles: number; priceMonthly: number; currency: string } | null;
+  }>({ open: false, currentPlan: "", nextPlan: null });
 
   const { data: brand, isLoading } = useQuery<UserBrand>({
     queryKey: ["/api/user/brands", params.brandId],
@@ -152,9 +157,28 @@ export default function BrandEditPage() {
 
   const uploadLogoMutation = useMutation({
     mutationFn: async (logo: string | null) => {
-      const response = await apiRequest("PATCH", `/api/user/brands/${params.brandId}/logo`, { logo: logo || '' });
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch(`/api/user/brands/${params.brandId}/logo`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { "x-auth-token": authToken } : {}),
+        },
+        body: JSON.stringify({ logo: logo || '' }),
+        credentials: "include",
+      });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+      if (!response.ok) {
+        if (response.status === 413 && result.error === "quota_exceeded") {
+          setUpgradeDialog({
+            open: true,
+            currentPlan: result.currentPlan,
+            nextPlan: result.nextPlan,
+          });
+          throw new Error("quota_exceeded");
+        }
+        throw new Error(result.error || result.message);
+      }
       return result;
     },
     onSuccess: () => {
@@ -544,8 +568,10 @@ export default function BrandEditPage() {
         await uploadLogoMutation.mutateAsync(logoPreview);
         setLogoChanged(false);
       }
-    } catch (error) {
-      console.error("Save error:", error);
+    } catch (error: any) {
+      if (error?.message !== "quota_exceeded") {
+        console.error("Save error:", error);
+      }
     }
   };
 
@@ -1990,6 +2016,55 @@ export default function BrandEditPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <Dialog open={upgradeDialog.open} onOpenChange={(open) => setUpgradeDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-amber-500" />
+              Ліміт зберігання вичерпано
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Ваш поточний тариф <strong>"{upgradeDialog.currentPlan}"</strong> не дозволяє завантажити більше файлів.
+            </p>
+            {upgradeDialog.nextPlan ? (
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+                <h4 className="font-semibold flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500" />
+                  Перейти на "{upgradeDialog.nextPlan.name}"
+                </h4>
+                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                  <li>• Сховище: до {Math.round(upgradeDialog.nextPlan.maxStorageBytes / (1024 * 1024))} МБ</li>
+                  <li>• Файлів: до {upgradeDialog.nextPlan.maxMediaFiles}</li>
+                  <li>• {(upgradeDialog.nextPlan.priceMonthly / 100).toFixed(0)} {upgradeDialog.nextPlan.currency}/місяць</li>
+                </ul>
+                <div className="flex gap-2 mt-4">
+                  <Link href="/pricing">
+                    <Button size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white">
+                      <Crown className="h-4 w-4 mr-2" />
+                      Обрати тариф
+                    </Button>
+                  </Link>
+                  <Button variant="outline" size="sm" onClick={() => setUpgradeDialog(prev => ({ ...prev, open: false }))}>
+                    Пізніше
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="border rounded-lg p-4">
+                <p className="text-sm">
+                  Ви на максимальному тарифі. Видаліть непотрібні файли у розділі "Медіа" щоб звільнити місце.
+                </p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => setUpgradeDialog(prev => ({ ...prev, open: false }))}>
+                  Зрозуміло
+                </Button>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

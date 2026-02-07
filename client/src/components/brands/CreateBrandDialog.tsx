@@ -8,11 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useBrands } from "@/hooks/useBrands";
 import { insertUserBrandSchema, type InsertUserBrand, type UserBrand } from "@shared/schema";
-import { Building2, FileText, ImagePlus, X } from "lucide-react";
+import { Building2, FileText, ImagePlus, X, Crown, Zap } from "lucide-react";
 import { z } from "zod";
 import { useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Link } from "wouter";
 
 const createBrandSchema = insertUserBrandSchema.omit({
   userId: true,
@@ -33,11 +34,32 @@ export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: Create
   const { createBrand, isCreatingBrand, createBrandError } = useBrands();
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [quotaError, setQuotaError] = useState<{
+    currentPlan: string;
+    nextPlan: { id: number; name: string; maxStorageBytes: number; maxMediaFiles: number; priceMonthly: number; currency: string } | null;
+  } | null>(null);
 
   const uploadLogoMutation = useMutation({
     mutationFn: async ({ brandId, logo }: { brandId: string; logo: string }) => {
-      const response = await apiRequest("PATCH", `/api/user/brands/${brandId}/logo`, { logo });
-      return response.json();
+      const authToken = localStorage.getItem('authToken');
+      const response = await fetch(`/api/user/brands/${brandId}/logo`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { "x-auth-token": authToken } : {}),
+        },
+        body: JSON.stringify({ logo }),
+        credentials: "include",
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        if (response.status === 413 && result.error === "quota_exceeded") {
+          setQuotaError({ currentPlan: result.currentPlan, nextPlan: result.nextPlan });
+          throw new Error("quota_exceeded");
+        }
+        throw new Error(result.error || result.message);
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/brands"] });
@@ -56,6 +78,7 @@ export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: Create
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setQuotaError(null);
 
     // Validate file type
     const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/svg+xml'];
@@ -209,6 +232,24 @@ export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: Create
                 {createBrandError.message || "Помилка створення бренду"}
               </AlertDescription>
             </Alert>
+          )}
+
+          {quotaError && (
+            <div className="border rounded-lg p-4 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+              <h4 className="font-semibold text-sm flex items-center gap-2">
+                <Crown className="h-4 w-4 text-amber-500" />
+                Ліміт зберігання вичерпано
+              </h4>
+              <p className="text-xs text-muted-foreground mt-1">
+                Тариф "{quotaError.currentPlan}" не дозволяє завантажити більше файлів.
+                {quotaError.nextPlan && ` Оновіть до "${quotaError.nextPlan.name}" для ${Math.round(quotaError.nextPlan.maxStorageBytes / (1024 * 1024))} МБ.`}
+              </p>
+              <Link href="/pricing">
+                <Button size="sm" variant="outline" className="mt-2 text-xs">
+                  <Zap className="h-3 w-3 mr-1" /> Обрати тариф
+                </Button>
+              </Link>
+            </div>
           )}
 
           <div className="flex gap-3 pt-4">

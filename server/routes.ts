@@ -24,6 +24,34 @@ import { sql, eq, and, isNull, inArray } from "drizzle-orm";
 import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable, mediaAssetsTable, aiChatMessagesTable, userBrandsTable } from "@shared/schema";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData, generateAgentData } from "./openai";
 
+// Helper to build quota exceeded response with upgrade suggestion
+async function buildQuotaExceededResponse(userId: string) {
+  const subWithPlan = await storage.getUserSubscriptionWithPlan(userId);
+  const currentPlanName = subWithPlan?.plan?.displayName || "Безкоштовний";
+  const currentPlanId = subWithPlan?.plan?.id;
+  const currentSortOrder = subWithPlan?.plan?.sortOrder ?? 0;
+  
+  const allPlans = await storage.getSubscriptionPlans(true);
+  const nextPlan = allPlans
+    .filter(p => p.sortOrder > currentSortOrder)
+    .sort((a, b) => a.sortOrder - b.sortOrder)[0];
+  
+  return { 
+    error: "quota_exceeded",
+    message: "Досягнуто ліміт зберігання",
+    currentPlan: currentPlanName,
+    currentPlanId: currentPlanId,
+    nextPlan: nextPlan ? {
+      id: nextPlan.id,
+      name: nextPlan.displayName,
+      maxStorageBytes: nextPlan.maxStorageBytes,
+      maxMediaFiles: nextPlan.maxMediaFiles,
+      priceMonthly: nextPlan.priceMonthly,
+      currency: nextPlan.currency,
+    } : null,
+  };
+}
+
 // Helper to parse object storage paths (mirrors objectStorage.ts parseObjectPath)
 function parseObjectPathForRoute(path: string): { bucketName: string; objectName: string } {
   if (!path.startsWith("/")) {
@@ -504,7 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const estimatedSize = Math.ceil(base64Part.length * 0.75);
           const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
           if (!hasQuota) {
-            return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+            return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
           }
 
           // Upload to object storage using new media system
@@ -4843,7 +4871,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const estimatedSize = Math.ceil(base64Data.length * 0.75);
       const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
       if (!hasQuota) {
-        return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+        return res.status(413).json(await buildQuotaExceededResponse(userId));
       }
 
       const { ObjectStorageService } = await import('./objectStorage');
@@ -5309,7 +5337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const estimatedSize = Math.ceil(base64Data.length * 0.75);
       const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
       if (!hasQuota) {
-        return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+        return res.status(413).json(await buildQuotaExceededResponse(userId));
       }
 
       const { ObjectStorageService } = await import('./objectStorage');
@@ -5596,7 +5624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const estimatedSize = Math.ceil(base64Data.length * 0.75); // Approx decoded size
       const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
       if (!hasQuota) {
-        return res.status(400).json({ error: "Досягнуто ліміт зберігання. Видаліть деякі файли або зверніться до адміністратора." });
+        return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
       }
 
       // Upload to object storage
@@ -5748,7 +5776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const estimatedSize = Math.ceil(imageBase64.length * 0.75);
         const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
         if (!hasQuota) {
-          return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+          return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
         }
 
         uploadResult = await objectStorageService.uploadMediaAsset({
@@ -5763,7 +5791,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const estimatedSize = Math.ceil(base64Data.length * 0.75);
         const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
         if (!hasQuota) {
-          return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+          return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
         }
 
         uploadResult = await objectStorageService.uploadMediaAsset({
@@ -5788,7 +5816,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const estimatedSize = buffer.length;
           const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
           if (!hasQuota) {
-            return res.status(400).json({ error: "Досягнуто ліміт зберігання" });
+            return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
           }
 
           uploadResult = await objectStorageService.uploadMediaAsset({
