@@ -2043,12 +2043,29 @@ export class DatabaseStorage implements IStorage {
     let quota = await this.getUserMediaQuota(userId);
     
     if (!quota) {
-      // Create default quota for new user
       quota = await this.createOrUpdateUserMediaQuota(userId, {});
     }
     
-    const hasSpaceBytes = (quota.usedBytes || 0) + bytesToAdd <= (quota.maxTotalBytes || 104857600);
-    const hasSpaceFiles = (quota.usedFiles || 0) + 1 <= (quota.maxFiles || 100);
+    // Always sync limits from current subscription plan
+    const subWithPlan = await this.getUserSubscriptionWithPlan(userId);
+    let maxBytes = quota.maxTotalBytes || 104857600;
+    let maxFiles = quota.maxFiles || 100;
+    
+    if (subWithPlan?.plan) {
+      maxBytes = subWithPlan.plan.maxStorageBytes;
+      maxFiles = subWithPlan.plan.maxMediaFiles;
+      
+      // Sync quota limits if they differ from the plan
+      if (quota.maxTotalBytes !== maxBytes || quota.maxFiles !== maxFiles) {
+        await this.createOrUpdateUserMediaQuota(userId, {
+          maxTotalBytes: maxBytes,
+          maxFiles: maxFiles,
+        });
+      }
+    }
+    
+    const hasSpaceBytes = (quota.usedBytes || 0) + bytesToAdd <= maxBytes;
+    const hasSpaceFiles = (quota.usedFiles || 0) + 1 <= maxFiles;
     
     return hasSpaceBytes && hasSpaceFiles;
   }

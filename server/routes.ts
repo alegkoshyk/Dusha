@@ -5687,10 +5687,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quota = await storage.createOrUpdateUserMediaQuota(currentUser.id, {});
       }
 
+      // Sync limits from current subscription plan
+      const subWithPlan = await storage.getUserSubscriptionWithPlan(currentUser.id);
+      let maxTotalBytes = quota.maxTotalBytes;
+      let maxFiles = quota.maxFiles;
+      
+      if (subWithPlan?.plan) {
+        maxTotalBytes = subWithPlan.plan.maxStorageBytes;
+        maxFiles = subWithPlan.plan.maxMediaFiles;
+        
+        if (quota.maxTotalBytes !== maxTotalBytes || quota.maxFiles !== maxFiles) {
+          quota = await storage.createOrUpdateUserMediaQuota(currentUser.id, {
+            maxTotalBytes,
+            maxFiles,
+          });
+        }
+      }
+
       res.json({
         ...quota,
-        usedPercentBytes: Math.round((quota.usedBytes / quota.maxTotalBytes) * 100),
-        usedPercentFiles: Math.round((quota.usedFiles / quota.maxFiles) * 100),
+        maxTotalBytes,
+        maxFiles,
+        usedPercentBytes: Math.round((quota.usedBytes / maxTotalBytes) * 100),
+        usedPercentFiles: Math.round((quota.usedFiles / maxFiles) * 100),
       });
     } catch (error: any) {
       console.error("Get quota error:", error);
