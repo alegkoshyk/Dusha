@@ -51,6 +51,15 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType
     }
   }
   
+  if (url.includes("storage.googleapis.com/replit-objstore")) {
+    try {
+      const { refreshSignedUrl } = await import("../../objectStorage");
+      url = await refreshSignedUrl(url);
+    } catch (e) {
+      console.error("Failed to refresh GCS signed URL:", e);
+    }
+  }
+  
   if (url.startsWith("/")) {
     const port = process.env.PORT || "5000";
     url = `http://127.0.0.1:${port}${url}`;

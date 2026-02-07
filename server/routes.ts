@@ -5206,6 +5206,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } catch (e) {
             console.error('Failed to resolve proxy logo URL:', e);
           }
+        } else if (logoUrl.includes('storage.googleapis.com/replit-objstore')) {
+          try {
+            const { refreshSignedUrl } = await import('./objectStorage');
+            processedLogoUrl = await refreshSignedUrl(logoUrl);
+            console.log('Logo GCS URL refreshed to fresh signed URL');
+          } catch (e) {
+            console.error('Failed to refresh GCS logo URL:', e);
+          }
         }
       }
       
