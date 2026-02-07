@@ -42,7 +42,8 @@ type MediaQuota = {
 const assetTypeLabels: Record<string, { label: string; icon: typeof Image }> = {
   logo: { label: "Логотипи", icon: Palette },
   avatar: { label: "Аватари", icon: User },
-  merch: { label: "Мерч", icon: Package },
+  product_image: { label: "Продукти", icon: Package },
+  merch: { label: "Мерч", icon: Building2 },
   chat_ai: { label: "AI зображення", icon: FileImage },
   chat_user: { label: "Завантажені", icon: Image },
   attachment: { label: "Вкладення", icon: FileImage },

@@ -5718,7 +5718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate asset type
-      const validTypes = ['logo', 'avatar', 'chat_user', 'chat_ai', 'merch', 'attachment'];
+      const validTypes = ['logo', 'avatar', 'chat_user', 'chat_ai', 'merch', 'attachment', 'product_image'];
       if (!validTypes.includes(assetType)) {
         return res.status(400).json({ error: "Некоректний тип медіа" });
       }
