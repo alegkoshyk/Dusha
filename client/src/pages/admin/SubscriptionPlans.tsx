@@ -283,7 +283,7 @@ function PlanForm({
     currency: plan?.currency || 'UAH',
     maxBrands: plan?.maxBrands || 1,
     maxTotalGames: plan?.maxTotalGames || 1,
-    maxStorageBytes: plan?.maxStorageBytes || 52428800,
+    maxStorageMB: plan ? Math.round(plan.maxStorageBytes / 1048576) : 50,
     maxMediaFiles: plan?.maxMediaFiles || 25,
     analysisQuota: plan?.analysisQuota || 1,
     isDefault: plan?.isDefault || false,
@@ -299,8 +299,10 @@ function PlanForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const { maxStorageMB, ...rest } = formData;
     onSubmit({
-      ...formData,
+      ...rest,
+      maxStorageBytes: maxStorageMB * 1048576,
       features: selectedFeatures,
     });
   };
@@ -392,11 +394,11 @@ function PlanForm({
 
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <Label>Сховище (байт)</Label>
+          <Label>Сховище (МБ)</Label>
           <Input
             type="number"
-            value={formData.maxStorageBytes}
-            onChange={(e) => setFormData({ ...formData, maxStorageBytes: parseInt(e.target.value) || 0 })}
+            value={formData.maxStorageMB}
+            onChange={(e) => setFormData({ ...formData, maxStorageMB: parseInt(e.target.value) || 0 })}
             className="bg-gray-800 border-gray-600"
           />
         </div>
