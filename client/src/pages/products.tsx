@@ -295,7 +295,7 @@ export default function ProductsPage() {
                 <div className="aspect-video rounded-lg bg-muted/50 overflow-hidden">
                   {product.mainImageUrl ? (
                     <img 
-                      src={product.mainImageUrl} 
+                      src={resolveMediaUrl(product.mainImageUrl)} 
                       alt={product.name}
                       className="w-full h-full object-cover"
                     />

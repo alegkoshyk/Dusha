@@ -21,7 +21,7 @@ import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, isNull, inArray } from "drizzle-orm";
-import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable, mediaAssetsTable, aiChatMessagesTable, userBrandsTable } from "@shared/schema";
+import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable, mediaAssetsTable, aiChatMessagesTable, userBrandsTable, brandProductsTable } from "@shared/schema";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData, generateAgentData } from "./openai";
 
 // Helper to build quota exceeded response with upgrade suggestion
@@ -2326,16 +2326,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imageDataUrl = await generateImage(prompt);
       }
       
+      // Upload generated image to object storage
+      let finalImageUrl = imageDataUrl;
+      try {
+        const { ObjectStorageService } = await import('./objectStorage');
+        const objectStorageService = new ObjectStorageService();
+        finalImageUrl = await objectStorageService.uploadProductImage(id, imageDataUrl);
+
+        const base64Part = imageDataUrl.replace(/^data:image\/[\w+]+;base64,/, '');
+        const sizeBytes = Math.ceil(base64Part.length * 0.75);
+        const extensionMatch = imageDataUrl.match(/^data:image\/([\w+]+);/);
+        const ext = extensionMatch ? extensionMatch[1].replace('jpeg', 'jpg') : 'png';
+        const storageKey = finalImageUrl.replace('/api/media/proxy?key=', '');
+
+        await storage.createMediaAsset({
+          userId: currentUser.id,
+          brandId: product.brandId,
+          assetType: 'product_image',
+          storageKey: decodeURIComponent(storageKey),
+          publicUrl: finalImageUrl,
+          filename: `product-${product.name || id}.${ext}`,
+          mimeType: `image/${ext}`,
+          sizeBytes,
+          altText: `Product image: ${product.name || ''}`,
+        });
+      } catch (uploadError) {
+        console.warn('Product image upload to storage failed, using data URL:', uploadError);
+      }
+
       // Update product with new image
       const currentImages = (product.images as string[]) || [];
       const updated = await storage.updateBrandProduct(id, {
-        mainImageUrl: imageDataUrl,
-        images: [...currentImages, imageDataUrl]
+        mainImageUrl: finalImageUrl,
+        images: [...currentImages, finalImageUrl]
       });
 
       res.json({ 
         success: true, 
-        imageUrl: imageDataUrl,
+        imageUrl: finalImageUrl,
         product: updated 
       });
     } catch (error) {
@@ -2369,10 +2397,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Немає доступу" });
       }
 
+      // Check storage quota
+      const base64Part = base64Data.replace(/^data:image\/[\w+]+;base64,/, '');
+      const estimatedSize = Math.ceil(base64Part.length * 0.75);
+      const hasQuota = await storage.checkQuotaAvailable(currentUser.id, estimatedSize);
+      if (!hasQuota) {
+        return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
+      }
+
       // Upload to object storage
       const { ObjectStorageService } = await import('./objectStorage');
       const objectStorageService = new ObjectStorageService();
       const imageUrl = await objectStorageService.uploadProductImage(id, base64Data);
+
+      // Create media asset record
+      try {
+        const extensionMatch = base64Data.match(/^data:image\/([\w+]+);/);
+        const ext = extensionMatch ? extensionMatch[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg') : 'png';
+        const storageKey = decodeURIComponent(imageUrl.replace('/api/media/proxy?key=', ''));
+
+        await storage.createMediaAsset({
+          userId: currentUser.id,
+          brandId: product.brandId,
+          assetType: 'product_image',
+          storageKey,
+          publicUrl: imageUrl,
+          filename: `product-${product.name || id}.${ext}`,
+          mimeType: `image/${ext}`,
+          sizeBytes: estimatedSize,
+          altText: `Product image: ${product.name || ''}`,
+        });
+      } catch (mediaErr) {
+        console.warn('Failed to create media asset for product image:', mediaErr);
+      }
 
       // Update product images
       const currentImages = (product.images as string[]) || [];
@@ -5544,6 +5601,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Migrate product images from base64 data URLs to object storage
+      const allProducts = await db.select().from(brandProductsTable);
+      for (const product of allProducts) {
+        let changed = false;
+        let mainImg = product.mainImageUrl;
+        const images = (product.images as string[]) || [];
+        const newImages: string[] = [];
+
+        for (const img of images) {
+          if (img && img.startsWith('data:image/')) {
+            try {
+              const proxyUrl = await objectStorageService.uploadProductImage(product.id, img);
+              newImages.push(proxyUrl);
+              if (mainImg === img) {
+                mainImg = proxyUrl;
+              }
+              migratedCount++;
+              changed = true;
+            } catch (err) {
+              console.error(`Failed to migrate product image for ${product.id}:`, err);
+              newImages.push(img);
+              errorCount++;
+            }
+          } else {
+            newImages.push(img);
+          }
+        }
+
+        if (mainImg && mainImg.startsWith('data:image/') && !changed) {
+          try {
+            mainImg = await objectStorageService.uploadProductImage(product.id, mainImg);
+            changed = true;
+            migratedCount++;
+          } catch (err) {
+            console.error(`Failed to migrate main product image for ${product.id}:`, err);
+            errorCount++;
+          }
+        }
+
+        if (changed) {
+          await db.update(brandProductsTable)
+            .set({ mainImageUrl: mainImg, images: newImages })
+            .where(eq(brandProductsTable.id, product.id));
+        }
+      }
+
       // Also update chat message image URLs
       const chatMessagesWithImages = await db.select().from(aiChatMessagesTable)
         .where(eq(aiChatMessagesTable.role, 'image'));

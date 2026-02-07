@@ -1740,7 +1740,7 @@ export default function BrandChat() {
                       {isSelected && <Check className="w-3 h-3" />}
                     </div>
                     {product.mainImageUrl ? (
-                      <img src={product.mainImageUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-gray-200 dark:border-gray-700" />
+                      <img src={resolveMediaUrl(product.mainImageUrl)} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0 border border-gray-200 dark:border-gray-700" />
                     ) : (
                       <span className="text-lg">📦</span>
                     )}

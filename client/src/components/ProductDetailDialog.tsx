@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { resolveMediaUrl } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,7 +99,7 @@ export function ProductDetailDialog({
             <div className="aspect-video rounded-lg bg-muted/50 overflow-hidden max-w-2xl">
               {product.mainImageUrl ? (
                 <img 
-                  src={product.mainImageUrl} 
+                  src={resolveMediaUrl(product.mainImageUrl)} 
                   alt={product.name}
                   className="w-full h-full object-cover"
                 />
