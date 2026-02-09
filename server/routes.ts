@@ -8010,7 +8010,12 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
       }
       
       const responses = await storage.getBriefResponses(brief.id);
-      res.json(responses);
+      const fields = await storage.getBriefFields(brief.id);
+      const fieldMap: Record<string, string> = {};
+      for (const f of fields) {
+        fieldMap[f.id] = f.label;
+      }
+      res.json({ responses, fieldMap });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

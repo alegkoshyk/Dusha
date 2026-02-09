@@ -302,7 +302,7 @@ export default function BriefsPage() {
     enabled: !!brandId,
   });
 
-  const { data: responses } = useQuery<any[]>({
+  const { data: responsesData } = useQuery<{ responses: any[]; fieldMap: Record<string, string> }>({
     queryKey: ["/api/briefs", viewingResponses?.id, "responses"],
     queryFn: async () => {
       const authToken = localStorage.getItem("authToken");
@@ -315,6 +315,9 @@ export default function BriefsPage() {
     },
     enabled: !!viewingResponses?.id,
   });
+
+  const responses = responsesData?.responses;
+  const fieldMap = responsesData?.fieldMap || {};
 
   const resetForm = useCallback(() => {
     setTitle("");
@@ -797,7 +800,7 @@ export default function BriefsPage() {
                         {Object.entries(response.answers).map(
                           ([key, value]: [string, any]) => (
                             <div key={key} className="text-sm">
-                              <span className="font-medium">{key}:</span>{" "}
+                              <span className="font-medium">{fieldMap[key] || key}:</span>{" "}
                               <span className="text-muted-foreground">
                                 {Array.isArray(value) ? value.join(", ") : String(value)}
                               </span>
