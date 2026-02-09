@@ -17,7 +17,8 @@ import {
   Map,
   Gamepad2,
   Users,
-  Package
+  Package,
+  ClipboardList
 } from 'lucide-react';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { Link, useLocation } from 'wouter';
@@ -312,6 +313,17 @@ export default function Brands() {
                         >
                           <Package className="w-4 h-4 text-emerald-500" />
                           <span className="truncate">Продукти</span>
+                        </Button>
+                      </Link>
+                      
+                      <Link href={`/briefs/${brand.id}`} className="contents">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start gap-2 h-9"
+                        >
+                          <ClipboardList className="w-4 h-4 text-teal-500" />
+                          <span className="truncate">Брифи</span>
                         </Button>
                       </Link>
                       
