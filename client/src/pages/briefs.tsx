@@ -521,17 +521,17 @@ export default function BriefsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {briefs.map((brief) => (
-            <Card key={brief.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2 mb-1">
+            <Card key={brief.id} className="hover:shadow-lg transition-shadow overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base leading-snug line-clamp-2">{brief.title}</CardTitle>
+                <div className="flex items-center gap-2 mt-1">
                   {brief.hasPassword && (
-                    <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
                   )}
-                  <Badge variant="secondary" className="text-xs ml-auto shrink-0">
+                  <Badge variant="secondary" className="text-xs">
                     {brief.responseCount ?? 0} відповідей
                   </Badge>
                 </div>
-                <CardTitle className="text-base leading-snug line-clamp-2">{brief.title}</CardTitle>
                 {brief.description && (
                   <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
                     {brief.description}
@@ -539,25 +539,25 @@ export default function BriefsPage() {
                 )}
               </CardHeader>
               <CardContent className="space-y-3 pt-0">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2 min-w-0">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2 overflow-hidden">
                   <LinkIcon className="h-3 w-3 shrink-0" />
-                  <span className="truncate min-w-0">
+                  <span className="truncate">
                     {getPublicUrl(brief.slug)}
                   </span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 shrink-0 ml-auto"
+                    className="h-6 w-6 shrink-0"
                     onClick={() => copyLink(brief.slug)}
                   >
                     <Copy className="h-3 w-3" />
                   </Button>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="w-full"
                     onClick={() => openEdit(brief)}
                   >
                     <Edit className="h-3 w-3 mr-1" />
@@ -566,7 +566,7 @@ export default function BriefsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
+                    className="w-full"
                     onClick={() => setViewingResponses(brief)}
                   >
                     <Eye className="h-3 w-3 mr-1" />
@@ -575,7 +575,7 @@ export default function BriefsPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-destructive shrink-0"
+                    className="h-8 w-8 text-destructive"
                     onClick={() => setDeletingBrief(brief)}
                   >
                     <Trash2 className="h-4 w-4" />
