@@ -272,7 +272,6 @@ export default function BriefsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingBrief, setEditingBrief] = useState<Brief | null>(null);
   const [deletingBrief, setDeletingBrief] = useState<Brief | null>(null);
-  const [viewingResponses, setViewingResponses] = useState<Brief | null>(null);
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -301,23 +300,6 @@ export default function BriefsPage() {
     },
     enabled: !!brandId,
   });
-
-  const { data: responsesData } = useQuery<{ responses: any[]; fieldMap: Record<string, string> }>({
-    queryKey: ["/api/briefs", viewingResponses?.id, "responses"],
-    queryFn: async () => {
-      const authToken = localStorage.getItem("authToken");
-      const res = await fetch(`/api/briefs/${viewingResponses!.id}/responses`, {
-        credentials: "include",
-        headers: authToken ? { "x-auth-token": authToken } : {},
-      });
-      if (!res.ok) throw new Error("Failed to fetch responses");
-      return res.json();
-    },
-    enabled: !!viewingResponses?.id,
-  });
-
-  const responses = responsesData?.responses;
-  const fieldMap = responsesData?.fieldMap || {};
 
   const resetForm = useCallback(() => {
     setTitle("");
@@ -576,14 +558,12 @@ export default function BriefsPage() {
                     <Edit className="h-3.5 w-3.5 mr-1.5" />
                     Редагувати
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setViewingResponses(brief)}
-                  >
-                    <Eye className="h-3.5 w-3.5 mr-1.5" />
-                    Відповіді
-                  </Button>
+                  <Link href={`/brief-responses/${brief.id}`} className="contents">
+                    <Button variant="outline" size="sm" className="w-full">
+                      <Eye className="h-3.5 w-3.5 mr-1.5" />
+                      Відповіді
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </Card>
@@ -762,65 +742,6 @@ export default function BriefsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog
-        open={!!viewingResponses}
-        onOpenChange={(open) => !open && setViewingResponses(null)}
-      >
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Відповіді: {viewingResponses?.title}
-            </DialogTitle>
-          </DialogHeader>
-          {responses?.length ? (
-            <div className="space-y-4">
-              {responses.map((response: any, idx: number) => (
-                <Card key={response.id || idx}>
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge variant="outline">#{idx + 1}</Badge>
-                      {response.respondentName && (
-                        <span className="text-sm font-medium">
-                          {response.respondentName}
-                        </span>
-                      )}
-                      {response.respondentEmail && (
-                        <span className="text-sm text-muted-foreground">
-                          {response.respondentEmail}
-                        </span>
-                      )}
-                      {response.createdAt && (
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          {new Date(response.createdAt).toLocaleDateString("uk-UA")}
-                        </span>
-                      )}
-                    </div>
-                    {response.answers && (
-                      <div className="space-y-2">
-                        {Object.entries(response.answers).map(
-                          ([key, value]: [string, any]) => (
-                            <div key={key} className="text-sm">
-                              <span className="font-medium">{fieldMap[key] || key}:</span>{" "}
-                              <span className="text-muted-foreground">
-                                {Array.isArray(value) ? value.join(", ") : String(value)}
-                              </span>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <Eye className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Поки що немає відповідей</p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
