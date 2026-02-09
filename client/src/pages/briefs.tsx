@@ -521,67 +521,68 @@ export default function BriefsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {briefs.map((brief) => (
-            <Card key={brief.id} className="hover:shadow-lg transition-shadow overflow-hidden">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base leading-snug line-clamp-2">{brief.title}</CardTitle>
-                <div className="flex items-center gap-2 mt-1">
-                  {brief.hasPassword && (
-                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                  )}
-                  <Badge variant="secondary" className="text-xs">
-                    {brief.responseCount ?? 0} відповідей
-                  </Badge>
-                </div>
-                {brief.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                    {brief.description}
-                  </p>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2 overflow-hidden">
-                  <LinkIcon className="h-3 w-3 shrink-0" />
-                  <span className="truncate">
-                    {getPublicUrl(brief.slug)}
-                  </span>
+            <Card key={brief.id} className="hover:shadow-lg transition-shadow">
+              <div className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold text-base leading-snug line-clamp-2 flex-1 min-w-0">{brief.title}</h3>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 shrink-0"
-                    onClick={() => copyLink(brief.slug)}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => openEdit(brief)}
-                  >
-                    <Edit className="h-3 w-3 mr-1" />
-                    Редагувати
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setViewingResponses(brief)}
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    Відповіді
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive"
+                    className="h-7 w-7 text-destructive shrink-0 -mt-1 -mr-1"
                     onClick={() => setDeletingBrief(brief)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              </CardContent>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {brief.hasPassword && (
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <Lock className="h-3 w-3" />
+                      Пароль
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="text-xs">
+                    {brief.responseCount ?? 0} відповідей
+                  </Badge>
+                </div>
+
+                {brief.description && (
+                  <p className="text-sm text-muted-foreground line-clamp-2">
+                    {brief.description}
+                  </p>
+                )}
+
+                <button
+                  onClick={() => copyLink(brief.slug)}
+                  className="flex items-center gap-2 w-full text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2 hover:bg-muted transition-colors text-left"
+                >
+                  <LinkIcon className="h-3 w-3 shrink-0" />
+                  <span className="truncate flex-1 min-w-0">
+                    {getPublicUrl(brief.slug)}
+                  </span>
+                  <Copy className="h-3 w-3 shrink-0" />
+                </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openEdit(brief)}
+                  >
+                    <Edit className="h-3.5 w-3.5 mr-1.5" />
+                    Редагувати
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setViewingResponses(brief)}
+                  >
+                    <Eye className="h-3.5 w-3.5 mr-1.5" />
+                    Відповіді
+                  </Button>
+                </div>
+              </div>
             </Card>
           ))}
         </div>
