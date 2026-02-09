@@ -1595,4 +1595,92 @@ export const insertUserAgentSchema = createInsertSchema(userAgentsTable).omit({
 export type UserAgent = typeof userAgentsTable.$inferSelect;
 export type InsertUserAgent = z.infer<typeof insertUserAgentSchema>;
 
+// =========================================
+// Система брифування (Briefing System)
+// =========================================
+export const briefsTable = pgTable("briefs", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  brandId: uuid("brand_id").references(() => userBrandsTable.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 300 }).notNull(),
+  description: text("description"),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  password: varchar("password", { length: 255 }),
+  status: varchar("status", { length: 20 }).notNull().default("draft"),
+  respondentNameRequired: boolean("respondent_name_required").notNull().default(true),
+  respondentEmailRequired: boolean("respondent_email_required").notNull().default(false),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  userIdx: index("briefs_user_idx").on(table.userId),
+  brandIdx: index("briefs_brand_idx").on(table.brandId),
+  slugIdx: index("briefs_slug_idx").on(table.slug),
+}));
+
+export const briefsRelations = relations(briefsTable, ({ one, many }) => ({
+  user: one(usersTable, { fields: [briefsTable.userId], references: [usersTable.id] }),
+  brand: one(userBrandsTable, { fields: [briefsTable.brandId], references: [userBrandsTable.id] }),
+  fields: many(briefFieldsTable),
+  responses: many(briefResponsesTable),
+}));
+
+export const insertBriefSchema = createInsertSchema(briefsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Brief = typeof briefsTable.$inferSelect;
+export type InsertBrief = z.infer<typeof insertBriefSchema>;
+
+export const briefFieldsTable = pgTable("brief_fields", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  briefId: uuid("brief_id").notNull().references(() => briefsTable.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 30 }).notNull(),
+  label: varchar("label", { length: 500 }).notNull(),
+  description: text("description"),
+  required: boolean("required").notNull().default(false),
+  options: json("options").$type<string[]>(),
+  allowCustomOption: boolean("allow_custom_option").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  briefIdx: index("brief_fields_brief_idx").on(table.briefId),
+}));
+
+export const briefFieldsRelations = relations(briefFieldsTable, ({ one }) => ({
+  brief: one(briefsTable, { fields: [briefFieldsTable.briefId], references: [briefsTable.id] }),
+}));
+
+export const insertBriefFieldSchema = createInsertSchema(briefFieldsTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type BriefField = typeof briefFieldsTable.$inferSelect;
+export type InsertBriefField = z.infer<typeof insertBriefFieldSchema>;
+
+export const briefResponsesTable = pgTable("brief_responses", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  briefId: uuid("brief_id").notNull().references(() => briefsTable.id, { onDelete: "cascade" }),
+  respondentName: varchar("respondent_name", { length: 200 }),
+  respondentEmail: varchar("respondent_email", { length: 255 }),
+  answers: json("answers").$type<Record<string, any>>().notNull(),
+  submittedAt: timestamp("submitted_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  briefIdx: index("brief_responses_brief_idx").on(table.briefId),
+}));
+
+export const briefResponsesRelations = relations(briefResponsesTable, ({ one }) => ({
+  brief: one(briefsTable, { fields: [briefResponsesTable.briefId], references: [briefsTable.id] }),
+}));
+
+export const insertBriefResponseSchema = createInsertSchema(briefResponsesTable).omit({
+  id: true,
+  submittedAt: true,
+});
+
+export type BriefResponse = typeof briefResponsesTable.$inferSelect;
+export type InsertBriefResponse = z.infer<typeof insertBriefResponseSchema>;
+
 export * from "./models/chat";

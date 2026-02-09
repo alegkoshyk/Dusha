@@ -41,6 +41,23 @@ Preferred communication style: Simple, everyday language.
   - POST `/api/brands/:brandId/generate-persona` - AI persona generation
 - **Frontend**: Brand passport "Audience" tab, dedicated /target-audience/:brandId page with AI generation dialog
 
+### Briefing System (Pro Tier)
+- **Database Tables**: briefs (title, slug, hashed password, settings), brief_fields (type, label, options, sort order), brief_responses (respondent info, JSON answers)
+- **Field Types**: short_text, long_text, multiple_choice (with custom option), dropdown
+- **AI Generation**: OpenAI-powered brief structure generation from context
+- **Public Access**: Shareable unique links via slug, accessible without authentication
+- **Security**: bcrypt-hashed passwords, no password in API responses, slug collision prevention
+- **API Endpoints**:
+  - GET/POST `/api/briefs` - List/create briefs
+  - GET/PATCH/DELETE `/api/briefs/:id` - Brief operations
+  - GET `/api/brands/:brandId/briefs` - Brand-specific briefs
+  - GET `/api/briefs/:id/responses` - View responses
+  - POST `/api/briefs/generate` - AI brief generation
+  - GET `/api/public/brief/:slug` - Public brief access
+  - POST `/api/public/brief/:slug/verify` - Password verification
+  - POST `/api/public/brief/:slug/submit` - Submit response
+- **Frontend**: `/briefs/:brandId` page with builder, `/brief/:slug` public fill page
+
 ### Export and Sharing
 - **PDF Export**: jsPDF integration for branded PDF reports of the brand map.
 - **Brand Map Visualization**: Dynamic preview of the completed brand strategy.

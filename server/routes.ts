@@ -24,6 +24,20 @@ import { sql, eq, and, isNull, inArray } from "drizzle-orm";
 import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable, mediaAssetsTable, aiChatMessagesTable, userBrandsTable, brandProductsTable } from "@shared/schema";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData, generateAgentData } from "./openai";
 
+// Generate unique slug for briefs with collision check
+async function generateUniqueBriefSlug(): Promise<string> {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  for (let attempt = 0; attempt < 10; attempt++) {
+    let slug = '';
+    for (let i = 0; i < 8; i++) {
+      slug += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const existing = await storage.getBriefBySlug(slug);
+    if (!existing) return slug;
+  }
+  throw new Error("Failed to generate unique slug");
+}
+
 // Helper to build quota exceeded response with upgrade suggestion
 async function buildQuotaExceededResponse(userId: string) {
   const subWithPlan = await storage.getUserSubscriptionWithPlan(userId);
@@ -7788,6 +7802,420 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
       });
     }
   }
+
+  // =========================================
+  // Briefing System Routes
+  // =========================================
+
+  // Get all briefs for current user
+  app.get("/api/briefs", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) return res.status(401).json({ error: "Не авторизовано" });
+      const briefs = await storage.getBriefs(currentUser.id);
+      res.json(briefs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get briefs for a specific brand
+  app.get("/api/brands/:brandId/briefs", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) return res.status(401).json({ error: "Не авторизовано" });
+      
+      const brand = await storage.getUserBrand(req.params.brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+      
+      const briefs = await storage.getBrandBriefs(req.params.brandId);
+      const briefsWithCounts = await Promise.all(
+        briefs.map(async (brief) => {
+          const responses = await storage.getBriefResponses(brief.id);
+          const { password: _, ...briefWithoutPassword } = brief;
+          return { ...briefWithoutPassword, hasPassword: !!brief.password, responseCount: responses.length };
+        })
+      );
+      res.json(briefsWithCounts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get single brief with fields
+  app.get("/api/briefs/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) return res.status(401).json({ error: "Не авторизовано" });
+      
+      const brief = await storage.getBrief(req.params.id);
+      if (!brief || brief.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бриф не знайдено" });
+      }
+      
+      const fields = await storage.getBriefFields(brief.id);
+      const { password: _, ...briefWithoutPassword } = brief;
+      res.json({ ...briefWithoutPassword, hasPassword: !!brief.password, fields });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create brief
+  app.post("/api/briefs", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) return res.status(401).json({ error: "Не авторизовано" });
+      
+      // Pro tier check
+      const subscription = await storage.getUserSubscriptionWithPlan(currentUser.id);
+      if (!subscription || subscription.plan.sortOrder < 2) {
+        return res.status(403).json({ error: "Брифи доступні тільки для Pro тарифу" });
+      }
+      
+      const { title, description, brandId, password, respondentNameRequired, respondentEmailRequired, fields } = req.body;
+      
+      if (!title) {
+        return res.status(400).json({ error: "Назва брифу обов'язкова" });
+      }
+      
+      const slug = await generateUniqueBriefSlug();
+      
+      let hashedPassword = null;
+      if (password) {
+        const bcryptModule = await import("bcryptjs");
+        hashedPassword = await bcryptModule.default.hash(password, 10);
+      }
+      
+      const brief = await storage.createBrief({
+        userId: currentUser.id,
+        brandId: brandId || null,
+        title,
+        description: description || null,
+        slug,
+        password: hashedPassword,
+        status: "active",
+        respondentNameRequired: respondentNameRequired ?? true,
+        respondentEmailRequired: respondentEmailRequired ?? false,
+      });
+      
+      // Create fields if provided
+      if (fields && Array.isArray(fields)) {
+        for (let i = 0; i < fields.length; i++) {
+          const f = fields[i];
+          await storage.createBriefField({
+            briefId: brief.id,
+            type: f.type,
+            label: f.label,
+            description: f.description || null,
+            required: f.required ?? false,
+            options: f.options || null,
+            allowCustomOption: f.allowCustomOption ?? false,
+            sortOrder: i,
+          });
+        }
+      }
+      
+      const createdFields = await storage.getBriefFields(brief.id);
+      res.json({ ...brief, fields: createdFields });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update brief
+  app.patch("/api/briefs/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) return res.status(401).json({ error: "Не авторизовано" });
+      
+      const brief = await storage.getBrief(req.params.id);
+      if (!brief || brief.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бриф не знайдено" });
+      }
+      
+      const { title, description, password, status, respondentNameRequired, respondentEmailRequired, fields } = req.body;
+      
+      const updates: any = {};
+      if (title !== undefined) updates.title = title;
+      if (description !== undefined) updates.description = description;
+      if (password !== undefined) {
+        if (password) {
+          const bcryptModule = await import("bcryptjs");
+          updates.password = await bcryptModule.default.hash(password, 10);
+        } else {
+          updates.password = null;
+        }
+      }
+      if (status !== undefined) updates.status = status;
+      if (respondentNameRequired !== undefined) updates.respondentNameRequired = respondentNameRequired;
+      if (respondentEmailRequired !== undefined) updates.respondentEmailRequired = respondentEmailRequired;
+      
+      const updated = await storage.updateBrief(brief.id, updates);
+      
+      // Replace fields if provided
+      if (fields && Array.isArray(fields)) {
+        await storage.deleteBriefFields(brief.id);
+        for (let i = 0; i < fields.length; i++) {
+          const f = fields[i];
+          await storage.createBriefField({
+            briefId: brief.id,
+            type: f.type,
+            label: f.label,
+            description: f.description || null,
+            required: f.required ?? false,
+            options: f.options || null,
+            allowCustomOption: f.allowCustomOption ?? false,
+            sortOrder: i,
+          });
+        }
+      }
+      
+      const updatedFields = await storage.getBriefFields(brief.id);
+      res.json({ ...updated, fields: updatedFields });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete brief
+  app.delete("/api/briefs/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) return res.status(401).json({ error: "Не авторизовано" });
+      
+      const brief = await storage.getBrief(req.params.id);
+      if (!brief || brief.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бриф не знайдено" });
+      }
+      
+      await storage.deleteBrief(brief.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get brief responses (for owner)
+  app.get("/api/briefs/:id/responses", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) return res.status(401).json({ error: "Не авторизовано" });
+      
+      const brief = await storage.getBrief(req.params.id);
+      if (!brief || brief.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бриф не знайдено" });
+      }
+      
+      const responses = await storage.getBriefResponses(brief.id);
+      res.json(responses);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete brief response
+  app.delete("/api/brief-responses/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) return res.status(401).json({ error: "Не авторизовано" });
+      
+      const response = await storage.getBriefResponse(req.params.id);
+      if (!response) return res.status(404).json({ error: "Відповідь не знайдено" });
+      
+      const brief = await storage.getBrief(response.briefId);
+      if (!brief || brief.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+      
+      await storage.deleteBriefResponse(req.params.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // =========================================
+  // Public Brief Routes (no auth required)
+  // =========================================
+
+  // Get brief by slug (public)
+  app.get("/api/public/brief/:slug", async (req, res) => {
+    try {
+      const brief = await storage.getBriefBySlug(req.params.slug);
+      if (!brief || brief.status !== "active") {
+        return res.status(404).json({ error: "Бриф не знайдено або неактивний" });
+      }
+      
+      const fields = await storage.getBriefFields(brief.id);
+      
+      res.json({
+        id: brief.id,
+        title: brief.title,
+        description: brief.description,
+        hasPassword: !!brief.password,
+        respondentNameRequired: brief.respondentNameRequired,
+        respondentEmailRequired: brief.respondentEmailRequired,
+        fields,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Verify brief password (public)
+  app.post("/api/public/brief/:slug/verify", async (req, res) => {
+    try {
+      const brief = await storage.getBriefBySlug(req.params.slug);
+      if (!brief || brief.status !== "active") {
+        return res.status(404).json({ error: "Бриф не знайдено" });
+      }
+      
+      if (!brief.password) {
+        return res.json({ verified: true });
+      }
+      
+      const { password } = req.body;
+      const bcryptModule = await import("bcryptjs");
+      const isValid = await bcryptModule.default.compare(password || "", brief.password);
+      if (isValid) {
+        return res.json({ verified: true });
+      }
+      
+      res.status(403).json({ error: "Невірний пароль" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Submit brief response (public)
+  app.post("/api/public/brief/:slug/submit", async (req, res) => {
+    try {
+      const brief = await storage.getBriefBySlug(req.params.slug);
+      if (!brief || brief.status !== "active") {
+        return res.status(404).json({ error: "Бриф не знайдено або неактивний" });
+      }
+      
+      if (brief.password) {
+        const { password } = req.body;
+        const bcryptModule = await import("bcryptjs");
+        const isValid = await bcryptModule.default.compare(password || "", brief.password);
+        if (!isValid) {
+          return res.status(403).json({ error: "Невірний пароль" });
+        }
+      }
+      
+      const { respondentName, respondentEmail, answers } = req.body;
+      
+      if (brief.respondentNameRequired && !respondentName) {
+        return res.status(400).json({ error: "Ім'я респондента обов'язкове" });
+      }
+      if (brief.respondentEmailRequired && !respondentEmail) {
+        return res.status(400).json({ error: "Email респондента обов'язковий" });
+      }
+      
+      if (!answers || typeof answers !== 'object') {
+        return res.status(400).json({ error: "Відповіді обов'язкові" });
+      }
+      
+      const response = await storage.createBriefResponse({
+        briefId: brief.id,
+        respondentName: respondentName || null,
+        respondentEmail: respondentEmail || null,
+        answers,
+      });
+      
+      res.json({ success: true, responseId: response.id });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // AI Brief Generation
+  app.post("/api/briefs/generate", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) return res.status(401).json({ error: "Не авторизовано" });
+      
+      const subscription = await storage.getUserSubscriptionWithPlan(currentUser.id);
+      if (!subscription || subscription.plan.sortOrder < 2) {
+        return res.status(403).json({ error: "Генерація брифів доступна тільки для Pro тарифу" });
+      }
+      
+      const { context, brandId } = req.body;
+      if (!context) {
+        return res.status(400).json({ error: "Контекст для генерації обов'язковий" });
+      }
+      
+      let brandContext = "";
+      if (brandId) {
+        const brand = await storage.getUserBrand(brandId);
+        if (brand) {
+          brandContext = `\nБренд: ${brand.name}\nОпис: ${brand.description || ""}\nМісія: ${brand.mission || ""}\nЦінності: ${JSON.stringify(brand.values || [])}\n`;
+        }
+      }
+      
+      const openaiKeySetting = await storage.getAppSetting("OPENAI_API_KEY");
+      const openaiModelSetting = await storage.getAppSetting("AI_MODEL_OPENAI");
+      const apiKey = openaiKeySetting?.value || process.env.OPENAI_API_KEY || "";
+      const model = openaiModelSetting?.value || "gpt-4o-mini";
+      
+      if (!apiKey) {
+        return res.status(500).json({ error: "AI не налаштований. Зверніться до адміністратора." });
+      }
+      
+      const systemPrompt = `Ти — експерт з брендингу та маркетингу. Створи структуру брифу для клієнта на основі контексту.
+Відповідай ВИКЛЮЧНО валідним JSON масивом полів брифу. Кожне поле має мати:
+- type: "short_text" | "long_text" | "multiple_choice" | "dropdown"
+- label: назва поля (українською)
+- description: опис/пояснення поля (українською, опціонально)
+- required: true/false
+- options: масив рядків (тільки для multiple_choice та dropdown)
+- allowCustomOption: true/false (тільки для multiple_choice)
+
+Приклад формату відповіді:
+[
+  {"type": "short_text", "label": "Назва компанії", "description": "Офіційна назва вашої компанії", "required": true},
+  {"type": "long_text", "label": "Опис проекту", "description": "Детально опишіть ваш проект", "required": true},
+  {"type": "multiple_choice", "label": "Цільова аудиторія", "options": ["B2B", "B2C", "Обидва"], "required": true, "allowCustomOption": true},
+  {"type": "dropdown", "label": "Бюджет", "options": ["До 5000 грн", "5000-20000 грн", "20000+ грн"], "required": false}
+]
+
+Створи 8-15 релевантних полів. Відповідай ТІЛЬКИ JSON масивом, без додаткового тексту.`;
+
+      const userPrompt = `Контекст: ${context}${brandContext}`;
+
+      const OpenAI = (await import("openai")).default;
+      const openai = new OpenAI({ apiKey });
+      
+      const completion = await openai.chat.completions.create({
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 4000,
+      });
+      
+      const responseText = completion.choices[0]?.message?.content || "[]";
+      
+      let fields;
+      try {
+        const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        fields = JSON.parse(cleaned);
+      } catch {
+        return res.status(500).json({ error: "Не вдалося розпарсити відповідь AI" });
+      }
+      
+      res.json({ fields, title: `Бриф: ${context.substring(0, 50)}${context.length > 50 ? "..." : ""}` });
+    } catch (error: any) {
+      console.error("AI brief generation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

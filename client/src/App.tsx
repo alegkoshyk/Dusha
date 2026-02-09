@@ -45,6 +45,8 @@ import Brands from "@/pages/brands";
 import TargetAudience from "@/pages/target-audience";
 import Products from "@/pages/products";
 import Agents from "@/pages/agents";
+import Briefs from "@/pages/briefs";
+import BriefPublic from "@/pages/brief-public";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -105,6 +107,7 @@ function Router() {
           <Route path="/brand/:brandId" component={BrandEdit} />
           <Route path="/target-audience/:brandId" component={TargetAudience} />
           <Route path="/products/:brandId" component={Products} />
+          <Route path="/briefs/:brandId" component={Briefs} />
           <Route path="/agents" component={Agents} />
           <Route path="/brand-analysis" component={BrandAnalysis} />
           <Route component={NotFound} />
@@ -120,7 +123,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <Router />
+          <Switch>
+            <Route path="/brief/:slug" component={BriefPublic} />
+            <Route><Router /></Route>
+          </Switch>
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>

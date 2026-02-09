@@ -103,6 +103,15 @@ import {
   type UserAgent,
   type InsertUserAgent,
   userAgentsTable,
+  type Brief,
+  type InsertBrief,
+  briefsTable,
+  type BriefField,
+  type InsertBriefField,
+  briefFieldsTable,
+  type BriefResponse,
+  type InsertBriefResponse,
+  briefResponsesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -317,6 +326,29 @@ export interface IStorage {
   createUserAgent(agent: InsertUserAgent): Promise<UserAgent>;
   updateUserAgent(id: string, updates: Partial<UserAgent>): Promise<UserAgent | undefined>;
   deleteUserAgent(id: string): Promise<boolean>;
+  
+  // Briefing operations
+  getBriefs(userId: string): Promise<Brief[]>;
+  getBrief(id: string): Promise<Brief | undefined>;
+  getBriefBySlug(slug: string): Promise<Brief | undefined>;
+  getBrandBriefs(brandId: string): Promise<Brief[]>;
+  createBrief(brief: InsertBrief): Promise<Brief>;
+  updateBrief(id: string, updates: Partial<Brief>): Promise<Brief | undefined>;
+  deleteBrief(id: string): Promise<boolean>;
+  
+  // Brief fields operations
+  getBriefFields(briefId: string): Promise<BriefField[]>;
+  getBriefField(id: string): Promise<BriefField | undefined>;
+  createBriefField(field: InsertBriefField): Promise<BriefField>;
+  updateBriefField(id: string, updates: Partial<BriefField>): Promise<BriefField | undefined>;
+  deleteBriefField(id: string): Promise<boolean>;
+  deleteBriefFields(briefId: string): Promise<boolean>;
+  
+  // Brief responses operations
+  getBriefResponses(briefId: string): Promise<BriefResponse[]>;
+  getBriefResponse(id: string): Promise<BriefResponse | undefined>;
+  createBriefResponse(response: InsertBriefResponse): Promise<BriefResponse>;
+  deleteBriefResponse(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3083,6 +3115,135 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(userAgentsTable)
       .where(eq(userAgentsTable.id, id));
+    return true;
+  }
+
+  // Briefing operations
+  async getBriefs(userId: string): Promise<Brief[]> {
+    return await db
+      .select()
+      .from(briefsTable)
+      .where(eq(briefsTable.userId, userId))
+      .orderBy(desc(briefsTable.createdAt));
+  }
+
+  async getBrief(id: string): Promise<Brief | undefined> {
+    const [brief] = await db
+      .select()
+      .from(briefsTable)
+      .where(eq(briefsTable.id, id));
+    return brief;
+  }
+
+  async getBriefBySlug(slug: string): Promise<Brief | undefined> {
+    const [brief] = await db
+      .select()
+      .from(briefsTable)
+      .where(eq(briefsTable.slug, slug));
+    return brief;
+  }
+
+  async getBrandBriefs(brandId: string): Promise<Brief[]> {
+    return await db
+      .select()
+      .from(briefsTable)
+      .where(eq(briefsTable.brandId, brandId))
+      .orderBy(desc(briefsTable.createdAt));
+  }
+
+  async createBrief(brief: InsertBrief): Promise<Brief> {
+    const [newBrief] = await db
+      .insert(briefsTable)
+      .values(brief)
+      .returning();
+    return newBrief;
+  }
+
+  async updateBrief(id: string, updates: Partial<Brief>): Promise<Brief | undefined> {
+    const [updated] = await db
+      .update(briefsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(briefsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBrief(id: string): Promise<boolean> {
+    await db.delete(briefsTable).where(eq(briefsTable.id, id));
+    return true;
+  }
+
+  // Brief fields operations
+  async getBriefFields(briefId: string): Promise<BriefField[]> {
+    return await db
+      .select()
+      .from(briefFieldsTable)
+      .where(eq(briefFieldsTable.briefId, briefId))
+      .orderBy(briefFieldsTable.sortOrder);
+  }
+
+  async getBriefField(id: string): Promise<BriefField | undefined> {
+    const [field] = await db
+      .select()
+      .from(briefFieldsTable)
+      .where(eq(briefFieldsTable.id, id));
+    return field;
+  }
+
+  async createBriefField(field: InsertBriefField): Promise<BriefField> {
+    const [newField] = await db
+      .insert(briefFieldsTable)
+      .values(field)
+      .returning();
+    return newField;
+  }
+
+  async updateBriefField(id: string, updates: Partial<BriefField>): Promise<BriefField | undefined> {
+    const [updated] = await db
+      .update(briefFieldsTable)
+      .set(updates)
+      .where(eq(briefFieldsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteBriefField(id: string): Promise<boolean> {
+    await db.delete(briefFieldsTable).where(eq(briefFieldsTable.id, id));
+    return true;
+  }
+
+  async deleteBriefFields(briefId: string): Promise<boolean> {
+    await db.delete(briefFieldsTable).where(eq(briefFieldsTable.briefId, briefId));
+    return true;
+  }
+
+  // Brief responses operations
+  async getBriefResponses(briefId: string): Promise<BriefResponse[]> {
+    return await db
+      .select()
+      .from(briefResponsesTable)
+      .where(eq(briefResponsesTable.briefId, briefId))
+      .orderBy(desc(briefResponsesTable.submittedAt));
+  }
+
+  async getBriefResponse(id: string): Promise<BriefResponse | undefined> {
+    const [response] = await db
+      .select()
+      .from(briefResponsesTable)
+      .where(eq(briefResponsesTable.id, id));
+    return response;
+  }
+
+  async createBriefResponse(response: InsertBriefResponse): Promise<BriefResponse> {
+    const [newResponse] = await db
+      .insert(briefResponsesTable)
+      .values(response)
+      .returning();
+    return newResponse;
+  }
+
+  async deleteBriefResponse(id: string): Promise<boolean> {
+    await db.delete(briefResponsesTable).where(eq(briefResponsesTable.id, id));
     return true;
   }
 }
