@@ -127,5 +127,17 @@ Preferred communication style: Simple, everyday language.
   - Apple Developer Account ($99/year) for App Store
   - Google Play Developer Account ($25 one-time)
 
+### Quiz Feature ("Де Я?")
+- **Database Table**: quiz_results (answers JSON, total_score, result_level)
+- **Route**: `/quiz/:brandId` - Animated brand self-assessment quiz
+- **Questions**: 10 questions across 5 categories (Identity, Visual Language, Audience, Communication, Strategy)
+- **Scoring**: 4 result levels (beginner 0-30%, developing 30-55%, strong 55-80%, master 80%+)
+- **Animation**: Framer-motion for slide transitions, score reveals, and progress bars
+- **API Endpoints**:
+  - GET `/api/brands/:brandId/quiz-results` - All quiz results for user+brand
+  - GET `/api/brands/:brandId/quiz-results/latest` - Latest quiz result
+  - POST `/api/brands/:brandId/quiz-results` - Save quiz result
+- **Navigation**: "Де Я?" button in brand edit page header
+
 ## Documentation
 Full project documentation available in `DOCUMENTATION.md`.
