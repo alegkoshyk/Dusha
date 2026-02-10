@@ -18,7 +18,8 @@ import {
   Gamepad2,
   Users,
   Package,
-  ClipboardList
+  ClipboardList,
+  Sparkles
 } from 'lucide-react';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { Link, useLocation } from 'wouter';
@@ -324,6 +325,17 @@ export default function Brands() {
                         >
                           <ClipboardList className="w-4 h-4 text-teal-500" />
                           <span className="truncate">Брифи</span>
+                        </Button>
+                      </Link>
+                      
+                      <Link href={`/quiz/${brand.id}`} className="contents">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start gap-2 h-9 border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                        >
+                          <Sparkles className="w-4 h-4 text-purple-500" />
+                          <span className="truncate">Де Я?</span>
                         </Button>
                       </Link>
                       
