@@ -112,6 +112,9 @@ import {
   type BriefResponse,
   type InsertBriefResponse,
   briefResponsesTable,
+  type QuizResult,
+  type InsertQuizResult,
+  quizResultsTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -349,6 +352,11 @@ export interface IStorage {
   getBriefResponse(id: string): Promise<BriefResponse | undefined>;
   createBriefResponse(response: InsertBriefResponse): Promise<BriefResponse>;
   deleteBriefResponse(id: string): Promise<boolean>;
+
+  // Quiz operations
+  getQuizResults(userId: string, brandId: string): Promise<QuizResult[]>;
+  getLatestQuizResult(userId: string, brandId: string): Promise<QuizResult | undefined>;
+  createQuizResult(result: InsertQuizResult): Promise<QuizResult>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3245,6 +3253,32 @@ export class DatabaseStorage implements IStorage {
   async deleteBriefResponse(id: string): Promise<boolean> {
     await db.delete(briefResponsesTable).where(eq(briefResponsesTable.id, id));
     return true;
+  }
+
+  async getQuizResults(userId: string, brandId: string): Promise<QuizResult[]> {
+    return db
+      .select()
+      .from(quizResultsTable)
+      .where(and(eq(quizResultsTable.userId, userId), eq(quizResultsTable.brandId, brandId)))
+      .orderBy(desc(quizResultsTable.createdAt));
+  }
+
+  async getLatestQuizResult(userId: string, brandId: string): Promise<QuizResult | undefined> {
+    const [result] = await db
+      .select()
+      .from(quizResultsTable)
+      .where(and(eq(quizResultsTable.userId, userId), eq(quizResultsTable.brandId, brandId)))
+      .orderBy(desc(quizResultsTable.createdAt))
+      .limit(1);
+    return result;
+  }
+
+  async createQuizResult(result: InsertQuizResult): Promise<QuizResult> {
+    const [newResult] = await db
+      .insert(quizResultsTable)
+      .values(result)
+      .returning();
+    return newResult;
   }
 }
 

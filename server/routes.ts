@@ -8222,6 +8222,44 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
     }
   });
 
+  // Quiz routes
+  app.get("/api/brands/:brandId/quiz-results", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).userId;
+      const results = await storage.getQuizResults(userId, req.params.brandId);
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/brands/:brandId/quiz-results/latest", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).userId;
+      const result = await storage.getLatestQuizResult(userId, req.params.brandId);
+      res.json(result || null);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/brands/:brandId/quiz-results", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).userId;
+      const { answers, totalScore, resultLevel } = req.body;
+      const result = await storage.createQuizResult({
+        userId,
+        brandId: req.params.brandId,
+        answers,
+        totalScore,
+        resultLevel,
+      });
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

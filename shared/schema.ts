@@ -1683,4 +1683,30 @@ export const insertBriefResponseSchema = createInsertSchema(briefResponsesTable)
 export type BriefResponse = typeof briefResponsesTable.$inferSelect;
 export type InsertBriefResponse = z.infer<typeof insertBriefResponseSchema>;
 
+// Quiz results
+export const quizResultsTable = pgTable("quiz_results", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id),
+  brandId: uuid("brand_id").notNull().references(() => userBrandsTable.id),
+  answers: json("answers").notNull(),
+  totalScore: integer("total_score").notNull(),
+  resultLevel: varchar("result_level", { length: 50 }).notNull(),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+}, (table) => ({
+  userBrandIdx: index("quiz_results_user_brand_idx").on(table.userId, table.brandId),
+}));
+
+export const quizResultsRelations = relations(quizResultsTable, ({ one }) => ({
+  user: one(usersTable, { fields: [quizResultsTable.userId], references: [usersTable.id] }),
+  brand: one(userBrandsTable, { fields: [quizResultsTable.brandId], references: [userBrandsTable.id] }),
+}));
+
+export const insertQuizResultSchema = createInsertSchema(quizResultsTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type QuizResult = typeof quizResultsTable.$inferSelect;
+export type InsertQuizResult = z.infer<typeof insertQuizResultSchema>;
+
 export * from "./models/chat";
