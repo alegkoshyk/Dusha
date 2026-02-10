@@ -620,19 +620,27 @@ export default function BrandEditPage() {
               <p className="text-sm text-muted-foreground">Паспорт бренду</p>
             </div>
           </div>
-          <Button onClick={handleSave} disabled={isPending} data-testid="button-save-brand">
-            {isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Збереження...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Зберегти
-              </>
-            )}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href={`/quiz/${params.brandId}`}>
+              <Button variant="outline" size="sm" className="gap-2 border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20">
+                <Sparkles className="h-4 w-4" />
+                <span className="hidden sm:inline">Де Я?</span>
+              </Button>
+            </Link>
+            <Button onClick={handleSave} disabled={isPending} data-testid="button-save-brand">
+              {isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Збереження...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Зберегти
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
