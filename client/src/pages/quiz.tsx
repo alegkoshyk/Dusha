@@ -402,10 +402,10 @@ export default function Quiz() {
                     <RotateCcw className="h-4 w-4 mr-2" />
                     Пройти знову
                   </Button>
-                  <Link href={`/brand/${brandId}`}>
+                  <Link href={`/quizzes/${brandId}`}>
                     <Button className="flex-1 w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white">
                       <Star className="h-4 w-4 mr-2" />
-                      До бренду
+                      Всі квізи
                     </Button>
                   </Link>
                 </motion.div>
@@ -421,9 +421,9 @@ export default function Quiz() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 p-4 md:p-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <Button variant="ghost" size="sm" onClick={() => navigate(`/brand/${brandId}`)}>
+          <Button variant="ghost" size="sm" onClick={() => navigate(`/quizzes/${brandId}`)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Назад
+            Квізи
           </Button>
           <span className="text-sm text-muted-foreground">
             {currentQuestion + 1} / {quizQuestions.length}

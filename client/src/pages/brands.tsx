@@ -328,14 +328,14 @@ export default function Brands() {
                         </Button>
                       </Link>
                       
-                      <Link href={`/quiz/${brand.id}`} className="contents">
+                      <Link href={`/quizzes/${brand.id}`} className="contents">
                         <Button
                           variant="outline"
                           size="sm"
                           className="w-full justify-start gap-2 h-9 border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20"
                         >
                           <Sparkles className="w-4 h-4 text-purple-500" />
-                          <span className="truncate">Де Я?</span>
+                          <span className="truncate">Квізи</span>
                         </Button>
                       </Link>
                       

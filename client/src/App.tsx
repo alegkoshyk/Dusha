@@ -49,6 +49,8 @@ import Briefs from "@/pages/briefs";
 import BriefResponses from "@/pages/brief-responses";
 import BriefPublic from "@/pages/brief-public";
 import Quiz from "@/pages/quiz";
+import QuizSoul from "@/pages/quiz-soul";
+import Quizzes from "@/pages/quizzes";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -112,6 +114,8 @@ function Router() {
           <Route path="/briefs/:brandId" component={Briefs} />
           <Route path="/brief-responses/:briefId" component={BriefResponses} />
           <Route path="/quiz/:brandId" component={Quiz} />
+          <Route path="/quiz-soul/:brandId" component={QuizSoul} />
+          <Route path="/quizzes/:brandId" component={Quizzes} />
           <Route path="/agents" component={Agents} />
           <Route path="/brand-analysis" component={BrandAnalysis} />
           <Route component={NotFound} />
