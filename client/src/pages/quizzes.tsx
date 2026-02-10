@@ -52,6 +52,18 @@ export default function Quizzes() {
       route: `/quiz-soul/${brandId}`,
       tag: "Трансформація",
     },
+    {
+      id: "brand-consistency",
+      title: "Консистентність і проявлення",
+      subtitle: "Свайп-квіз",
+      description: "16 питань у 4 блоках: ясність, автентичність, форма і стійкість, прояв і відповідальність. Чесна діагностика стану бренду.",
+      icon: "🧭",
+      questionsCount: 16,
+      duration: "5 хв",
+      gradient: "from-green-500 to-emerald-500",
+      route: `/quiz-consistency/${brandId}`,
+      tag: "Діагностика",
+    },
   ];
 
   return (

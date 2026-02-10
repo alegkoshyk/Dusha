@@ -50,6 +50,7 @@ import BriefResponses from "@/pages/brief-responses";
 import BriefPublic from "@/pages/brief-public";
 import Quiz from "@/pages/quiz";
 import QuizSoul from "@/pages/quiz-soul";
+import QuizConsistency from "@/pages/quiz-consistency";
 import Quizzes from "@/pages/quizzes";
 
 function Router() {
@@ -115,6 +116,7 @@ function Router() {
           <Route path="/brief-responses/:briefId" component={BriefResponses} />
           <Route path="/quiz/:brandId" component={Quiz} />
           <Route path="/quiz-soul/:brandId" component={QuizSoul} />
+          <Route path="/quiz-consistency/:brandId" component={QuizConsistency} />
           <Route path="/quizzes/:brandId" component={Quizzes} />
           <Route path="/agents" component={Agents} />
           <Route path="/brand-analysis" component={BrandAnalysis} />
