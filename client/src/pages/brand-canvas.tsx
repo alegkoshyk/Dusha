@@ -181,6 +181,9 @@ export default function BrandCanvas() {
     setShowMerchPicker(false);
     setShowTemplatePicker(false);
     setSelectedTemplateId(null);
+    if (brand?.logo) {
+      setUseLogo(true);
+    }
   };
 
   const handleQuickTemplate = (templateId: number) => {
