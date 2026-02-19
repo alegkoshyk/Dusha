@@ -174,13 +174,13 @@ export async function generateImageWithNanoBanana(
   sessionId?: string,
   userId?: string,
   logoUrl?: string,
-  referenceImageUrl?: string,
+  referenceImageUrls?: string[],
   usePro: boolean = false
 ): Promise<GenerateImageResult> {
   console.log('NanoBanana: Starting image generation...');
   console.log('NanoBanana: Aspect ratio:', aspectRatio);
   console.log('NanoBanana: Logo URL provided:', !!logoUrl);
-  console.log('NanoBanana: Reference image URL:', referenceImageUrl || 'none');
+  console.log('NanoBanana: Reference images:', referenceImageUrls?.length || 0);
   console.log('NanoBanana: Pro mode:', usePro);
   
   const apiKey = decryptApiKey(encryptedApiKey);
@@ -197,13 +197,20 @@ export async function generateImageWithNanoBanana(
 
   let fullPrompt: string;
   
-  // If logo is provided, use image-to-image mode
+  const hasReferences = referenceImageUrls && referenceImageUrls.length > 0;
+  
   if (logoUrl) {
-    // Use the prompt directly (it comes from template or user input)
     fullPrompt = `${BASE_LOGO_PROMPT}\n\n${prompt}`;
+    if (hasReferences) {
+      fullPrompt += `\n\nUse the provided reference images as style/composition inspiration. Incorporate elements from each reference image into the final result.`;
+    }
     console.log('NanoBanana: Using logo reference with prompt');
+  } else if (hasReferences) {
+    fullPrompt = context 
+      ? `Based on this brand context: ${context}\n\nGenerate an image for: ${prompt}\n\nUse the provided reference images as style/composition inspiration. Incorporate elements from each reference image into the final result.`
+      : `${prompt}\n\nUse the provided reference images as style/composition inspiration. Incorporate elements from each reference image into the final result.`;
+    console.log('NanoBanana: Using reference images with prompt');
   } else {
-    // Regular prompt without logo
     fullPrompt = context 
       ? `Based on this brand context: ${context}\n\nGenerate an image for: ${prompt}`
       : prompt;
@@ -212,30 +219,28 @@ export async function generateImageWithNanoBanana(
   try {
     console.log('NanoBanana: Sending request to:', `${NANOBANANA_BASE_URL}/generate`);
     
-    // According to official docs: callBackUrl is required but we use polling instead
-    // Using a dummy callback URL since we're polling
     const requestBody: Record<string, any> = {
       prompt: fullPrompt,
       numImages: 1,
-      callBackUrl: 'https://example.com/callback' // Required by API but we use polling
+      callBackUrl: 'https://example.com/callback'
     };
     
-    // Always set type - API requires it
-    // Note: API has typo in type values - IAMGE instead of IMAGE
-    // Always set image_size for both modes
     requestBody.image_size = aspectRatio;
     
-    // Add Pro mode flag if enabled (uses higher quality model)
     if (usePro) {
       requestBody.usePro = true;
     }
     
-    if (logoUrl) {
-      requestBody.type = 'IMAGETOIAMGE'; // Image editing mode (API typo: IAMGE not IMAGE)
-      requestBody.imageUrls = [logoUrl]; // Pass logo as input image
-      console.log('NanoBanana: Using Image-to-Image mode with logo:', logoUrl);
+    const allImageUrls: string[] = [];
+    if (logoUrl) allImageUrls.push(logoUrl);
+    if (hasReferences) allImageUrls.push(...referenceImageUrls!);
+    
+    if (allImageUrls.length > 0) {
+      requestBody.type = 'IMAGETOIAMGE';
+      requestBody.imageUrls = allImageUrls;
+      console.log('NanoBanana: Using Image-to-Image mode with', allImageUrls.length, 'images');
     } else {
-      requestBody.type = 'TEXTTOIAMGE'; // Text-to-Image mode (API typo: IAMGE not IMAGE)
+      requestBody.type = 'TEXTTOIAMGE';
     }
     
     console.log('NanoBanana: Request body:', JSON.stringify(requestBody));
@@ -266,7 +271,7 @@ export async function generateImageWithNanoBanana(
       const errorText = JSON.stringify(errorData).toLowerCase();
       if (logoUrl && (errorText.includes('media file') || errorText.includes('unavailable') || errorText.includes('replace it'))) {
         console.log('NanoBanana: Logo caused API error, retrying without logo...');
-        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrl, usePro);
+        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrls, usePro);
       }
       
       return {
@@ -305,7 +310,7 @@ export async function generateImageWithNanoBanana(
       // If logo was used and generation failed, retry without logo (image-to-image mode often fails with external URLs)
       if (logoUrl) {
         console.log('NanoBanana: Generation failed with logo reference, retrying without logo in text-to-image mode...');
-        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrl, usePro);
+        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrls, usePro);
       }
       
       return {

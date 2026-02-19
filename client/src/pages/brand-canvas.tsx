@@ -181,6 +181,13 @@ export default function BrandCanvas() {
           referenceUrls: refUrls,
         });
       }
+    } else if (refUrls && trimmed) {
+      generateImageMutation.mutate({
+        prompt: trimmed,
+        aspectRatio,
+        logoUrl: logoUrlParam,
+        referenceUrls: refUrls,
+      });
     } else if (trimmed) {
       sendMutation.mutate(trimmed);
     }
@@ -568,6 +575,8 @@ export default function BrandCanvas() {
                             ? `${selectedMerch.emoji} Стиль/опис мерчу...`
                             : selectedTemplate
                             ? "Додатковий опис..."
+                            : selectedCanvasImages.length > 0
+                            ? `Опис генерації (${selectedCanvasImages.length} реф.)...`
                             : "/img опис або текст..."
                         }
                         disabled={isSending}

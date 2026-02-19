@@ -5229,14 +5229,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Added audience context to prompt');
       }
 
-      // Combine template reference and user-uploaded references, resolve proxy URLs
-      let referenceUrl = templateReferenceUrl || (referenceUrls && referenceUrls.length > 0 ? referenceUrls[0] : undefined);
-      if (referenceUrl && referenceUrl.startsWith('/api/media/proxy')) {
-        try {
-          const { ObjectStorageService } = await import('./objectStorage');
-          const signedUrl = await new ObjectStorageService().resolveProxyToSignedUrl(referenceUrl);
-          if (signedUrl) referenceUrl = signedUrl;
-        } catch (e) { /* keep original */ }
+      const allReferenceUrls: string[] = [];
+      if (templateReferenceUrl) {
+        allReferenceUrls.push(templateReferenceUrl);
+      }
+      if (referenceUrls && Array.isArray(referenceUrls)) {
+        allReferenceUrls.push(...referenceUrls);
+      }
+      const { ObjectStorageService } = await import('./objectStorage');
+      const objService = new ObjectStorageService();
+      const resolvedReferenceUrls: string[] = [];
+      for (const refUrl of allReferenceUrls) {
+        let resolved = refUrl;
+        if (refUrl.startsWith('/api/media/proxy')) {
+          try {
+            const signedUrl = await objService.resolveProxyToSignedUrl(refUrl);
+            if (signedUrl) resolved = signedUrl;
+          } catch (e) { /* keep original */ }
+        }
+        resolvedReferenceUrls.push(resolved);
       }
       
       // Resolve logoUrl to a publicly accessible URL for external APIs
@@ -5288,7 +5299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { generateImageWithNanoBanana } = await import('./nanobanana');
-      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, processedLogoUrl, referenceUrl, usePro);
+      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, processedLogoUrl, resolvedReferenceUrls.length > 0 ? resolvedReferenceUrls : undefined, usePro);
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });
