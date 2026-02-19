@@ -1,8 +1,20 @@
-import { Tldraw } from "tldraw";
+import { useCallback } from "react";
+import { Tldraw, Editor } from "tldraw";
 import "tldraw/tldraw.css";
 
-export default function BrandCanvasEditor() {
+interface BrandCanvasEditorProps {
+  onEditorMount?: (editor: Editor) => void;
+}
+
+export default function BrandCanvasEditor({ onEditorMount }: BrandCanvasEditorProps) {
+  const handleMount = useCallback((editor: Editor) => {
+    onEditorMount?.(editor);
+  }, [onEditorMount]);
+
   return (
-    <Tldraw licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY} />
+    <Tldraw
+      licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
+      onMount={handleMount}
+    />
   );
 }
