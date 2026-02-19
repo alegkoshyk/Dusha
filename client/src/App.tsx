@@ -52,6 +52,7 @@ import Quiz from "@/pages/quiz";
 import QuizSoul from "@/pages/quiz-soul";
 import QuizConsistency from "@/pages/quiz-consistency";
 import Quizzes from "@/pages/quizzes";
+import BrandCanvas from "@/pages/brand-canvas";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -118,6 +119,7 @@ function Router() {
           <Route path="/quiz-soul/:brandId" component={QuizSoul} />
           <Route path="/quiz-consistency/:brandId" component={QuizConsistency} />
           <Route path="/quizzes/:brandId" component={Quizzes} />
+          <Route path="/canvas/:brandId" component={BrandCanvas} />
           <Route path="/agents" component={Agents} />
           <Route path="/brand-analysis" component={BrandAnalysis} />
           <Route component={NotFound} />
