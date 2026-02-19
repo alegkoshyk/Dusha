@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
@@ -590,6 +591,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Update brand logo error:", error);
       res.status(500).json({ error: "Помилка оновлення лого" });
+    }
+  });
+
+  // Canvas snapshot - save (increased body limit for large canvases)
+  app.put("/api/brands/:brandId/canvas", requireAuth, express.json({ limit: "10mb" }), async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+      const { canvasData } = req.body;
+
+      if (!canvasData) {
+        return res.status(400).json({ error: "Дані полотна відсутні" });
+      }
+
+      const dataSize = JSON.stringify(canvasData).length;
+      if (dataSize > 8 * 1024 * 1024) {
+        return res.status(413).json({ error: "Полотно занадто велике для збереження. Спробуйте видалити зайві елементи." });
+      }
+
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      await storage.updateUserBrand(brandId, { canvasData });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Save canvas error:", error);
+      res.status(500).json({ error: "Помилка збереження полотна" });
+    }
+  });
+
+  // Canvas snapshot - load
+  app.get("/api/brands/:brandId/canvas", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const { brandId } = req.params;
+
+      const brand = await storage.getUserBrand(brandId);
+      if (!brand || brand.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Бренд не знайдено" });
+      }
+
+      res.json({ canvasData: brand.canvasData || null });
+    } catch (error) {
+      console.error("Load canvas error:", error);
+      res.status(500).json({ error: "Помилка завантаження полотна" });
     }
   });
 

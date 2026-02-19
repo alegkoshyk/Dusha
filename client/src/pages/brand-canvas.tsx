@@ -227,7 +227,7 @@ export default function BrandCanvas() {
               </div>
             }
           >
-            <TldrawEditor ref={canvasRef} />
+            <TldrawEditor ref={canvasRef} brandId={brandId} />
           </Suspense>
         </div>
 

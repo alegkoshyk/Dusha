@@ -58,6 +58,7 @@ export const userBrandsTable = pgTable("user_brands", {
   uniqueValue: text("unique_value"), // Унікальна ціннісна пропозиція
   status: varchar("status", { length: 20 }).notNull().default("active"), // active, archived, completed
   totalProgress: integer("total_progress").notNull().default(0),
+  canvasData: json("canvas_data"), // tldraw snapshot JSON
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
