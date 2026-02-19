@@ -594,8 +594,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Canvas snapshot - save (increased body limit for large canvases)
-  app.put("/api/brands/:brandId/canvas", requireAuth, express.json({ limit: "10mb" }), async (req, res) => {
+  // Canvas snapshot - save (R2 storage with DB fallback)
+  app.put("/api/brands/:brandId/canvas", requireAuth, express.json({ limit: "20mb" }), async (req, res) => {
     try {
       const currentUser = getCurrentUserUnified(req);
       if (!currentUser) {
@@ -610,7 +610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const dataSize = JSON.stringify(canvasData).length;
-      if (dataSize > 8 * 1024 * 1024) {
+      if (dataSize > 20 * 1024 * 1024) {
         return res.status(413).json({ error: "Полотно занадто велике для збереження. Спробуйте видалити зайві елементи." });
       }
 
@@ -619,7 +619,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Бренд не знайдено" });
       }
 
-      await storage.updateUserBrand(brandId, { canvasData });
+      const { isR2Configured, uploadCanvasData } = await import('./r2Storage');
+      if (isR2Configured()) {
+        await uploadCanvasData(brandId, canvasData);
+        await storage.updateUserBrand(brandId, { canvasData: { _r2: true, key: `canvas/${brandId}/data.json` } });
+        console.log(`Canvas saved to R2 for brand ${brandId}, size: ${dataSize}`);
+      } else {
+        await storage.updateUserBrand(brandId, { canvasData });
+      }
       res.json({ success: true });
     } catch (error) {
       console.error("Save canvas error:", error);
@@ -627,7 +634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Canvas snapshot - load
+  // Canvas snapshot - load (R2 with DB fallback)
   app.get("/api/brands/:brandId/canvas", requireAuth, async (req, res) => {
     try {
       const currentUser = getCurrentUserUnified(req);
@@ -642,7 +649,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Бренд не знайдено" });
       }
 
-      res.json({ canvasData: brand.canvasData || null });
+      const storedCanvas = brand.canvasData as any;
+      if (storedCanvas && storedCanvas._r2) {
+        try {
+          const { getCanvasData } = await import('./r2Storage');
+          const canvasData = await getCanvasData(brandId);
+          if (canvasData) {
+            return res.json({ canvasData });
+          }
+          console.warn(`Canvas R2 data not found for brand ${brandId}, returning null`);
+          return res.json({ canvasData: null });
+        } catch (r2Error) {
+          console.error(`Failed to load canvas from R2 for brand ${brandId}:`, r2Error);
+          return res.json({ canvasData: null });
+        }
+      }
+
+      res.json({ canvasData: storedCanvas || null });
     } catch (error) {
       console.error("Load canvas error:", error);
       res.status(500).json({ error: "Помилка завантаження полотна" });
@@ -5305,23 +5328,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: result.error });
       }
 
-      // Save image message to database
-      const imageUrl = result.imageUrl || result.imageBase64;
-      if (imageUrl) {
-        // Use user prompt, or description based on merch type/template
+      const rawImageData = result.imageUrl || result.imageBase64;
+      let savedImageUrl: string | undefined;
+      if (rawImageData) {
         const messageContent = prompt || 
           (merchTypeId ? `Generated ${merchTypePrompt.substring(0, 50)}...` : '') ||
           (templateId ? `Template generation` : 'Image generated');
-        await storage.saveChatMessage(sessionId, userId, 'image', messageContent, imageUrl);
         
-        // Automatically save to media library
+        savedImageUrl = rawImageData;
+        
+        const { isR2Configured, uploadChatImage } = await import('./r2Storage');
+        if (isR2Configured()) {
+          try {
+            savedImageUrl = await uploadChatImage(sessionId, rawImageData);
+            console.log('Chat image saved to R2:', savedImageUrl);
+          } catch (r2Error) {
+            console.warn('Failed to upload chat image to R2, using original:', r2Error);
+          }
+        }
+        
+        await storage.saveChatMessage(sessionId, userId, 'image', messageContent, savedImageUrl);
+        
         try {
           const { ObjectStorageService } = await import('./objectStorage');
           const objectStorageService = new ObjectStorageService();
           
           let uploadResult;
           if (result.imageBase64) {
-            // Upload base64 directly
             const estimatedSize = Math.ceil(result.imageBase64.length * 0.75);
             const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
             if (hasQuota) {
@@ -5333,7 +5366,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }
           } else if (result.imageUrl && !result.imageUrl.startsWith('data:')) {
-            // Download from URL and upload
             const response = await fetch(result.imageUrl);
             if (response.ok) {
               const buffer = await response.arrayBuffer();
@@ -5370,14 +5402,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         } catch (mediaError) {
           console.warn('Failed to auto-save generated image to media library:', mediaError);
-          // Don't fail the request, just log the warning
         }
       }
 
       res.json({ 
         success: true, 
         imageBase64: result.imageBase64,
-        imageUrl: result.imageUrl
+        imageUrl: savedImageUrl || result.imageUrl
       });
     } catch (error: any) {
       console.error("Image generation error:", error);
@@ -5427,16 +5458,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: result.error });
       }
 
-      // Save image message to database
       if (result.imageUrl) {
-        await storage.saveChatMessage(sessionId, userId, 'image', prompt, result.imageUrl);
+        let savedImageUrl = result.imageUrl;
         
-        // Automatically save to media library
+        const { isR2Configured, uploadChatImage } = await import('./r2Storage');
+        if (isR2Configured()) {
+          try {
+            savedImageUrl = await uploadChatImage(sessionId, result.imageUrl);
+            console.log('DALL-E chat image saved to R2:', savedImageUrl);
+          } catch (r2Error) {
+            console.warn('Failed to upload DALL-E image to R2, using original:', r2Error);
+          }
+        }
+        
+        await storage.saveChatMessage(sessionId, userId, 'image', prompt, savedImageUrl);
+        
         try {
           const { ObjectStorageService } = await import('./objectStorage');
           const objectStorageService = new ObjectStorageService();
           
-          // Download from URL and upload
           const response = await fetch(result.imageUrl);
           if (response.ok) {
             const buffer = await response.arrayBuffer();
@@ -5551,7 +5591,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ============= Media Assets API =============
 
-  // Proxy endpoint for serving storage objects
+  app.get("/api/r2/*", requireAuth, async (req, res) => {
+    try {
+      const key = (req.params as any)[0];
+      if (!key) {
+        return res.status(400).json({ error: "Missing key" });
+      }
+
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const allowedPrefixes = ['canvas/', 'chat-images/'];
+      if (!allowedPrefixes.some(p => key.startsWith(p))) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      if (key.startsWith('canvas/')) {
+        const brandId = key.split('/')[1];
+        if (brandId) {
+          const brand = await storage.getUserBrand(brandId);
+          if (!brand || brand.userId !== currentUser.id) {
+            return res.status(403).json({ error: "Access denied" });
+          }
+        }
+      } else if (key.startsWith('chat-images/')) {
+        const sessionId = key.split('/')[1];
+        if (sessionId) {
+          const session = await storage.getGameSession(sessionId);
+          if (!session || session.userId !== currentUser.id) {
+            return res.status(403).json({ error: "Access denied" });
+          }
+        }
+      }
+
+      const { getFromR2 } = await import('./r2Storage');
+      const data = await getFromR2(key);
+      if (!data) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      const ext = key.split('.').pop()?.toLowerCase();
+      const contentTypes: Record<string, string> = {
+        'json': 'application/json',
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'webp': 'image/webp',
+        'gif': 'image/gif',
+        'svg': 'image/svg+xml',
+      };
+      const contentType = contentTypes[ext || ''] || 'application/octet-stream';
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Length', data.length.toString());
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.send(data);
+    } catch (error) {
+      console.error("R2 proxy error:", error);
+      res.status(500).json({ error: "Failed to fetch file" });
+    }
+  });
+
   app.get("/api/media/proxy", async (req, res) => {
     try {
       const { key } = req.query;

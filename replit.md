@@ -29,6 +29,11 @@ Preferred communication style: Simple, everyday language.
 - **Card Option Sets**: New system for managing predefined choices (archetypes, values, channels) with configurable min/max selection rules.
 - **Target Audiences**: Tables for target_audiences and audience_segments with demographics, psychographics, behavioral data, and AI-generated portraits.
 - **Session Data**: Structured relational storage with foreign key constraints.
+- **Cloudflare R2**: S3-compatible object storage for large assets (canvas data, chat images). Service in `server/r2Storage.ts`, proxy endpoint at `/api/r2/*`.
+  - `canvas/{brandId}/data.json` — canvas snapshots (moved from DB JSON to R2)
+  - `chat-images/{sessionId}/{timestamp}.png` — generated images from chat (moved from base64 in DB to R2 URLs)
+  - DB stores only R2 marker `{ _r2: true, key: "..." }` for canvas, and R2 URL for chat images
+  - Falls back to DB storage if R2 is not configured
 
 ### Target Audience Feature
 - **Database Tables**: target_audiences (demographics, psychographics, behavior, AI portrait), audience_segments (sub-groups with personas)
