@@ -22,7 +22,8 @@ import { setupOAuthRoutes } from "./oauthProviders";
 import { z } from "zod";
 import { db } from "./db";
 import { sql, eq, and, isNull, inArray } from "drizzle-orm";
-import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable, mediaAssetsTable, aiChatMessagesTable, userBrandsTable, brandProductsTable } from "@shared/schema";
+import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable, mediaAssetsTable, aiChatMessagesTable, userBrandsTable, brandProductsTable, targetAudiencesTable, generationTemplatesTable, userProfilesTable } from "@shared/schema";
+import { randomUUID } from "crypto";
 import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData, generateAgentData } from "./openai";
 
 // Generate unique slug for briefs with collision check
@@ -2672,14 +2673,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { generateImage } = await import("./replit_integrations/image/client");
       const imageDataUrl = await generateImage(prompt);
       
+      // Upload generated avatar to R2 storage
+      let finalAvatarUrl = imageDataUrl;
+      try {
+        const { uploadMediaAsset } = await import('./r2Storage');
+        const uploadResult = await uploadMediaAsset({
+          userId: currentUser.id,
+          assetType: 'avatar',
+          brandId: brand.id,
+          base64Data: imageDataUrl
+        });
+        finalAvatarUrl = uploadResult.publicUrl;
+
+        await storage.createMediaAsset({
+          userId: currentUser.id,
+          brandId: brand.id,
+          assetType: 'avatar',
+          storageKey: uploadResult.storageKey,
+          publicUrl: uploadResult.publicUrl,
+          filename: `audience-avatar-${audience.name || id}`,
+          mimeType: uploadResult.mimeType,
+          sizeBytes: uploadResult.sizeBytes,
+          altText: `Target audience avatar: ${audience.name || ''}`,
+        });
+      } catch (uploadError) {
+        console.warn('R2 upload failed for audience avatar, using base64:', uploadError);
+      }
+
       // Update audience with avatar URL
       const updated = await storage.updateTargetAudience(id, {
-        aiPortraitImageUrl: imageDataUrl
+        aiPortraitImageUrl: finalAvatarUrl
       });
 
       res.json({ 
         success: true, 
-        aiPortraitImageUrl: imageDataUrl,
+        aiPortraitImageUrl: finalAvatarUrl,
         audience: updated 
       });
     } catch (error) {
@@ -2787,9 +2815,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imageDataUrl = await generateImage(prompt);
       }
       
+      // Upload interaction image to R2 storage
+      let finalImageUrl = imageDataUrl;
+      try {
+        const { uploadMediaAsset } = await import('./r2Storage');
+        const uploadResult = await uploadMediaAsset({
+          userId: currentUser.id,
+          assetType: 'merch',
+          brandId: brand.id,
+          base64Data: imageDataUrl
+        });
+        finalImageUrl = uploadResult.publicUrl;
+
+        await storage.createMediaAsset({
+          userId: currentUser.id,
+          brandId: brand.id,
+          assetType: 'merch',
+          storageKey: uploadResult.storageKey,
+          publicUrl: uploadResult.publicUrl,
+          filename: `interaction-${audience.name || id}-${Date.now()}`,
+          mimeType: uploadResult.mimeType,
+          sizeBytes: uploadResult.sizeBytes,
+          altText: `Brand interaction: ${audience.name || ''} with ${brand.name}`,
+        });
+      } catch (uploadError) {
+        console.warn('R2 upload failed for interaction image, using base64:', uploadError);
+      }
+
       // Get existing images and add new one
       const existingImages = (audience.brandInteractionImages as string[]) || [];
-      const updatedImages = [...existingImages, imageDataUrl];
+      const updatedImages = [...existingImages, finalImageUrl];
       
       // Update audience with new interaction image
       const updated = await storage.updateTargetAudience(id, {
@@ -2798,7 +2853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ 
         success: true, 
-        imageUrl: imageDataUrl,
+        imageUrl: finalImageUrl,
         brandInteractionImages: updatedImages,
         audience: updated 
       });
@@ -5627,7 +5682,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Тільки для адміністраторів" });
       }
       
-      const { isR2Configured, uploadToR2, uploadProductImage: uploadProdImg } = await import('./r2Storage');
+      const { isR2Configured, uploadToR2, uploadProductImage: uploadProdImg, uploadChatImage } = await import('./r2Storage');
       if (!isR2Configured()) {
         return res.status(500).json({ error: "R2 не налаштовано" });
       }
@@ -5635,12 +5690,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let migratedCount = 0;
       let errorCount = 0;
       let skippedCount = 0;
+      const details: Record<string, number> = {};
+      const incDetail = (key: string) => { details[key] = (details[key] || 0) + 1; };
 
-      const { objectStorageClient: osClient } = await import('./objectStorage');
+      let osClient: any = null;
+      try {
+        const osModule = await import('./objectStorage');
+        osClient = osModule.objectStorageClient;
+      } catch { }
+
       const publicSearchPaths = (process.env.PUBLIC_OBJECT_SEARCH_PATHS || '').split(',').map(p => p.trim()).filter(Boolean);
       const privateDir = process.env.PRIVATE_OBJECT_DIR || '';
 
       const downloadFromGCS = async (storageKey: string): Promise<{ buffer: Buffer; contentType: string } | null> => {
+        if (!osClient) return null;
         const allDirs = [...publicSearchPaths, privateDir].filter(Boolean);
         for (const dir of allDirs) {
           try {
@@ -5656,9 +5719,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } catch { }
         }
         return null;
-      }
+      };
 
       const downloadFromGCSUrl = async (url: string): Promise<{ buffer: Buffer; contentType: string; objectPath: string } | null> => {
+        if (!osClient) return null;
         const urlMatch = url.match(/storage\.googleapis\.com\/([^/]+)\/(.+?)(\?|$)/);
         if (!urlMatch) return null;
         const bucket = urlMatch[1];
@@ -5671,43 +5735,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const [metadata] = await file.getMetadata();
           return { buffer, contentType: metadata.contentType || 'image/png', objectPath };
         } catch { return null; }
-      }
+      };
 
+      const downloadFromUrl = async (url: string): Promise<{ buffer: Buffer; contentType: string } | null> => {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const response = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          if (!response.ok) return null;
+          const arrayBuffer = await response.arrayBuffer();
+          const contentType = response.headers.get('content-type') || 'image/png';
+          return { buffer: Buffer.from(arrayBuffer), contentType };
+        } catch { return null; }
+      };
+
+      const parseBase64ToBuffer = (dataUrl: string): { buffer: Buffer; contentType: string; extension: string } | null => {
+        const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match) return null;
+        const contentType = match[1];
+        const buffer = Buffer.from(match[2], 'base64');
+        let extension = 'png';
+        if (contentType.includes('jpeg') || contentType.includes('jpg')) extension = 'jpg';
+        else if (contentType.includes('webp')) extension = 'webp';
+        return { buffer, contentType, extension };
+      };
+
+      // ===== 1. MEDIA ASSETS TABLE =====
       const allAssets = await db.select().from(mediaAssetsTable);
       for (const asset of allAssets) {
-        if (!asset.storageKey || asset.publicUrl?.startsWith('/api/r2/')) {
-          skippedCount++;
-          continue;
-        }
-        if (asset.publicUrl?.includes('X-Goog-Signature') || asset.publicUrl?.includes('Signature=') || asset.publicUrl?.startsWith('/api/media/proxy')) {
-          try {
+        if (asset.publicUrl?.startsWith('/api/r2/')) { skippedCount++; continue; }
+        try {
+          let uploaded = false;
+          if (asset.storageKey && (asset.publicUrl?.includes('X-Goog-Signature') || asset.publicUrl?.includes('Signature=') || asset.publicUrl?.startsWith('/api/media/proxy'))) {
             const gcsData = await downloadFromGCS(asset.storageKey);
             if (gcsData) {
               const r2Url = await uploadToR2(asset.storageKey, gcsData.buffer, gcsData.contentType);
-              await db.update(mediaAssetsTable)
-                .set({ publicUrl: r2Url, updatedAt: new Date() })
-                .where(eq(mediaAssetsTable.id, asset.id));
-              migratedCount++;
-            } else { skippedCount++; }
-          } catch (err) {
-            console.error(`Failed to migrate asset ${asset.id}:`, err);
-            errorCount++;
+              await db.update(mediaAssetsTable).set({ publicUrl: r2Url, updatedAt: new Date() }).where(eq(mediaAssetsTable.id, asset.id));
+              migratedCount++; incDetail('media_assets'); uploaded = true;
+            }
           }
+          if (!uploaded && asset.publicUrl?.startsWith('http')) {
+            const data = await downloadFromUrl(asset.publicUrl);
+            if (data) {
+              const key = asset.storageKey || `misc/${asset.userId}/${randomUUID()}.png`;
+              const r2Url = await uploadToR2(key, data.buffer, data.contentType);
+              await db.update(mediaAssetsTable).set({ publicUrl: r2Url, storageKey: key, updatedAt: new Date() }).where(eq(mediaAssetsTable.id, asset.id));
+              migratedCount++; incDetail('media_assets'); uploaded = true;
+            }
+          }
+          if (!uploaded) { skippedCount++; }
+        } catch (err) {
+          console.error(`Failed to migrate asset ${asset.id}:`, err);
+          errorCount++;
         }
       }
 
+      // ===== 2. BRAND LOGOS =====
       const allBrands = await db.select().from(userBrandsTable);
       for (const brand of allBrands) {
-        if (!brand.logo || brand.logo.startsWith('/api/r2/') || brand.logo.startsWith('data:')) continue;
+        if (!brand.logo || brand.logo.startsWith('/api/r2/')) continue;
         try {
           let migrated = false;
-          if (brand.logo.includes('storage.googleapis.com')) {
+          if (brand.logo.startsWith('data:')) {
+            const parsed = parseBase64ToBuffer(brand.logo);
+            if (parsed) {
+              const key = `logos/${brand.id}/${randomUUID()}.${parsed.extension}`;
+              const r2Url = await uploadToR2(key, parsed.buffer, parsed.contentType);
+              await db.update(userBrandsTable).set({ logo: r2Url }).where(eq(userBrandsTable.id, brand.id));
+              migratedCount++; incDetail('brand_logos'); migrated = true;
+            }
+          }
+          if (!migrated && brand.logo.includes('storage.googleapis.com')) {
             const gcsData = await downloadFromGCSUrl(brand.logo);
             if (gcsData) {
-              const r2Url = await uploadToR2(gcsData.objectPath, gcsData.buffer, gcsData.contentType);
+              const r2Url = await uploadToR2(`logos/${brand.id}/${randomUUID()}.png`, gcsData.buffer, gcsData.contentType);
               await db.update(userBrandsTable).set({ logo: r2Url }).where(eq(userBrandsTable.id, brand.id));
-              migratedCount++;
-              migrated = true;
+              migratedCount++; incDetail('brand_logos'); migrated = true;
             }
           }
           if (!migrated && brand.logo.startsWith('/api/media/proxy')) {
@@ -5716,10 +5820,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const storageKey = decodeURIComponent(keyMatch[1]);
               const gcsData = await downloadFromGCS(storageKey);
               if (gcsData) {
-                const r2Url = await uploadToR2(storageKey, gcsData.buffer, gcsData.contentType);
+                const r2Url = await uploadToR2(`logos/${brand.id}/${randomUUID()}.png`, gcsData.buffer, gcsData.contentType);
                 await db.update(userBrandsTable).set({ logo: r2Url }).where(eq(userBrandsTable.id, brand.id));
-                migratedCount++;
+                migratedCount++; incDetail('brand_logos'); migrated = true;
               }
+            }
+          }
+          if (!migrated && brand.logo.startsWith('http')) {
+            const data = await downloadFromUrl(brand.logo);
+            if (data) {
+              const ext = data.contentType.includes('jpeg') ? 'jpg' : data.contentType.includes('webp') ? 'webp' : 'png';
+              const r2Url = await uploadToR2(`logos/${brand.id}/${randomUUID()}.${ext}`, data.buffer, data.contentType);
+              await db.update(userBrandsTable).set({ logo: r2Url }).where(eq(userBrandsTable.id, brand.id));
+              migratedCount++; incDetail('brand_logos');
             }
           }
         } catch (err) {
@@ -5728,6 +5841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // ===== 3. PRODUCTS =====
       const allProducts = await db.select().from(brandProductsTable);
       for (const product of allProducts) {
         let changed = false;
@@ -5735,61 +5849,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const images = (product.images as string[]) || [];
         const newImages: string[] = [];
 
-        for (const img of images) {
-          if (img && img.startsWith('data:image/')) {
-            try {
-              const r2Url = await uploadProdImg(product.id, img);
-              newImages.push(r2Url);
-              if (mainImg === img) mainImg = r2Url;
-              migratedCount++;
-              changed = true;
-            } catch (err) {
-              newImages.push(img);
-              errorCount++;
-            }
-          } else {
-            newImages.push(img);
+        const migrateProductImg = async (img: string): Promise<string> => {
+          if (img.startsWith('/api/r2/')) return img;
+          if (img.startsWith('data:image/')) {
+            const r2Url = await uploadProdImg(product.id, img);
+            migratedCount++; incDetail('products'); changed = true;
+            return r2Url;
           }
-        }
+          if (img.startsWith('/api/media/proxy')) {
+            const keyMatch = img.match(/[?&]key=([^&]+)/);
+            if (keyMatch) {
+              const storageKey = decodeURIComponent(keyMatch[1]);
+              const gcsData = await downloadFromGCS(storageKey);
+              if (gcsData) {
+                const r2Url = await uploadToR2(`products/${product.id}/${randomUUID()}.png`, gcsData.buffer, gcsData.contentType);
+                migratedCount++; incDetail('products'); changed = true;
+                return r2Url;
+              }
+            }
+          }
+          if (img.startsWith('http')) {
+            const data = await downloadFromUrl(img);
+            if (data) {
+              const ext = data.contentType.includes('jpeg') ? 'jpg' : 'png';
+              const r2Url = await uploadToR2(`products/${product.id}/${randomUUID()}.${ext}`, data.buffer, data.contentType);
+              migratedCount++; incDetail('products'); changed = true;
+              return r2Url;
+            }
+          }
+          return img;
+        };
 
-        if (mainImg && mainImg.startsWith('data:image/') && !changed) {
-          try {
-            mainImg = await uploadProdImg(product.id, mainImg);
-            changed = true;
-            migratedCount++;
-          } catch (err) { errorCount++; }
-        }
-
-        if (changed) {
-          await db.update(brandProductsTable)
-            .set({ mainImageUrl: mainImg, images: newImages })
-            .where(eq(brandProductsTable.id, product.id));
+        try {
+          for (const img of images) {
+            newImages.push(await migrateProductImg(img));
+          }
+          if (mainImg && !mainImg.startsWith('/api/r2/')) {
+            mainImg = await migrateProductImg(mainImg);
+          }
+          if (changed) {
+            await db.update(brandProductsTable)
+              .set({ mainImageUrl: mainImg, images: newImages })
+              .where(eq(brandProductsTable.id, product.id));
+          }
+        } catch (err) {
+          console.error(`Failed to migrate product ${product.id}:`, err);
+          errorCount++;
         }
       }
 
+      // ===== 4. CHAT IMAGES =====
       const chatMessagesWithImages = await db.select().from(aiChatMessagesTable)
         .where(eq(aiChatMessagesTable.role, 'image'));
       
       for (const msg of chatMessagesWithImages) {
         if (!msg.imageUrl || msg.imageUrl.startsWith('/api/r2/')) continue;
         try {
-          if (msg.imageUrl.includes('storage.googleapis.com')) {
+          let migrated = false;
+          if (msg.imageUrl.startsWith('data:')) {
+            const parsed = parseBase64ToBuffer(msg.imageUrl);
+            if (parsed) {
+              const key = `chat-images/${msg.sessionId || 'unknown'}/${Date.now()}-${randomUUID()}.${parsed.extension}`;
+              const r2Url = await uploadToR2(key, parsed.buffer, parsed.contentType);
+              await db.update(aiChatMessagesTable).set({ imageUrl: r2Url }).where(eq(aiChatMessagesTable.id, msg.id));
+              migratedCount++; incDetail('chat_images'); migrated = true;
+            }
+          }
+          if (!migrated && msg.imageUrl.includes('storage.googleapis.com')) {
             const gcsData = await downloadFromGCSUrl(msg.imageUrl);
             if (gcsData) {
-              const r2Url = await uploadToR2(gcsData.objectPath, gcsData.buffer, gcsData.contentType);
+              const r2Url = await uploadToR2(`chat-images/${msg.sessionId || 'unknown'}/${randomUUID()}.png`, gcsData.buffer, gcsData.contentType);
               await db.update(aiChatMessagesTable).set({ imageUrl: r2Url }).where(eq(aiChatMessagesTable.id, msg.id));
-              migratedCount++;
+              migratedCount++; incDetail('chat_images'); migrated = true;
             }
-          } else if (msg.imageUrl.startsWith('/api/media/proxy')) {
+          }
+          if (!migrated && msg.imageUrl.startsWith('/api/media/proxy')) {
             const keyMatch = msg.imageUrl.match(/[?&]key=([^&]+)/);
             if (keyMatch) {
               const storageKey = decodeURIComponent(keyMatch[1]);
               const gcsData = await downloadFromGCS(storageKey);
               if (gcsData) {
-                const r2Url = await uploadToR2(storageKey, gcsData.buffer, gcsData.contentType);
+                const r2Url = await uploadToR2(`chat-images/${msg.sessionId || 'unknown'}/${randomUUID()}.png`, gcsData.buffer, gcsData.contentType);
                 await db.update(aiChatMessagesTable).set({ imageUrl: r2Url }).where(eq(aiChatMessagesTable.id, msg.id));
-                migratedCount++;
+                migratedCount++; incDetail('chat_images'); migrated = true;
               }
+            }
+          }
+          if (!migrated && msg.imageUrl.startsWith('http')) {
+            const data = await downloadFromUrl(msg.imageUrl);
+            if (data) {
+              const ext = data.contentType.includes('jpeg') ? 'jpg' : 'png';
+              const r2Url = await uploadToR2(`chat-images/${msg.sessionId || 'unknown'}/${randomUUID()}.${ext}`, data.buffer, data.contentType);
+              await db.update(aiChatMessagesTable).set({ imageUrl: r2Url }).where(eq(aiChatMessagesTable.id, msg.id));
+              migratedCount++; incDetail('chat_images');
             }
           }
         } catch (err) {
@@ -5798,9 +5950,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // ===== 5. TARGET AUDIENCE PORTRAITS =====
+      const allAudiences = await db.select().from(targetAudiencesTable);
+      for (const aud of allAudiences) {
+        try {
+          if (aud.aiPortraitImageUrl && !aud.aiPortraitImageUrl.startsWith('/api/r2/')) {
+            let migrated = false;
+            if (aud.aiPortraitImageUrl.startsWith('data:')) {
+              const parsed = parseBase64ToBuffer(aud.aiPortraitImageUrl);
+              if (parsed) {
+                const key = `avatars/${aud.brandId}/${randomUUID()}.${parsed.extension}`;
+                const r2Url = await uploadToR2(key, parsed.buffer, parsed.contentType);
+                await db.update(targetAudiencesTable).set({ aiPortraitImageUrl: r2Url }).where(eq(targetAudiencesTable.id, aud.id));
+                migratedCount++; incDetail('audience_portraits'); migrated = true;
+              }
+            }
+            if (!migrated && aud.aiPortraitImageUrl.startsWith('http')) {
+              const data = await downloadFromUrl(aud.aiPortraitImageUrl);
+              if (data) {
+                const ext = data.contentType.includes('jpeg') ? 'jpg' : 'png';
+                const r2Url = await uploadToR2(`avatars/${aud.brandId}/${randomUUID()}.${ext}`, data.buffer, data.contentType);
+                await db.update(targetAudiencesTable).set({ aiPortraitImageUrl: r2Url }).where(eq(targetAudiencesTable.id, aud.id));
+                migratedCount++; incDetail('audience_portraits');
+              }
+            }
+          }
+
+          const interactionImages = (aud.brandInteractionImages as string[]) || [];
+          if (interactionImages.length > 0) {
+            const newImages: string[] = [];
+            let interactionChanged = false;
+            for (const img of interactionImages) {
+              if (img.startsWith('/api/r2/')) { newImages.push(img); continue; }
+              if (img.startsWith('data:')) {
+                const parsed = parseBase64ToBuffer(img);
+                if (parsed) {
+                  const key = `merch/${aud.brandId}/${randomUUID()}.${parsed.extension}`;
+                  const r2Url = await uploadToR2(key, parsed.buffer, parsed.contentType);
+                  newImages.push(r2Url);
+                  migratedCount++; incDetail('interaction_images'); interactionChanged = true;
+                  continue;
+                }
+              }
+              if (img.startsWith('http')) {
+                const data = await downloadFromUrl(img);
+                if (data) {
+                  const ext = data.contentType.includes('jpeg') ? 'jpg' : 'png';
+                  const r2Url = await uploadToR2(`merch/${aud.brandId}/${randomUUID()}.${ext}`, data.buffer, data.contentType);
+                  newImages.push(r2Url);
+                  migratedCount++; incDetail('interaction_images'); interactionChanged = true;
+                  continue;
+                }
+              }
+              newImages.push(img);
+            }
+            if (interactionChanged) {
+              await db.update(targetAudiencesTable).set({ brandInteractionImages: newImages }).where(eq(targetAudiencesTable.id, aud.id));
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to migrate audience ${aud.id}:`, err);
+          errorCount++;
+        }
+      }
+
+      // ===== 6. TEMPLATE REFERENCE IMAGES =====
+      const allTemplates = await db.select().from(generationTemplatesTable);
+      for (const tmpl of allTemplates) {
+        if (!tmpl.referenceImageUrl || tmpl.referenceImageUrl.startsWith('/api/r2/')) continue;
+        try {
+          if (tmpl.referenceImageUrl.startsWith('data:')) {
+            const parsed = parseBase64ToBuffer(tmpl.referenceImageUrl);
+            if (parsed) {
+              const key = `templates/${tmpl.id}/${randomUUID()}.${parsed.extension}`;
+              const r2Url = await uploadToR2(key, parsed.buffer, parsed.contentType);
+              await db.update(generationTemplatesTable).set({ referenceImageUrl: r2Url }).where(eq(generationTemplatesTable.id, tmpl.id));
+              migratedCount++; incDetail('templates');
+            }
+          } else if (tmpl.referenceImageUrl.startsWith('http')) {
+            const data = await downloadFromUrl(tmpl.referenceImageUrl);
+            if (data) {
+              const ext = data.contentType.includes('jpeg') ? 'jpg' : 'png';
+              const r2Url = await uploadToR2(`templates/${tmpl.id}/${randomUUID()}.${ext}`, data.buffer, data.contentType);
+              await db.update(generationTemplatesTable).set({ referenceImageUrl: r2Url }).where(eq(generationTemplatesTable.id, tmpl.id));
+              migratedCount++; incDetail('templates');
+            }
+          } else if (tmpl.referenceImageUrl.startsWith('/api/media/proxy')) {
+            const keyMatch = tmpl.referenceImageUrl.match(/[?&]key=([^&]+)/);
+            if (keyMatch) {
+              const storageKey = decodeURIComponent(keyMatch[1]);
+              const gcsData = await downloadFromGCS(storageKey);
+              if (gcsData) {
+                const r2Url = await uploadToR2(`templates/${tmpl.id}/${randomUUID()}.png`, gcsData.buffer, gcsData.contentType);
+                await db.update(generationTemplatesTable).set({ referenceImageUrl: r2Url }).where(eq(generationTemplatesTable.id, tmpl.id));
+                migratedCount++; incDetail('templates');
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to migrate template ${tmpl.id}:`, err);
+          errorCount++;
+        }
+      }
+
+      // ===== 7. USER AVATARS =====
+      const allProfiles = await db.select().from(userProfilesTable);
+      for (const profile of allProfiles) {
+        if (!profile.avatarUrl || profile.avatarUrl.startsWith('/api/r2/')) continue;
+        try {
+          if (profile.avatarUrl.startsWith('data:')) {
+            const parsed = parseBase64ToBuffer(profile.avatarUrl);
+            if (parsed) {
+              const key = `avatars/${profile.userId}/${randomUUID()}.${parsed.extension}`;
+              const r2Url = await uploadToR2(key, parsed.buffer, parsed.contentType);
+              await db.update(userProfilesTable).set({ avatarUrl: r2Url }).where(eq(userProfilesTable.userId, profile.userId));
+              migratedCount++; incDetail('user_avatars');
+            }
+          } else if (profile.avatarUrl.startsWith('http')) {
+            const data = await downloadFromUrl(profile.avatarUrl);
+            if (data) {
+              const ext = data.contentType.includes('jpeg') ? 'jpg' : 'png';
+              const r2Url = await uploadToR2(`avatars/${profile.userId}/${randomUUID()}.${ext}`, data.buffer, data.contentType);
+              await db.update(userProfilesTable).set({ avatarUrl: r2Url }).where(eq(userProfilesTable.userId, profile.userId));
+              migratedCount++; incDetail('user_avatars');
+            }
+          } else if (profile.avatarUrl.startsWith('/api/media/proxy')) {
+            const keyMatch = profile.avatarUrl.match(/[?&]key=([^&]+)/);
+            if (keyMatch) {
+              const storageKey = decodeURIComponent(keyMatch[1]);
+              const gcsData = await downloadFromGCS(storageKey);
+              if (gcsData) {
+                const r2Url = await uploadToR2(`avatars/${profile.userId}/${randomUUID()}.png`, gcsData.buffer, gcsData.contentType);
+                await db.update(userProfilesTable).set({ avatarUrl: r2Url }).where(eq(userProfilesTable.userId, profile.userId));
+                migratedCount++; incDetail('user_avatars');
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Failed to migrate user avatar ${profile.userId}:`, err);
+          errorCount++;
+        }
+      }
+
       res.json({ 
         success: true, 
-        message: `Міграція GCS→R2 завершена. Перенесено: ${migratedCount}, пропущено: ${skippedCount}, помилок: ${errorCount}` 
+        message: `Міграція завершена. Перенесено: ${migratedCount}, пропущено: ${skippedCount}, помилок: ${errorCount}`,
+        details
       });
     } catch (error) {
       console.error("Media URL migration error:", error);

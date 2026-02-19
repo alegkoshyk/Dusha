@@ -38,10 +38,16 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType
     return parseImageData(url);
   }
   
-  if (url.startsWith("/api/r2/")) {
+  const r2PublicUrl = process.env.R2_PUBLIC_URL?.replace(/\/$/, '');
+  if (url.startsWith("/api/r2/") || (r2PublicUrl && url.startsWith(r2PublicUrl))) {
     try {
       const { getFromR2 } = await import("../../r2Storage");
-      const key = url.replace(/^\/api\/r2\//, '');
+      let key: string;
+      if (url.startsWith("/api/r2/")) {
+        key = url.replace(/^\/api\/r2\//, '');
+      } else {
+        key = url.replace(`${r2PublicUrl}/`, '');
+      }
       const buffer = await getFromR2(key);
       if (buffer) {
         const base64 = buffer.toString("base64");

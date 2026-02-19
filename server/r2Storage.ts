@@ -162,8 +162,10 @@ export async function uploadChatImage(sessionId: string, imageData: string): Pro
 
 export async function uploadMediaAsset(params: {
   userId: string;
-  assetType: 'logo' | 'avatar' | 'chat_user' | 'chat_ai' | 'merch' | 'attachment';
+  assetType: 'logo' | 'avatar' | 'chat_user' | 'chat_ai' | 'merch' | 'attachment' | 'product_image' | 'template';
   brandId?: string;
+  productId?: string;
+  templateId?: number;
   base64Data: string;
 }): Promise<{ publicUrl: string; storageKey: string; sizeBytes: number; mimeType: string }> {
   const { buffer, extension, contentType } = parseBase64(params.base64Data);
@@ -186,6 +188,12 @@ export async function uploadMediaAsset(params: {
       break;
     case 'attachment':
       pathPrefix = `attachments/${params.userId}`;
+      break;
+    case 'product_image':
+      pathPrefix = `products/${params.productId || params.brandId || params.userId}`;
+      break;
+    case 'template':
+      pathPrefix = `templates/${params.templateId || params.userId}`;
       break;
     default:
       pathPrefix = `misc/${params.userId}`;
