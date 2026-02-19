@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState, useRef, useCallback } from "react";
+import { Suspense, lazy, useEffect, useState, useRef } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Loader2, MessageCircle, Send, X, Bot, User, Image, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequestJson } from "@/lib/queryClient";
-import { AssetRecordType } from "tldraw";
 import type { GameSession } from "@shared/schema";
+import type { BrandCanvasEditorHandle } from "./brand-canvas-editor";
 
 const TldrawEditor = lazy(() => import("./brand-canvas-editor"));
 
@@ -28,7 +28,7 @@ export default function BrandCanvas() {
   const queryClient = useQueryClient();
   const [chatOpen, setChatOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [editorRef, setEditorRef] = useState<any>(null);
+  const canvasRef = useRef<BrandCanvasEditorHandle>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -93,53 +93,11 @@ export default function BrandCanvas() {
       queryClient.invalidateQueries({
         queryKey: ["/api/game-sessions", activeSessionId, "chat"],
       });
-      if (data?.imageUrl && editorRef) {
-        addImageToCanvas(data.imageUrl);
+      if (data?.imageUrl) {
+        canvasRef.current?.addImage(data.imageUrl);
       }
     },
   });
-
-  const addImageToCanvas = useCallback(
-    (imageUrl: string) => {
-      if (!editorRef) return;
-      try {
-        const assetId = AssetRecordType.createId();
-
-        editorRef.createAssets([
-          {
-            id: assetId,
-            type: "image",
-            typeName: "asset",
-            props: {
-              name: "AI Generated",
-              src: imageUrl,
-              w: 512,
-              h: 512,
-              mimeType: "image/png",
-              isAnimated: false,
-            },
-            meta: {},
-          },
-        ]);
-
-        const viewportCenter = editorRef.getViewportPageCenter();
-
-        editorRef.createShape({
-          type: "image",
-          x: viewportCenter.x - 256,
-          y: viewportCenter.y - 256,
-          props: {
-            assetId,
-            w: 512,
-            h: 512,
-          },
-        });
-      } catch (e) {
-        console.error("Failed to add image to canvas:", e);
-      }
-    },
-    [editorRef]
-  );
 
   const handleSend = () => {
     const trimmed = message.trim();
@@ -158,10 +116,6 @@ export default function BrandCanvas() {
     }
     setMessage("");
   };
-
-  const handleEditorMount = useCallback((editor: any) => {
-    setEditorRef(editor);
-  }, []);
 
   const isSending = sendMutation.isPending || generateImageMutation.isPending;
 
@@ -198,7 +152,7 @@ export default function BrandCanvas() {
               </div>
             }
           >
-            <TldrawEditor onEditorMount={handleEditorMount} />
+            <TldrawEditor ref={canvasRef} />
           </Suspense>
         </div>
 
@@ -279,7 +233,7 @@ export default function BrandCanvas() {
                                 src={msg.imageUrl}
                                 alt={msg.content}
                                 className="rounded-xl max-w-full cursor-pointer hover:opacity-90 transition-opacity"
-                                onClick={() => addImageToCanvas(msg.imageUrl!)}
+                                onClick={() => canvasRef.current?.addImage(msg.imageUrl!)}
                                 title="Натисніть, щоб додати на полотно"
                               />
                               <div className="flex items-center gap-1 px-2 py-1">
