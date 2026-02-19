@@ -5564,24 +5564,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ============= Media Assets API =============
 
-  app.get("/api/r2/*", requireAuth, async (req, res) => {
+  app.get("/api/r2/*", async (req, res) => {
     try {
       const key = (req.params as any)[0];
       if (!key) {
         return res.status(400).json({ error: "Missing key" });
       }
 
+      const imagePrefixes = ['chat-images/', 'logos/', 'avatars/', 'products/', 'templates/', 'chat/', 'merch/', 'attachments/', 'misc/'];
+      const isImageAsset = imagePrefixes.some(p => key.startsWith(p));
       const currentUser = getCurrentUserUnified(req);
-      if (!currentUser) {
-        return res.status(401).json({ error: "Не авторизовано" });
-      }
-
-      const allowedPrefixes = ['canvas/', 'chat-images/', 'logos/', 'avatars/', 'products/', 'templates/', 'chat/', 'merch/', 'attachments/', 'misc/'];
-      if (!allowedPrefixes.some(p => key.startsWith(p))) {
-        return res.status(403).json({ error: "Access denied" });
-      }
 
       if (key.startsWith('canvas/')) {
+        if (!currentUser) {
+          return res.status(401).json({ error: "Не авторизовано" });
+        }
         const brandId = key.split('/')[1];
         if (brandId) {
           const brand = await storage.getUserBrand(brandId);
@@ -5589,14 +5586,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(403).json({ error: "Access denied" });
           }
         }
-      } else if (key.startsWith('chat-images/')) {
-        const sessionId = key.split('/')[1];
-        if (sessionId) {
-          const session = await storage.getGameSession(sessionId);
-          if (!session || session.userId !== currentUser.id) {
-            return res.status(403).json({ error: "Access denied" });
-          }
+      } else if (key.startsWith('attachments/') || key.startsWith('chat/')) {
+        if (!currentUser) {
+          return res.status(401).json({ error: "Не авторизовано" });
         }
+        const ownerSegment = key.split('/')[1];
+        if (ownerSegment && ownerSegment !== currentUser.id) {
+          return res.status(403).json({ error: "Access denied" });
+        }
+      } else if (!isImageAsset) {
+        return res.status(403).json({ error: "Access denied" });
       }
 
       const { getFromR2 } = await import('./r2Storage');

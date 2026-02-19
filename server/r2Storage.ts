@@ -31,9 +31,6 @@ export function isR2Configured(): boolean {
 }
 
 function getR2Url(key: string): string {
-  if (R2_PUBLIC_URL) {
-    return `${R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
-  }
   return `/api/r2/${key}`;
 }
 
