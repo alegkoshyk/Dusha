@@ -11,8 +11,7 @@ const navItems = [
 export function BottomNav() {
   const [location] = useLocation();
 
-  // Hide bottom nav in AI chat
-  if (location.startsWith('/brand-chat')) {
+  if (location.startsWith('/brand-chat') || location.startsWith('/canvas')) {
     return null;
   }
 
