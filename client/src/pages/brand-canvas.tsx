@@ -60,7 +60,7 @@ export default function BrandCanvas() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: brand } = useQuery<BrandData>({
-    queryKey: ["/api/brands", brandId],
+    queryKey: ["/api/user/brands", brandId],
     enabled: !!brandId,
   });
 
