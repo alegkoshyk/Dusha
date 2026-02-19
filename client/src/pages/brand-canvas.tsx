@@ -414,9 +414,7 @@ export default function BrandCanvas() {
                           </button>
                           {showMerchPicker && (
                             <div className="grid grid-cols-2 gap-1">
-                              {merchTypes
-                                .filter((mt) => mt.isActive)
-                                .map((mt) => (
+                              {merchTypes.map((mt) => (
                                   <button
                                     key={mt.id}
                                     type="button"
@@ -456,9 +454,7 @@ export default function BrandCanvas() {
                           </button>
                           {showTemplatePicker && (
                             <div className="grid grid-cols-2 gap-1">
-                              {generationTemplates
-                                .filter((t) => t.isActive)
-                                .map((t) => (
+                              {generationTemplates.map((t) => (
                                   <button
                                     key={t.id}
                                     type="button"
