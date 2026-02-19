@@ -624,13 +624,13 @@ export default function BrandEditPage() {
             <Link href={`/canvas/${params.brandId}`}>
               <Button variant="outline" size="sm" className="gap-2 border-sky-300 text-sky-600 hover:bg-sky-50 dark:border-sky-700 dark:text-sky-400 dark:hover:bg-sky-900/20">
                 <Pencil className="h-4 w-4" />
-                <span className="hidden sm:inline">Полотно</span>
+                Полотно
               </Button>
             </Link>
             <Link href={`/quizzes/${params.brandId}`}>
               <Button variant="outline" size="sm" className="gap-2 border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20">
                 <Sparkles className="h-4 w-4" />
-                <span className="hidden sm:inline">Квізи</span>
+                Квізи
               </Button>
             </Link>
             <Button onClick={handleSave} disabled={isPending} data-testid="button-save-brand">
