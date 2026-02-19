@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState, useRef } from "react";
+import { Suspense, lazy, useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -55,9 +55,14 @@ export default function BrandCanvas() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [showMerchPicker, setShowMerchPicker] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [selectedCanvasImages, setSelectedCanvasImages] = useState<string[]>([]);
   const canvasRef = useRef<BrandCanvasEditorHandle>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleCanvasSelectionChange = useCallback((urls: string[]) => {
+    setSelectedCanvasImages(urls);
+  }, []);
 
   const { data: brand } = useQuery<BrandData>({
     queryKey: ["/api/user/brands", brandId],
@@ -125,6 +130,7 @@ export default function BrandCanvas() {
       logoUrl?: string;
       templateId?: number;
       merchTypeId?: number;
+      referenceUrls?: string[];
     }) => {
       return apiRequestJson(
         "POST",
@@ -151,13 +157,17 @@ export default function BrandCanvas() {
       trimmed.toLowerCase().startsWith("/img ") ||
       trimmed.toLowerCase().startsWith("/image ");
 
+    const logoUrlParam = useLogo && brand?.logo ? resolveMediaUrl(brand.logo) : undefined;
+    const refUrls = selectedCanvasImages.length > 0 ? selectedCanvasImages : undefined;
+
     if (selectedMerchTypeId || selectedTemplateId) {
       generateImageMutation.mutate({
         prompt: trimmed || undefined,
         aspectRatio,
-        logoUrl: useLogo && brand?.logo ? resolveMediaUrl(brand.logo) : undefined,
+        logoUrl: logoUrlParam,
         templateId: selectedTemplateId || undefined,
         merchTypeId: selectedMerchTypeId || undefined,
+        referenceUrls: refUrls,
       });
       setSelectedMerchTypeId(null);
       setSelectedTemplateId(null);
@@ -167,7 +177,8 @@ export default function BrandCanvas() {
         generateImageMutation.mutate({
           prompt,
           aspectRatio,
-          logoUrl: useLogo && brand?.logo ? resolveMediaUrl(brand.logo) : undefined,
+          logoUrl: logoUrlParam,
+          referenceUrls: refUrls,
         });
       }
     } else if (trimmed) {
@@ -230,7 +241,7 @@ export default function BrandCanvas() {
               </div>
             }
           >
-            <TldrawEditor ref={canvasRef} brandId={brandId} />
+            <TldrawEditor ref={canvasRef} brandId={brandId} onSelectionChange={handleCanvasSelectionChange} />
           </Suspense>
         </div>
 
@@ -485,36 +496,47 @@ export default function BrandCanvas() {
                     </div>
                   )}
 
-                  {(selectedMerch || selectedTemplate) && (
-                    <div className="px-3 pt-2 flex items-center gap-2">
-                      <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        {selectedMerch && (
-                          <>
-                            <span>{selectedMerch.emoji}</span>
-                            {selectedMerch.name}
-                          </>
-                        )}
-                        {selectedTemplate && (
-                          <>
-                            <Palette className="h-3 w-3" />
-                            {selectedTemplate.name}
-                          </>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedMerchTypeId(null);
-                            setSelectedTemplateId(null);
-                          }}
-                          className="ml-1 hover:text-purple-900 dark:hover:text-purple-100"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
+                  {(selectedMerch || selectedTemplate || (useLogo && brand?.logo) || selectedCanvasImages.length > 0) && (
+                    <div className="px-3 pt-2 flex items-center gap-2 flex-wrap">
+                      {selectedMerch && (
+                        <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <span>{selectedMerch.emoji}</span>
+                          {selectedMerch.name}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMerchTypeId(null)}
+                            className="ml-1 hover:text-purple-900 dark:hover:text-purple-100"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      )}
+                      {selectedTemplate && (
+                        <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Palette className="h-3 w-3" />
+                          {selectedTemplate.name}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTemplateId(null)}
+                            className="ml-1 hover:text-purple-900 dark:hover:text-purple-100"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      )}
                       {useLogo && brand?.logo && (
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full flex items-center gap-1">
                           <img src={resolveMediaUrl(brand.logo)} alt="" className="w-4 h-4 rounded" />
-                          +лого
+                          лого
+                        </span>
+                      )}
+                      {selectedCanvasImages.length > 0 && (
+                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Image className="h-3 w-3" />
+                          {selectedCanvasImages.length} реф.
+                          {selectedCanvasImages.slice(0, 3).map((url, i) => (
+                            <img key={i} src={url} alt="" className="w-4 h-4 rounded object-cover" />
+                          ))}
                         </span>
                       )}
                     </div>
@@ -543,9 +565,9 @@ export default function BrandCanvas() {
                         }}
                         placeholder={
                           selectedMerch
-                            ? `${selectedMerch.emoji} Опис мерчу (необов'язково)...`
+                            ? `${selectedMerch.emoji} Стиль/опис мерчу...`
                             : selectedTemplate
-                            ? "Додатковий опис (необов'язково)..."
+                            ? "Додатковий опис..."
                             : "/img опис або текст..."
                         }
                         disabled={isSending}

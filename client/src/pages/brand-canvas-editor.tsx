@@ -4,10 +4,13 @@ import "tldraw/tldraw.css";
 
 export interface BrandCanvasEditorHandle {
   addImage: (imageUrl: string) => void;
+  getSelectedImageUrls: () => string[];
+  onSelectionChange: (callback: (urls: string[]) => void) => () => void;
 }
 
 interface BrandCanvasEditorProps {
   brandId?: string;
+  onSelectionChange?: (imageUrls: string[]) => void;
 }
 
 function loadImageSize(src: string): Promise<{ w: number; h: number }> {
@@ -21,7 +24,7 @@ function loadImageSize(src: string): Promise<{ w: number; h: number }> {
 }
 
 const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorProps>(
-  ({ brandId }, ref) => {
+  ({ brandId, onSelectionChange }, ref) => {
     const editorRef = useRef<Editor | null>(null);
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const initialLoadDoneRef = useRef(false);
@@ -64,6 +67,22 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
         saveToServer();
       };
     }, [saveToServer]);
+
+    const getSelectedImageUrlsInternal = useCallback(() => {
+      const editor = editorRef.current;
+      if (!editor) return [];
+      const selectedShapes = editor.getSelectedShapes();
+      const urls: string[] = [];
+      for (const shape of selectedShapes) {
+        if (shape.type === "image" && (shape as any).props?.assetId) {
+          const asset = editor.getAsset((shape as any).props.assetId);
+          if (asset && asset.type === "image" && (asset as any).props?.src) {
+            urls.push((asset as any).props.src);
+          }
+        }
+      }
+      return urls;
+    }, []);
 
     useImperativeHandle(ref, () => ({
       addImage: async (imageUrl: string) => {
@@ -114,6 +133,15 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
           },
         });
       },
+      getSelectedImageUrls: () => getSelectedImageUrlsInternal(),
+      onSelectionChange: (callback: (urls: string[]) => void) => {
+        const editor = editorRef.current;
+        if (!editor) return () => {};
+        const cleanup = editor.store.listen(() => {
+          callback(getSelectedImageUrlsInternal());
+        }, { scope: "session" });
+        return cleanup;
+      },
     }));
 
     const handleMount = useCallback(
@@ -134,13 +162,24 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
             .catch((e) => console.error("Failed to load canvas:", e));
         }
 
-        const cleanup = editor.store.listen(() => {
+        const cleanupSave = editor.store.listen(() => {
           scheduleSave();
         }, { scope: "document" });
 
-        return cleanup;
+        const onSelectionRef = onSelectionChange;
+        const cleanupSelection = editor.store.listen(() => {
+          if (onSelectionRef) {
+            const urls = getSelectedImageUrlsInternal();
+            onSelectionRef(urls);
+          }
+        }, { scope: "session" });
+
+        return () => {
+          cleanupSave();
+          cleanupSelection();
+        };
       },
-      [brandId, scheduleSave]
+      [brandId, scheduleSave, onSelectionChange, getSelectedImageUrlsInternal]
     );
 
     return (
