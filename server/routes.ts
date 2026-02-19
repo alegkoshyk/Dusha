@@ -550,20 +550,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
           }
 
-          // Upload to object storage using new media system
+          // Upload to R2 storage using new media system
           let logoUrl = logo;
           try {
-            const { ObjectStorageService } = await import('./objectStorage');
-            const objectStorageService = new ObjectStorageService();
-            const uploadResult = await objectStorageService.uploadMediaAsset({
+            const { uploadMediaAsset } = await import('./r2Storage');
+            const uploadResult = await uploadMediaAsset({
               userId: currentUser.id,
               assetType: 'logo',
               brandId: id,
               base64Data: logo
             });
             
-            logoUrl = `/api/media/proxy?key=${encodeURIComponent(uploadResult.storageKey)}`;
-            console.log('Logo uploaded, proxy URL:', logoUrl);
+            logoUrl = uploadResult.publicUrl;
+            console.log('Logo uploaded to R2:', logoUrl);
 
             // Create media asset record
             await storage.createMediaAsset({
@@ -578,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               altText: 'Brand logo',
             });
           } catch (uploadError) {
-            console.warn('Object storage upload failed, using base64:', uploadError);
+            console.warn('R2 storage upload failed, using base64:', uploadError);
           }
 
           const updated = await storage.updateUserBrandLogo(id, logoUrl);
@@ -2424,24 +2423,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         imageDataUrl = await generateImage(prompt);
       }
       
-      // Upload generated image to object storage
+      // Upload generated image to R2 storage
       let finalImageUrl = imageDataUrl;
       try {
-        const { ObjectStorageService } = await import('./objectStorage');
-        const objectStorageService = new ObjectStorageService();
-        finalImageUrl = await objectStorageService.uploadProductImage(id, imageDataUrl);
+        const { uploadProductImage } = await import('./r2Storage');
+        finalImageUrl = await uploadProductImage(id, imageDataUrl);
 
         const base64Part = imageDataUrl.replace(/^data:image\/[\w+]+;base64,/, '');
         const sizeBytes = Math.ceil(base64Part.length * 0.75);
         const extensionMatch = imageDataUrl.match(/^data:image\/([\w+]+);/);
         const ext = extensionMatch ? extensionMatch[1].replace('jpeg', 'jpg') : 'png';
-        const storageKey = finalImageUrl.replace('/api/media/proxy?key=', '');
+        const storageKey = finalImageUrl.replace(/^\/api\/r2\//, '');
 
         await storage.createMediaAsset({
           userId: currentUser.id,
           brandId: product.brandId,
           assetType: 'product_image',
-          storageKey: decodeURIComponent(storageKey),
+          storageKey,
           publicUrl: finalImageUrl,
           filename: `product-${product.name || id}.${ext}`,
           mimeType: `image/${ext}`,
@@ -2503,16 +2501,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
       }
 
-      // Upload to object storage
-      const { ObjectStorageService } = await import('./objectStorage');
-      const objectStorageService = new ObjectStorageService();
-      const imageUrl = await objectStorageService.uploadProductImage(id, base64Data);
+      // Upload to R2 storage
+      const { uploadProductImage } = await import('./r2Storage');
+      const imageUrl = await uploadProductImage(id, base64Data);
 
       // Create media asset record
       try {
         const extensionMatch = base64Data.match(/^data:image\/([\w+]+);/);
         const ext = extensionMatch ? extensionMatch[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg') : 'png';
-        const storageKey = decodeURIComponent(imageUrl.replace('/api/media/proxy?key=', ''));
+        const storageKey = imageUrl.replace(/^\/api\/r2\//, '');
 
         await storage.createMediaAsset({
           userId: currentUser.id,
@@ -2717,10 +2714,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Немає доступу" });
       }
 
-      // Upload to object storage
-      const { ObjectStorageService } = await import("./objectStorage");
-      const objectStorage = new ObjectStorageService();
-      const uploadResult = await objectStorage.uploadMediaAsset({
+      // Upload to R2 storage
+      const { uploadMediaAsset } = await import("./r2Storage");
+      const uploadResult = await uploadMediaAsset({
         userId: currentUser.id,
         assetType: 'avatar',
         brandId: brand.id,
@@ -2771,42 +2767,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Collect reference images (logo and avatar)
       const referenceImages: { url: string; label: string }[] = [];
       
-      // Use logo URL - refresh only if it's a signed URL (has X-Goog-Signature)
+      // Use logo URL directly (R2 URLs don't need signed URL refresh)
       if (brand.logo) {
-        try {
-          let logoUrl = brand.logo;
-          // Only refresh if it's a signed URL (private storage)
-          if (brand.logo.includes("X-Goog-Signature")) {
-            const { refreshSignedUrl } = await import("./objectStorage");
-            logoUrl = await refreshSignedUrl(brand.logo);
-            console.log("Refreshed signed logo URL for brand interaction image");
-          } else {
-            console.log("Using public logo URL for brand interaction image");
-          }
-          referenceImages.push({ url: logoUrl, label: "Brand Logo - use this exact logo in the image" });
-        } catch (logoError) {
-          console.error("Failed to process logo URL:", logoError);
-          // Try using original URL as fallback
-          referenceImages.push({ url: brand.logo, label: "Brand Logo - use this exact logo in the image" });
-        }
+        referenceImages.push({ url: brand.logo, label: "Brand Logo - use this exact logo in the image" });
       }
       
-      // Use avatar URL - refresh only if it's a signed URL (has X-Goog-Signature)
+      // Use avatar URL directly (R2 URLs don't need signed URL refresh)
       if (audience.aiPortraitImageUrl) {
-        try {
-          let avatarUrl = audience.aiPortraitImageUrl;
-          if (audience.aiPortraitImageUrl.includes("X-Goog-Signature")) {
-            const { refreshSignedUrl } = await import("./objectStorage");
-            avatarUrl = await refreshSignedUrl(audience.aiPortraitImageUrl);
-            console.log("Refreshed signed avatar URL for brand interaction image");
-          } else {
-            console.log("Using public/data avatar URL for brand interaction image");
-          }
-          referenceImages.push({ url: avatarUrl, label: "Target Persona - generate this person in the scene" });
-        } catch (avatarError) {
-          console.error("Failed to process avatar URL:", avatarError);
-          referenceImages.push({ url: audience.aiPortraitImageUrl, label: "Target Persona - generate this person in the scene" });
-        }
+        referenceImages.push({ url: audience.aiPortraitImageUrl, label: "Target Persona - generate this person in the scene" });
       }
       
       // Generate image using Gemini with reference images
@@ -4122,28 +4090,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If referenceImageUrl is base64, upload it to object storage
       if (referenceImageUrl && referenceImageUrl.startsWith('data:image/')) {
         try {
-          const { ObjectStorageService } = await import('./objectStorage');
-          const objectStorageService = new ObjectStorageService();
-          finalReferenceUrl = await objectStorageService.uploadTemplateReferenceImage(template.id, referenceImageUrl);
+          const { uploadTemplateReferenceImage } = await import('./r2Storage');
+          finalReferenceUrl = await uploadTemplateReferenceImage(template.id, referenceImageUrl);
           const updatedTemplate = await storage.updateGenerationTemplate(template.id, { referenceImageUrl: finalReferenceUrl });
           return res.json(updatedTemplate);
         } catch (uploadError: any) {
           console.error('Failed to upload reference image:', uploadError);
-          // Delete the template since image upload failed
           await storage.deleteGenerationTemplate(template.id);
           return res.status(422).json({ error: "Не вдалося завантажити зображення: " + (uploadError.message || "невідома помилка") });
         }
       } else if (referenceImageUrl && referenceImageUrl.startsWith('http')) {
-        // If it's a URL (e.g., from AI generation), download and upload to storage
         try {
-          const { ObjectStorageService } = await import('./objectStorage');
-          const objectStorageService = new ObjectStorageService();
-          finalReferenceUrl = await objectStorageService.uploadImageFromUrl(`templates/${template.id}`, referenceImageUrl);
+          const { uploadImageFromUrl } = await import('./r2Storage');
+          finalReferenceUrl = await uploadImageFromUrl(`templates/${template.id}`, referenceImageUrl);
           const updatedTemplate = await storage.updateGenerationTemplate(template.id, { referenceImageUrl: finalReferenceUrl });
           return res.json(updatedTemplate);
         } catch (uploadError: any) {
           console.error('Failed to save reference image URL:', uploadError);
-          // Delete the template since image upload failed
           await storage.deleteGenerationTemplate(template.id);
           return res.status(422).json({ error: "Не вдалося зберегти зображення: " + (uploadError.message || "невідома помилка") });
         }
@@ -4164,23 +4127,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Handle base64 image upload
       if (referenceImageUrl && referenceImageUrl.startsWith('data:image/')) {
         try {
-          const { ObjectStorageService } = await import('./objectStorage');
-          const objectStorageService = new ObjectStorageService();
-          referenceImageUrl = await objectStorageService.uploadTemplateReferenceImage(id, referenceImageUrl);
+          const { uploadTemplateReferenceImage } = await import('./r2Storage');
+          referenceImageUrl = await uploadTemplateReferenceImage(id, referenceImageUrl);
         } catch (uploadError: any) {
           console.error('Failed to upload reference image:', uploadError);
-          // Return error - don't silently fail
           return res.status(422).json({ error: "Не вдалося завантажити зображення: " + (uploadError.message || "невідома помилка") });
         }
-      } else if (referenceImageUrl && referenceImageUrl.startsWith('http') && !referenceImageUrl.includes('storage.googleapis.com')) {
-        // If it's an external URL (not already on our storage), download and upload
+      } else if (referenceImageUrl && referenceImageUrl.startsWith('http') && !referenceImageUrl.includes('/api/r2/')) {
+        // If it's an external URL (not already on R2), download and upload
         try {
-          const { ObjectStorageService } = await import('./objectStorage');
-          const objectStorageService = new ObjectStorageService();
-          referenceImageUrl = await objectStorageService.uploadImageFromUrl(`templates/${id}`, referenceImageUrl);
+          const { uploadImageFromUrl } = await import('./r2Storage');
+          referenceImageUrl = await uploadImageFromUrl(`templates/${id}`, referenceImageUrl);
         } catch (uploadError: any) {
           console.error('Failed to save reference image URL:', uploadError);
-          // Return error - don't silently fail
           return res.status(422).json({ error: "Не вдалося зберегти зображення: " + (uploadError.message || "невідома помилка") });
         }
       }
@@ -4225,9 +4184,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Зображення обов'язкове" });
       }
 
-      const { ObjectStorageService } = await import('./objectStorage');
-      const objectStorageService = new ObjectStorageService();
-      const imageUrl = await objectStorageService.uploadTemplateReferenceImage(id, imageData);
+      const { uploadTemplateReferenceImage } = await import('./r2Storage');
+      const imageUrl = await uploadTemplateReferenceImage(id, imageData);
       
       // Update the template with new image URL
       const template = await storage.updateGenerationTemplate(id, { referenceImageUrl: imageUrl });
@@ -4288,10 +4246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "URL зображення обов'язковий" });
       }
 
-      const { ObjectStorageService } = await import('./objectStorage');
-      const objectStorageService = new ObjectStorageService();
-      // Download the image and upload to object storage
-      const savedUrl = await objectStorageService.uploadImageFromUrl(`templates/${id}`, imageUrl);
+      const { uploadImageFromUrl } = await import('./r2Storage');
+      const savedUrl = await uploadImageFromUrl(`templates/${id}`, imageUrl);
       
       // Update the template with new image URL
       const template = await storage.updateGenerationTemplate(id, { referenceImageUrl: savedUrl });
@@ -5029,11 +4985,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(413).json(await buildQuotaExceededResponse(userId));
       }
 
-      const { ObjectStorageService } = await import('./objectStorage');
-      const objectStorageService = new ObjectStorageService();
+      const { uploadMediaAsset } = await import('./r2Storage');
       
-      // Upload avatar to object storage using new media system
-      const uploadResult = await objectStorageService.uploadMediaAsset({
+      // Upload avatar to R2 storage using new media system
+      const uploadResult = await uploadMediaAsset({
         userId,
         assetType: 'avatar',
         base64Data: imageData
@@ -5259,39 +5214,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (referenceUrls && Array.isArray(referenceUrls)) {
         allReferenceUrls.push(...referenceUrls);
       }
-      const { ObjectStorageService } = await import('./objectStorage');
-      const objService = new ObjectStorageService();
-      const resolvedReferenceUrls: string[] = [];
-      for (const refUrl of allReferenceUrls) {
-        let resolved = refUrl;
-        if (refUrl.startsWith('/api/media/proxy')) {
-          try {
-            const signedUrl = await objService.resolveProxyToSignedUrl(refUrl);
-            if (signedUrl) resolved = signedUrl;
-          } catch (e) { /* keep original */ }
-        }
-        resolvedReferenceUrls.push(resolved);
-      }
+      // R2 URLs are directly accessible, no signed URL resolution needed
+      const resolvedReferenceUrls = [...allReferenceUrls];
       
       // Resolve logoUrl to a publicly accessible URL for external APIs
       let processedLogoUrl = logoUrl;
       if (logoUrl) {
         if (logoUrl.startsWith('data:')) {
           try {
-            console.log('Logo is base64, uploading to object storage first...');
-            const { ObjectStorageService } = await import('./objectStorage');
-            const objectStorageService = new ObjectStorageService();
-            const uploadResult = await objectStorageService.uploadMediaAsset({
+            console.log('Logo is base64, uploading to R2 first...');
+            const { uploadMediaAsset } = await import('./r2Storage');
+            const uploadResult = await uploadMediaAsset({
               userId,
               assetType: 'logo',
               brandId: gameSession.brandId || undefined,
               base64Data: logoUrl
             });
             processedLogoUrl = uploadResult.publicUrl;
-            if (processedLogoUrl.startsWith('/api/media/proxy')) {
-              const signedUrl = await objectStorageService.resolveProxyToSignedUrl(processedLogoUrl);
-              if (signedUrl) processedLogoUrl = signedUrl;
-            }
             console.log('Logo uploaded for generation, URL:', processedLogoUrl);
           } catch (uploadError) {
             console.error('Failed to upload base64 logo for generation:', uploadError);
@@ -5299,26 +5238,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               error: "Не вдалося підготувати лого для генерації. Спробуйте завантажити лого ще раз." 
             });
           }
-        } else if (logoUrl.startsWith('/api/media/proxy')) {
-          try {
-            const { ObjectStorageService } = await import('./objectStorage');
-            const signedUrl = await new ObjectStorageService().resolveProxyToSignedUrl(logoUrl);
-            if (signedUrl) {
-              processedLogoUrl = signedUrl;
-              console.log('Logo proxy URL resolved to signed URL:', processedLogoUrl);
-            }
-          } catch (e) {
-            console.error('Failed to resolve proxy logo URL:', e);
-          }
-        } else if (logoUrl.includes('storage.googleapis.com/replit-objstore')) {
-          try {
-            const { refreshSignedUrl } = await import('./objectStorage');
-            processedLogoUrl = await refreshSignedUrl(logoUrl);
-            console.log('Logo GCS URL refreshed to fresh signed URL');
-          } catch (e) {
-            console.error('Failed to refresh GCS logo URL:', e);
-          }
         }
+        // For /api/media/proxy, /api/r2/, or any other URL format - use as-is
       }
       
       const { generateImageWithNanoBanana } = await import('./nanobanana');
@@ -5350,15 +5271,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.saveChatMessage(sessionId, userId, 'image', messageContent, savedImageUrl);
         
         try {
-          const { ObjectStorageService } = await import('./objectStorage');
-          const objectStorageService = new ObjectStorageService();
+          const { uploadMediaAsset: uploadMerchAsset } = await import('./r2Storage');
           
           let uploadResult;
           if (result.imageBase64) {
             const estimatedSize = Math.ceil(result.imageBase64.length * 0.75);
             const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
             if (hasQuota) {
-              uploadResult = await objectStorageService.uploadMediaAsset({
+              uploadResult = await uploadMerchAsset({
                 userId,
                 assetType: 'merch',
                 brandId: gameSession.brandId || undefined,
@@ -5376,7 +5296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const estimatedSize = buffer.byteLength;
               const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
               if (hasQuota) {
-                uploadResult = await objectStorageService.uploadMediaAsset({
+                uploadResult = await uploadMerchAsset({
                   userId,
                   assetType: 'merch',
                   brandId: gameSession.brandId || undefined,
@@ -5474,8 +5394,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.saveChatMessage(sessionId, userId, 'image', prompt, savedImageUrl);
         
         try {
-          const { ObjectStorageService } = await import('./objectStorage');
-          const objectStorageService = new ObjectStorageService();
+          const { uploadMediaAsset: uploadDalleAsset } = await import('./r2Storage');
           
           const response = await fetch(result.imageUrl);
           if (response.ok) {
@@ -5487,7 +5406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const estimatedSize = buffer.byteLength;
             const hasQuota = await storage.checkQuotaAvailable(userId, estimatedSize);
             if (hasQuota) {
-              const uploadResult = await objectStorageService.uploadMediaAsset({
+              const uploadResult = await uploadDalleAsset({
                 userId,
                 assetType: 'merch',
                 brandId: gameSession.brandId || undefined,
@@ -5555,10 +5474,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(413).json(await buildQuotaExceededResponse(userId));
       }
 
-      const { ObjectStorageService } = await import('./objectStorage');
-      const objectStorageService = new ObjectStorageService();
+      const { uploadMediaAsset } = await import('./r2Storage');
 
-      const uploadResult = await objectStorageService.uploadMediaAsset({
+      const uploadResult = await uploadMediaAsset({
         userId,
         assetType: 'attachment',
         brandId: gameSession.brandId || undefined,
@@ -5603,7 +5521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Не авторизовано" });
       }
 
-      const allowedPrefixes = ['canvas/', 'chat-images/'];
+      const allowedPrefixes = ['canvas/', 'chat-images/', 'logos/', 'avatars/', 'products/', 'templates/', 'chat/', 'merch/', 'attachments/', 'misc/'];
       if (!allowedPrefixes.some(p => key.startsWith(p))) {
         return res.status(403).json({ error: "Access denied" });
       }
@@ -5666,46 +5584,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid key" });
       }
 
-      const { ObjectStorageService, objectStorageClient } = await import('./objectStorage');
-      const objectStorageService = new ObjectStorageService();
-      
-      const publicPaths = objectStorageService.getPublicObjectSearchPaths();
-      const isAuthenticated = !!(req as any).session?.user || !!(req as any).headers?.['x-auth-token'];
-      const privateDir = isAuthenticated ? objectStorageService.getPrivateObjectDir() : '';
-      
-      const dirs = [...publicPaths, privateDir].filter(Boolean);
-      
-      for (const dir of dirs) {
-        try {
-          const fullPath = `${dir}/${sanitizedKey}`;
-          const { bucketName, objectName } = parseObjectPathForRoute(fullPath);
-          const bucket = objectStorageClient.bucket(bucketName);
-          const file = bucket.file(objectName);
-          const [exists] = await file.exists();
-          
-          if (exists) {
-            const [metadata] = await file.getMetadata();
-            res.set({
-              "Content-Type": metadata.contentType || "image/png",
-              "Cache-Control": "public, max-age=604800",
-              "X-Content-Type-Options": "nosniff",
-            });
-            file.createReadStream().pipe(res);
-            return;
-          }
-        } catch (e) {
-          // try next dir
-        }
+      const { getFromR2 } = await import('./r2Storage');
+      const data = await getFromR2(sanitizedKey);
+      if (!data) {
+        return res.status(404).json({ error: "File not found" });
       }
-      
-      res.status(404).json({ error: "File not found" });
+
+      const ext = sanitizedKey.split('.').pop()?.toLowerCase();
+      const contentTypes: Record<string, string> = {
+        'json': 'application/json',
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'webp': 'image/webp',
+        'gif': 'image/gif',
+        'svg': 'image/svg+xml',
+      };
+      const contentType = contentTypes[ext || ''] || 'image/png';
+
+      res.set({
+        "Content-Type": contentType,
+        "Content-Length": data.length.toString(),
+        "Cache-Control": "public, max-age=604800",
+        "X-Content-Type-Options": "nosniff",
+      });
+      res.send(data);
     } catch (error) {
       console.error("Media proxy error:", error);
       res.status(500).json({ error: "Помилка при завантаженні файлу" });
     }
   });
 
-  // Admin endpoint to migrate old signed URLs to permanent public URLs
   app.post("/api/admin/migrate-media-urls", requireAuth, async (req, res) => {
     try {
       const currentUser = getCurrentUserUnified(req);
@@ -5713,115 +5622,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Не авторизовано" });
       }
       
-      // Check admin role
       const user = await storage.getUser(currentUser.id);
       if (!user || user.role !== 'admin') {
         return res.status(403).json({ error: "Тільки для адміністраторів" });
       }
       
-      const { ObjectStorageService, objectStorageClient: osClient } = await import('./objectStorage');
-      const objectStorageService = new ObjectStorageService();
-      const publicPaths = objectStorageService.getPublicObjectSearchPaths();
-      const privateDir = objectStorageService.getPrivateObjectDir();
-      
-      if (publicPaths.length === 0) {
-        return res.status(500).json({ error: "PUBLIC_OBJECT_SEARCH_PATHS not set" });
+      const { isR2Configured, uploadToR2, uploadProductImage: uploadProdImg } = await import('./r2Storage');
+      if (!isR2Configured()) {
+        return res.status(500).json({ error: "R2 не налаштовано" });
       }
-      
+
       let migratedCount = 0;
       let errorCount = 0;
-      
-      // Get all media assets with signed URLs (contain "X-Goog-Signature" or similar)
-      const allAssets = await db.select().from(mediaAssetsTable);
-      
-      for (const asset of allAssets) {
-        if (asset.publicUrl && (asset.publicUrl.includes('X-Goog-Signature') || asset.publicUrl.includes('Signature='))) {
+      let skippedCount = 0;
+
+      const { objectStorageClient: osClient } = await import('./objectStorage');
+      const publicSearchPaths = (process.env.PUBLIC_OBJECT_SEARCH_PATHS || '').split(',').map(p => p.trim()).filter(Boolean);
+      const privateDir = process.env.PRIVATE_OBJECT_DIR || '';
+
+      const downloadFromGCS = async (storageKey: string): Promise<{ buffer: Buffer; contentType: string } | null> => {
+        const allDirs = [...publicSearchPaths, privateDir].filter(Boolean);
+        for (const dir of allDirs) {
           try {
-            // Try to find and re-upload from private to public storage
-            const fullPrivatePath = `${privateDir}/${asset.storageKey}`;
-            const { bucketName: privBucket, objectName: privObject } = parseObjectPathForRoute(fullPrivatePath);
-            const privFile = osClient.bucket(privBucket).file(privObject);
-            const [exists] = await privFile.exists();
-            
+            const fullPath = `${dir}/${storageKey}`;
+            const parsed = parseObjectPathForRoute(fullPath);
+            const file = osClient.bucket(parsed.bucketName).file(parsed.objectName);
+            const [exists] = await file.exists();
             if (exists) {
-              // Download from private and upload to public
-              const [buffer] = await privFile.download();
-              const [metadata] = await privFile.getMetadata();
-              
-              const publicDir = publicPaths[0];
-              const fullPublicPath = `${publicDir}/${asset.storageKey}`;
-              const { bucketName: pubBucket, objectName: pubObject } = parseObjectPathForRoute(fullPublicPath);
-              
-              const pubFile = osClient.bucket(pubBucket).file(pubObject);
-              await pubFile.save(buffer, {
-                metadata: {
-                  contentType: metadata.contentType || asset.mimeType || 'image/png',
-                  cacheControl: 'public, max-age=31536000',
-                },
-              });
-              
-              const newProxyUrl = `/api/media/proxy?key=${encodeURIComponent(asset.storageKey)}`;
-              
-              await db.update(mediaAssetsTable)
-                .set({ publicUrl: newProxyUrl, updatedAt: new Date() })
-                .where(eq(mediaAssetsTable.id, asset.id));
-              
-              migratedCount++;
+              const [buffer] = await file.download();
+              const [metadata] = await file.getMetadata();
+              return { buffer, contentType: metadata.contentType || 'image/png' };
             }
+          } catch { }
+        }
+        return null;
+      }
+
+      const downloadFromGCSUrl = async (url: string): Promise<{ buffer: Buffer; contentType: string; objectPath: string } | null> => {
+        const urlMatch = url.match(/storage\.googleapis\.com\/([^/]+)\/(.+?)(\?|$)/);
+        if (!urlMatch) return null;
+        const bucket = urlMatch[1];
+        const objectPath = decodeURIComponent(urlMatch[2]);
+        try {
+          const file = osClient.bucket(bucket).file(objectPath);
+          const [exists] = await file.exists();
+          if (!exists) return null;
+          const [buffer] = await file.download();
+          const [metadata] = await file.getMetadata();
+          return { buffer, contentType: metadata.contentType || 'image/png', objectPath };
+        } catch { return null; }
+      }
+
+      const allAssets = await db.select().from(mediaAssetsTable);
+      for (const asset of allAssets) {
+        if (!asset.storageKey || asset.publicUrl?.startsWith('/api/r2/')) {
+          skippedCount++;
+          continue;
+        }
+        if (asset.publicUrl?.includes('X-Goog-Signature') || asset.publicUrl?.includes('Signature=') || asset.publicUrl?.startsWith('/api/media/proxy')) {
+          try {
+            const gcsData = await downloadFromGCS(asset.storageKey);
+            if (gcsData) {
+              const r2Url = await uploadToR2(asset.storageKey, gcsData.buffer, gcsData.contentType);
+              await db.update(mediaAssetsTable)
+                .set({ publicUrl: r2Url, updatedAt: new Date() })
+                .where(eq(mediaAssetsTable.id, asset.id));
+              migratedCount++;
+            } else { skippedCount++; }
           } catch (err) {
-            console.error(`Failed to migrate media asset ${asset.id}:`, err);
+            console.error(`Failed to migrate asset ${asset.id}:`, err);
             errorCount++;
           }
         }
       }
-      
-      // Also update brand logos that have signed URLs
+
       const allBrands = await db.select().from(userBrandsTable);
       for (const brand of allBrands) {
-        if (brand.logo && (brand.logo.includes('X-Goog-Signature') || brand.logo.includes('Signature='))) {
-          try {
-            // Find the logo in storage and re-upload to public
-            // The logo URL contains the object path after storage.googleapis.com/bucket/
-            const urlMatch = brand.logo.match(/storage\.googleapis\.com\/([^/]+)\/(.+?)(\?|$)/);
-            if (urlMatch) {
-              const origBucket = urlMatch[1];
-              const origObject = decodeURIComponent(urlMatch[2]);
-              
-              const origFile = osClient.bucket(origBucket).file(origObject);
-              const [exists] = await origFile.exists();
-              
-              if (exists) {
-                const [buffer] = await origFile.download();
-                const [metadata] = await origFile.getMetadata();
-                
-                const publicDir = publicPaths[0];
-                const { bucketName: pubBucket, objectName: pubObject } = parseObjectPathForRoute(`${publicDir}/${origObject}`);
-                
-                const pubFile = osClient.bucket(pubBucket).file(pubObject);
-                await pubFile.save(buffer, {
-                  metadata: {
-                    contentType: metadata.contentType || 'image/png',
-                    cacheControl: 'public, max-age=31536000',
-                  },
-                });
-                
-                const newProxyUrl = `/api/media/proxy?key=${encodeURIComponent(origObject)}`;
-                
-                await db.update(userBrandsTable)
-                  .set({ logo: newProxyUrl })
-                  .where(eq(userBrandsTable.id, brand.id));
-                
+        if (!brand.logo || brand.logo.startsWith('/api/r2/') || brand.logo.startsWith('data:')) continue;
+        try {
+          let migrated = false;
+          if (brand.logo.includes('storage.googleapis.com')) {
+            const gcsData = await downloadFromGCSUrl(brand.logo);
+            if (gcsData) {
+              const r2Url = await uploadToR2(gcsData.objectPath, gcsData.buffer, gcsData.contentType);
+              await db.update(userBrandsTable).set({ logo: r2Url }).where(eq(userBrandsTable.id, brand.id));
+              migratedCount++;
+              migrated = true;
+            }
+          }
+          if (!migrated && brand.logo.startsWith('/api/media/proxy')) {
+            const keyMatch = brand.logo.match(/[?&]key=([^&]+)/);
+            if (keyMatch) {
+              const storageKey = decodeURIComponent(keyMatch[1]);
+              const gcsData = await downloadFromGCS(storageKey);
+              if (gcsData) {
+                const r2Url = await uploadToR2(storageKey, gcsData.buffer, gcsData.contentType);
+                await db.update(userBrandsTable).set({ logo: r2Url }).where(eq(userBrandsTable.id, brand.id));
                 migratedCount++;
               }
             }
-          } catch (err) {
-            console.error(`Failed to migrate brand logo ${brand.id}:`, err);
-            errorCount++;
           }
+        } catch (err) {
+          console.error(`Failed to migrate brand logo ${brand.id}:`, err);
+          errorCount++;
         }
       }
-      
-      // Migrate product images from base64 data URLs to object storage
+
       const allProducts = await db.select().from(brandProductsTable);
       for (const product of allProducts) {
         let changed = false;
@@ -5832,15 +5738,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const img of images) {
           if (img && img.startsWith('data:image/')) {
             try {
-              const proxyUrl = await objectStorageService.uploadProductImage(product.id, img);
-              newImages.push(proxyUrl);
-              if (mainImg === img) {
-                mainImg = proxyUrl;
-              }
+              const r2Url = await uploadProdImg(product.id, img);
+              newImages.push(r2Url);
+              if (mainImg === img) mainImg = r2Url;
               migratedCount++;
               changed = true;
             } catch (err) {
-              console.error(`Failed to migrate product image for ${product.id}:`, err);
               newImages.push(img);
               errorCount++;
             }
@@ -5851,13 +5754,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (mainImg && mainImg.startsWith('data:image/') && !changed) {
           try {
-            mainImg = await objectStorageService.uploadProductImage(product.id, mainImg);
+            mainImg = await uploadProdImg(product.id, mainImg);
             changed = true;
             migratedCount++;
-          } catch (err) {
-            console.error(`Failed to migrate main product image for ${product.id}:`, err);
-            errorCount++;
-          }
+          } catch (err) { errorCount++; }
         }
 
         if (changed) {
@@ -5867,55 +5767,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Also update chat message image URLs
       const chatMessagesWithImages = await db.select().from(aiChatMessagesTable)
         .where(eq(aiChatMessagesTable.role, 'image'));
       
       for (const msg of chatMessagesWithImages) {
-        if (msg.imageUrl && (msg.imageUrl.includes('X-Goog-Signature') || msg.imageUrl.includes('Signature='))) {
-          try {
-            const urlMatch = msg.imageUrl.match(/storage\.googleapis\.com\/([^/]+)\/(.+?)(\?|$)/);
-            if (urlMatch) {
-              const origBucket = urlMatch[1];
-              const origObject = decodeURIComponent(urlMatch[2]);
-              
-              const origFile = osClient.bucket(origBucket).file(origObject);
-              const [exists] = await origFile.exists();
-              
-              if (exists) {
-                const [buffer] = await origFile.download();
-                const [metadata] = await origFile.getMetadata();
-                
-                const publicDir = publicPaths[0];
-                const { bucketName: pubBucket, objectName: pubObject } = parseObjectPathForRoute(`${publicDir}/${origObject}`);
-                
-                const pubFile = osClient.bucket(pubBucket).file(pubObject);
-                await pubFile.save(buffer, {
-                  metadata: {
-                    contentType: metadata.contentType || 'image/png',
-                    cacheControl: 'public, max-age=31536000',
-                  },
-                });
-                
-                const newProxyUrl = `/api/media/proxy?key=${encodeURIComponent(origObject)}`;
-                
-                await db.update(aiChatMessagesTable)
-                  .set({ imageUrl: newProxyUrl })
-                  .where(eq(aiChatMessagesTable.id, msg.id));
-                
+        if (!msg.imageUrl || msg.imageUrl.startsWith('/api/r2/')) continue;
+        try {
+          if (msg.imageUrl.includes('storage.googleapis.com')) {
+            const gcsData = await downloadFromGCSUrl(msg.imageUrl);
+            if (gcsData) {
+              const r2Url = await uploadToR2(gcsData.objectPath, gcsData.buffer, gcsData.contentType);
+              await db.update(aiChatMessagesTable).set({ imageUrl: r2Url }).where(eq(aiChatMessagesTable.id, msg.id));
+              migratedCount++;
+            }
+          } else if (msg.imageUrl.startsWith('/api/media/proxy')) {
+            const keyMatch = msg.imageUrl.match(/[?&]key=([^&]+)/);
+            if (keyMatch) {
+              const storageKey = decodeURIComponent(keyMatch[1]);
+              const gcsData = await downloadFromGCS(storageKey);
+              if (gcsData) {
+                const r2Url = await uploadToR2(storageKey, gcsData.buffer, gcsData.contentType);
+                await db.update(aiChatMessagesTable).set({ imageUrl: r2Url }).where(eq(aiChatMessagesTable.id, msg.id));
                 migratedCount++;
               }
             }
-          } catch (err) {
-            console.error(`Failed to migrate chat image ${msg.id}:`, err);
-            errorCount++;
           }
+        } catch (err) {
+          console.error(`Failed to migrate chat image ${msg.id}:`, err);
+          errorCount++;
         }
       }
-      
+
       res.json({ 
         success: true, 
-        message: `Міграція завершена. Оновлено: ${migratedCount}, помилок: ${errorCount}` 
+        message: `Міграція GCS→R2 завершена. Перенесено: ${migratedCount}, пропущено: ${skippedCount}, помилок: ${errorCount}` 
       });
     } catch (error) {
       console.error("Media URL migration error:", error);
@@ -5955,10 +5840,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
       }
 
-      // Upload to object storage
-      const { ObjectStorageService } = await import('./objectStorage');
-      const objectStorageService = new ObjectStorageService();
-      const uploadResult = await objectStorageService.uploadMediaAsset({
+      // Upload to R2 storage
+      const { uploadMediaAsset } = await import('./r2Storage');
+      const uploadResult = await uploadMediaAsset({
         userId: currentUser.id,
         assetType: assetType as 'logo' | 'avatar' | 'chat_user' | 'chat_ai' | 'merch' | 'attachment',
         brandId,
@@ -6113,8 +5997,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Необхідне imageUrl або imageBase64" });
       }
 
-      const { ObjectStorageService } = await import('./objectStorage');
-      const objectStorageService = new ObjectStorageService();
+      const { uploadMediaAsset } = await import('./r2Storage');
 
       let uploadResult;
 
@@ -6126,7 +6009,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
         }
 
-        uploadResult = await objectStorageService.uploadMediaAsset({
+        uploadResult = await uploadMediaAsset({
           userId: currentUser.id,
           assetType: 'merch',
           brandId,
@@ -6141,7 +6024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
         }
 
-        uploadResult = await objectStorageService.uploadMediaAsset({
+        uploadResult = await uploadMediaAsset({
           userId: currentUser.id,
           assetType: 'merch',
           brandId,
@@ -6166,7 +6049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(413).json(await buildQuotaExceededResponse(currentUser.id));
           }
 
-          uploadResult = await objectStorageService.uploadMediaAsset({
+          uploadResult = await uploadMediaAsset({
             userId: currentUser.id,
             assetType: 'merch',
             brandId,

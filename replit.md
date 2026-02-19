@@ -29,11 +29,19 @@ Preferred communication style: Simple, everyday language.
 - **Card Option Sets**: New system for managing predefined choices (archetypes, values, channels) with configurable min/max selection rules.
 - **Target Audiences**: Tables for target_audiences and audience_segments with demographics, psychographics, behavioral data, and AI-generated portraits.
 - **Session Data**: Structured relational storage with foreign key constraints.
-- **Cloudflare R2**: S3-compatible object storage for large assets (canvas data, chat images). Service in `server/r2Storage.ts`, proxy endpoint at `/api/r2/*`.
-  - `canvas/{brandId}/data.json` — canvas snapshots (moved from DB JSON to R2)
-  - `chat-images/{sessionId}/{timestamp}.png` — generated images from chat (moved from base64 in DB to R2 URLs)
-  - DB stores only R2 marker `{ _r2: true, key: "..." }` for canvas, and R2 URL for chat images
-  - Falls back to DB storage if R2 is not configured
+- **Cloudflare R2**: S3-compatible object storage for ALL media assets. Service in `server/r2Storage.ts`, proxy endpoints at `/api/r2/*` (authenticated) and `/api/media/proxy` (backward compat).
+  - `canvas/{brandId}/data.json` — canvas snapshots
+  - `chat-images/{sessionId}/{timestamp}.ext` — generated images from AI chat
+  - `logos/{brandId}/{uuid}.ext` — brand logos
+  - `avatars/{userId}/{uuid}.ext` — user/persona avatars
+  - `products/{productId}/{uuid}.ext` — product images
+  - `templates/{templateId}/{uuid}.ext` — template reference images
+  - `chat/{userId}/{uuid}.ext` — chat uploaded images
+  - `merch/{brandId}/{uuid}.ext` — merch mockups
+  - `attachments/{userId}/{uuid}.ext` — user attachments
+  - DB stores R2 proxy URL (`/api/r2/{key}`) for all assets
+  - Migration endpoint `POST /api/admin/migrate-media-urls` transfers existing GCS files to R2
+  - Old `objectStorage.ts` (GCS) kept only for migration reading
 
 ### Target Audience Feature
 - **Database Tables**: target_audiences (demographics, psychographics, behavior, AI portrait), audience_segments (sub-groups with personas)

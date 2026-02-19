@@ -38,25 +38,38 @@ async function fetchImageAsBase64(url: string): Promise<{ data: string; mimeType
     return parseImageData(url);
   }
   
-  if (url.startsWith("/api/media/proxy")) {
+  if (url.startsWith("/api/r2/")) {
     try {
-      const { ObjectStorageService } = await import("../../objectStorage");
-      const service = new ObjectStorageService();
-      const signedUrl = await service.resolveProxyToSignedUrl(url);
-      if (signedUrl) {
-        url = signedUrl;
+      const { getFromR2 } = await import("../../r2Storage");
+      const key = url.replace(/^\/api\/r2\//, '');
+      const buffer = await getFromR2(key);
+      if (buffer) {
+        const base64 = buffer.toString("base64");
+        const ext = key.split('.').pop()?.toLowerCase();
+        const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : 'image/png';
+        return { data: base64, mimeType };
       }
     } catch (e) {
-      console.error("Failed to resolve proxy URL to signed URL:", e);
+      console.error("Failed to read from R2:", e);
     }
   }
-  
-  if (url.includes("storage.googleapis.com/replit-objstore")) {
+
+  if (url.startsWith("/api/media/proxy")) {
     try {
-      const { refreshSignedUrl } = await import("../../objectStorage");
-      url = await refreshSignedUrl(url);
+      const keyMatch = url.match(/[?&]key=([^&]+)/);
+      if (keyMatch) {
+        const { getFromR2 } = await import("../../r2Storage");
+        const storageKey = decodeURIComponent(keyMatch[1]);
+        const buffer = await getFromR2(storageKey);
+        if (buffer) {
+          const base64 = buffer.toString("base64");
+          const ext = storageKey.split('.').pop()?.toLowerCase();
+          const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : 'image/png';
+          return { data: base64, mimeType };
+        }
+      }
     } catch (e) {
-      console.error("Failed to refresh GCS signed URL:", e);
+      console.error("Failed to read media proxy key from R2:", e);
     }
   }
   
