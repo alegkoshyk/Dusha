@@ -5272,7 +5272,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // R2 URLs are directly accessible, no signed URL resolution needed
       const resolvedReferenceUrls = [...allReferenceUrls];
       
-      // Resolve logoUrl to a publicly accessible URL for external APIs
+      const resolveToPublicUrl = (url: string): string => {
+        if (url.startsWith('/api/r2/') || url.startsWith('/api/media/')) {
+          const domain = process.env.REPLIT_DOMAINS || process.env.REPLIT_DEV_DOMAIN;
+          if (domain) {
+            return `https://${domain}${url}`;
+          }
+        }
+        return url;
+      };
+
       let processedLogoUrl = logoUrl;
       if (logoUrl) {
         if (logoUrl.startsWith('data:')) {
@@ -5285,7 +5294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               brandId: gameSession.brandId || undefined,
               base64Data: logoUrl
             });
-            processedLogoUrl = uploadResult.publicUrl;
+            processedLogoUrl = resolveToPublicUrl(uploadResult.publicUrl);
             console.log('Logo uploaded for generation, URL:', processedLogoUrl);
           } catch (uploadError) {
             console.error('Failed to upload base64 logo for generation:', uploadError);
@@ -5293,12 +5302,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
               error: "Не вдалося підготувати лого для генерації. Спробуйте завантажити лого ще раз." 
             });
           }
+        } else {
+          processedLogoUrl = resolveToPublicUrl(logoUrl);
         }
-        // For /api/media/proxy, /api/r2/, or any other URL format - use as-is
       }
+      const publicReferenceUrls = resolvedReferenceUrls.map(resolveToPublicUrl);
       
       const { generateImageWithNanoBanana } = await import('./nanobanana');
-      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, processedLogoUrl, resolvedReferenceUrls.length > 0 ? resolvedReferenceUrls : undefined, usePro);
+      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, processedLogoUrl, publicReferenceUrls.length > 0 ? publicReferenceUrls : undefined, usePro);
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });
