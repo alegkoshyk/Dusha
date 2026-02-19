@@ -127,17 +127,26 @@ Preferred communication style: Simple, everyday language.
   - Apple Developer Account ($99/year) for App Store
   - Google Play Developer Account ($25 one-time)
 
-### Quiz Feature ("Де Я?")
+### Quiz System
 - **Database Table**: quiz_results (answers JSON, total_score, result_level)
-- **Route**: `/quiz/:brandId` - Animated brand self-assessment quiz
-- **Questions**: 10 questions across 5 categories (Identity, Visual Language, Audience, Communication, Strategy)
-- **Scoring**: 4 result levels (beginner 0-30%, developing 30-55%, strong 55-80%, master 80%+)
-- **Animation**: Framer-motion for slide transitions, score reveals, and progress bars
+- **Quizzes List**: `/quizzes/:brandId` - Hub page listing all available quizzes
+- **Quiz Types**:
+  1. "Де Я?" (`/quiz/:brandId`) - 10 questions, 5 categories, 4-option scoring
+  2. "Готовність до Бренду з Душею" (`/quiz-soul/:brandId`) - 14 Tinder-style swipe questions, 4 result levels
+  3. "Консистентність і проявлення" (`/quiz-consistency/:brandId`) - 16 swipe questions in 4 blocks (Clarity, Authenticity, Form, Manifestation)
+- **Swipe Mechanics**: framer-motion drag with threshold detection (±100px), animated card exit
 - **API Endpoints**:
   - GET `/api/brands/:brandId/quiz-results` - All quiz results for user+brand
   - GET `/api/brands/:brandId/quiz-results/latest` - Latest quiz result
   - POST `/api/brands/:brandId/quiz-results` - Save quiz result
-- **Navigation**: "Де Я?" button in brand edit page header
+- **Navigation**: "Квізи" button in brand edit page header → quizzes list → individual quiz
+
+### Visual Canvas (tldraw)
+- **Package**: tldraw v4.x (lazy-loaded to avoid React duplication)
+- **Route**: `/canvas/:brandId` - Full-screen infinite canvas editor
+- **License**: VITE_TLDRAW_LICENSE_KEY env var (client-side validated, safe to be public)
+- **Architecture**: brand-canvas.tsx (wrapper with lazy Suspense) → brand-canvas-editor.tsx (tldraw component)
+- **Navigation**: "Полотно" button in brand edit page header
 
 ## Documentation
 Full project documentation available in `DOCUMENTATION.md`.
