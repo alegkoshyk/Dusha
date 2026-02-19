@@ -3,10 +3,16 @@ import { useParams, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Loader2, MessageCircle, Send, X, Bot, User, Image, Sparkles } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  ArrowLeft, Loader2, MessageCircle, Send, X, Bot, User,
+  Image, Sparkles, Settings2, ShoppingBag, Palette, ChevronDown, ChevronUp,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequestJson } from "@/lib/queryClient";
-import type { GameSession } from "@shared/schema";
+import { resolveMediaUrl } from "@/lib/utils";
+import type { GameSession, GenerationTemplate, MerchType } from "@shared/schema";
 import type { BrandCanvasEditorHandle } from "./brand-canvas-editor";
 
 const TldrawEditor = lazy(() => import("./brand-canvas-editor"));
@@ -22,17 +28,38 @@ interface ChatMessage {
   createdAt: string;
 }
 
+interface BrandData {
+  id: string;
+  name: string;
+  logo?: string | null;
+}
+
+const ASPECT_RATIOS = [
+  { value: "1:1", label: "1:1" },
+  { value: "4:3", label: "4:3" },
+  { value: "3:4", label: "3:4" },
+  { value: "16:9", label: "16:9" },
+  { value: "9:16", label: "9:16" },
+];
+
 export default function BrandCanvas() {
   const { brandId } = useParams<{ brandId: string }>();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [chatOpen, setChatOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [useLogo, setUseLogo] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState("1:1");
+  const [selectedMerchTypeId, setSelectedMerchTypeId] = useState<number | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [showMerchPicker, setShowMerchPicker] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const canvasRef = useRef<BrandCanvasEditorHandle>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { data: brand } = useQuery<{ id: string; name: string }>({
+  const { data: brand } = useQuery<BrandData>({
     queryKey: ["/api/brands", brandId],
     enabled: !!brandId,
   });
@@ -40,6 +67,16 @@ export default function BrandCanvas() {
   const { data: allSessions = [] } = useQuery<GameSession[]>({
     queryKey: ["/api/user/game-sessions"],
     enabled: !!user,
+  });
+
+  const { data: merchTypes = [] } = useQuery<MerchType[]>({
+    queryKey: ["/api/merch-types"],
+    enabled: chatOpen,
+  });
+
+  const { data: generationTemplates = [] } = useQuery<GenerationTemplate[]>({
+    queryKey: ["/api/generation-templates"],
+    enabled: chatOpen,
   });
 
   const brandSessions = brandId
@@ -82,42 +119,80 @@ export default function BrandCanvas() {
   });
 
   const generateImageMutation = useMutation({
-    mutationFn: async (prompt: string) => {
+    mutationFn: async (params: {
+      prompt?: string;
+      aspectRatio: string;
+      logoUrl?: string;
+      templateId?: number;
+      merchTypeId?: number;
+    }) => {
       return apiRequestJson(
         "POST",
         `/api/game-sessions/${activeSessionId}/generate-image`,
-        { prompt, aspectRatio: "1:1" }
+        params
       );
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({
         queryKey: ["/api/game-sessions", activeSessionId, "chat"],
       });
-      if (data?.imageUrl) {
-        canvasRef.current?.addImage(data.imageUrl);
+      const imageData = data?.imageBase64 || data?.imageUrl;
+      if (imageData) {
+        canvasRef.current?.addImage(imageData);
       }
     },
   });
 
   const handleSend = () => {
     const trimmed = message.trim();
-    if (!trimmed || !activeSessionId) return;
+    if (!activeSessionId) return;
 
-    if (
+    const isImageCommand =
       trimmed.toLowerCase().startsWith("/img ") ||
-      trimmed.toLowerCase().startsWith("/image ")
-    ) {
+      trimmed.toLowerCase().startsWith("/image ");
+
+    if (selectedMerchTypeId || selectedTemplateId) {
+      generateImageMutation.mutate({
+        prompt: trimmed || undefined,
+        aspectRatio,
+        logoUrl: useLogo && brand?.logo ? resolveMediaUrl(brand.logo) : undefined,
+        templateId: selectedTemplateId || undefined,
+        merchTypeId: selectedMerchTypeId || undefined,
+      });
+      setSelectedMerchTypeId(null);
+      setSelectedTemplateId(null);
+    } else if (isImageCommand) {
       const prompt = trimmed.replace(/^\/(img|image)\s+/i, "");
       if (prompt) {
-        generateImageMutation.mutate(prompt);
+        generateImageMutation.mutate({
+          prompt,
+          aspectRatio,
+          logoUrl: useLogo && brand?.logo ? resolveMediaUrl(brand.logo) : undefined,
+        });
       }
-    } else {
+    } else if (trimmed) {
       sendMutation.mutate(trimmed);
     }
     setMessage("");
   };
 
+  const handleQuickMerch = (merchId: number) => {
+    setSelectedMerchTypeId(merchId);
+    setShowMerchPicker(false);
+    setShowTemplatePicker(false);
+    setSelectedTemplateId(null);
+  };
+
+  const handleQuickTemplate = (templateId: number) => {
+    setSelectedTemplateId(templateId);
+    setShowTemplatePicker(false);
+    setShowMerchPicker(false);
+    setSelectedMerchTypeId(null);
+  };
+
   const isSending = sendMutation.isPending || generateImageMutation.isPending;
+  const selectedMerch = merchTypes.find((m) => m.id === selectedMerchTypeId);
+  const selectedTemplate = generationTemplates.find((t) => t.id === selectedTemplateId);
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background z-50">
@@ -276,34 +351,223 @@ export default function BrandCanvas() {
                   )}
                 </div>
 
-                <div className="p-3 border-t">
-                  <div className="flex gap-2">
-                    <Input
-                      ref={inputRef}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSend();
+                <div className="border-t">
+                  {settingsOpen && (
+                    <div className="p-3 space-y-3 border-b bg-muted/30 max-h-[50vh] overflow-y-auto">
+                      {brand?.logo && (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <img
+                              src={resolveMediaUrl(brand.logo)}
+                              alt="Logo"
+                              className="w-8 h-8 rounded object-contain bg-muted p-0.5"
+                            />
+                            <Label htmlFor="canvas-use-logo" className="text-xs">
+                              Логотип
+                            </Label>
+                          </div>
+                          <Switch
+                            id="canvas-use-logo"
+                            checked={useLogo}
+                            onCheckedChange={setUseLogo}
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <Label className="text-xs text-muted-foreground mb-1 block">Пропорції</Label>
+                        <div className="flex gap-1 flex-wrap">
+                          {ASPECT_RATIOS.map((ar) => (
+                            <button
+                              key={ar.value}
+                              type="button"
+                              onClick={() => setAspectRatio(ar.value)}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                aspectRatio === ar.value
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                              }`}
+                            >
+                              {ar.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {merchTypes.length > 0 && (
+                        <div>
+                          <button
+                            type="button"
+                            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5 hover:text-foreground transition-colors"
+                            onClick={() => {
+                              setShowMerchPicker(!showMerchPicker);
+                              setShowTemplatePicker(false);
+                            }}
+                          >
+                            <ShoppingBag className="h-3 w-3" />
+                            Мерч
+                            {showMerchPicker ? (
+                              <ChevronUp className="h-3 w-3" />
+                            ) : (
+                              <ChevronDown className="h-3 w-3" />
+                            )}
+                          </button>
+                          {showMerchPicker && (
+                            <div className="grid grid-cols-2 gap-1">
+                              {merchTypes
+                                .filter((mt) => mt.isActive)
+                                .map((mt) => (
+                                  <button
+                                    key={mt.id}
+                                    type="button"
+                                    onClick={() => handleQuickMerch(mt.id)}
+                                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-xs transition-colors text-left ${
+                                      selectedMerchTypeId === mt.id
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted hover:bg-muted/80"
+                                    }`}
+                                  >
+                                    <span>{mt.emoji}</span>
+                                    <span className="truncate">{mt.name}</span>
+                                  </button>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {generationTemplates.length > 0 && (
+                        <div>
+                          <button
+                            type="button"
+                            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5 hover:text-foreground transition-colors"
+                            onClick={() => {
+                              setShowTemplatePicker(!showTemplatePicker);
+                              setShowMerchPicker(false);
+                            }}
+                          >
+                            <Palette className="h-3 w-3" />
+                            Шаблони
+                            {showTemplatePicker ? (
+                              <ChevronUp className="h-3 w-3" />
+                            ) : (
+                              <ChevronDown className="h-3 w-3" />
+                            )}
+                          </button>
+                          {showTemplatePicker && (
+                            <div className="grid grid-cols-2 gap-1">
+                              {generationTemplates
+                                .filter((t) => t.isActive)
+                                .map((t) => (
+                                  <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => handleQuickTemplate(t.id)}
+                                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded text-xs transition-colors text-left ${
+                                      selectedTemplateId === t.id
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted hover:bg-muted/80"
+                                    }`}
+                                  >
+                                    {t.referenceImageUrl && (
+                                      <img
+                                        src={resolveMediaUrl(t.referenceImageUrl)}
+                                        alt=""
+                                        className="w-6 h-6 rounded object-cover shrink-0"
+                                      />
+                                    )}
+                                    <span className="truncate">{t.name}</span>
+                                  </button>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(selectedMerch || selectedTemplate) && (
+                    <div className="px-3 pt-2 flex items-center gap-2">
+                      <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        {selectedMerch && (
+                          <>
+                            <span>{selectedMerch.emoji}</span>
+                            {selectedMerch.name}
+                          </>
+                        )}
+                        {selectedTemplate && (
+                          <>
+                            <Palette className="h-3 w-3" />
+                            {selectedTemplate.name}
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedMerchTypeId(null);
+                            setSelectedTemplateId(null);
+                          }}
+                          className="ml-1 hover:text-purple-900 dark:hover:text-purple-100"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                      {useLogo && brand?.logo && (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <img src={resolveMediaUrl(brand.logo)} alt="" className="w-4 h-4 rounded" />
+                          +лого
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="p-3">
+                    <div className="flex gap-1.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-9 w-9 shrink-0 ${settingsOpen ? "bg-muted" : ""}`}
+                        onClick={() => setSettingsOpen(!settingsOpen)}
+                        title="Налаштування генерації"
+                      >
+                        <Settings2 className="h-4 w-4" />
+                      </Button>
+                      <Input
+                        ref={inputRef}
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend();
+                          }
+                        }}
+                        placeholder={
+                          selectedMerch
+                            ? `${selectedMerch.emoji} Опис мерчу (необов'язково)...`
+                            : selectedTemplate
+                            ? "Додатковий опис (необов'язково)..."
+                            : "/img опис або текст..."
                         }
-                      }}
-                      placeholder="/img опис або текст..."
-                      disabled={isSending}
-                      className="text-sm h-9"
-                    />
-                    <Button
-                      size="icon"
-                      className="h-9 w-9 shrink-0"
-                      onClick={handleSend}
-                      disabled={isSending || !message.trim()}
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
+                        disabled={isSending}
+                        className="text-sm h-9"
+                      />
+                      <Button
+                        size="icon"
+                        className="h-9 w-9 shrink-0"
+                        onClick={handleSend}
+                        disabled={
+                          isSending ||
+                          (!message.trim() && !selectedMerchTypeId && !selectedTemplateId)
+                        }
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1.5">
+                      <code className="bg-muted px-1 rounded">/img</code> — генерація зображення на полотно
+                    </p>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-1.5">
-                    <code className="bg-muted px-1 rounded">/img</code> — генерація зображення на полотно
-                  </p>
                 </div>
               </>
             )}

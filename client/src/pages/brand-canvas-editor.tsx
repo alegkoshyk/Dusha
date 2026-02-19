@@ -6,16 +6,34 @@ export interface BrandCanvasEditorHandle {
   addImage: (imageUrl: string) => void;
 }
 
+function loadImageSize(src: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => resolve({ w: 512, h: 512 });
+    img.src = src;
+  });
+}
+
 const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle>((_props, ref) => {
   const editorRef = useRef<Editor | null>(null);
 
   useImperativeHandle(ref, () => ({
-    addImage: (imageUrl: string) => {
+    addImage: async (imageUrl: string) => {
       const editor = editorRef.current;
       if (!editor) {
         console.error("Editor not ready");
         return;
       }
+
+      const { w, h } = await loadImageSize(imageUrl);
+
+      const maxSize = 600;
+      const scale = Math.min(maxSize / w, maxSize / h, 1);
+      const displayW = Math.round(w * scale);
+      const displayH = Math.round(h * scale);
+
       const assetId = AssetRecordType.createId();
 
       editor.createAssets([
@@ -26,8 +44,8 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle>((_props, ref) => {
           props: {
             name: "AI Generated",
             src: imageUrl,
-            w: 512,
-            h: 512,
+            w,
+            h,
             mimeType: "image/png",
             isAnimated: false,
           },
@@ -41,12 +59,12 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle>((_props, ref) => {
 
       editor.createShape({
         type: "image",
-        x: centerX - 256,
-        y: centerY - 256,
+        x: centerX - displayW / 2,
+        y: centerY - displayH / 2,
         props: {
           assetId,
-          w: 512,
-          h: 512,
+          w: displayW,
+          h: displayH,
         },
       });
     },
