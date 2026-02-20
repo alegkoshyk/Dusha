@@ -317,8 +317,60 @@ export default function BrandCanvas() {
   }, []);
 
   const [showUpscaleMenu, setShowUpscaleMenu] = useState(false);
+  const [upscaleMenuPos, setUpscaleMenuPos] = useState<{ top: number; left: number } | null>(null);
   const upscaleMenuRef = useRef<HTMLDivElement>(null);
-  const upscaleBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const UPSCALE_BTN_ID = 'upscale-injected-btn';
+    const UPSCALE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
+
+    const interval = setInterval(() => {
+      const toolbar = document.querySelector('.tlui-image__toolbar');
+      if (!toolbar) {
+        const existing = document.getElementById(UPSCALE_BTN_ID);
+        if (existing) existing.remove();
+        return;
+      }
+
+      const infos = canvasRef.current?.getSelectedImageInfo() || [];
+      let btn = document.getElementById(UPSCALE_BTN_ID) as HTMLButtonElement | null;
+
+      if (infos.length === 1 && !upscaleMutation.isPending) {
+        if (!btn) {
+          btn = document.createElement('button');
+          btn.id = UPSCALE_BTN_ID;
+          btn.className = 'tlui-button tlui-button__icon';
+          btn.title = 'Upscale';
+          btn.style.cssText = 'display:flex;align-items:center;justify-content:center;width:32px;height:32px;cursor:pointer;';
+          btn.innerHTML = UPSCALE_SVG;
+          btn.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          });
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const rect = btn!.getBoundingClientRect();
+            setUpscaleMenuPos({ top: rect.bottom + 6, left: rect.left });
+            setShowUpscaleMenu(prev => !prev);
+          });
+          const altBtn = toolbar.querySelector('[data-testid="tool.image-alt-text"]');
+          if (altBtn) {
+            altBtn.parentNode?.insertBefore(btn, altBtn);
+          } else {
+            toolbar.appendChild(btn);
+          }
+        }
+      } else {
+        btn?.remove();
+        setShowUpscaleMenu(false);
+      }
+    }, 200);
+
+    return () => {
+      clearInterval(interval);
+      document.getElementById(UPSCALE_BTN_ID)?.remove();
+    };
+  }, [upscaleMutation.isPending]);
   const handleUpscale = useCallback((resolution: string) => {
     if (!activeSessionId) return;
     const infos = canvasRef.current?.getSelectedImageInfo() || [];
@@ -338,9 +390,10 @@ export default function BrandCanvas() {
   useEffect(() => {
     if (!showUpscaleMenu) return;
     const handler = (e: PointerEvent) => {
+      const injectedBtn = document.getElementById('upscale-injected-btn');
       if (
         upscaleMenuRef.current && !upscaleMenuRef.current.contains(e.target as Node) &&
-        upscaleBtnRef.current && !upscaleBtnRef.current.contains(e.target as Node)
+        (!injectedBtn || !injectedBtn.contains(e.target as Node))
       ) {
         setShowUpscaleMenu(false);
       }
@@ -463,22 +516,8 @@ export default function BrandCanvas() {
             <TldrawEditor ref={canvasRef} brandId={brandId} onSelectionChange={handleCanvasSelectionChange} />
           </Suspense>
 
-          {selectedImageInfo.length === 1 && !upscaleMutation.isPending && (
-            <div style={{ position: 'fixed', top: 56, right: chatOpen ? 400 : 16, zIndex: 99999 }}>
-              <button
-                ref={upscaleBtnRef}
-                onClick={() => setShowUpscaleMenu(!showUpscaleMenu)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                <Maximize2 className="h-4 w-4" />
-                <span>Upscale</span>
-              </button>
-            </div>
-          )}
-
-          {showUpscaleMenu && upscaleBtnRef.current && selectedImageInfo.length === 1 && (() => {
+          {showUpscaleMenu && upscaleMenuPos && selectedImageInfo.length === 1 && (() => {
             const info = selectedImageInfo[0];
-            const rect = upscaleBtnRef.current!.getBoundingClientRect();
             const target2K = getTargetDimensions(info.w, info.h, '2K');
             const target4K = getTargetDimensions(info.w, info.h, '4K');
             return (
@@ -486,8 +525,8 @@ export default function BrandCanvas() {
                 ref={upscaleMenuRef}
                 style={{
                   position: 'fixed',
-                  top: rect.bottom + 6,
-                  right: window.innerWidth - rect.right,
+                  top: upscaleMenuPos.top,
+                  left: upscaleMenuPos.left,
                   zIndex: 99999,
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
