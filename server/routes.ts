@@ -5125,7 +5125,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls, usePro = false, resolution = 'standard', useStreaming = false, agentId, productIds, audienceIds } = req.body;
+      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls, usePro = false, resolution: rawResolution = 'standard', useStreaming = false, agentId, productIds, audienceIds } = req.body;
+      const resolution = (!usePro && rawResolution === '4K') ? '2K' : rawResolution;
       const userId = req.session?.user?.id;
 
       if (!userId) {

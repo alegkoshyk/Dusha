@@ -1465,46 +1465,57 @@ export default function BrandChat() {
               </div>
               
               {/* Generation super-settings: Pro / Streaming / Resolution */}
-              <div className="p-2.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">Надналаштування генерації</span>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <Switch
-                      id="use-pro"
-                      checked={useNanoBananaPro}
-                      onCheckedChange={setUseNanoBananaPro}
-                      className="scale-75"
-                    />
-                    <span className="text-xs text-gray-700 dark:text-gray-300">🍌 Pro</span>
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <Switch
-                      id="use-streaming"
-                      checked={useNanoBananaStreaming}
-                      onCheckedChange={setUseNanoBananaStreaming}
-                      className="scale-75"
-                    />
-                    <span className="text-xs text-gray-700 dark:text-gray-300">⚡ Streaming</span>
-                  </label>
+              <div className="p-2.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2">
+                <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider block">Надналаштування генерації</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-700 dark:text-gray-300">🍌 Pro модель</span>
+                  <Switch
+                    id="use-pro"
+                    checked={useNanoBananaPro}
+                    onCheckedChange={(v) => {
+                      setUseNanoBananaPro(v);
+                      if (!v && nanoBananaResolution === '4K') setNanoBananaResolution('2K');
+                    }}
+                    className="scale-75"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-700 dark:text-gray-300">⚡ Streaming</span>
+                  <Switch
+                    id="use-streaming"
+                    checked={useNanoBananaStreaming}
+                    onCheckedChange={setUseNanoBananaStreaming}
+                    className="scale-75"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-700 dark:text-gray-300">🖼️ Якість</span>
                   <div className="flex items-center gap-1">
                     {[
                       { value: 'standard', label: 'Стд' },
                       { value: '2K', label: '2K' },
-                      { value: '4K', label: '4K' },
-                    ].map((r) => (
-                      <button
-                        key={r.value}
-                        type="button"
-                        onClick={() => setNanoBananaResolution(r.value)}
-                        className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                          nanoBananaResolution === r.value
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
-                        }`}
-                      >
-                        {r.label}
-                      </button>
-                    ))}
+                      { value: '4K', label: '4K', requiresPro: true },
+                    ].map((r) => {
+                      const disabled = r.requiresPro && !useNanoBananaPro;
+                      return (
+                        <button
+                          key={r.value}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => setNanoBananaResolution(r.value)}
+                          className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                            disabled
+                              ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-50'
+                              : nanoBananaResolution === r.value
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
+                          }`}
+                          title={disabled ? 'Потрібна Pro модель' : undefined}
+                        >
+                          {r.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

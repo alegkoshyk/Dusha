@@ -410,36 +410,44 @@ export default function BrandCanvas() {
                         </div>
                       )}
 
-                      <div>
-                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Надналаштування</span>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <label className="flex items-center gap-1 cursor-pointer">
-                            <Switch id="canvas-use-pro" checked={useNanoBananaPro} onCheckedChange={setUseNanoBananaPro} className="scale-[0.65]" />
-                            <span className="text-[11px]">🍌 Pro</span>
-                          </label>
-                          <label className="flex items-center gap-1 cursor-pointer">
-                            <Switch id="canvas-use-streaming" checked={useNanoBananaStreaming} onCheckedChange={setUseNanoBananaStreaming} className="scale-[0.65]" />
-                            <span className="text-[11px]">⚡ Stream</span>
-                          </label>
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Надналаштування</span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]">🍌 Pro модель</span>
+                          <Switch id="canvas-use-pro" checked={useNanoBananaPro} onCheckedChange={(v) => { setUseNanoBananaPro(v); if (!v && nanoBananaResolution === '4K') setNanoBananaResolution('2K'); }} className="scale-[0.65]" />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]">⚡ Streaming</span>
+                          <Switch id="canvas-use-streaming" checked={useNanoBananaStreaming} onCheckedChange={setUseNanoBananaStreaming} className="scale-[0.65]" />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px]">🖼️ Якість</span>
                           <div className="flex items-center gap-0.5">
                             {[
                               { value: 'standard', label: 'Стд' },
                               { value: '2K', label: '2K' },
-                              { value: '4K', label: '4K' },
-                            ].map((r) => (
-                              <button
-                                key={r.value}
-                                type="button"
-                                onClick={() => setNanoBananaResolution(r.value)}
-                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                                  nanoBananaResolution === r.value
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
-                                }`}
-                              >
-                                {r.label}
-                              </button>
-                            ))}
+                              { value: '4K', label: '4K', requiresPro: true },
+                            ].map((r) => {
+                              const disabled = (r as any).requiresPro && !useNanoBananaPro;
+                              return (
+                                <button
+                                  key={r.value}
+                                  type="button"
+                                  disabled={disabled}
+                                  onClick={() => setNanoBananaResolution(r.value)}
+                                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                                    disabled
+                                      ? 'bg-muted text-muted-foreground/40 cursor-not-allowed opacity-50'
+                                      : nanoBananaResolution === r.value
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                                  }`}
+                                  title={disabled ? 'Потрібна Pro модель' : undefined}
+                                >
+                                  {r.label}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
