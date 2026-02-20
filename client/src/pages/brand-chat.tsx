@@ -185,6 +185,50 @@ interface LocalImageMessage {
   imageUrl: string | null;
   isLoading: boolean;
   createdAt: string;
+  startedAt?: number;
+}
+
+function ImageGenerationSkeleton({ startedAt }: { startedAt?: number }) {
+  const [elapsed, setElapsed] = useState(0);
+  const estimatedTotal = 25;
+  
+  useEffect(() => {
+    const start = startedAt || Date.now();
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 500);
+    return () => clearInterval(interval);
+  }, [startedAt]);
+  
+  const progress = Math.min(95, Math.round((elapsed / estimatedTotal) * 100));
+  const phase = elapsed < 5 ? 'Підготовка запиту...' 
+    : elapsed < 12 ? 'Генерація зображення...' 
+    : elapsed < 20 ? 'Фінальна обробка...' 
+    : 'Майже готово...';
+  
+  return (
+    <div className="space-y-2">
+      <div className="relative w-48 h-48 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" 
+          style={{ backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-10 h-10 border-3 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <span className="text-2xl font-bold text-gray-500 dark:text-gray-300">{progress}%</span>
+          </div>
+        </div>
+      </div>
+      <div className="w-48">
+        <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">{phase}</p>
+      </div>
+    </div>
+  );
 }
 
 function formatMarkdown(text: string): JSX.Element {
@@ -401,7 +445,6 @@ export default function BrandChat() {
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
   const [useNanoBananaPro, setUseNanoBananaPro] = useState(false);
   const [nanoBananaResolution, setNanoBananaResolution] = useState('standard');
-  const [useNanoBananaStreaming, setUseNanoBananaStreaming] = useState(false);
   const [imageGenerationMode, setImageGenerationMode] = useState(false);
   const [referenceImages, setReferenceImages] = useState<{ url: string; filename: string }[]>([]);
   const [uploadingReference, setUploadingReference] = useState(false);
@@ -560,8 +603,8 @@ export default function BrandChat() {
   const allAudiencesSelected = brandAudiences && brandAudiences.length > 0 && selectedAudienceIds.length === brandAudiences.length;
 
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, resolution, useStreaming, agentId, productIds, audienceIds }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; resolution?: string; useStreaming?: boolean; agentId?: string; productIds?: string[]; audienceIds?: string[] }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, resolution, useStreaming, agentId, productIds, audienceIds });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, resolution, agentId, productIds, audienceIds }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; resolution?: string; agentId?: string; productIds?: string[]; audienceIds?: string[] }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, resolution, agentId, productIds, audienceIds });
     },
     onError: (error: any) => {
       toast({
@@ -810,7 +853,8 @@ export default function BrandChat() {
         prompt: selectedMerchType?.name || selectedTemplate?.name || userPrompt || 'Генерація...',
         imageUrl: null,
         isLoading: true,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        startedAt: Date.now()
       }]);
       
       try {
@@ -824,7 +868,6 @@ export default function BrandChat() {
             referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined,
             usePro: useNanoBananaPro,
             resolution: nanoBananaResolution,
-            useStreaming: useNanoBananaStreaming,
             agentId: selectedAgentId || undefined,
             productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
             audienceIds: selectedAudienceIds.length > 0 ? selectedAudienceIds : undefined
@@ -1341,10 +1384,7 @@ export default function BrandChat() {
                     </div>
                     <div className="max-w-[80%] rounded-lg px-4 py-3 bg-gray-100 dark:bg-gray-800">
                       {imgMsg.isLoading ? (
-                        <div className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                          <BrandSoulSpinner size={24} />
-                          <AnimatedLoadingText />
-                        </div>
+                        <ImageGenerationSkeleton startedAt={imgMsg.startedAt} />
                       ) : (
                         <p className="text-sm text-red-500">Не вдалося згенерувати зображення</p>
                       )}
@@ -1464,7 +1504,7 @@ export default function BrandChat() {
                 </div>
               </div>
               
-              {/* Generation super-settings: Pro / Streaming / Resolution */}
+              {/* Generation settings: Pro / Resolution */}
               <div className="p-2.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 space-y-2">
                 <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider block">Надналаштування генерації</span>
                 <div className="flex items-center justify-between">
@@ -1476,15 +1516,6 @@ export default function BrandChat() {
                       setUseNanoBananaPro(v);
                       if (!v && nanoBananaResolution === '4K') setNanoBananaResolution('2K');
                     }}
-                    className="scale-75"
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-700 dark:text-gray-300">⚡ Streaming</span>
-                  <Switch
-                    id="use-streaming"
-                    checked={useNanoBananaStreaming}
-                    onCheckedChange={setUseNanoBananaStreaming}
                     className="scale-75"
                   />
                 </div>

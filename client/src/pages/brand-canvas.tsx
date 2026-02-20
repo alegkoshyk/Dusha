@@ -42,6 +42,49 @@ const ASPECT_RATIOS = [
   { value: "9:16", label: "9:16" },
 ];
 
+function CanvasImageSkeleton() {
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(Date.now());
+  const estimatedTotal = 25;
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+  
+  const progress = Math.min(95, Math.round((elapsed / estimatedTotal) * 100));
+  const phase = elapsed < 5 ? 'Підготовка...' 
+    : elapsed < 12 ? 'Генерація...' 
+    : elapsed < 20 ? 'Обробка...' 
+    : 'Майже готово...';
+  
+  return (
+    <div className="space-y-1.5">
+      <div className="relative w-36 h-36 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+          style={{ backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-1" />
+            <span className="text-xl font-bold text-gray-500 dark:text-gray-300">{progress}%</span>
+          </div>
+        </div>
+      </div>
+      <div className="w-36">
+        <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{phase}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function BrandCanvas() {
   const { brandId } = useParams<{ brandId: string }>();
   const { user } = useAuth();
@@ -53,7 +96,6 @@ export default function BrandCanvas() {
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [useNanoBananaPro, setUseNanoBananaPro] = useState(false);
   const [nanoBananaResolution, setNanoBananaResolution] = useState('standard');
-  const [useNanoBananaStreaming, setUseNanoBananaStreaming] = useState(false);
   const [selectedMerchTypeId, setSelectedMerchTypeId] = useState<number | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [showMerchPicker, setShowMerchPicker] = useState(false);
@@ -136,7 +178,6 @@ export default function BrandCanvas() {
       referenceUrls?: string[];
       usePro?: boolean;
       resolution?: string;
-      useStreaming?: boolean;
     }) => {
       return apiRequestJson(
         "POST",
@@ -176,7 +217,6 @@ export default function BrandCanvas() {
         referenceUrls: refUrls,
         usePro: useNanoBananaPro,
         resolution: nanoBananaResolution,
-        useStreaming: useNanoBananaStreaming,
       });
       setSelectedMerchTypeId(null);
       setSelectedTemplateId(null);
@@ -190,7 +230,6 @@ export default function BrandCanvas() {
           referenceUrls: refUrls,
           usePro: useNanoBananaPro,
           resolution: nanoBananaResolution,
-          useStreaming: useNanoBananaStreaming,
         });
       }
     } else if (refUrls && trimmed) {
@@ -201,7 +240,6 @@ export default function BrandCanvas() {
         referenceUrls: refUrls,
         usePro: useNanoBananaPro,
         resolution: nanoBananaResolution,
-        useStreaming: useNanoBananaStreaming,
       });
     } else if (trimmed) {
       sendMutation.mutate(trimmed);
@@ -373,16 +411,16 @@ export default function BrandCanvas() {
                       <div className="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
                         <Bot className="h-3 w-3 text-purple-600 dark:text-purple-400" />
                       </div>
-                      <div className="bg-muted rounded-2xl px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                          <span className="text-xs text-muted-foreground">
-                            {generateImageMutation.isPending
-                              ? "Генерую зображення..."
-                              : "Думаю..."}
-                          </span>
+                      {generateImageMutation.isPending ? (
+                        <CanvasImageSkeleton />
+                      ) : (
+                        <div className="bg-muted rounded-2xl px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            <span className="text-xs text-muted-foreground">Думаю...</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -415,10 +453,6 @@ export default function BrandCanvas() {
                         <div className="flex items-center justify-between">
                           <span className="text-[11px]">🍌 Pro модель</span>
                           <Switch id="canvas-use-pro" checked={useNanoBananaPro} onCheckedChange={(v) => { setUseNanoBananaPro(v); if (!v && nanoBananaResolution === '4K') setNanoBananaResolution('2K'); }} className="scale-[0.65]" />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px]">⚡ Streaming</span>
-                          <Switch id="canvas-use-streaming" checked={useNanoBananaStreaming} onCheckedChange={setUseNanoBananaStreaming} className="scale-[0.65]" />
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-[11px]">🖼️ Якість</span>

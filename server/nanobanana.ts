@@ -176,8 +176,7 @@ export async function generateImageWithNanoBanana(
   logoUrl?: string,
   referenceImageUrls?: string[],
   usePro: boolean = false,
-  resolution: string = 'standard',
-  useStreaming: boolean = false
+  resolution: string = 'standard'
 ): Promise<GenerateImageResult> {
   console.log('NanoBanana: Starting image generation...');
   console.log('NanoBanana: Aspect ratio:', aspectRatio);
@@ -185,7 +184,6 @@ export async function generateImageWithNanoBanana(
   console.log('NanoBanana: Reference images:', referenceImageUrls?.length || 0);
   console.log('NanoBanana: Pro mode:', usePro);
   console.log('NanoBanana: Resolution:', resolution);
-  console.log('NanoBanana: Streaming mode:', useStreaming);
   
   const apiKey = decryptApiKey(encryptedApiKey);
   
@@ -236,11 +234,6 @@ export async function generateImageWithNanoBanana(
       console.log('NanoBanana: Pro mode enabled');
     }
     
-    if (useStreaming) {
-      requestBody.streaming = true;
-      console.log('NanoBanana: Streaming mode enabled');
-    }
-    
     if (resolution && resolution !== 'standard') {
       requestBody.resolution = resolution;
       console.log('NanoBanana: Resolution set to', resolution);
@@ -286,7 +279,7 @@ export async function generateImageWithNanoBanana(
       const errorText = JSON.stringify(errorData).toLowerCase();
       if (logoUrl && (errorText.includes('media file') || errorText.includes('unavailable') || errorText.includes('replace it'))) {
         console.log('NanoBanana: Logo caused API error, retrying without logo...');
-        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrls, usePro, resolution, useStreaming);
+        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrls, usePro, resolution);
       }
       
       return {
@@ -298,8 +291,8 @@ export async function generateImageWithNanoBanana(
     const responseData = await response.json();
     console.log('NanoBanana: Response data:', JSON.stringify(responseData));
     
-    if ((usePro || useStreaming) && responseData.data?.response) {
-      console.log('NanoBanana: Streaming/Pro mode - got direct response');
+    if (usePro && responseData.data?.response) {
+      console.log('NanoBanana: Pro mode - got direct response');
       const directImageUrl = responseData.data.response.resultImageUrl || responseData.data.response.originImageUrl;
       if (directImageUrl) {
         try {
@@ -311,7 +304,7 @@ export async function generateImageWithNanoBanana(
             costEstimate: '0.12',
             sessionId: sessionId || null,
             userId: userId || null,
-            endpoint: 'generateImage-pro-streaming',
+            endpoint: 'generateImage-pro',
           });
         } catch (logError) {
           console.error('Failed to log NanoBanana Pro usage:', logError);
@@ -324,7 +317,7 @@ export async function generateImageWithNanoBanana(
     }
     
     if (usePro && responseData.images) {
-      console.log('NanoBanana: Pro streaming mode - images array format');
+      console.log('NanoBanana: Pro mode - images array format');
       const firstImage = responseData.images[0];
       if (firstImage?.url) {
         try {
@@ -336,7 +329,7 @@ export async function generateImageWithNanoBanana(
             costEstimate: '0.12',
             sessionId: sessionId || null,
             userId: userId || null,
-            endpoint: 'generateImage-pro-streaming',
+            endpoint: 'generateImage-pro',
           });
         } catch (logError) {
           console.error('Failed to log NanoBanana Pro usage:', logError);
@@ -377,7 +370,7 @@ export async function generateImageWithNanoBanana(
       // If logo was used and generation failed, retry without logo (image-to-image mode often fails with external URLs)
       if (logoUrl) {
         console.log('NanoBanana: Generation failed with logo reference, retrying without logo in text-to-image mode...');
-        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrls, usePro, resolution, useStreaming);
+        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrls, usePro, resolution);
       }
       
       return {
