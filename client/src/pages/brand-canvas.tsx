@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
-  ArrowLeft, Loader2, MessageCircle, Send, X, Bot, User,
+  ArrowLeft, Loader2, MessageCircle, Send, X, Bot, User, ImagePlus,
   Image, Sparkles, Settings2, ShoppingBag, Palette, ChevronDown, ChevronUp,
   Maximize2,
 } from "lucide-react";
@@ -408,6 +408,8 @@ export default function BrandCanvas() {
     return { w: Math.round(w * scale), h: Math.round(h * scale) };
   }, []);
 
+  const willGenerateImage = useLogo && brand?.logo || selectedMerchTypeId || selectedTemplateId || selectedCanvasImages.length > 0;
+
   const handleSend = () => {
     const trimmed = message.trim();
     if (!activeSessionId) return;
@@ -432,6 +434,15 @@ export default function BrandCanvas() {
       });
       setSelectedMerchTypeId(null);
       setSelectedTemplateId(null);
+    } else if (useLogo && brand?.logo) {
+      generateImageMutation.mutate({
+        prompt: trimmed || 'Generate a branded image with this logo',
+        aspectRatio,
+        logoUrl: logoUrlParam,
+        referenceUrls: refUrls,
+        usePro: useNanoBananaPro,
+        resolution: nanoBananaResolution,
+      });
     } else if (isImageCommand) {
       const prompt = trimmed.replace(/^\/(img|image)\s+/i, "");
       if (prompt) {
@@ -929,6 +940,8 @@ export default function BrandCanvas() {
                             ? "Додатковий опис..."
                             : selectedCanvasImages.length > 0
                             ? `Опис генерації (${selectedCanvasImages.length} реф.)...`
+                            : useLogo && brand?.logo
+                            ? "Опишіть що згенерувати з лого..."
                             : "/img опис або текст..."
                         }
                         disabled={isSending}
@@ -936,19 +949,21 @@ export default function BrandCanvas() {
                       />
                       <Button
                         size="icon"
-                        className="h-9 w-9 shrink-0"
+                        className={`h-9 w-9 shrink-0 ${willGenerateImage ? 'bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white' : ''}`}
                         onClick={handleSend}
                         disabled={
                           isSending ||
-                          (!message.trim() && !selectedMerchTypeId && !selectedTemplateId)
+                          (!message.trim() && !selectedMerchTypeId && !selectedTemplateId && !willGenerateImage)
                         }
                       >
-                        <Send className="h-4 w-4" />
+                        {willGenerateImage ? <ImagePlus className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                       </Button>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1.5">
-                      <code className="bg-muted px-1 rounded">/img</code> — генерація зображення на полотно
-                    </p>
+                    {!willGenerateImage && (
+                      <p className="text-[10px] text-muted-foreground mt-1.5">
+                        <code className="bg-muted px-1 rounded">/img</code> — генерація зображення на полотно
+                      </p>
+                    )}
                   </div>
                 </div>
               </>
