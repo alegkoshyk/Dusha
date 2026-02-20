@@ -53,6 +53,7 @@ export default function BrandCanvas() {
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [useNanoBananaPro, setUseNanoBananaPro] = useState(false);
   const [useNanoBanana4K, setUseNanoBanana4K] = useState(false);
+  const [useNanoBananaStreaming, setUseNanoBananaStreaming] = useState(false);
   const [selectedMerchTypeId, setSelectedMerchTypeId] = useState<number | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [showMerchPicker, setShowMerchPicker] = useState(false);
@@ -135,6 +136,7 @@ export default function BrandCanvas() {
       referenceUrls?: string[];
       usePro?: boolean;
       use4K?: boolean;
+      useStreaming?: boolean;
     }) => {
       return apiRequestJson(
         "POST",
@@ -174,6 +176,7 @@ export default function BrandCanvas() {
         referenceUrls: refUrls,
         usePro: useNanoBananaPro,
         use4K: useNanoBanana4K,
+        useStreaming: useNanoBananaStreaming,
       });
       setSelectedMerchTypeId(null);
       setSelectedTemplateId(null);
@@ -187,6 +190,7 @@ export default function BrandCanvas() {
           referenceUrls: refUrls,
           usePro: useNanoBananaPro,
           use4K: useNanoBanana4K,
+          useStreaming: useNanoBananaStreaming,
         });
       }
     } else if (refUrls && trimmed) {
@@ -197,6 +201,7 @@ export default function BrandCanvas() {
         referenceUrls: refUrls,
         usePro: useNanoBananaPro,
         use4K: useNanoBanana4K,
+        useStreaming: useNanoBananaStreaming,
       });
     } else if (trimmed) {
       sendMutation.mutate(trimmed);
@@ -405,36 +410,22 @@ export default function BrandCanvas() {
                         </div>
                       )}
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <Label htmlFor="canvas-use-pro" className="text-xs font-medium">
-                            🍌 Pro + Streaming
-                          </Label>
-                          <span className="text-[10px] text-muted-foreground">
-                            Gemini 3 Pro (~$0.12)
-                          </span>
+                      <div>
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Надналаштування</span>
+                        <div className="flex items-center gap-2.5">
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <Switch id="canvas-use-pro" checked={useNanoBananaPro} onCheckedChange={setUseNanoBananaPro} className="scale-[0.65]" />
+                            <span className="text-[11px]">🍌 Pro</span>
+                          </label>
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <Switch id="canvas-use-streaming" checked={useNanoBananaStreaming} onCheckedChange={setUseNanoBananaStreaming} className="scale-[0.65]" />
+                            <span className="text-[11px]">⚡ Stream</span>
+                          </label>
+                          <label className="flex items-center gap-1 cursor-pointer">
+                            <Switch id="canvas-use-4k" checked={useNanoBanana4K} onCheckedChange={setUseNanoBanana4K} className="scale-[0.65]" />
+                            <span className="text-[11px]">🖼️ 4K</span>
+                          </label>
                         </div>
-                        <Switch
-                          id="canvas-use-pro"
-                          checked={useNanoBananaPro}
-                          onCheckedChange={setUseNanoBananaPro}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <Label htmlFor="canvas-use-4k" className="text-xs font-medium">
-                            🖼️ 4K роздільність
-                          </Label>
-                          <span className="text-[10px] text-muted-foreground">
-                            Макс. якість (x2 кредитів)
-                          </span>
-                        </div>
-                        <Switch
-                          id="canvas-use-4k"
-                          checked={useNanoBanana4K}
-                          onCheckedChange={setUseNanoBanana4K}
-                        />
                       </div>
 
                       <div>
