@@ -132,8 +132,41 @@ const UpscalePortalButton = track(function UpscalePortalButton() {
     actions.onUpscale(info, resolution);
   };
 
+  const upscaleSvg = (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="15 3 21 3 21 9" />
+      <polyline points="9 21 3 21 3 15" />
+      <line x1="21" y1="3" x2="14" y2="10" />
+      <line x1="3" y1="21" x2="10" y2="14" />
+    </svg>
+  );
+
+  const spinnerSvg = (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
+
+  const dropdownItemStyle = (disabled?: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '7px 12px',
+    border: 'none',
+    borderRadius: '6px',
+    background: 'transparent',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: '13px',
+    fontWeight: 500,
+    color: disabled ? 'var(--color-text-3, #aaa)' : 'var(--color-text, #1d1d1d)',
+    opacity: disabled ? 0.5 : 1,
+    width: '100%',
+    textAlign: 'left' as const,
+    whiteSpace: 'nowrap' as const,
+  });
+
   return createPortal(
-    <div style={{ position: 'relative', display: 'flex' }}>
+    <>
       <button
         ref={btnRef}
         className="tlui-toolbar__button tlui-button tlui-button__icon"
@@ -145,95 +178,60 @@ const UpscalePortalButton = track(function UpscalePortalButton() {
         }}
         style={{ opacity: actions.isUpscaling ? 0.5 : 1 }}
       >
-        {actions.isUpscaling ? (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-        ) : (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" />
-          </svg>
-        )}
+        {actions.isUpscaling ? spinnerSvg : upscaleSvg}
       </button>
 
-      {showMenu && (
+      {showMenu && btnRef.current && (() => {
+        const rect = btnRef.current!.getBoundingClientRect();
+        return (
         <div
           ref={menuRef}
           style={{
-            position: 'absolute',
-            bottom: 'calc(100% + 8px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'var(--color-panel, white)',
-            borderRadius: '9px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
-            padding: '4px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1px',
-            minWidth: '130px',
-            zIndex: 999,
+            position: 'fixed',
+            top: rect.top - 8,
+            left: rect.left + rect.width / 2,
+            transform: 'translateX(-50%) translateY(-100%)',
+            zIndex: 9999,
           }}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={() => handleSelect('2K')}
+          <div
             style={{
+              background: 'var(--color-panel, white)',
+              borderRadius: '9px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
+              padding: '4px',
               display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '7px 12px',
-              border: 'none',
-              borderRadius: '6px',
-              background: 'transparent',
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: 'var(--color-text, #1d1d1d)',
-              width: '100%',
-              textAlign: 'left',
-              whiteSpace: 'nowrap',
+              flexDirection: 'column',
+              gap: '1px',
+              minWidth: '140px',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" />
-            </svg>
-            <span>Upscale 2K</span>
-          </button>
-          <button
-            onClick={() => handleSelect('4K')}
-            disabled={!actions.is4KEnabled}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '7px 12px',
-              border: 'none',
-              borderRadius: '6px',
-              background: 'transparent',
-              cursor: actions.is4KEnabled ? 'pointer' : 'not-allowed',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: actions.is4KEnabled ? 'var(--color-text, #1d1d1d)' : 'var(--color-text-3, #aaa)',
-              opacity: actions.is4KEnabled ? 1 : 0.5,
-              width: '100%',
-              textAlign: 'left',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => { if (actions.is4KEnabled) e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" />
-            </svg>
-            <span>Upscale 4K</span>
-            {!actions.is4KEnabled && <span style={{ fontSize: '9px', color: '#f59e0b', fontWeight: 600, marginLeft: 'auto' }}>PRO</span>}
-          </button>
+            <button
+              onClick={() => handleSelect('2K')}
+              style={dropdownItemStyle(false)}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              {upscaleSvg}
+              <span>Upscale 2K</span>
+            </button>
+            <button
+              onClick={() => handleSelect('4K')}
+              disabled={!actions.is4KEnabled}
+              style={dropdownItemStyle(!actions.is4KEnabled)}
+              onMouseEnter={(e) => { if (actions.is4KEnabled) e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              {upscaleSvg}
+              <span>Upscale 4K</span>
+              {!actions.is4KEnabled && <span style={{ fontSize: '9px', color: '#f59e0b', fontWeight: 600, marginLeft: 'auto' }}>PRO</span>}
+            </button>
+          </div>
         </div>
-      )}
-    </div>,
+        );
+      })()}
+    </>,
     portalTarget
   );
 });
