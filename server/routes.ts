@@ -5274,7 +5274,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const resolveToPublicUrl = (url: string): string => {
         if (url.startsWith('/api/r2/') || url.startsWith('/api/media/')) {
-          const domain = process.env.REPLIT_DOMAINS || process.env.REPLIT_DEV_DOMAIN;
+          const domainsStr = process.env.REPLIT_DOMAINS || process.env.REPLIT_DEV_DOMAIN || '';
+          const domain = domainsStr.split(',')[0].trim();
           if (domain) {
             return `https://${domain}${url}`;
           }

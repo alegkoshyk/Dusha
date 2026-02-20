@@ -8,6 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 export function resolveMediaUrl(url: string | null | undefined): string {
   if (!url) return '';
   if (url.startsWith('data:')) return url;
+  if (url.startsWith('/api/r2/')) return url;
   if (url.startsWith('/api/media/')) return url;
 
   if (url.startsWith('https://storage.googleapis.com/')) {
