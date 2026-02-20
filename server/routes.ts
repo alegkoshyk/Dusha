@@ -5275,7 +5275,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const resolveToPublicUrl = (url: string): string => {
         if (url.startsWith('/api/r2/') || url.startsWith('/api/media/')) {
           const domainsStr = process.env.REPLIT_DOMAINS || process.env.REPLIT_DEV_DOMAIN || '';
-          const domain = domainsStr.split(',')[0].trim();
+          const domains = domainsStr.split(',').map(d => d.trim()).filter(Boolean);
+          const domain = domains.find(d => d === 'brandsoul.site') || domains[0] || '';
           if (domain) {
             return `https://${domain}${url}`;
           }
