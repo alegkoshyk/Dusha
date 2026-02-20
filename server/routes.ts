@@ -5611,8 +5611,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      const { getFromR2 } = await import('./r2Storage');
-      const data = await getFromR2(key);
+      const { getFromR2, uploadToR2 } = await import('./r2Storage');
+      let data = await getFromR2(key);
+      
+      if (!data) {
+        try {
+          const publicSearchPaths = (process.env.PUBLIC_OBJECT_SEARCH_PATHS || '').split(',').map(p => p.trim()).filter(Boolean);
+          const privateDir = process.env.PRIVATE_OBJECT_DIR || '';
+          const allDirs = currentUser ? [...publicSearchPaths, privateDir].filter(Boolean) : [...publicSearchPaths];
+          const osModule = await import('./objectStorage');
+          const osClient = osModule.objectStorageClient;
+          
+          for (const dir of allDirs) {
+            try {
+              const fullPath = `${dir}/${key}`;
+              const parsed = parseObjectPathForRoute(fullPath);
+              const file = osClient.bucket(parsed.bucketName).file(parsed.objectName);
+              const [exists] = await file.exists();
+              if (exists) {
+                const [buffer] = await file.download();
+                const [metadata] = await file.getMetadata();
+                data = buffer;
+                const ct = metadata.contentType || 'image/png';
+                uploadToR2(key, buffer, ct).then(() => {
+                  console.log(`Auto-migrated from GCS to R2: ${key}`);
+                }).catch(() => {});
+                break;
+              }
+            } catch {}
+          }
+        } catch {}
+      }
+
       if (!data) {
         return res.status(404).json({ error: "File not found" });
       }
@@ -5651,8 +5681,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid key" });
       }
 
-      const { getFromR2 } = await import('./r2Storage');
-      const data = await getFromR2(sanitizedKey);
+      const { getFromR2, uploadToR2 } = await import('./r2Storage');
+      let data = await getFromR2(sanitizedKey);
+      
+      if (!data) {
+        try {
+          const publicSearchPaths = (process.env.PUBLIC_OBJECT_SEARCH_PATHS || '').split(',').map(p => p.trim()).filter(Boolean);
+          const privateDir = process.env.PRIVATE_OBJECT_DIR || '';
+          const currentUser = getCurrentUserUnified(req);
+          const allDirs = currentUser ? [...publicSearchPaths, privateDir].filter(Boolean) : [...publicSearchPaths];
+          const osModule = await import('./objectStorage');
+          const osClient = osModule.objectStorageClient;
+          
+          for (const dir of allDirs) {
+            try {
+              const fullPath = `${dir}/${sanitizedKey}`;
+              const parsed = parseObjectPathForRoute(fullPath);
+              const file = osClient.bucket(parsed.bucketName).file(parsed.objectName);
+              const [exists] = await file.exists();
+              if (exists) {
+                const [buffer] = await file.download();
+                const [metadata] = await file.getMetadata();
+                data = buffer;
+                const ct = metadata.contentType || 'image/png';
+                uploadToR2(sanitizedKey, buffer, ct).then(() => {
+                  console.log(`Auto-migrated from GCS to R2: ${sanitizedKey}`);
+                }).catch(() => {});
+                break;
+              }
+            } catch {}
+          }
+        } catch (gcsErr) {
+          console.error("GCS fallback error:", gcsErr);
+        }
+      }
+
       if (!data) {
         return res.status(404).json({ error: "File not found" });
       }
