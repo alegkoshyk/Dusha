@@ -229,6 +229,8 @@ export async function generateImageWithNanoBanana(
     
     if (usePro) {
       requestBody.usePro = true;
+      requestBody.streaming = true;
+      console.log('NanoBanana: Pro mode with streaming enabled');
     }
     
     const allImageUrls: string[] = [];
@@ -280,8 +282,60 @@ export async function generateImageWithNanoBanana(
       };
     }
 
-    const taskData: NanoBananaTaskResponse = await response.json();
-    console.log('NanoBanana: Task response:', JSON.stringify(taskData));
+    const responseData = await response.json();
+    console.log('NanoBanana: Response data:', JSON.stringify(responseData));
+    
+    if (usePro && responseData.data?.response) {
+      console.log('NanoBanana: Streaming/Pro mode - got direct response');
+      const directImageUrl = responseData.data.response.resultImageUrl || responseData.data.response.originImageUrl;
+      if (directImageUrl) {
+        try {
+          await storage.logAIUsage({
+            provider: 'nanobanana-pro',
+            model: 'gemini-3-pro-image',
+            tokensInput: null,
+            tokensOutput: null,
+            costEstimate: '0.12',
+            sessionId: sessionId || null,
+            userId: userId || null,
+            endpoint: 'generateImage-pro-streaming',
+          });
+        } catch (logError) {
+          console.error('Failed to log NanoBanana Pro usage:', logError);
+        }
+        return {
+          success: true,
+          imageUrl: directImageUrl
+        };
+      }
+    }
+    
+    if (usePro && responseData.images) {
+      console.log('NanoBanana: Pro streaming mode - images array format');
+      const firstImage = responseData.images[0];
+      if (firstImage?.url) {
+        try {
+          await storage.logAIUsage({
+            provider: 'nanobanana-pro',
+            model: 'gemini-3-pro-image',
+            tokensInput: null,
+            tokensOutput: null,
+            costEstimate: '0.12',
+            sessionId: sessionId || null,
+            userId: userId || null,
+            endpoint: 'generateImage-pro-streaming',
+          });
+        } catch (logError) {
+          console.error('Failed to log NanoBanana Pro usage:', logError);
+        }
+        return {
+          success: true,
+          imageUrl: firstImage.url
+        };
+      }
+    }
+    
+    const taskData = responseData as NanoBananaTaskResponse;
     
     if (taskData.code !== 200 || !taskData.data?.taskId) {
       console.error('NanoBanana: Invalid task response');

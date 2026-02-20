@@ -1464,10 +1464,10 @@ export default function BrandChat() {
               <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div className="flex flex-col">
                   <Label htmlFor="use-pro" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    🍌 NanoBanana Pro
+                    🍌 NanoBanana Pro + Streaming
                   </Label>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Вища якість генерації (більше кредитів)
+                    Gemini 3 Pro Image, 4K, streaming (~$0.12)
                   </span>
                 </div>
                 <Switch
