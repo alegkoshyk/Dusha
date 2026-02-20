@@ -1,5 +1,5 @@
 import { useCallback, useImperativeHandle, forwardRef, useRef, useEffect, createContext, useContext, useMemo } from "react";
-import { Tldraw, Editor, AssetRecordType, getSnapshot, loadSnapshot, track, useEditor, TLEditorComponents } from "tldraw";
+import { Tldraw, Editor, AssetRecordType, getSnapshot, loadSnapshot, track, useEditor, TLComponents, DefaultStylePanel, DefaultStylePanelContent } from "tldraw";
 import "tldraw/tldraw.css";
 import { ZoomIn, Download, Loader2 } from "lucide-react";
 
@@ -69,114 +69,129 @@ function getSelectedImageFromEditor(editor: Editor): SelectedImageInfo | null {
 
 const ToolbarActionsContext = createContext<ImageToolbarActions | null>(null);
 
-const ImageContextToolbar = track(() => {
+const ImageToolsSection = track(() => {
   const editor = useEditor();
   const actions = useContext(ToolbarActionsContext);
 
-  if (!editor.isIn('select.idle')) return null;
   const info = getSelectedImageFromEditor(editor);
   if (!info || !actions) return null;
 
-  const selectionBounds = editor.getSelectionRotatedPageBounds();
-  if (!selectionBounds) return null;
-
-  const viewportPoint = editor.pageToViewport(selectionBounds.point);
-  const viewportEnd = editor.pageToViewport({
-    x: selectionBounds.x + selectionBounds.w,
-    y: selectionBounds.y + selectionBounds.h,
-  });
-
-  const toolbarWidth = 320;
-  const centerX = viewportPoint.x + (viewportEnd.x - viewportPoint.x) / 2;
-  const topY = viewportPoint.y;
-
-  const btnStyle = (disabled?: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '5px',
-    padding: '5px 10px',
-    border: 'none',
-    borderRadius: '7px',
-    background: 'transparent',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    fontSize: '12px',
-    fontWeight: 500,
-    color: disabled ? '#aaa' : '#333',
-    opacity: disabled ? 0.5 : 1,
-    transition: 'background 0.15s',
-  });
-
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: Math.max(8, topY - 48),
-        left: Math.max(8, centerX - toolbarWidth / 2),
-        zIndex: 500,
-        pointerEvents: 'all',
-      }}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
+    <div style={{
+      borderTop: '1px solid var(--color-muted, #e5e7eb)',
+      padding: '8px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '6px',
+    }}>
+      <div style={{
+        fontSize: '11px',
+        fontWeight: 600,
+        color: 'var(--color-text-2, #6b7280)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        marginBottom: '2px',
+      }}>
+        Зображення
+      </div>
+
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '2px',
-        padding: '4px 6px',
-        background: 'white',
-        borderRadius: '10px',
-        boxShadow: '0 2px 12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)',
+        gap: '4px',
       }}>
         <button
           onClick={() => actions.onUpscale(info, '2K')}
           disabled={actions.isUpscaling}
-          style={btnStyle(actions.isUpscaling)}
-          onMouseEnter={(e) => { if (!actions.isUpscaling) e.currentTarget.style.background = '#f3f4f6'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          className="tlui-button"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 8px',
+            fontSize: '12px',
+            fontWeight: 500,
+            border: 'none',
+            borderRadius: '6px',
+            cursor: actions.isUpscaling ? 'not-allowed' : 'pointer',
+            opacity: actions.isUpscaling ? 0.5 : 1,
+            background: 'var(--color-low, #f3f4f6)',
+            color: 'var(--color-text, #333)',
+            flex: 1,
+            justifyContent: 'center',
+          }}
           title="Upscale до 2K"
         >
-          {actions.isUpscaling ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <ZoomIn size={14} />}
+          {actions.isUpscaling ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <ZoomIn size={13} />}
           <span>2K</span>
         </button>
-
-        <div style={{ width: '1px', height: '18px', background: '#e5e7eb' }} />
 
         <button
           onClick={() => actions.onUpscale(info, '4K')}
           disabled={actions.isUpscaling || !actions.is4KEnabled}
-          style={btnStyle(actions.isUpscaling || !actions.is4KEnabled)}
-          onMouseEnter={(e) => { if (!actions.isUpscaling && actions.is4KEnabled) e.currentTarget.style.background = '#f3f4f6'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          className="tlui-button"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 8px',
+            fontSize: '12px',
+            fontWeight: 500,
+            border: 'none',
+            borderRadius: '6px',
+            cursor: (actions.isUpscaling || !actions.is4KEnabled) ? 'not-allowed' : 'pointer',
+            opacity: (actions.isUpscaling || !actions.is4KEnabled) ? 0.5 : 1,
+            background: 'var(--color-low, #f3f4f6)',
+            color: 'var(--color-text, #333)',
+            flex: 1,
+            justifyContent: 'center',
+          }}
           title={actions.is4KEnabled ? "Upscale до 4K" : "4K потребує Pro"}
         >
-          <ZoomIn size={14} />
+          <ZoomIn size={13} />
           <span>4K</span>
         </button>
 
-        <div style={{ width: '1px', height: '18px', background: '#e5e7eb' }} />
-
         <button
           onClick={() => actions.onDownload(info)}
-          style={btnStyle(false)}
-          onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          className="tlui-button"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 8px',
+            fontSize: '12px',
+            fontWeight: 500,
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            background: 'var(--color-low, #f3f4f6)',
+            color: 'var(--color-text, #333)',
+          }}
           title="Завантажити"
         >
-          <Download size={14} />
+          <Download size={13} />
         </button>
+      </div>
 
-        <div style={{ width: '1px', height: '18px', background: '#e5e7eb' }} />
-
-        <span style={{
-          padding: '4px 8px',
-          fontSize: '10px',
-          color: '#9ca3af',
-          fontFamily: 'monospace',
-          whiteSpace: 'nowrap',
-        }}>
-          {info.w}×{info.h}
-        </span>
+      <div style={{
+        fontSize: '10px',
+        color: 'var(--color-text-3, #9ca3af)',
+        fontFamily: 'monospace',
+        textAlign: 'center',
+      }}>
+        {info.w} × {info.h} px
       </div>
     </div>
+  );
+});
+
+const CustomStylePanel = track(() => {
+  return (
+    <DefaultStylePanel>
+      <DefaultStylePanelContent />
+      <ImageToolsSection />
+    </DefaultStylePanel>
   );
 });
 
@@ -331,8 +346,8 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
       },
     }));
 
-    const components: Partial<TLEditorComponents> = useMemo(() => ({
-      InFrontOfTheCanvas: ImageContextToolbar,
+    const components: Partial<TLComponents> = useMemo(() => ({
+      StylePanel: CustomStylePanel,
     }), []);
 
     const handleMount = useCallback(
