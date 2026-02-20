@@ -1,7 +1,11 @@
-import { useCallback, useImperativeHandle, forwardRef, useRef, useEffect, createContext, useContext, useMemo } from "react";
-import { Tldraw, Editor, AssetRecordType, getSnapshot, loadSnapshot, track, useEditor, TLComponents, DefaultStylePanel, DefaultStylePanelContent } from "tldraw";
+import { useCallback, useImperativeHandle, forwardRef, useRef, useEffect, createContext, useContext, useMemo, useState } from "react";
+import {
+  Tldraw, Editor, AssetRecordType, getSnapshot, loadSnapshot,
+  track, useEditor, useValue, TLComponents,
+  DefaultImageToolbar, DefaultImageToolbarContent,
+  TldrawUiToolbarButton, TldrawUiButtonIcon,
+} from "tldraw";
 import "tldraw/tldraw.css";
-import { ZoomIn, Download, Loader2 } from "lucide-react";
 
 export interface SelectedImageInfo {
   shapeId: string;
@@ -69,129 +73,176 @@ function getSelectedImageFromEditor(editor: Editor): SelectedImageInfo | null {
 
 const ToolbarActionsContext = createContext<ImageToolbarActions | null>(null);
 
-const ImageToolsSection = track(() => {
+const UpscaleDropdown = track(() => {
   const editor = useEditor();
   const actions = useContext(ToolbarActionsContext);
+  const [showMenu, setShowMenu] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [showMenu]);
 
   const info = getSelectedImageFromEditor(editor);
   if (!info || !actions) return null;
 
+  const handleSelect = (resolution: string) => {
+    setShowMenu(false);
+    actions.onUpscale(info, resolution);
+  };
+
   return (
-    <div style={{
-      borderTop: '1px solid var(--color-muted, #e5e7eb)',
-      padding: '8px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '6px',
-    }}>
-      <div style={{
-        fontSize: '11px',
-        fontWeight: 600,
-        color: 'var(--color-text-2, #6b7280)',
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        marginBottom: '2px',
-      }}>
-        Зображення
-      </div>
+    <div ref={containerRef} style={{ position: 'relative', display: 'flex' }}>
+      <TldrawUiToolbarButton
+        type="icon"
+        title="Upscale"
+        disabled={actions.isUpscaling}
+        onClick={() => setShowMenu(!showMenu)}
+      >
+        {actions.isUpscaling ? (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+        ) : (
+          <TldrawUiButtonIcon small icon="zoom-in" />
+        )}
+      </TldrawUiToolbarButton>
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px',
-      }}>
-        <button
-          onClick={() => actions.onUpscale(info, '2K')}
-          disabled={actions.isUpscaling}
-          className="tlui-button"
+      {showMenu && (
+        <div
           style={{
+            position: 'absolute',
+            bottom: 'calc(100% + 8px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'var(--color-panel, white)',
+            borderRadius: '9px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
+            padding: '4px',
             display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '4px 8px',
-            fontSize: '12px',
-            fontWeight: 500,
-            border: 'none',
-            borderRadius: '6px',
-            cursor: actions.isUpscaling ? 'not-allowed' : 'pointer',
-            opacity: actions.isUpscaling ? 0.5 : 1,
-            background: 'var(--color-low, #f3f4f6)',
-            color: 'var(--color-text, #333)',
-            flex: 1,
-            justifyContent: 'center',
+            flexDirection: 'column',
+            gap: '1px',
+            minWidth: '130px',
+            zIndex: 999,
           }}
-          title="Upscale до 2K"
+          onPointerDown={(e) => e.stopPropagation()}
         >
-          {actions.isUpscaling ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <ZoomIn size={13} />}
-          <span>2K</span>
-        </button>
-
-        <button
-          onClick={() => actions.onUpscale(info, '4K')}
-          disabled={actions.isUpscaling || !actions.is4KEnabled}
-          className="tlui-button"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '4px 8px',
-            fontSize: '12px',
-            fontWeight: 500,
-            border: 'none',
-            borderRadius: '6px',
-            cursor: (actions.isUpscaling || !actions.is4KEnabled) ? 'not-allowed' : 'pointer',
-            opacity: (actions.isUpscaling || !actions.is4KEnabled) ? 0.5 : 1,
-            background: 'var(--color-low, #f3f4f6)',
-            color: 'var(--color-text, #333)',
-            flex: 1,
-            justifyContent: 'center',
-          }}
-          title={actions.is4KEnabled ? "Upscale до 4K" : "4K потребує Pro"}
-        >
-          <ZoomIn size={13} />
-          <span>4K</span>
-        </button>
-
-        <button
-          onClick={() => actions.onDownload(info)}
-          className="tlui-button"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '4px 8px',
-            fontSize: '12px',
-            fontWeight: 500,
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            background: 'var(--color-low, #f3f4f6)',
-            color: 'var(--color-text, #333)',
-          }}
-          title="Завантажити"
-        >
-          <Download size={13} />
-        </button>
-      </div>
-
-      <div style={{
-        fontSize: '10px',
-        color: 'var(--color-text-3, #9ca3af)',
-        fontFamily: 'monospace',
-        textAlign: 'center',
-      }}>
-        {info.w} × {info.h} px
-      </div>
+          <button
+            onClick={() => handleSelect('2K')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '7px 12px',
+              border: 'none',
+              borderRadius: '6px',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: 'var(--color-text, #1d1d1d)',
+              width: '100%',
+              textAlign: 'left',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" />
+            </svg>
+            <span>Upscale 2K</span>
+          </button>
+          <button
+            onClick={() => handleSelect('4K')}
+            disabled={!actions.is4KEnabled}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '7px 12px',
+              border: 'none',
+              borderRadius: '6px',
+              background: 'transparent',
+              cursor: actions.is4KEnabled ? 'pointer' : 'not-allowed',
+              fontSize: '13px',
+              fontWeight: 500,
+              color: actions.is4KEnabled ? 'var(--color-text, #1d1d1d)' : 'var(--color-text-3, #aaa)',
+              opacity: actions.is4KEnabled ? 1 : 0.5,
+              width: '100%',
+              textAlign: 'left',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => { if (actions.is4KEnabled) e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" />
+            </svg>
+            <span>Upscale 4K</span>
+            {!actions.is4KEnabled && <span style={{ fontSize: '9px', color: '#f59e0b', fontWeight: 600, marginLeft: 'auto' }}>PRO</span>}
+          </button>
+        </div>
+      )}
     </div>
   );
 });
 
-const CustomStylePanel = track(() => {
+const CustomImageToolbarInner = track(function CustomImageToolbarInner() {
+  const editor = useEditor();
+
+  const imageShapeId = useValue(
+    "imageShape",
+    () => {
+      const onlySelectedShape = editor.getOnlySelectedShape();
+      if (!onlySelectedShape || onlySelectedShape.type !== "image") return null;
+      return onlySelectedShape.id;
+    },
+    [editor]
+  );
+
+  const isInCropTool = useValue("inCrop", () => editor.isIn("select.crop."), [editor]);
+
+  const handleManipulatingStart = useCallback(
+    () => editor.setCurrentTool("select.crop.idle"),
+    [editor]
+  );
+  const handleManipulatingEnd = useCallback(() => {
+    editor.setCroppingShape(null);
+    editor.setCurrentTool("select.idle");
+  }, [editor]);
+
+  const [isEditingAlt, setIsEditingAlt] = useState(false);
+  const handleEditAltTextStart = useCallback(() => setIsEditingAlt(true), []);
+
+  if (!imageShapeId) return null;
+
   return (
-    <DefaultStylePanel>
-      <DefaultStylePanelContent />
-      <ImageToolsSection />
-    </DefaultStylePanel>
+    <>
+      <DefaultImageToolbarContent
+        imageShapeId={imageShapeId}
+        isManipulating={isInCropTool}
+        onEditAltTextStart={handleEditAltTextStart}
+        onManipulatingStart={handleManipulatingStart}
+        onManipulatingEnd={handleManipulatingEnd}
+      />
+      <UpscaleDropdown />
+    </>
+  );
+});
+
+const CustomImageToolbar = track(() => {
+  return (
+    <DefaultImageToolbar>
+      <CustomImageToolbarInner />
+    </DefaultImageToolbar>
   );
 });
 
@@ -347,7 +398,7 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
     }));
 
     const components: Partial<TLComponents> = useMemo(() => ({
-      StylePanel: CustomStylePanel,
+      ImageToolbar: CustomImageToolbar,
     }), []);
 
     const handleMount = useCallback(
