@@ -400,6 +400,7 @@ export default function BrandChat() {
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
   const [useNanoBananaPro, setUseNanoBananaPro] = useState(false);
+  const [useNanoBanana4K, setUseNanoBanana4K] = useState(false);
   const [imageGenerationMode, setImageGenerationMode] = useState(false);
   const [referenceImages, setReferenceImages] = useState<{ url: string; filename: string }[]>([]);
   const [uploadingReference, setUploadingReference] = useState(false);
@@ -558,8 +559,8 @@ export default function BrandChat() {
   const allAudiencesSelected = brandAudiences && brandAudiences.length > 0 && selectedAudienceIds.length === brandAudiences.length;
 
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId, productIds, audienceIds }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; agentId?: string; productIds?: string[]; audienceIds?: string[] }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, agentId, productIds, audienceIds });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, use4K, agentId, productIds, audienceIds }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; use4K?: boolean; agentId?: string; productIds?: string[]; audienceIds?: string[] }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, use4K, agentId, productIds, audienceIds });
     },
     onError: (error: any) => {
       toast({
@@ -821,6 +822,7 @@ export default function BrandChat() {
             merchTypeId: item.type === 'merch' ? item.id : undefined,
             referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined,
             usePro: useNanoBananaPro,
+            use4K: useNanoBanana4K,
             agentId: selectedAgentId || undefined,
             productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
             audienceIds: selectedAudienceIds.length > 0 ? selectedAudienceIds : undefined
@@ -1460,14 +1462,14 @@ export default function BrandChat() {
                 </div>
               </div>
               
-              {/* NanoBanana Pro toggle */}
+              {/* NanoBanana Pro + Streaming toggle */}
               <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div className="flex flex-col">
                   <Label htmlFor="use-pro" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     🍌 NanoBanana Pro + Streaming
                   </Label>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    Gemini 3 Pro Image, 4K, streaming (~$0.12)
+                    Gemini 3 Pro Image, streaming (~$0.12)
                   </span>
                 </div>
                 <Switch
@@ -1475,6 +1477,24 @@ export default function BrandChat() {
                   checked={useNanoBananaPro}
                   onCheckedChange={setUseNanoBananaPro}
                   data-testid="switch-use-pro"
+                />
+              </div>
+              
+              {/* 4K Resolution toggle */}
+              <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="flex flex-col">
+                  <Label htmlFor="use-4k" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    🖼️ 4K роздільність
+                  </Label>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    Максимальна якість (x2 кредитів)
+                  </span>
+                </div>
+                <Switch
+                  id="use-4k"
+                  checked={useNanoBanana4K}
+                  onCheckedChange={setUseNanoBanana4K}
+                  data-testid="switch-use-4k"
                 />
               </div>
               

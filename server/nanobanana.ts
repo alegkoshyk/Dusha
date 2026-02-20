@@ -175,13 +175,15 @@ export async function generateImageWithNanoBanana(
   userId?: string,
   logoUrl?: string,
   referenceImageUrls?: string[],
-  usePro: boolean = false
+  usePro: boolean = false,
+  use4K: boolean = false
 ): Promise<GenerateImageResult> {
   console.log('NanoBanana: Starting image generation...');
   console.log('NanoBanana: Aspect ratio:', aspectRatio);
   console.log('NanoBanana: Logo URL provided:', !!logoUrl);
   console.log('NanoBanana: Reference images:', referenceImageUrls?.length || 0);
   console.log('NanoBanana: Pro mode:', usePro);
+  console.log('NanoBanana: 4K mode:', use4K);
   
   const apiKey = decryptApiKey(encryptedApiKey);
   
@@ -233,6 +235,11 @@ export async function generateImageWithNanoBanana(
       console.log('NanoBanana: Pro mode with streaming enabled');
     }
     
+    if (use4K) {
+      requestBody.resolution = '4K';
+      console.log('NanoBanana: 4K resolution enabled');
+    }
+    
     const allImageUrls: string[] = [];
     if (logoUrl) allImageUrls.push(logoUrl);
     if (hasReferences) allImageUrls.push(...referenceImageUrls!);
@@ -273,7 +280,7 @@ export async function generateImageWithNanoBanana(
       const errorText = JSON.stringify(errorData).toLowerCase();
       if (logoUrl && (errorText.includes('media file') || errorText.includes('unavailable') || errorText.includes('replace it'))) {
         console.log('NanoBanana: Logo caused API error, retrying without logo...');
-        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrls, usePro);
+        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrls, usePro, use4K);
       }
       
       return {
@@ -364,7 +371,7 @@ export async function generateImageWithNanoBanana(
       // If logo was used and generation failed, retry without logo (image-to-image mode often fails with external URLs)
       if (logoUrl) {
         console.log('NanoBanana: Generation failed with logo reference, retrying without logo in text-to-image mode...');
-        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrls, usePro);
+        return generateImageWithNanoBanana(encryptedApiKey, prompt, context, aspectRatio, sessionId, userId, undefined, referenceImageUrls, usePro, use4K);
       }
       
       return {

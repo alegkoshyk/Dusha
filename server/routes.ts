@@ -5125,7 +5125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/game-sessions/:sessionId/generate-image", requireAuth, async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls, usePro = false, agentId, productIds, audienceIds } = req.body;
+      const { prompt, aspectRatio = '1:1', logoUrl, templateId, merchTypeId, referenceUrls, usePro = false, use4K = false, agentId, productIds, audienceIds } = req.body;
       const userId = req.session?.user?.id;
 
       if (!userId) {
@@ -5311,7 +5311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const publicReferenceUrls = resolvedReferenceUrls.map(resolveToPublicUrl);
       
       const { generateImageWithNanoBanana } = await import('./nanobanana');
-      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, processedLogoUrl, publicReferenceUrls.length > 0 ? publicReferenceUrls : undefined, usePro);
+      const result = await generateImageWithNanoBanana(profile.geminiApiKey, finalPrompt, brandContext, aspectRatio, sessionId, userId, processedLogoUrl, publicReferenceUrls.length > 0 ? publicReferenceUrls : undefined, usePro, use4K);
 
       if (!result.success) {
         return res.status(400).json({ error: result.error });

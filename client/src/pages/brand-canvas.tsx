@@ -51,6 +51,8 @@ export default function BrandCanvas() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [useLogo, setUseLogo] = useState(false);
   const [aspectRatio, setAspectRatio] = useState("1:1");
+  const [useNanoBananaPro, setUseNanoBananaPro] = useState(false);
+  const [useNanoBanana4K, setUseNanoBanana4K] = useState(false);
   const [selectedMerchTypeId, setSelectedMerchTypeId] = useState<number | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [showMerchPicker, setShowMerchPicker] = useState(false);
@@ -131,6 +133,8 @@ export default function BrandCanvas() {
       templateId?: number;
       merchTypeId?: number;
       referenceUrls?: string[];
+      usePro?: boolean;
+      use4K?: boolean;
     }) => {
       return apiRequestJson(
         "POST",
@@ -168,6 +172,8 @@ export default function BrandCanvas() {
         templateId: selectedTemplateId || undefined,
         merchTypeId: selectedMerchTypeId || undefined,
         referenceUrls: refUrls,
+        usePro: useNanoBananaPro,
+        use4K: useNanoBanana4K,
       });
       setSelectedMerchTypeId(null);
       setSelectedTemplateId(null);
@@ -179,6 +185,8 @@ export default function BrandCanvas() {
           aspectRatio,
           logoUrl: logoUrlParam,
           referenceUrls: refUrls,
+          usePro: useNanoBananaPro,
+          use4K: useNanoBanana4K,
         });
       }
     } else if (refUrls && trimmed) {
@@ -187,6 +195,8 @@ export default function BrandCanvas() {
         aspectRatio,
         logoUrl: logoUrlParam,
         referenceUrls: refUrls,
+        usePro: useNanoBananaPro,
+        use4K: useNanoBanana4K,
       });
     } else if (trimmed) {
       sendMutation.mutate(trimmed);
@@ -394,6 +404,38 @@ export default function BrandCanvas() {
                           />
                         </div>
                       )}
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <Label htmlFor="canvas-use-pro" className="text-xs font-medium">
+                            🍌 Pro + Streaming
+                          </Label>
+                          <span className="text-[10px] text-muted-foreground">
+                            Gemini 3 Pro (~$0.12)
+                          </span>
+                        </div>
+                        <Switch
+                          id="canvas-use-pro"
+                          checked={useNanoBananaPro}
+                          onCheckedChange={setUseNanoBananaPro}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <Label htmlFor="canvas-use-4k" className="text-xs font-medium">
+                            🖼️ 4K роздільність
+                          </Label>
+                          <span className="text-[10px] text-muted-foreground">
+                            Макс. якість (x2 кредитів)
+                          </span>
+                        </div>
+                        <Switch
+                          id="canvas-use-4k"
+                          checked={useNanoBanana4K}
+                          onCheckedChange={setUseNanoBanana4K}
+                        />
+                      </div>
 
                       <div>
                         <Label className="text-xs text-muted-foreground mb-1 block">Пропорції</Label>
