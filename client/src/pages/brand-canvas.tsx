@@ -227,11 +227,17 @@ export default function BrandCanvas() {
     enabled: !!activeSessionId && chatOpen,
   });
 
+  const scrollToBottom = useCallback(() => {
+    setTimeout(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    }, 50);
+  }, []);
+
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
   const sendMutation = useMutation({
     mutationFn: async (msg: string) => {
@@ -275,6 +281,12 @@ export default function BrandCanvas() {
       }
     },
   });
+
+  useEffect(() => {
+    if (sendMutation.isPending || generateImageMutation.isPending) {
+      scrollToBottom();
+    }
+  }, [sendMutation.isPending, generateImageMutation.isPending, scrollToBottom]);
 
   const upscaleShapeIdRef = useRef<string | null>(null);
 
