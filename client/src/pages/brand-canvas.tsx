@@ -52,7 +52,7 @@ export default function BrandCanvas() {
   const [useLogo, setUseLogo] = useState(false);
   const [aspectRatio, setAspectRatio] = useState("1:1");
   const [useNanoBananaPro, setUseNanoBananaPro] = useState(false);
-  const [useNanoBanana4K, setUseNanoBanana4K] = useState(false);
+  const [nanoBananaResolution, setNanoBananaResolution] = useState('standard');
   const [useNanoBananaStreaming, setUseNanoBananaStreaming] = useState(false);
   const [selectedMerchTypeId, setSelectedMerchTypeId] = useState<number | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
@@ -135,7 +135,7 @@ export default function BrandCanvas() {
       merchTypeId?: number;
       referenceUrls?: string[];
       usePro?: boolean;
-      use4K?: boolean;
+      resolution?: string;
       useStreaming?: boolean;
     }) => {
       return apiRequestJson(
@@ -175,7 +175,7 @@ export default function BrandCanvas() {
         merchTypeId: selectedMerchTypeId || undefined,
         referenceUrls: refUrls,
         usePro: useNanoBananaPro,
-        use4K: useNanoBanana4K,
+        resolution: nanoBananaResolution,
         useStreaming: useNanoBananaStreaming,
       });
       setSelectedMerchTypeId(null);
@@ -189,7 +189,7 @@ export default function BrandCanvas() {
           logoUrl: logoUrlParam,
           referenceUrls: refUrls,
           usePro: useNanoBananaPro,
-          use4K: useNanoBanana4K,
+          resolution: nanoBananaResolution,
           useStreaming: useNanoBananaStreaming,
         });
       }
@@ -200,7 +200,7 @@ export default function BrandCanvas() {
         logoUrl: logoUrlParam,
         referenceUrls: refUrls,
         usePro: useNanoBananaPro,
-        use4K: useNanoBanana4K,
+        resolution: nanoBananaResolution,
         useStreaming: useNanoBananaStreaming,
       });
     } else if (trimmed) {
@@ -412,7 +412,7 @@ export default function BrandCanvas() {
 
                       <div>
                         <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5 block">Надналаштування</span>
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <label className="flex items-center gap-1 cursor-pointer">
                             <Switch id="canvas-use-pro" checked={useNanoBananaPro} onCheckedChange={setUseNanoBananaPro} className="scale-[0.65]" />
                             <span className="text-[11px]">🍌 Pro</span>
@@ -421,10 +421,26 @@ export default function BrandCanvas() {
                             <Switch id="canvas-use-streaming" checked={useNanoBananaStreaming} onCheckedChange={setUseNanoBananaStreaming} className="scale-[0.65]" />
                             <span className="text-[11px]">⚡ Stream</span>
                           </label>
-                          <label className="flex items-center gap-1 cursor-pointer">
-                            <Switch id="canvas-use-4k" checked={useNanoBanana4K} onCheckedChange={setUseNanoBanana4K} className="scale-[0.65]" />
-                            <span className="text-[11px]">🖼️ 4K</span>
-                          </label>
+                          <div className="flex items-center gap-0.5">
+                            {[
+                              { value: 'standard', label: 'Стд' },
+                              { value: '2K', label: '2K' },
+                              { value: '4K', label: '4K' },
+                            ].map((r) => (
+                              <button
+                                key={r.value}
+                                type="button"
+                                onClick={() => setNanoBananaResolution(r.value)}
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                                  nanoBananaResolution === r.value
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                                }`}
+                              >
+                                {r.label}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
 

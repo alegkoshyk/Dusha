@@ -400,7 +400,7 @@ export default function BrandChat() {
   const [modalImage, setModalImage] = useState<string | null>(null);
   const [imageMessages, setImageMessages] = useState<LocalImageMessage[]>([]);
   const [useNanoBananaPro, setUseNanoBananaPro] = useState(false);
-  const [useNanoBanana4K, setUseNanoBanana4K] = useState(false);
+  const [nanoBananaResolution, setNanoBananaResolution] = useState('standard');
   const [useNanoBananaStreaming, setUseNanoBananaStreaming] = useState(false);
   const [imageGenerationMode, setImageGenerationMode] = useState(false);
   const [referenceImages, setReferenceImages] = useState<{ url: string; filename: string }[]>([]);
@@ -560,8 +560,8 @@ export default function BrandChat() {
   const allAudiencesSelected = brandAudiences && brandAudiences.length > 0 && selectedAudienceIds.length === brandAudiences.length;
 
   const generateImageMutation = useMutation({
-    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, use4K, useStreaming, agentId, productIds, audienceIds }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; use4K?: boolean; useStreaming?: boolean; agentId?: string; productIds?: string[]; audienceIds?: string[] }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, use4K, useStreaming, agentId, productIds, audienceIds });
+    mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, resolution, useStreaming, agentId, productIds, audienceIds }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; resolution?: string; useStreaming?: boolean; agentId?: string; productIds?: string[]; audienceIds?: string[] }) => {
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, resolution, useStreaming, agentId, productIds, audienceIds });
     },
     onError: (error: any) => {
       toast({
@@ -823,7 +823,7 @@ export default function BrandChat() {
             merchTypeId: item.type === 'merch' ? item.id : undefined,
             referenceUrls: referenceImages.length > 0 ? referenceImages.map(r => r.url) : undefined,
             usePro: useNanoBananaPro,
-            use4K: useNanoBanana4K,
+            resolution: nanoBananaResolution,
             useStreaming: useNanoBananaStreaming,
             agentId: selectedAgentId || undefined,
             productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
@@ -1464,10 +1464,10 @@ export default function BrandChat() {
                 </div>
               </div>
               
-              {/* Generation super-settings: Pro / Streaming / 4K */}
+              {/* Generation super-settings: Pro / Streaming / Resolution */}
               <div className="p-2.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                 <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 block">Надналаштування генерації</span>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <Switch
                       id="use-pro"
@@ -1486,15 +1486,26 @@ export default function BrandChat() {
                     />
                     <span className="text-xs text-gray-700 dark:text-gray-300">⚡ Streaming</span>
                   </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <Switch
-                      id="use-4k"
-                      checked={useNanoBanana4K}
-                      onCheckedChange={setUseNanoBanana4K}
-                      className="scale-75"
-                    />
-                    <span className="text-xs text-gray-700 dark:text-gray-300">🖼️ 4K</span>
-                  </label>
+                  <div className="flex items-center gap-1">
+                    {[
+                      { value: 'standard', label: 'Стд' },
+                      { value: '2K', label: '2K' },
+                      { value: '4K', label: '4K' },
+                    ].map((r) => (
+                      <button
+                        key={r.value}
+                        type="button"
+                        onClick={() => setNanoBananaResolution(r.value)}
+                        className={`px-1.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                          nanoBananaResolution === r.value
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300'
+                        }`}
+                      >
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
               
