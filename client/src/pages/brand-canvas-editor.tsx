@@ -97,7 +97,7 @@ const UpscalePortalButton = track(function UpscalePortalButton() {
     }
 
     const findToolbar = () => {
-      const toolbar = document.querySelector('.tlui-image__toolbar');
+      const toolbar = document.querySelector('.tlui-image__toolbar .tlui-toolbar');
       if (toolbar && toolbar instanceof HTMLElement) {
         setPortalTarget(toolbar);
       } else {
@@ -165,74 +165,78 @@ const UpscalePortalButton = track(function UpscalePortalButton() {
     whiteSpace: 'nowrap' as const,
   });
 
-  return createPortal(
-    <>
-      <button
-        ref={btnRef}
-        className="tlui-toolbar__button tlui-button tlui-button__icon"
-        title="Upscale"
-        disabled={actions.isUpscaling}
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowMenu(!showMenu);
+  const dropdownMenu = showMenu && btnRef.current ? (() => {
+    const rect = btnRef.current!.getBoundingClientRect();
+    return createPortal(
+      <div
+        ref={menuRef}
+        style={{
+          position: 'fixed',
+          top: rect.top - 8,
+          left: rect.left + rect.width / 2,
+          transform: 'translateX(-50%) translateY(-100%)',
+          zIndex: 99999,
         }}
-        style={{ opacity: actions.isUpscaling ? 0.5 : 1 }}
+        onPointerDown={(e) => e.stopPropagation()}
       >
-        {actions.isUpscaling ? spinnerSvg : upscaleSvg}
-      </button>
-
-      {showMenu && btnRef.current && (() => {
-        const rect = btnRef.current!.getBoundingClientRect();
-        return (
         <div
-          ref={menuRef}
           style={{
-            position: 'fixed',
-            top: rect.top - 8,
-            left: rect.left + rect.width / 2,
-            transform: 'translateX(-50%) translateY(-100%)',
-            zIndex: 9999,
+            background: 'var(--color-panel, white)',
+            borderRadius: '9px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
+            padding: '4px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1px',
+            minWidth: '140px',
           }}
-          onPointerDown={(e) => e.stopPropagation()}
         >
-          <div
-            style={{
-              background: 'var(--color-panel, white)',
-              borderRadius: '9px',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
-              padding: '4px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1px',
-              minWidth: '140px',
-            }}
+          <button
+            onClick={() => handleSelect('2K')}
+            style={dropdownItemStyle(false)}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
-            <button
-              onClick={() => handleSelect('2K')}
-              style={dropdownItemStyle(false)}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              {upscaleSvg}
-              <span>Upscale 2K</span>
-            </button>
-            <button
-              onClick={() => handleSelect('4K')}
-              disabled={!actions.is4KEnabled}
-              style={dropdownItemStyle(!actions.is4KEnabled)}
-              onMouseEnter={(e) => { if (actions.is4KEnabled) e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              {upscaleSvg}
-              <span>Upscale 4K</span>
-              {!actions.is4KEnabled && <span style={{ fontSize: '9px', color: '#f59e0b', fontWeight: 600, marginLeft: 'auto' }}>PRO</span>}
-            </button>
-          </div>
+            {upscaleSvg}
+            <span>Upscale 2K</span>
+          </button>
+          <button
+            onClick={() => handleSelect('4K')}
+            disabled={!actions.is4KEnabled}
+            style={dropdownItemStyle(!actions.is4KEnabled)}
+            onMouseEnter={(e) => { if (actions.is4KEnabled) e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          >
+            {upscaleSvg}
+            <span>Upscale 4K</span>
+            {!actions.is4KEnabled && <span style={{ fontSize: '9px', color: '#f59e0b', fontWeight: 600, marginLeft: 'auto' }}>PRO</span>}
+          </button>
         </div>
-        );
-      })()}
-    </>,
-    portalTarget
+      </div>,
+      document.body
+    );
+  })() : null;
+
+  return (
+    <>
+      {createPortal(
+        <button
+          ref={btnRef}
+          className="tlui-toolbar__button tlui-button tlui-button__icon"
+          title="Upscale"
+          disabled={actions.isUpscaling}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMenu(!showMenu);
+          }}
+          style={{ opacity: actions.isUpscaling ? 0.5 : 1 }}
+        >
+          {actions.isUpscaling ? spinnerSvg : upscaleSvg}
+        </button>,
+        portalTarget
+      )}
+      {dropdownMenu}
+    </>
   );
 });
 
