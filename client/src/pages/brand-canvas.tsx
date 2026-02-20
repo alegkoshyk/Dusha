@@ -8,13 +8,12 @@ import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Loader2, MessageCircle, Send, X, Bot, User,
   Image, Sparkles, Settings2, ShoppingBag, Palette, ChevronDown, ChevronUp,
-  Download, ZoomIn, Eraser, MoreHorizontal,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequestJson } from "@/lib/queryClient";
 import { resolveMediaUrl } from "@/lib/utils";
 import type { GameSession, GenerationTemplate, MerchType } from "@shared/schema";
-import type { BrandCanvasEditorHandle, SelectedImageInfo } from "./brand-canvas-editor";
+import type { BrandCanvasEditorHandle, SelectedImageInfo, ImageToolbarActions } from "./brand-canvas-editor";
 
 const TldrawEditor = lazy(() => import("./brand-canvas-editor"));
 
@@ -103,7 +102,6 @@ export default function BrandCanvas() {
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [selectedCanvasImages, setSelectedCanvasImages] = useState<string[]>([]);
   const [selectedImageInfo, setSelectedImageInfo] = useState<SelectedImageInfo[]>([]);
-  const [toolbarAction, setToolbarAction] = useState<string | null>(null);
   const canvasRef = useRef<BrandCanvasEditorHandle>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -201,25 +199,47 @@ export default function BrandCanvas() {
     },
   });
 
+  const upscaleShapeIdRef = useRef<string | null>(null);
+
   const upscaleMutation = useMutation({
     mutationFn: async (params: { imageUrl: string; resolution: string; aspectRatio: string; usePro: boolean }) => {
       return apiRequestJson("POST", `/api/game-sessions/${activeSessionId}/upscale-image`, params);
     },
     onSuccess: (data: any) => {
       const imageUrl = data?.imageUrl;
-      if (imageUrl && selectedImageInfo.length > 0) {
-        canvasRef.current?.replaceImage(selectedImageInfo[0].shapeId, imageUrl);
+      if (imageUrl && upscaleShapeIdRef.current) {
+        canvasRef.current?.replaceImage(upscaleShapeIdRef.current, imageUrl);
       }
-      setToolbarAction(null);
+      upscaleShapeIdRef.current = null;
     },
     onError: () => {
-      setToolbarAction(null);
+      upscaleShapeIdRef.current = null;
     },
   });
 
-  const handleToolbarDownload = useCallback(async () => {
-    if (selectedImageInfo.length === 0) return;
-    const info = selectedImageInfo[0];
+  const getImageAspectRatio = useCallback((w: number, h: number): string => {
+    const ratio = w / h;
+    if (Math.abs(ratio - 1) < 0.1) return '1:1';
+    if (Math.abs(ratio - 4/3) < 0.15) return '4:3';
+    if (Math.abs(ratio - 3/4) < 0.15) return '3:4';
+    if (Math.abs(ratio - 16/9) < 0.2) return '16:9';
+    if (Math.abs(ratio - 9/16) < 0.2) return '9:16';
+    return ratio > 1 ? '16:9' : '9:16';
+  }, []);
+
+  const handleToolbarUpscale = useCallback((info: SelectedImageInfo, resolution: string) => {
+    if (!activeSessionId) return;
+    upscaleShapeIdRef.current = info.shapeId;
+    const ar = getImageAspectRatio(info.w, info.h);
+    upscaleMutation.mutate({ 
+      imageUrl: info.url, 
+      resolution,
+      aspectRatio: ar,
+      usePro: useNanoBananaPro,
+    });
+  }, [activeSessionId, upscaleMutation, useNanoBananaPro, getImageAspectRatio]);
+
+  const handleToolbarDownload = useCallback(async (info: SelectedImageInfo) => {
     const downloadUrl = resolveMediaUrl(info.url);
     try {
       const response = await fetch(downloadUrl, { credentials: 'include' });
@@ -235,30 +255,14 @@ export default function BrandCanvas() {
     } catch (e) {
       console.error('Download failed:', e);
     }
-  }, [selectedImageInfo]);
-
-  const getImageAspectRatio = useCallback((w: number, h: number): string => {
-    const ratio = w / h;
-    if (Math.abs(ratio - 1) < 0.1) return '1:1';
-    if (Math.abs(ratio - 4/3) < 0.15) return '4:3';
-    if (Math.abs(ratio - 3/4) < 0.15) return '3:4';
-    if (Math.abs(ratio - 16/9) < 0.2) return '16:9';
-    if (Math.abs(ratio - 9/16) < 0.2) return '9:16';
-    return ratio > 1 ? '16:9' : '9:16';
   }, []);
 
-  const handleToolbarUpscale = useCallback((resolution: string) => {
-    if (selectedImageInfo.length === 0 || !activeSessionId) return;
-    const info = selectedImageInfo[0];
-    setToolbarAction('upscale');
-    const ar = getImageAspectRatio(info.w, info.h);
-    upscaleMutation.mutate({ 
-      imageUrl: info.url, 
-      resolution,
-      aspectRatio: ar,
-      usePro: useNanoBananaPro,
-    });
-  }, [selectedImageInfo, activeSessionId, upscaleMutation, useNanoBananaPro, getImageAspectRatio]);
+  const toolbarActions: ImageToolbarActions = {
+    onUpscale: handleToolbarUpscale,
+    onDownload: handleToolbarDownload,
+    isUpscaling: upscaleMutation.isPending,
+    is4KEnabled: useNanoBananaPro,
+  };
 
   const handleSend = () => {
     const trimmed = message.trim();
@@ -365,61 +369,8 @@ export default function BrandCanvas() {
               </div>
             }
           >
-            <TldrawEditor ref={canvasRef} brandId={brandId} onSelectionChange={handleCanvasSelectionChange} />
+            <TldrawEditor ref={canvasRef} brandId={brandId} onSelectionChange={handleCanvasSelectionChange} toolbarActions={toolbarActions} />
           </Suspense>
-          
-          {selectedImageInfo.length === 1 && (
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[500]">
-              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 px-2 py-1.5 flex items-center gap-1">
-                <button
-                  onClick={() => handleToolbarUpscale('2K')}
-                  disabled={upscaleMutation.isPending}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
-                  title="Upscale до 2K"
-                >
-                  {upscaleMutation.isPending && toolbarAction === 'upscale' ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <ZoomIn className="h-3.5 w-3.5" />
-                  )}
-                  <span>Upscale 2K</span>
-                </button>
-                
-                <div className="w-px h-5 bg-gray-200 dark:bg-gray-700" />
-                
-                <button
-                  onClick={() => handleToolbarUpscale('4K')}
-                  disabled={upscaleMutation.isPending || !useNanoBananaPro}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
-                  title={useNanoBananaPro ? "Upscale до 4K" : "4K потребує Pro режим"}
-                >
-                  {upscaleMutation.isPending && toolbarAction === 'upscale' ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <ZoomIn className="h-3.5 w-3.5" />
-                  )}
-                  <span>4K</span>
-                </button>
-                
-                <div className="w-px h-5 bg-gray-200 dark:bg-gray-700" />
-
-                <button
-                  onClick={handleToolbarDownload}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  title="Завантажити"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Завантажити</span>
-                </button>
-
-                <div className="w-px h-5 bg-gray-200 dark:bg-gray-700" />
-
-                <div className="flex items-center gap-1 px-2 text-[10px] text-gray-400 dark:text-gray-500 font-mono">
-                  <span>{selectedImageInfo[0].w} × {selectedImageInfo[0].h}</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {chatOpen && (

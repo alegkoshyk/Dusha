@@ -1,6 +1,7 @@
-import { useCallback, useImperativeHandle, forwardRef, useRef, useEffect } from "react";
-import { Tldraw, Editor, AssetRecordType, getSnapshot, loadSnapshot } from "tldraw";
+import { useCallback, useImperativeHandle, forwardRef, useRef, useEffect, createContext, useContext, useMemo } from "react";
+import { Tldraw, Editor, AssetRecordType, getSnapshot, loadSnapshot, track, useEditor, TLEditorComponents } from "tldraw";
 import "tldraw/tldraw.css";
+import { ZoomIn, Download, Loader2 } from "lucide-react";
 
 export interface SelectedImageInfo {
   shapeId: string;
@@ -8,6 +9,13 @@ export interface SelectedImageInfo {
   w: number;
   h: number;
   screenBounds: { x: number; y: number; w: number; h: number };
+}
+
+export interface ImageToolbarActions {
+  onUpscale: (info: SelectedImageInfo, resolution: string) => void;
+  onDownload: (info: SelectedImageInfo) => void;
+  isUpscaling: boolean;
+  is4KEnabled: boolean;
 }
 
 export interface BrandCanvasEditorHandle {
@@ -21,6 +29,7 @@ export interface BrandCanvasEditorHandle {
 interface BrandCanvasEditorProps {
   brandId?: string;
   onSelectionChange?: (imageUrls: string[]) => void;
+  toolbarActions?: ImageToolbarActions;
 }
 
 function loadImageSize(src: string): Promise<{ w: number; h: number }> {
@@ -33,8 +42,146 @@ function loadImageSize(src: string): Promise<{ w: number; h: number }> {
   });
 }
 
+function getSelectedImageFromEditor(editor: Editor): SelectedImageInfo | null {
+  const selectedShapes = editor.getSelectedShapes();
+  if (selectedShapes.length !== 1) return null;
+  const shape = selectedShapes[0];
+  if (shape.type !== "image" || !(shape as any).props?.assetId) return null;
+  const asset = editor.getAsset((shape as any).props.assetId);
+  if (!asset || asset.type !== "image" || !(asset as any).props?.src) return null;
+  const shapeBounds = editor.getShapePageBounds(shape.id);
+  if (!shapeBounds) return null;
+  const topLeft = editor.pageToScreen({ x: shapeBounds.x, y: shapeBounds.y });
+  const bottomRight = editor.pageToScreen({ x: shapeBounds.x + shapeBounds.w, y: shapeBounds.y + shapeBounds.h });
+  return {
+    shapeId: shape.id,
+    url: (asset as any).props.src,
+    w: (asset as any).props.w || 0,
+    h: (asset as any).props.h || 0,
+    screenBounds: {
+      x: topLeft.x,
+      y: topLeft.y,
+      w: bottomRight.x - topLeft.x,
+      h: bottomRight.y - topLeft.y,
+    },
+  };
+}
+
+const ToolbarActionsContext = createContext<ImageToolbarActions | null>(null);
+
+const ImageContextToolbar = track(() => {
+  const editor = useEditor();
+  const actions = useContext(ToolbarActionsContext);
+
+  if (!editor.isIn('select.idle')) return null;
+  const info = getSelectedImageFromEditor(editor);
+  if (!info || !actions) return null;
+
+  const selectionBounds = editor.getSelectionRotatedPageBounds();
+  if (!selectionBounds) return null;
+
+  const viewportPoint = editor.pageToViewport(selectionBounds.point);
+  const viewportEnd = editor.pageToViewport({
+    x: selectionBounds.x + selectionBounds.w,
+    y: selectionBounds.y + selectionBounds.h,
+  });
+
+  const toolbarWidth = 320;
+  const centerX = viewportPoint.x + (viewportEnd.x - viewportPoint.x) / 2;
+  const topY = viewportPoint.y;
+
+  const btnStyle = (disabled?: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    padding: '5px 10px',
+    border: 'none',
+    borderRadius: '7px',
+    background: 'transparent',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: '12px',
+    fontWeight: 500,
+    color: disabled ? '#aaa' : '#333',
+    opacity: disabled ? 0.5 : 1,
+    transition: 'background 0.15s',
+  });
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: Math.max(8, topY - 48),
+        left: Math.max(8, centerX - toolbarWidth / 2),
+        zIndex: 500,
+        pointerEvents: 'all',
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '2px',
+        padding: '4px 6px',
+        background: 'white',
+        borderRadius: '10px',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)',
+      }}>
+        <button
+          onClick={() => actions.onUpscale(info, '2K')}
+          disabled={actions.isUpscaling}
+          style={btnStyle(actions.isUpscaling)}
+          onMouseEnter={(e) => { if (!actions.isUpscaling) e.currentTarget.style.background = '#f3f4f6'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          title="Upscale до 2K"
+        >
+          {actions.isUpscaling ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <ZoomIn size={14} />}
+          <span>2K</span>
+        </button>
+
+        <div style={{ width: '1px', height: '18px', background: '#e5e7eb' }} />
+
+        <button
+          onClick={() => actions.onUpscale(info, '4K')}
+          disabled={actions.isUpscaling || !actions.is4KEnabled}
+          style={btnStyle(actions.isUpscaling || !actions.is4KEnabled)}
+          onMouseEnter={(e) => { if (!actions.isUpscaling && actions.is4KEnabled) e.currentTarget.style.background = '#f3f4f6'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          title={actions.is4KEnabled ? "Upscale до 4K" : "4K потребує Pro"}
+        >
+          <ZoomIn size={14} />
+          <span>4K</span>
+        </button>
+
+        <div style={{ width: '1px', height: '18px', background: '#e5e7eb' }} />
+
+        <button
+          onClick={() => actions.onDownload(info)}
+          style={btnStyle(false)}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#f3f4f6'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          title="Завантажити"
+        >
+          <Download size={14} />
+        </button>
+
+        <div style={{ width: '1px', height: '18px', background: '#e5e7eb' }} />
+
+        <span style={{
+          padding: '4px 8px',
+          fontSize: '10px',
+          color: '#9ca3af',
+          fontFamily: 'monospace',
+          whiteSpace: 'nowrap',
+        }}>
+          {info.w}×{info.h}
+        </span>
+      </div>
+    </div>
+  );
+});
+
 const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorProps>(
-  ({ brandId, onSelectionChange }, ref) => {
+  ({ brandId, onSelectionChange, toolbarActions }, ref) => {
     const editorRef = useRef<Editor | null>(null);
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const initialLoadDoneRef = useRef(false);
@@ -171,33 +318,8 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
       getSelectedImageInfo: (): SelectedImageInfo[] => {
         const editor = editorRef.current;
         if (!editor) return [];
-        const selectedShapes = editor.getSelectedShapes();
-        const infos: SelectedImageInfo[] = [];
-        for (const shape of selectedShapes) {
-          if (shape.type === "image" && (shape as any).props?.assetId) {
-            const asset = editor.getAsset((shape as any).props.assetId);
-            if (asset && asset.type === "image" && (asset as any).props?.src) {
-              const shapeBounds = editor.getShapePageBounds(shape.id);
-              if (shapeBounds) {
-                const topLeft = editor.pageToScreen({ x: shapeBounds.x, y: shapeBounds.y });
-                const bottomRight = editor.pageToScreen({ x: shapeBounds.x + shapeBounds.w, y: shapeBounds.y + shapeBounds.h });
-                infos.push({
-                  shapeId: shape.id,
-                  url: (asset as any).props.src,
-                  w: (asset as any).props.w || 0,
-                  h: (asset as any).props.h || 0,
-                  screenBounds: {
-                    x: topLeft.x,
-                    y: topLeft.y,
-                    w: bottomRight.x - topLeft.x,
-                    h: bottomRight.y - topLeft.y,
-                  },
-                });
-              }
-            }
-          }
-        }
-        return infos;
+        const info = getSelectedImageFromEditor(editor);
+        return info ? [info] : [];
       },
       onSelectionChange: (callback: (urls: string[]) => void) => {
         const editor = editorRef.current;
@@ -208,6 +330,10 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
         return cleanup;
       },
     }));
+
+    const components: Partial<TLEditorComponents> = useMemo(() => ({
+      InFrontOfTheCanvas: ImageContextToolbar,
+    }), []);
 
     const handleMount = useCallback(
       (editor: Editor) => {
@@ -248,10 +374,13 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
     );
 
     return (
-      <Tldraw
-        licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
-        onMount={handleMount}
-      />
+      <ToolbarActionsContext.Provider value={toolbarActions || null}>
+        <Tldraw
+          licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
+          onMount={handleMount}
+          components={components}
+        />
+      </ToolbarActionsContext.Provider>
     );
   }
 );
