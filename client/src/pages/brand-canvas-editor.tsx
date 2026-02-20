@@ -2,7 +2,7 @@ import { useCallback, useImperativeHandle, forwardRef, useRef, useEffect, create
 import { createPortal } from "react-dom";
 import {
   Tldraw, Editor, AssetRecordType, getSnapshot, loadSnapshot,
-  track, useEditor, useValue, TLComponents, TLEditorComponents,
+  useEditor, useValue, TLEditorComponents,
 } from "tldraw";
 import "tldraw/tldraw.css";
 
@@ -72,7 +72,7 @@ function getSelectedImageFromEditor(editor: Editor): SelectedImageInfo | null {
 
 const ToolbarActionsContext = createContext<ImageToolbarActions | null>(null);
 
-const UpscalePortalButton = track(function UpscalePortalButton() {
+function UpscalePortalButton() {
   const editor = useEditor();
   const actions = useContext(ToolbarActionsContext);
   const [showMenu, setShowMenu] = useState(false);
@@ -238,11 +238,11 @@ const UpscalePortalButton = track(function UpscalePortalButton() {
       {dropdownMenu}
     </>
   );
-});
+}
 
-const UpscaleInjector = track(function UpscaleInjector() {
+function UpscaleInjector() {
   return <UpscalePortalButton />;
-});
+}
 
 const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorProps>(
   ({ brandId, onSelectionChange, toolbarActions }, ref) => {
