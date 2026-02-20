@@ -1,9 +1,8 @@
 import { useCallback, useImperativeHandle, forwardRef, useRef, useEffect, createContext, useContext, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Tldraw, Editor, AssetRecordType, getSnapshot, loadSnapshot,
-  track, useEditor, useValue, TLComponents,
-  DefaultImageToolbar, DefaultImageToolbarContent,
-  TldrawUiToolbarButton, TldrawUiButtonIcon,
+  track, useEditor, useValue, TLComponents, TLEditorComponents,
 } from "tldraw";
 import "tldraw/tldraw.css";
 
@@ -73,16 +72,51 @@ function getSelectedImageFromEditor(editor: Editor): SelectedImageInfo | null {
 
 const ToolbarActionsContext = createContext<ImageToolbarActions | null>(null);
 
-const UpscaleDropdown = track(() => {
+const UpscalePortalButton = track(function UpscalePortalButton() {
   const editor = useEditor();
   const actions = useContext(ToolbarActionsContext);
   const [showMenu, setShowMenu] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const isImageSelected = useValue(
+    "isImageSelected",
+    () => {
+      const shape = editor.getOnlySelectedShape();
+      return shape?.type === "image";
+    },
+    [editor]
+  );
+
+  useEffect(() => {
+    if (!isImageSelected) {
+      setPortalTarget(null);
+      setShowMenu(false);
+      return;
+    }
+
+    const findToolbar = () => {
+      const toolbar = document.querySelector('.tlui-image__toolbar');
+      if (toolbar && toolbar instanceof HTMLElement) {
+        setPortalTarget(toolbar);
+      } else {
+        setPortalTarget(null);
+      }
+    };
+
+    findToolbar();
+    const timer = setInterval(findToolbar, 200);
+    return () => clearInterval(timer);
+  }, [isImageSelected]);
 
   useEffect(() => {
     if (!showMenu) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+    const handler = (e: PointerEvent) => {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) {
         setShowMenu(false);
       }
     };
@@ -91,32 +125,40 @@ const UpscaleDropdown = track(() => {
   }, [showMenu]);
 
   const info = getSelectedImageFromEditor(editor);
-  if (!info || !actions) return null;
+  if (!portalTarget || !info || !actions) return null;
 
   const handleSelect = (resolution: string) => {
     setShowMenu(false);
     actions.onUpscale(info, resolution);
   };
 
-  return (
-    <div ref={containerRef} style={{ position: 'relative', display: 'flex' }}>
-      <TldrawUiToolbarButton
-        type="icon"
+  return createPortal(
+    <div style={{ position: 'relative', display: 'flex' }}>
+      <button
+        ref={btnRef}
+        className="tlui-toolbar__button tlui-button tlui-button__icon"
         title="Upscale"
         disabled={actions.isUpscaling}
-        onClick={() => setShowMenu(!showMenu)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowMenu(!showMenu);
+        }}
+        style={{ opacity: actions.isUpscaling ? 0.5 : 1 }}
       >
         {actions.isUpscaling ? (
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
         ) : (
-          <TldrawUiButtonIcon small icon="zoom-in" />
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /><line x1="11" y1="8" x2="11" y2="14" /><line x1="8" y1="11" x2="14" y2="11" />
+          </svg>
         )}
-      </TldrawUiToolbarButton>
+      </button>
 
       {showMenu && (
         <div
+          ref={menuRef}
           style={{
             position: 'absolute',
             bottom: 'calc(100% + 8px)',
@@ -191,59 +233,13 @@ const UpscaleDropdown = track(() => {
           </button>
         </div>
       )}
-    </div>
+    </div>,
+    portalTarget
   );
 });
 
-const CustomImageToolbarInner = track(function CustomImageToolbarInner() {
-  const editor = useEditor();
-
-  const imageShapeId = useValue(
-    "imageShape",
-    () => {
-      const onlySelectedShape = editor.getOnlySelectedShape();
-      if (!onlySelectedShape || onlySelectedShape.type !== "image") return null;
-      return onlySelectedShape.id;
-    },
-    [editor]
-  );
-
-  const isInCropTool = useValue("inCrop", () => editor.isIn("select.crop."), [editor]);
-
-  const handleManipulatingStart = useCallback(
-    () => editor.setCurrentTool("select.crop.idle"),
-    [editor]
-  );
-  const handleManipulatingEnd = useCallback(() => {
-    editor.setCroppingShape(null);
-    editor.setCurrentTool("select.idle");
-  }, [editor]);
-
-  const [isEditingAlt, setIsEditingAlt] = useState(false);
-  const handleEditAltTextStart = useCallback(() => setIsEditingAlt(true), []);
-
-  if (!imageShapeId) return null;
-
-  return (
-    <>
-      <DefaultImageToolbarContent
-        imageShapeId={imageShapeId}
-        isManipulating={isInCropTool}
-        onEditAltTextStart={handleEditAltTextStart}
-        onManipulatingStart={handleManipulatingStart}
-        onManipulatingEnd={handleManipulatingEnd}
-      />
-      <UpscaleDropdown />
-    </>
-  );
-});
-
-const CustomImageToolbar = track(() => {
-  return (
-    <DefaultImageToolbar>
-      <CustomImageToolbarInner />
-    </DefaultImageToolbar>
-  );
+const UpscaleInjector = track(function UpscaleInjector() {
+  return <UpscalePortalButton />;
 });
 
 const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorProps>(
@@ -397,8 +393,8 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
       },
     }));
 
-    const components: Partial<TLComponents> = useMemo(() => ({
-      ImageToolbar: CustomImageToolbar,
+    const components = useMemo<Partial<TLEditorComponents>>(() => ({
+      InFrontOfTheCanvas: UpscaleInjector,
     }), []);
 
     const handleMount = useCallback(
