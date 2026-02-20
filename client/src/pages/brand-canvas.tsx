@@ -177,6 +177,18 @@ export default function BrandCanvas() {
     }
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const infos = canvasRef.current?.getSelectedImageInfo() || [];
+      setSelectedImageInfo(prev => {
+        if (prev.length !== infos.length) return infos;
+        if (infos.length === 1 && prev.length === 1 && prev[0].shapeId !== infos[0].shapeId) return infos;
+        return prev;
+      });
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
   const { data: brand } = useQuery<BrandData>({
     queryKey: ["/api/user/brands", brandId],
     enabled: !!brandId,
@@ -440,7 +452,7 @@ export default function BrandCanvas() {
           </Suspense>
 
           {selectedImageInfo.length === 1 && !upscaleMutation.isPending && (
-            <div style={{ position: 'absolute', top: 8, right: chatOpen ? 8 : 8, zIndex: 100 }}>
+            <div style={{ position: 'fixed', top: 56, right: chatOpen ? 400 : 16, zIndex: 99999 }}>
               <button
                 ref={upscaleBtnRef}
                 onClick={() => setShowUpscaleMenu(!showUpscaleMenu)}
