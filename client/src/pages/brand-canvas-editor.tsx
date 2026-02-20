@@ -1,8 +1,6 @@
-import { useCallback, useImperativeHandle, forwardRef, useRef, useEffect, createContext, useContext, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useImperativeHandle, forwardRef, useRef, useEffect, useMemo } from "react";
 import {
   Tldraw, Editor, AssetRecordType, getSnapshot, loadSnapshot,
-  useEditor, useValue, TLEditorComponents,
 } from "tldraw";
 import "tldraw/tldraw.css";
 
@@ -14,25 +12,18 @@ export interface SelectedImageInfo {
   screenBounds: { x: number; y: number; w: number; h: number };
 }
 
-export interface ImageToolbarActions {
-  onUpscale: (info: SelectedImageInfo, resolution: string) => void;
-  onDownload: (info: SelectedImageInfo) => void;
-  isUpscaling: boolean;
-  is4KEnabled: boolean;
-}
-
 export interface BrandCanvasEditorHandle {
   addImage: (imageUrl: string) => void;
   replaceImage: (shapeId: string, newImageUrl: string) => void;
   getSelectedImageUrls: () => string[];
   getSelectedImageInfo: () => SelectedImageInfo[];
+  getEditor: () => Editor | null;
   onSelectionChange: (callback: (urls: string[]) => void) => () => void;
 }
 
 interface BrandCanvasEditorProps {
   brandId?: string;
   onSelectionChange?: (imageUrls: string[]) => void;
-  toolbarActions?: ImageToolbarActions;
 }
 
 function loadImageSize(src: string): Promise<{ w: number; h: number }> {
@@ -70,182 +61,8 @@ function getSelectedImageFromEditor(editor: Editor): SelectedImageInfo | null {
   };
 }
 
-const ToolbarActionsContext = createContext<ImageToolbarActions | null>(null);
-
-function UpscalePortalButton() {
-  const editor = useEditor();
-  const actions = useContext(ToolbarActionsContext);
-  const [showMenu, setShowMenu] = useState(false);
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
-
-  const isImageSelected = useValue(
-    "isImageSelected",
-    () => {
-      const shape = editor.getOnlySelectedShape();
-      return shape?.type === "image";
-    },
-    [editor]
-  );
-
-  useEffect(() => {
-    if (!isImageSelected) {
-      setPortalTarget(null);
-      setShowMenu(false);
-      return;
-    }
-
-    const findToolbar = () => {
-      const toolbar = document.querySelector('.tlui-image__toolbar .tlui-toolbar');
-      if (toolbar && toolbar instanceof HTMLElement) {
-        setPortalTarget(toolbar);
-      } else {
-        setPortalTarget(null);
-      }
-    };
-
-    findToolbar();
-    const timer = setInterval(findToolbar, 200);
-    return () => clearInterval(timer);
-  }, [isImageSelected]);
-
-  useEffect(() => {
-    if (!showMenu) return;
-    const handler = (e: PointerEvent) => {
-      if (
-        menuRef.current && !menuRef.current.contains(e.target as Node) &&
-        btnRef.current && !btnRef.current.contains(e.target as Node)
-      ) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener('pointerdown', handler);
-    return () => document.removeEventListener('pointerdown', handler);
-  }, [showMenu]);
-
-  const info = getSelectedImageFromEditor(editor);
-  if (!portalTarget || !info || !actions) return null;
-
-  const handleSelect = (resolution: string) => {
-    setShowMenu(false);
-    actions.onUpscale(info, resolution);
-  };
-
-  const upscaleSvg = (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 3 21 3 21 9" />
-      <polyline points="9 21 3 21 3 15" />
-      <line x1="21" y1="3" x2="14" y2="10" />
-      <line x1="3" y1="21" x2="10" y2="14" />
-    </svg>
-  );
-
-  const spinnerSvg = (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1s linear infinite' }}>
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-  );
-
-  const dropdownItemStyle = (disabled?: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '7px 12px',
-    border: 'none',
-    borderRadius: '6px',
-    background: 'transparent',
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    fontSize: '13px',
-    fontWeight: 500,
-    color: disabled ? 'var(--color-text-3, #aaa)' : 'var(--color-text, #1d1d1d)',
-    opacity: disabled ? 0.5 : 1,
-    width: '100%',
-    textAlign: 'left' as const,
-    whiteSpace: 'nowrap' as const,
-  });
-
-  const dropdownMenu = showMenu && btnRef.current ? (() => {
-    const rect = btnRef.current!.getBoundingClientRect();
-    return createPortal(
-      <div
-        ref={menuRef}
-        style={{
-          position: 'fixed',
-          top: rect.top - 8,
-          left: rect.left + rect.width / 2,
-          transform: 'translateX(-50%) translateY(-100%)',
-          zIndex: 99999,
-        }}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <div
-          style={{
-            background: 'var(--color-panel, white)',
-            borderRadius: '9px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.06)',
-            padding: '4px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1px',
-            minWidth: '140px',
-          }}
-        >
-          <button
-            onClick={() => handleSelect('2K')}
-            style={dropdownItemStyle(false)}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            {upscaleSvg}
-            <span>Upscale 2K</span>
-          </button>
-          <button
-            onClick={() => handleSelect('4K')}
-            disabled={!actions.is4KEnabled}
-            style={dropdownItemStyle(!actions.is4KEnabled)}
-            onMouseEnter={(e) => { if (actions.is4KEnabled) e.currentTarget.style.background = 'var(--color-muted, #f3f4f6)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-          >
-            {upscaleSvg}
-            <span>Upscale 4K</span>
-            {!actions.is4KEnabled && <span style={{ fontSize: '9px', color: '#f59e0b', fontWeight: 600, marginLeft: 'auto' }}>PRO</span>}
-          </button>
-        </div>
-      </div>,
-      document.body
-    );
-  })() : null;
-
-  return (
-    <>
-      {createPortal(
-        <button
-          ref={btnRef}
-          className="tlui-toolbar__button tlui-button tlui-button__icon"
-          title="Upscale"
-          disabled={actions.isUpscaling}
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowMenu(!showMenu);
-          }}
-          style={{ opacity: actions.isUpscaling ? 0.5 : 1 }}
-        >
-          {actions.isUpscaling ? spinnerSvg : upscaleSvg}
-        </button>,
-        portalTarget
-      )}
-      {dropdownMenu}
-    </>
-  );
-}
-
-function UpscaleInjector() {
-  return <UpscalePortalButton />;
-}
-
 const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorProps>(
-  ({ brandId, onSelectionChange, toolbarActions }, ref) => {
+  ({ brandId, onSelectionChange }, ref) => {
     const editorRef = useRef<Editor | null>(null);
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const initialLoadDoneRef = useRef(false);
@@ -385,6 +202,7 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
         const info = getSelectedImageFromEditor(editor);
         return info ? [info] : [];
       },
+      getEditor: () => editorRef.current,
       onSelectionChange: (callback: (urls: string[]) => void) => {
         const editor = editorRef.current;
         if (!editor) return () => {};
@@ -394,10 +212,6 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
         return cleanup;
       },
     }));
-
-    const components = useMemo<Partial<TLEditorComponents>>(() => ({
-      InFrontOfTheCanvas: UpscaleInjector,
-    }), []);
 
     const handleMount = useCallback(
       (editor: Editor) => {
@@ -438,13 +252,10 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
     );
 
     return (
-      <ToolbarActionsContext.Provider value={toolbarActions || null}>
-        <Tldraw
-          licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
-          onMount={handleMount}
-          components={components}
-        />
-      </ToolbarActionsContext.Provider>
+      <Tldraw
+        licenseKey={import.meta.env.VITE_TLDRAW_LICENSE_KEY}
+        onMount={handleMount}
+      />
     );
   }
 );

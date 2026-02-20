@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Loader2, MessageCircle, Send, X, Bot, User,
   Image, Sparkles, Settings2, ShoppingBag, Palette, ChevronDown, ChevronUp,
+  Maximize2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequestJson } from "@/lib/queryClient";
 import { resolveMediaUrl } from "@/lib/utils";
 import type { GameSession, GenerationTemplate, MerchType } from "@shared/schema";
-import type { BrandCanvasEditorHandle, SelectedImageInfo, ImageToolbarActions } from "./brand-canvas-editor";
+import type { BrandCanvasEditorHandle, SelectedImageInfo } from "./brand-canvas-editor";
 
 const TldrawEditor = lazy(() => import("./brand-canvas-editor"));
 
@@ -85,6 +86,67 @@ function CanvasImageSkeleton() {
   );
 }
 
+function UpscaleOverlay({ canvasRef, shapeId }: { canvasRef: React.RefObject<BrandCanvasEditorHandle>; shapeId: string }) {
+  const [bounds, setBounds] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const update = () => {
+      const editor = canvasRef.current?.getEditor?.();
+      if (!editor) return;
+      const shape = editor.getShape(shapeId as any);
+      if (!shape) return;
+      const pageBounds = editor.getShapePageBounds(shape.id);
+      if (!pageBounds) return;
+      const topLeft = editor.pageToScreen({ x: pageBounds.x, y: pageBounds.y });
+      const bottomRight = editor.pageToScreen({ x: pageBounds.x + pageBounds.w, y: pageBounds.y + pageBounds.h });
+      setBounds({
+        x: topLeft.x,
+        y: topLeft.y,
+        w: bottomRight.x - topLeft.x,
+        h: bottomRight.y - topLeft.y,
+      });
+    };
+    update();
+    const interval = setInterval(update, 100);
+    return () => clearInterval(interval);
+  }, [canvasRef, shapeId]);
+
+  if (!bounds) return null;
+
+  const progress = Math.min(95, Math.round((elapsed / 25) * 100));
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: bounds.x,
+        top: bounds.y,
+        width: bounds.w,
+        height: bounds.h,
+        zIndex: 9999,
+        pointerEvents: 'none',
+      }}
+      className="flex items-center justify-center"
+    >
+      <div className="absolute inset-0 bg-black/40 rounded-lg backdrop-blur-[2px]" />
+      <div className="relative z-10 flex flex-col items-center gap-2">
+        <div className="w-10 h-10 border-[3px] border-white/30 border-t-white rounded-full animate-spin" />
+        <span className="text-white text-sm font-medium drop-shadow-lg">Upscale {progress}%</span>
+        <span className="text-white/60 text-[11px] drop-shadow">{elapsed}с</span>
+      </div>
+    </div>
+  );
+}
+
 export default function BrandCanvas() {
   const { brandId } = useParams<{ brandId: string }>();
   const { user } = useAuth();
@@ -110,6 +172,9 @@ export default function BrandCanvas() {
     setSelectedCanvasImages(urls);
     const infos = canvasRef.current?.getSelectedImageInfo() || [];
     setSelectedImageInfo(infos);
+    if (infos.length !== 1) {
+      setShowUpscaleMenu(false);
+    }
   }, []);
 
   const { data: brand } = useQuery<BrandData>({
@@ -227,42 +292,44 @@ export default function BrandCanvas() {
     return ratio > 1 ? '16:9' : '9:16';
   }, []);
 
-  const handleToolbarUpscale = useCallback((info: SelectedImageInfo, resolution: string) => {
+  const [showUpscaleMenu, setShowUpscaleMenu] = useState(false);
+  const upscaleMenuRef = useRef<HTMLDivElement>(null);
+  const upscaleBtnRef = useRef<HTMLButtonElement>(null);
+  const handleUpscale = useCallback((resolution: string) => {
     if (!activeSessionId) return;
+    const infos = canvasRef.current?.getSelectedImageInfo() || [];
+    if (infos.length !== 1) return;
+    const info = infos[0];
     upscaleShapeIdRef.current = info.shapeId;
+    setShowUpscaleMenu(false);
     const ar = getImageAspectRatio(info.w, info.h);
-    upscaleMutation.mutate({ 
-      imageUrl: info.url, 
+    upscaleMutation.mutate({
+      imageUrl: info.url,
       resolution,
       aspectRatio: ar,
       usePro: useNanoBananaPro,
     });
   }, [activeSessionId, upscaleMutation, useNanoBananaPro, getImageAspectRatio]);
 
-  const handleToolbarDownload = useCallback(async (info: SelectedImageInfo) => {
-    const downloadUrl = resolveMediaUrl(info.url);
-    try {
-      const response = await fetch(downloadUrl, { credentials: 'include' });
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `image-${Date.now()}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error('Download failed:', e);
-    }
-  }, []);
+  useEffect(() => {
+    if (!showUpscaleMenu) return;
+    const handler = (e: PointerEvent) => {
+      if (
+        upscaleMenuRef.current && !upscaleMenuRef.current.contains(e.target as Node) &&
+        upscaleBtnRef.current && !upscaleBtnRef.current.contains(e.target as Node)
+      ) {
+        setShowUpscaleMenu(false);
+      }
+    };
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
+  }, [showUpscaleMenu]);
 
-  const toolbarActions: ImageToolbarActions = {
-    onUpscale: handleToolbarUpscale,
-    onDownload: handleToolbarDownload,
-    isUpscaling: upscaleMutation.isPending,
-    is4KEnabled: useNanoBananaPro,
-  };
+  const getTargetDimensions = useCallback((w: number, h: number, resolution: string) => {
+    const maxDim = resolution === '4K' ? 4096 : 2048;
+    const scale = maxDim / Math.max(w, h);
+    return { w: Math.round(w * scale), h: Math.round(h * scale) };
+  }, []);
 
   const handleSend = () => {
     const trimmed = message.trim();
@@ -369,8 +436,71 @@ export default function BrandCanvas() {
               </div>
             }
           >
-            <TldrawEditor ref={canvasRef} brandId={brandId} onSelectionChange={handleCanvasSelectionChange} toolbarActions={toolbarActions} />
+            <TldrawEditor ref={canvasRef} brandId={brandId} onSelectionChange={handleCanvasSelectionChange} />
           </Suspense>
+
+          {selectedImageInfo.length === 1 && !upscaleMutation.isPending && (
+            <div style={{ position: 'absolute', top: 8, right: chatOpen ? 8 : 8, zIndex: 100 }}>
+              <button
+                ref={upscaleBtnRef}
+                onClick={() => setShowUpscaleMenu(!showUpscaleMenu)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <Maximize2 className="h-4 w-4" />
+                <span>Upscale</span>
+              </button>
+            </div>
+          )}
+
+          {showUpscaleMenu && upscaleBtnRef.current && selectedImageInfo.length === 1 && (() => {
+            const info = selectedImageInfo[0];
+            const rect = upscaleBtnRef.current!.getBoundingClientRect();
+            const target2K = getTargetDimensions(info.w, info.h, '2K');
+            const target4K = getTargetDimensions(info.w, info.h, '4K');
+            return (
+              <div
+                ref={upscaleMenuRef}
+                style={{
+                  position: 'fixed',
+                  top: rect.bottom + 6,
+                  right: window.innerWidth - rect.right,
+                  zIndex: 99999,
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-1.5 min-w-[220px]"
+              >
+                <div className="px-3 py-1.5 text-[11px] text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wider">
+                  Поточний: {info.w}×{info.h}px
+                </div>
+                <button
+                  onClick={() => handleUpscale('2K')}
+                  className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
+                >
+                  <Maximize2 className="h-4 w-4 text-blue-500" />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Upscale 2K</div>
+                    <div className="text-[11px] text-gray-400">{target2K.w}×{target2K.h}px</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleUpscale('4K')}
+                  disabled={!useNanoBananaPro}
+                  className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg transition-colors text-left ${useNanoBananaPro ? 'hover:bg-gray-100 dark:hover:bg-gray-700' : 'opacity-50 cursor-not-allowed'}`}
+                >
+                  <Maximize2 className="h-4 w-4 text-purple-500" />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Upscale 4K</div>
+                    <div className="text-[11px] text-gray-400">{target4K.w}×{target4K.h}px</div>
+                  </div>
+                  {!useNanoBananaPro && (
+                    <span className="text-[10px] font-semibold text-amber-500 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">PRO</span>
+                  )}
+                </button>
+              </div>
+            );
+          })()}
+
+          {upscaleMutation.isPending && upscaleShapeIdRef.current && <UpscaleOverlay canvasRef={canvasRef} shapeId={upscaleShapeIdRef.current} />}
         </div>
 
         {chatOpen && (
