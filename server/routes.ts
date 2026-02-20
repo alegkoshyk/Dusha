@@ -5405,6 +5405,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Upscale image via NanoBanana
+  app.post("/api/game-sessions/:sessionId/upscale-image", requireAuth, async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { imageUrl, resolution = '2K', aspectRatio = '1:1', usePro = false } = req.body;
+      const userId = req.session?.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      if (!imageUrl) {
+        return res.status(400).json({ error: "URL зображення обов'язковий" });
+      }
+
+      const gameSession = await storage.getGameSession(sessionId);
+      if (!gameSession || gameSession.userId !== userId) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+
+      const profile = await storage.getUserProfile(userId);
+      if (!profile?.geminiApiKey) {
+        return res.status(400).json({ 
+          error: "API ключ не налаштовано. Додайте NanoBanana API ключ у налаштуваннях." 
+        });
+      }
+
+      const resolvedUrl = (() => {
+        let url = imageUrl;
+        if (url.startsWith('/api/r2/') || url.startsWith('/api/media/proxy')) {
+          const domains = (process.env.REPLIT_DOMAINS || '').split(',').filter(Boolean);
+          const domain = domains.find(d => d === 'brandsoul.site') || domains[0] || '';
+          if (domain) url = `https://${domain}${url}`;
+        }
+        return url;
+      })();
+
+      const { upscaleImageWithNanoBanana } = await import('./nanobanana');
+      const result = await upscaleImageWithNanoBanana(profile.geminiApiKey, resolvedUrl, resolution, aspectRatio, usePro, sessionId, userId);
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      let savedImageUrl = result.imageUrl || result.imageBase64;
+      if (savedImageUrl) {
+        const { isR2Configured, uploadChatImage } = await import('./r2Storage');
+        if (isR2Configured()) {
+          try {
+            savedImageUrl = await uploadChatImage(sessionId, savedImageUrl);
+          } catch (r2Error) {
+            console.warn('Failed to upload upscaled image to R2:', r2Error);
+          }
+        }
+      }
+
+      res.json({ success: true, imageUrl: savedImageUrl });
+    } catch (error: any) {
+      console.error("Upscale error:", error);
+      res.status(500).json({ error: "Не вдалося збільшити зображення" });
+    }
+  });
+
   // OpenAI DALL-E Image Generation
   app.post("/api/game-sessions/:sessionId/generate-dalle", requireAuth, async (req, res) => {
     try {

@@ -2,9 +2,19 @@ import { useCallback, useImperativeHandle, forwardRef, useRef, useEffect } from 
 import { Tldraw, Editor, AssetRecordType, getSnapshot, loadSnapshot } from "tldraw";
 import "tldraw/tldraw.css";
 
+export interface SelectedImageInfo {
+  shapeId: string;
+  url: string;
+  w: number;
+  h: number;
+  screenBounds: { x: number; y: number; w: number; h: number };
+}
+
 export interface BrandCanvasEditorHandle {
   addImage: (imageUrl: string) => void;
+  replaceImage: (shapeId: string, newImageUrl: string) => void;
   getSelectedImageUrls: () => string[];
+  getSelectedImageInfo: () => SelectedImageInfo[];
   onSelectionChange: (callback: (urls: string[]) => void) => () => void;
 }
 
@@ -133,7 +143,62 @@ const BrandCanvasEditor = forwardRef<BrandCanvasEditorHandle, BrandCanvasEditorP
           },
         });
       },
+      replaceImage: async (shapeId: string, newImageUrl: string) => {
+        const editor = editorRef.current;
+        if (!editor) return;
+        const shape = editor.getShape(shapeId as any);
+        if (!shape || shape.type !== 'image') return;
+        
+        const { w, h } = await loadImageSize(newImageUrl);
+        const newAssetId = AssetRecordType.createId();
+        editor.createAssets([{
+          id: newAssetId,
+          type: "image",
+          typeName: "asset",
+          props: { name: "Upscaled", src: newImageUrl, w, h, mimeType: "image/png", isAnimated: false },
+          meta: {},
+        }]);
+        
+        const oldW = (shape as any).props?.w || w;
+        const oldH = (shape as any).props?.h || h;
+        editor.updateShape({
+          id: shape.id,
+          type: 'image',
+          props: { assetId: newAssetId, w: oldW, h: oldH },
+        });
+      },
       getSelectedImageUrls: () => getSelectedImageUrlsInternal(),
+      getSelectedImageInfo: (): SelectedImageInfo[] => {
+        const editor = editorRef.current;
+        if (!editor) return [];
+        const selectedShapes = editor.getSelectedShapes();
+        const infos: SelectedImageInfo[] = [];
+        for (const shape of selectedShapes) {
+          if (shape.type === "image" && (shape as any).props?.assetId) {
+            const asset = editor.getAsset((shape as any).props.assetId);
+            if (asset && asset.type === "image" && (asset as any).props?.src) {
+              const shapeBounds = editor.getShapePageBounds(shape.id);
+              if (shapeBounds) {
+                const topLeft = editor.pageToScreen({ x: shapeBounds.x, y: shapeBounds.y });
+                const bottomRight = editor.pageToScreen({ x: shapeBounds.x + shapeBounds.w, y: shapeBounds.y + shapeBounds.h });
+                infos.push({
+                  shapeId: shape.id,
+                  url: (asset as any).props.src,
+                  w: (asset as any).props.w || 0,
+                  h: (asset as any).props.h || 0,
+                  screenBounds: {
+                    x: topLeft.x,
+                    y: topLeft.y,
+                    w: bottomRight.x - topLeft.x,
+                    h: bottomRight.y - topLeft.y,
+                  },
+                });
+              }
+            }
+          }
+        }
+        return infos;
+      },
       onSelectionChange: (callback: (urls: string[]) => void) => {
         const editor = editorRef.current;
         if (!editor) return () => {};

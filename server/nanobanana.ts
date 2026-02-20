@@ -422,6 +422,34 @@ export async function generateImageWithNanoBanana(
   }
 }
 
+export async function upscaleImageWithNanoBanana(
+  encryptedApiKey: string,
+  imageUrl: string,
+  resolution: string = '2K',
+  aspectRatio: string = '1:1',
+  usePro: boolean = false,
+  sessionId?: string,
+  userId?: string,
+): Promise<GenerateImageResult> {
+  const validResolution = (!usePro && resolution === '4K') ? '2K' : resolution;
+  console.log('NanoBanana Upscale: Starting upscale to', validResolution, 'aspect:', aspectRatio, 'pro:', usePro);
+  
+  const prompt = 'Upscale this image to higher resolution. Keep exact same content, composition, colors, style and details. Do not change anything, only increase quality and resolution.';
+  
+  return generateImageWithNanoBanana(
+    encryptedApiKey,
+    prompt,
+    undefined,
+    aspectRatio,
+    sessionId,
+    userId,
+    undefined,
+    [imageUrl],
+    usePro,
+    validResolution
+  );
+}
+
 export async function validateApiKey(encryptedApiKey: string): Promise<boolean> {
   const apiKey = decryptApiKey(encryptedApiKey);
   
