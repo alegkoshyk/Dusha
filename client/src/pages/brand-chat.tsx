@@ -227,6 +227,7 @@ function ImageGenerationSkeleton({ startedAt }: { startedAt?: number }) {
           />
         </div>
         <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">{phase}</p>
+        <AnimatedLoadingText />
       </div>
     </div>
   );
@@ -999,6 +1000,9 @@ export default function BrandChat() {
             onSuccess: (data) => {
               const imageData = data.imageBase64 || data.imageUrl;
               setImageMessages(prev => prev.filter(msg => msg.id !== tempId));
+              if (isBrandMode && selectedBrandChatId) {
+                queryClient.invalidateQueries({ queryKey: ['/api/brand-chats', selectedBrandChatId, 'messages'] });
+              }
               queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
               if (imageData && i === queue.length - 1) {
                 setModalImage(imageData);
@@ -1266,7 +1270,7 @@ export default function BrandChat() {
                 <>
                   <DropdownMenuSeparator />
                   <div className="px-2 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-                    Контекст гри
+                    Контекст бренду
                   </div>
                   {completedBrandSessions
                     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
