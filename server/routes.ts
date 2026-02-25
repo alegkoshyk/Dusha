@@ -5339,6 +5339,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         await storage.saveChatMessage(sessionId, userId, 'image', messageContent, savedImageUrl);
         
+        if (req.body.brandChatId) {
+          try {
+            await storage.addBrandChatMessage({
+              brandChatId: req.body.brandChatId,
+              userId,
+              role: 'image',
+              content: messageContent,
+              imageUrl: savedImageUrl,
+              agentName: null,
+              metadata: null,
+            });
+          } catch (bcErr) {
+            console.warn('Failed to save image to brand chat:', bcErr);
+          }
+        }
+        
         try {
           const { uploadMediaAsset: uploadMerchAsset } = await import('./r2Storage');
           

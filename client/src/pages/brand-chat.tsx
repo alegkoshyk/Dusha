@@ -732,7 +732,7 @@ export default function BrandChat() {
 
   const generateImageMutation = useMutation({
     mutationFn: async ({ prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, resolution, agentId, productIds, audienceIds }: { prompt?: string; aspectRatio: string; logoUrl?: string; templateId?: number; merchTypeId?: number; referenceUrls?: string[]; usePro?: boolean; resolution?: string; agentId?: string; productIds?: string[]; audienceIds?: string[] }) => {
-      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, resolution, agentId, productIds, audienceIds });
+      return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/generate-image`, { prompt, aspectRatio, logoUrl, templateId, merchTypeId, referenceUrls, usePro, resolution, agentId, productIds, audienceIds, brandChatId: isBrandMode ? selectedBrandChatId : undefined });
     },
     onError: (error: any) => {
       toast({
