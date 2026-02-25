@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Switch } from '@/components/ui/switch';
@@ -45,7 +46,8 @@ import {
   MoreVertical,
   Map,
   Plus,
-  Check
+  Check,
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
@@ -438,6 +440,7 @@ export default function BrandChat() {
   const [showAgentMenu, setShowAgentMenu] = useState(false);
   const [showProductMenu, setShowProductMenu] = useState(false);
   const [showAudienceMenu, setShowAudienceMenu] = useState(false);
+  const [showMobileChatList, setShowMobileChatList] = useState(false);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<number[]>([]);
   const [selectedMerchTypeIds, setSelectedMerchTypeIds] = useState<number[]>([]);
   const [generationQueue, setGenerationQueue] = useState<{ type: 'merch' | 'template'; id: number }[]>([]);
@@ -1213,11 +1216,16 @@ export default function BrandChat() {
             </Link>
           )}
           {isBrandMode && (
-            <Link href="/dashboard" className="sm:hidden">
-              <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
-                <ArrowLeft className="w-4 h-4" />
+            <div className="flex items-center gap-1 sm:hidden">
+              <Link href="/dashboard">
+                <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </Link>
+              <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={() => setShowMobileChatList(true)}>
+                <MessageSquare className="w-4 h-4" />
               </Button>
-            </Link>
+            </div>
           )}
           <div className="min-w-0">
             <h1 className={`font-bold text-gray-900 dark:text-white truncate ${isBrandMode ? 'text-sm sm:hidden' : 'text-base sm:text-xl'}`} data-testid="text-brand-name">
@@ -1998,6 +2006,72 @@ export default function BrandChat() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Mobile Chat List Sheet */}
+        <Sheet open={showMobileChatList} onOpenChange={setShowMobileChatList}>
+          <SheetContent side="left" className="w-72 p-0 flex flex-col">
+            <SheetHeader className="p-3 border-b border-gray-200 dark:border-gray-800">
+              <SheetTitle className="text-sm">{brand?.name || 'Бренд'} — Чати</SheetTitle>
+            </SheetHeader>
+            <div className="p-2 border-b border-gray-200 dark:border-gray-800">
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-xs"
+                onClick={() => {
+                  createBrandChatMutation.mutate();
+                  setShowMobileChatList(false);
+                }}
+                disabled={createBrandChatMutation.isPending}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                Новий чат
+              </Button>
+            </div>
+            <ScrollArea className="flex-1">
+              {brandChatsLoading ? (
+                <div className="p-4 flex justify-center"><BrandSoulSpinner size={24} /></div>
+              ) : brandChats.length === 0 ? (
+                <div className="p-4 text-center text-xs text-gray-400 space-y-2">
+                  <p>Немає чатів</p>
+                  <p className="text-[10px]">Натисніть "Новий чат" щоб почати</p>
+                </div>
+              ) : (
+                <div className="p-1.5 space-y-0.5">
+                  {brandChats.map(chat => (
+                    <div
+                      key={chat.id}
+                      className={`group relative flex items-center rounded-md px-2.5 py-2.5 cursor-pointer transition-colors ${
+                        selectedBrandChatId === chat.id
+                          ? 'bg-primary/10 text-primary dark:bg-primary/20'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                      }`}
+                      onClick={() => {
+                        setSelectedBrandChatId(chat.id);
+                        setImageMessages([]);
+                        setShowMobileChatList(false);
+                      }}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 mr-2 shrink-0 opacity-50" />
+                      <span className="flex-1 text-xs truncate min-w-0">{chat.name}</span>
+                      <button
+                        className="ml-1 p-1 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 shrink-0"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (confirm(`Видалити чат "${chat.name}"?`)) {
+                            deleteBrandChatMutation.mutate(chat.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </SheetContent>
+        </Sheet>
 
         {/* Agent Selection Dialog */}
         <Dialog open={showAgentMenu} onOpenChange={setShowAgentMenu}>
