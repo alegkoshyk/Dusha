@@ -654,7 +654,7 @@ export default function BrandCanvas() {
                         }
                       }}
                     >
-                      Пропустити
+                      Почати чат
                     </Button>
                   </div>
                 </div>

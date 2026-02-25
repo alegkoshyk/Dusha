@@ -1253,7 +1253,7 @@ export default function BrandChat() {
                     }
                   }}
                 >
-                  Пропустити
+                  Почати чат
                 </Button>
               </div>
             </div>
