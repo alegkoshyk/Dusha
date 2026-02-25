@@ -1115,6 +1115,72 @@ export default function BrandChat() {
               <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">AI Консультант</p>
             </div>
           </div>
+
+          {/* Brand Context Selector - Sidebar version */}
+          {isBrandMode && (
+            <div className="p-3 border-b border-gray-200 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-900/40 space-y-2">
+              <div className="flex items-center gap-1.5 text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                <Gamepad2 className="w-3 h-3" />
+                <span>Контекст бренду</span>
+              </div>
+              {completedBrandSessions.length > 0 ? (
+                <div className="space-y-2">
+                  <Select
+                    value={selectedGameSessionId || ''}
+                    onValueChange={(value) => {
+                      setSelectedGameSessionId(value);
+                      queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', value, 'chat'] });
+                    }}
+                  >
+                    <SelectTrigger className="h-7 text-[11px] w-full">
+                      <SelectValue placeholder="Оберіть гру..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {completedBrandSessions
+                        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                        .map((gameSession, index) => (
+                          <SelectItem key={gameSession.id} value={gameSession.id}>
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3 h-3 text-green-600 shrink-0" />
+                              <span className="text-[11px]">
+                                Гра #{completedBrandSessions.length - index} · {new Date(gameSession.updatedAt).toLocaleDateString('uk-UA')}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))
+                      }
+                    </SelectContent>
+                  </Select>
+                  {activeBrandSession && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-full px-2 text-[11px] justify-start"
+                      onClick={() => setLocation(`/game/${activeBrandSession.id}`)}
+                    >
+                      <Play className="w-3 h-3 mr-2" />
+                      Продовжити активну
+                    </Button>
+                  )}
+                </div>
+              ) : activeBrandSession ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-full px-2 text-[11px] justify-start"
+                  onClick={() => setLocation(`/game/${activeBrandSession.id}`)}
+                >
+                  <Play className="w-3 h-3 mr-2" />
+                  Продовжити гру
+                </Button>
+              ) : (
+                <div className="text-[10px] text-gray-400 italic px-1">
+                  Немає завершених ігор
+                </div>
+              )}
+            </div>
+          )}
+
           {/* New chat button */}
           <div className="p-2 border-b border-gray-200 dark:border-gray-800">
             <Button
@@ -1242,9 +1308,9 @@ export default function BrandChat() {
         {/* Desktop: show all buttons */}
         <div className="hidden sm:flex gap-2 shrink-0">
           <Link href={`/brand-board/${activeSessionId}`}>
-            <Button variant="outline" size="sm" className="px-3" data-testid="button-view-map">
-              <Eye className="w-4 h-4 mr-2" />
-              Карта
+            <Button variant="default" size="sm" className="px-3 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm border-b-2 border-primary/20 active:translate-y-[1px] transition-all" data-testid="button-view-map">
+              <Map className="w-4 h-4 mr-2" />
+              Карта бренду
             </Button>
           </Link>
           <Button 
