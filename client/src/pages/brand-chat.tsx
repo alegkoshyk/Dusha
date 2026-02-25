@@ -1195,6 +1195,97 @@ export default function BrandChat() {
               </div>
             )}
           </ScrollArea>
+          {/* Game Context Selector - bottom of sidebar */}
+          <div className="border-t border-gray-200 dark:border-gray-800 p-2.5 space-y-1.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              <Gamepad2 className="w-3 h-3" />
+              <span>Контекст гри</span>
+            </div>
+            {completedBrandSessions.length > 0 ? (
+              <div className="space-y-1.5">
+                <Select
+                  value={selectedGameSessionId || ''}
+                  onValueChange={(value) => {
+                    setSelectedGameSessionId(value);
+                    queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', value, 'chat'] });
+                  }}
+                >
+                  <SelectTrigger className="w-full h-7 text-xs">
+                    <SelectValue placeholder="Оберіть гру..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {completedBrandSessions
+                      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                      .map((gameSession, index) => (
+                        <SelectItem key={gameSession.id} value={gameSession.id}>
+                          <div className="flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3 h-3 text-green-600 shrink-0" />
+                            <span className="text-xs">
+                              Гра #{completedBrandSessions.length - index} · {new Date(gameSession.updatedAt).toLocaleDateString('uk-UA')}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+                {activeBrandSession && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-7 text-xs"
+                    onClick={() => setLocation(`/game/${activeBrandSession.id}`)}
+                  >
+                    <Play className="w-3 h-3 mr-1" />
+                    Продовжити активну
+                  </Button>
+                )}
+              </div>
+            ) : activeBrandSession ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="secondary" className="text-[10px] px-1.5">
+                    <Play className="w-2.5 h-2.5 mr-1" />
+                    Активна
+                  </Badge>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                    {Math.min(Math.round(activeBrandSession.progress || 0), 100)}%
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full h-7 text-xs"
+                  onClick={() => setLocation(`/game/${activeBrandSession.id}`)}
+                >
+                  <Play className="w-3 h-3 mr-1" />
+                  Продовжити гру
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full h-7 text-xs"
+                onClick={async () => {
+                  try {
+                    const response = await apiRequestJson('POST', '/api/game-sessions', {
+                      brandId: brandIdFromUrl,
+                      currentLevel: 'soul',
+                      currentCard: 'soul-start',
+                      progress: 0,
+                    });
+                    setLocation(`/game/${response.id}`);
+                  } catch (error) {
+                    toast({ title: "Помилка", description: "Не вдалося створити гру", variant: "destructive" });
+                  }
+                }}
+              >
+                <Play className="w-3 h-3 mr-1" />
+                Почати гру
+              </Button>
+            )}
+          </div>
         </aside>
       )}
       {/* ======== MAIN CHAT AREA ======== */}
@@ -1333,112 +1424,6 @@ export default function BrandChat() {
           </DropdownMenu>
         </div>
       </div>
-
-      {/* Game Context Selector - Show in brand mode (Desktop only) */}
-      {isBrandMode && (
-        <div className="hidden sm:block mb-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="flex flex-row items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <Gamepad2 className="w-4 h-4" />
-              <span>Контекст гри:</span>
-            </div>
-            
-            {completedBrandSessions.length > 0 ? (
-              <div className="flex-1 flex items-center gap-2">
-                <Select
-                  value={selectedGameSessionId || ''}
-                  onValueChange={(value) => {
-                    setSelectedGameSessionId(value);
-                    queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', value, 'chat'] });
-                  }}
-                >
-                  <SelectTrigger className="flex-1 max-w-xs h-8 text-sm">
-                    <SelectValue placeholder="Оберіть гру..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {completedBrandSessions
-                      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-                      .map((gameSession, index) => (
-                        <SelectItem key={gameSession.id} value={gameSession.id}>
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3 h-3 text-green-600" />
-                            <span>
-                              Гра #{completedBrandSessions.length - index}
-                              {' - '}
-                              {new Date(gameSession.updatedAt).toLocaleDateString('uk-UA')}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
-                
-                {activeBrandSession && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setLocation(`/game/${activeBrandSession.id}`)}
-                    className="shrink-0"
-                  >
-                    <Play className="w-3 h-3 mr-1" />
-                    Продовжити активну
-                  </Button>
-                )}
-              </div>
-            ) : activeBrandSession ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  <Play className="w-3 h-3 mr-1" />
-                  Активна гра
-                </Badge>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {Math.min(Math.round(activeBrandSession.progress || 0), 100)}% пройдено
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLocation(`/game/${activeBrandSession.id}`)}
-                  className="ml-auto"
-                >
-                  <Play className="w-3 h-3 mr-1" />
-                  Продовжити гру
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500 dark:text-gray-400">
-                  Немає ігор для цього бренду
-                </span>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      const response = await apiRequestJson('POST', '/api/game-sessions', {
-                        brandId: brandIdFromUrl,
-                        currentLevel: 'soul',
-                        currentCard: 'soul-start',
-                        progress: 0,
-                      });
-                      setLocation(`/game/${response.id}`);
-                    } catch (error) {
-                      toast({
-                        title: "Помилка",
-                        description: "Не вдалося створити гру",
-                        variant: "destructive",
-                      });
-                    }
-                  }}
-                >
-                  <Play className="w-3 h-3 mr-1" />
-                  Почати гру
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       <Card className={`flex-1 flex flex-col overflow-hidden ${isBrandMode ? 'rounded-none border-0 border-t' : ''}`}>
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
