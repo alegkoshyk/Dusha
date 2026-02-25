@@ -115,6 +115,12 @@ import {
   type QuizResult,
   type InsertQuizResult,
   quizResultsTable,
+  type BrandChat,
+  type InsertBrandChat,
+  brandChatsTable,
+  type BrandChatMessage,
+  type InsertBrandChatMessage,
+  brandChatMessagesTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -357,6 +363,16 @@ export interface IStorage {
   getQuizResults(userId: string, brandId: string): Promise<QuizResult[]>;
   getLatestQuizResult(userId: string, brandId: string): Promise<QuizResult | undefined>;
   createQuizResult(result: InsertQuizResult): Promise<QuizResult>;
+
+  // Brand Chat (multi-thread) operations
+  getBrandChats(brandId: string, userId: string): Promise<BrandChat[]>;
+  getBrandChat(chatId: string): Promise<BrandChat | undefined>;
+  createBrandChat(data: InsertBrandChat): Promise<BrandChat>;
+  updateBrandChat(chatId: string, updates: Partial<BrandChat>): Promise<BrandChat | undefined>;
+  deleteBrandChat(chatId: string): Promise<boolean>;
+  getBrandChatMessages(chatId: string): Promise<BrandChatMessage[]>;
+  addBrandChatMessage(message: InsertBrandChatMessage): Promise<BrandChatMessage>;
+  clearBrandChatMessages(chatId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3279,6 +3295,70 @@ export class DatabaseStorage implements IStorage {
       .values(result)
       .returning();
     return newResult;
+  }
+
+  // Brand Chat (multi-thread) operations
+  async getBrandChats(brandId: string, userId: string): Promise<BrandChat[]> {
+    return await db
+      .select()
+      .from(brandChatsTable)
+      .where(and(eq(brandChatsTable.brandId, brandId), eq(brandChatsTable.userId, userId)))
+      .orderBy(desc(brandChatsTable.updatedAt));
+  }
+
+  async getBrandChat(chatId: string): Promise<BrandChat | undefined> {
+    const [chat] = await db
+      .select()
+      .from(brandChatsTable)
+      .where(eq(brandChatsTable.id, chatId));
+    return chat;
+  }
+
+  async createBrandChat(data: InsertBrandChat): Promise<BrandChat> {
+    const [chat] = await db
+      .insert(brandChatsTable)
+      .values(data)
+      .returning();
+    return chat;
+  }
+
+  async updateBrandChat(chatId: string, updates: Partial<BrandChat>): Promise<BrandChat | undefined> {
+    const [chat] = await db
+      .update(brandChatsTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(brandChatsTable.id, chatId))
+      .returning();
+    return chat;
+  }
+
+  async deleteBrandChat(chatId: string): Promise<boolean> {
+    const result = await db
+      .delete(brandChatsTable)
+      .where(eq(brandChatsTable.id, chatId))
+      .returning({ id: brandChatsTable.id });
+    return result.length > 0;
+  }
+
+  async getBrandChatMessages(chatId: string): Promise<BrandChatMessage[]> {
+    return await db
+      .select()
+      .from(brandChatMessagesTable)
+      .where(eq(brandChatMessagesTable.brandChatId, chatId))
+      .orderBy(brandChatMessagesTable.createdAt);
+  }
+
+  async addBrandChatMessage(message: InsertBrandChatMessage): Promise<BrandChatMessage> {
+    const [msg] = await db
+      .insert(brandChatMessagesTable)
+      .values(message)
+      .returning();
+    return msg;
+  }
+
+  async clearBrandChatMessages(chatId: string): Promise<void> {
+    await db
+      .delete(brandChatMessagesTable)
+      .where(eq(brandChatMessagesTable.brandChatId, chatId));
   }
 }
 

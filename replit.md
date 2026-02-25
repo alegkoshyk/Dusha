@@ -27,6 +27,7 @@ Preferred communication style: Simple, everyday language.
 - **Database**: PostgreSQL with a normalized schema managed by Drizzle ORM.
 - **Schema**: Full relational database including tables for users, user profiles, brands, game levels, cards, card properties, relations, game sessions, card responses, and new card option management system.
 - **Card Option Sets**: New system for managing predefined choices (archetypes, values, channels) with configurable min/max selection rules.
+- **Brand Chat Threads**: Tables for brand_chats (multi-thread per brand with name, context: agentId/productIds/audienceIds/gameSessionId) and brand_chat_messages (role, content, imageUrls). Full-screen layout with left sidebar listing all chats for the brand. Auto-names chat from first message. Context overrides passed per-message to AI.
 - **Target Audiences**: Tables for target_audiences and audience_segments with demographics, psychographics, behavioral data, and AI-generated portraits.
 - **Session Data**: Structured relational storage with foreign key constraints.
 - **Cloudflare R2**: S3-compatible object storage for ALL media assets. Service in `server/r2Storage.ts`, proxy endpoints at `/api/r2/*` (authenticated) and `/api/media/proxy` (backward compat).

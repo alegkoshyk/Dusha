@@ -51,7 +51,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, apiRequestJson } from '@/lib/queryClient';
-import type { GameSession, UserBrand, UserAgent } from '@shared/schema';
+import type { GameSession, UserBrand, UserAgent, BrandChat as BrandChatType, BrandChatMessage } from '@shared/schema';
 
 const ASPECT_RATIOS = [
   { value: '1:1', label: '1:1 (Квадрат)' },
@@ -453,6 +453,9 @@ export default function BrandChat() {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [selectedAudienceIds, setSelectedAudienceIds] = useState<string[]>([]);
+  const [selectedBrandChatId, setSelectedBrandChatId] = useState<string | null>(null);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingChatName, setEditingChatName] = useState('');
   const [attachedImages, setAttachedImages] = useState<{ id: number; url: string; filename: string }[]>([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -515,11 +518,109 @@ export default function BrandChat() {
 
   const { data: messages = [], isLoading: messagesLoading } = useQuery<ChatMessage[]>({
     queryKey: ['/api/game-sessions', activeSessionId, 'chat'],
-    enabled: !!activeSessionId && !!user,
+    enabled: !isBrandMode && !!activeSessionId && !!user,
+  });
+
+  // Brand chats (multi-thread per brand)
+  const { data: brandChats = [], isLoading: brandChatsLoading } = useQuery<BrandChatType[]>({
+    queryKey: ['/api/brands', brandIdFromUrl, 'brand-chats'],
+    enabled: isBrandMode && !!brandIdFromUrl && !!user,
+  });
+
+  // Auto-select first brand chat when list loads
+  useEffect(() => {
+    if (isBrandMode && brandChats.length > 0 && !selectedBrandChatId) {
+      setSelectedBrandChatId(brandChats[0].id);
+    }
+  }, [isBrandMode, brandChats, selectedBrandChatId]);
+
+  // Sync context from selected brand chat
+  useEffect(() => {
+    if (isBrandMode && selectedBrandChatId) {
+      const chat = brandChats.find(c => c.id === selectedBrandChatId);
+      if (chat) {
+        setSelectedAgentId(chat.agentId || null);
+        setSelectedProductIds(chat.productIds || []);
+        setSelectedAudienceIds(chat.audienceIds || []);
+        if (chat.gameSessionId) setSelectedGameSessionId(chat.gameSessionId);
+      }
+    }
+  }, [isBrandMode, selectedBrandChatId, brandChats]);
+
+  const { data: brandChatMessages = [], isLoading: brandChatMessagesLoading } = useQuery<BrandChatMessage[]>({
+    queryKey: ['/api/brand-chats', selectedBrandChatId, 'messages'],
+    enabled: isBrandMode && !!selectedBrandChatId && !!user,
+  });
+
+  const displayMessages = isBrandMode ? brandChatMessages as any[] : messages;
+  const displayMessagesLoading = isBrandMode ? brandChatMessagesLoading : messagesLoading;
+
+  const createBrandChatMutation = useMutation({
+    mutationFn: async (name?: string) => {
+      return apiRequestJson('POST', `/api/brands/${brandIdFromUrl}/brand-chats`, { name: name || 'Новий чат' });
+    },
+    onSuccess: (newChat: BrandChatType) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/brands', brandIdFromUrl, 'brand-chats'] });
+      setSelectedBrandChatId(newChat.id);
+      setImageMessages([]);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося створити чат", variant: "destructive" });
+    },
+  });
+
+  const deleteBrandChatMutation = useMutation({
+    mutationFn: async (chatId: string) => {
+      return apiRequest('DELETE', `/api/brand-chats/${chatId}`);
+    },
+    onSuccess: (_: any, chatId: string) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/brands', brandIdFromUrl, 'brand-chats'] });
+      if (selectedBrandChatId === chatId) {
+        const remaining = brandChats.filter(c => c.id !== chatId);
+        setSelectedBrandChatId(remaining.length > 0 ? remaining[0].id : null);
+        setImageMessages([]);
+      }
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося видалити чат", variant: "destructive" });
+    },
+  });
+
+  const renameBrandChatMutation = useMutation({
+    mutationFn: async ({ chatId, name }: { chatId: string; name: string }) => {
+      return apiRequestJson('PATCH', `/api/brand-chats/${chatId}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/brands', brandIdFromUrl, 'brand-chats'] });
+      setEditingChatId(null);
+    },
+    onError: () => {
+      toast({ title: "Помилка", description: "Не вдалося перейменувати чат", variant: "destructive" });
+    },
+  });
+
+  const updateBrandChatContextMutation = useMutation({
+    mutationFn: async (updates: { agentId?: string | null; audienceIds?: string[]; productIds?: string[]; gameSessionId?: string | null }) => {
+      if (!selectedBrandChatId) return;
+      return apiRequestJson('PATCH', `/api/brand-chats/${selectedBrandChatId}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/brands', brandIdFromUrl, 'brand-chats'] });
+    },
   });
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ messageText, images }: { messageText: string; images?: { url: string }[] }) => {
+      if (isBrandMode && selectedBrandChatId) {
+        return apiRequestJson('POST', `/api/brand-chats/${selectedBrandChatId}/messages`, {
+          message: messageText,
+          imageUrls: images?.map(img => img.url),
+          agentId: selectedAgentId || null,
+          productIds: selectedProductIds.length > 0 ? selectedProductIds : null,
+          audienceIds: selectedAudienceIds.length > 0 ? selectedAudienceIds : null,
+          gameSessionId: selectedGameSessionId || null,
+        });
+      }
       return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/chat`, { 
         message: messageText,
         agentId: selectedAgentId || undefined,
@@ -528,8 +629,19 @@ export default function BrandChat() {
         imageUrls: images?.map(img => img.url),
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
+    onSuccess: (_, variables) => {
+      if (isBrandMode && selectedBrandChatId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/brand-chats', selectedBrandChatId, 'messages'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/brands', brandIdFromUrl, 'brand-chats'] });
+        // Auto-name chat from first message if still "Новий чат"
+        const currentChat = brandChats.find(c => c.id === selectedBrandChatId);
+        if (currentChat?.name === 'Новий чат' && variables.messageText) {
+          const autoName = variables.messageText.slice(0, 40).trim() + (variables.messageText.length > 40 ? '...' : '');
+          renameBrandChatMutation.mutate({ chatId: selectedBrandChatId, name: autoName });
+        }
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
+      }
       setMessage('');
       setAttachedImages([]);
     },
@@ -544,10 +656,17 @@ export default function BrandChat() {
 
   const clearChatMutation = useMutation({
     mutationFn: async () => {
+      if (isBrandMode && selectedBrandChatId) {
+        return apiRequest('DELETE', `/api/brand-chats/${selectedBrandChatId}/messages`);
+      }
       return apiRequest('DELETE', `/api/game-sessions/${activeSessionId}/chat`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
+      if (isBrandMode && selectedBrandChatId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/brand-chats', selectedBrandChatId, 'messages'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['/api/game-sessions', activeSessionId, 'chat'] });
+      }
       setImageMessages([]);
       toast({
         title: "Чат очищено",
@@ -777,14 +896,14 @@ export default function BrandChat() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, imageMessages, scrollToBottom]);
+  }, [displayMessages, imageMessages, scrollToBottom]);
 
   // Scroll to bottom when chat data loads
   useEffect(() => {
-    if (messages && messages.length > 0) {
+    if (displayMessages && displayMessages.length > 0) {
       setTimeout(scrollToBottom, 50);
     }
-  }, [messages, scrollToBottom]);
+  }, [displayMessages, scrollToBottom]);
 
   // Additional scroll after images load
   useEffect(() => {
@@ -945,7 +1064,7 @@ export default function BrandChat() {
     saveToLibraryMutation.mutate({ imageUrl, altText });
   };
 
-  if (sessionLoading || messagesLoading) {
+  if (sessionLoading || displayMessagesLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -973,21 +1092,138 @@ export default function BrandChat() {
   }
 
   return (
-    <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl h-[calc(100vh-5rem)] sm:h-[calc(100vh-6rem)] flex flex-col">
-      <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-          <Link href={isBrandMode ? "/dashboard" : "/brand-maps"}>
-            <Button variant="ghost" size="icon" className="shrink-0" data-testid="button-back">
-              <ArrowLeft className="w-5 h-5" />
+    <div className={isBrandMode ? "fixed inset-0 z-[60] flex bg-background dark:bg-gray-950" : "container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl h-[calc(100vh-5rem)] sm:h-[calc(100vh-6rem)] flex flex-col"}>
+      {/* ======== LEFT SIDEBAR (brand mode only) ======== */}
+      {isBrandMode && (
+        <aside className="hidden sm:flex w-60 flex-col border-r border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900 shrink-0">
+          {/* Sidebar header */}
+          <div className="p-3 border-b border-gray-200 dark:border-gray-800 flex items-center gap-2">
+            <Link href="/dashboard">
+              <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+            </Link>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{brand?.name || 'Бренд'}</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">AI Консультант</p>
+            </div>
+          </div>
+          {/* New chat button */}
+          <div className="p-2 border-b border-gray-200 dark:border-gray-800">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full text-xs"
+              onClick={() => createBrandChatMutation.mutate()}
+              disabled={createBrandChatMutation.isPending}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1.5" />
+              Новий чат
             </Button>
-          </Link>
+          </div>
+          {/* Chat list */}
+          <ScrollArea className="flex-1">
+            {brandChatsLoading ? (
+              <div className="p-4 flex justify-center"><BrandSoulSpinner size={24} /></div>
+            ) : brandChats.length === 0 ? (
+              <div className="p-4 text-center text-xs text-gray-400 space-y-2">
+                <p>Немає чатів</p>
+                <p className="text-[10px]">Натисніть "Новий чат" щоб почати</p>
+              </div>
+            ) : (
+              <div className="p-1.5 space-y-0.5">
+                {brandChats.map(chat => (
+                  <div
+                    key={chat.id}
+                    className={`group relative flex items-center rounded-md px-2.5 py-2 cursor-pointer transition-colors ${
+                      selectedBrandChatId === chat.id
+                        ? 'bg-primary/10 text-primary dark:bg-primary/20'
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                    }`}
+                    onClick={() => {
+                      if (editingChatId === chat.id) return;
+                      setSelectedBrandChatId(chat.id);
+                      setImageMessages([]);
+                    }}
+                  >
+                    {editingChatId === chat.id ? (
+                      <input
+                        className="flex-1 text-xs bg-white dark:bg-gray-700 border rounded px-1.5 py-0.5 outline-none min-w-0"
+                        value={editingChatName}
+                        autoFocus
+                        onChange={e => setEditingChatName(e.target.value)}
+                        onBlur={() => {
+                          if (editingChatName.trim()) {
+                            renameBrandChatMutation.mutate({ chatId: chat.id, name: editingChatName.trim() });
+                          } else {
+                            setEditingChatId(null);
+                          }
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && editingChatName.trim()) {
+                            renameBrandChatMutation.mutate({ chatId: chat.id, name: editingChatName.trim() });
+                          } else if (e.key === 'Escape') {
+                            setEditingChatId(null);
+                          }
+                        }}
+                        onClick={e => e.stopPropagation()}
+                      />
+                    ) : (
+                      <span
+                        className="flex-1 text-xs truncate min-w-0"
+                        onDoubleClick={() => {
+                          setEditingChatId(chat.id);
+                          setEditingChatName(chat.name);
+                        }}
+                      >
+                        {chat.name}
+                      </span>
+                    )}
+                    <button
+                      className="ml-1 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 shrink-0"
+                      onClick={e => {
+                        e.stopPropagation();
+                        if (confirm(`Видалити чат "${chat.name}"?`)) {
+                          deleteBrandChatMutation.mutate(chat.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </aside>
+      )}
+      {/* ======== MAIN CHAT AREA ======== */}
+      <div className={isBrandMode ? "flex-1 flex flex-col overflow-hidden" : "flex flex-col h-full"}>
+      <div className={isBrandMode ? "flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-800 gap-2 shrink-0" : "flex items-center justify-between mb-3 sm:mb-4 gap-2"}>
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+          {!isBrandMode && (
+            <Link href="/brand-maps">
+              <Button variant="ghost" size="icon" className="shrink-0" data-testid="button-back">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+          )}
+          {isBrandMode && (
+            <Link href="/dashboard" className="sm:hidden">
+              <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+            </Link>
+          )}
           <div className="min-w-0">
-            <h1 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white truncate" data-testid="text-brand-name">
-              {brand?.name || 'Бренд'}
+            <h1 className={`font-bold text-gray-900 dark:text-white truncate ${isBrandMode ? 'text-sm sm:hidden' : 'text-base sm:text-xl'}`} data-testid="text-brand-name">
+              {isBrandMode ? (brandChats.find(c => c.id === selectedBrandChatId)?.name || brand?.name || 'Бренд') : (brand?.name || 'Бренд')}
             </h1>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
-              AI-консультант з брендингу
-            </p>
+            {!isBrandMode && (
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate">
+                AI-консультант з брендингу
+              </p>
+            )}
           </div>
         </div>
         
@@ -1004,7 +1240,7 @@ export default function BrandChat() {
             size="sm" 
             className="px-2"
             onClick={handleClearChat}
-            disabled={messages.length === 0 && imageMessages.length === 0}
+            disabled={displayMessages.length === 0 && imageMessages.length === 0}
             data-testid="button-clear-chat"
           >
             <Trash2 className="w-4 h-4" />
@@ -1087,7 +1323,7 @@ export default function BrandChat() {
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 onClick={handleClearChat}
-                disabled={messages.length === 0 && imageMessages.length === 0}
+                disabled={displayMessages.length === 0 && imageMessages.length === 0}
                 className="text-red-600"
               >
                 <Trash2 className="w-4 h-4 mr-2" />
@@ -1204,9 +1440,23 @@ export default function BrandChat() {
         </div>
       )}
 
-      <Card className="flex-1 flex flex-col overflow-hidden">
+      <Card className={`flex-1 flex flex-col overflow-hidden ${isBrandMode ? 'rounded-none border-0 border-t' : ''}`}>
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-          {(!activeSessionId && isBrandMode) ? (
+          {(isBrandMode && !selectedBrandChatId) ? (
+            <div className="flex items-center justify-center h-full min-h-[300px]">
+              <div className="text-center space-y-3 max-w-xs">
+                <Bot className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600" />
+                <p className="text-sm font-medium text-gray-900 dark:text-white">Виберіть або створіть чат</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Натисніть "Новий чат" в лівій панелі щоб почати розмову
+                </p>
+                <Button size="sm" onClick={() => createBrandChatMutation.mutate()} disabled={createBrandChatMutation.isPending}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Новий чат
+                </Button>
+              </div>
+            </div>
+          ) : (!activeSessionId && !isBrandMode) ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center space-y-3 max-w-xs">
                 <Gamepad2 className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600" />
@@ -1258,19 +1508,20 @@ export default function BrandChat() {
                 </div>
               </div>
             </div>
-          ) : messages.length === 0 && imageMessages.length === 0 ? (
+          ) : displayMessages.length === 0 && imageMessages.length === 0 ? (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400" data-testid="text-empty-chat">
               <Bot className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium mb-2">Привіт! Я ваш AI-консультант</p>
               <p className="text-sm max-w-md mx-auto">
-                Я знаю всі відповіді з вашої гри "Душа Бренду" і готовий допомогти з питаннями 
-                про ваш бренд, стратегію, позиціонування та розвиток.
+                {isBrandMode 
+                  ? "Напишіть своє перше повідомлення щоб почати розмову про ваш бренд."
+                  : "Я знаю всі відповіді з вашої гри \"Душа Бренду\" і готовий допомогти з питаннями про ваш бренд, стратегію, позиціонування та розвиток."}
               </p>
             </div>
           ) : (
             <div className="space-y-4">
               {/* Database messages (including images with role='image') */}
-              {messages.map((msg) => {
+              {displayMessages.map((msg: any) => {
                 // Image message from database
                 if (msg.role === 'image' && msg.imageUrl) {
                   return (
@@ -2228,7 +2479,7 @@ export default function BrandChat() {
               <Button 
                 type="submit"
                 size="icon"
-                disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending}
+                disabled={!message.trim() || sendMessageMutation.isPending || generateImageMutation.isPending || (isBrandMode && !selectedBrandChatId)}
                 className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full"
                 data-testid="button-send"
               >
@@ -2279,6 +2530,7 @@ export default function BrandChat() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>{/* end main chat area */}
     </div>
   );
 }

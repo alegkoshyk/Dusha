@@ -8746,6 +8746,251 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
     }
   });
 
+  // Brand Chat multi-thread endpoints
+  app.get("/api/brands/:brandId/brand-chats", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) return res.status(401).json({ error: "Не авторизовано" });
+      const chats = await storage.getBrandChats(req.params.brandId, userId);
+      res.json(chats);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/brands/:brandId/brand-chats", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) return res.status(401).json({ error: "Не авторизовано" });
+      const { name, gameSessionId, agentId, audienceIds, productIds } = req.body;
+      const chat = await storage.createBrandChat({
+        brandId: req.params.brandId,
+        userId,
+        name: name || "Новий чат",
+        gameSessionId: gameSessionId || null,
+        agentId: agentId || null,
+        audienceIds: audienceIds || [],
+        productIds: productIds || [],
+      });
+      res.json(chat);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.patch("/api/brand-chats/:chatId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) return res.status(401).json({ error: "Не авторизовано" });
+      const chat = await storage.getBrandChat(req.params.chatId);
+      if (!chat) return res.status(404).json({ error: "Чат не знайдено" });
+      if (chat.userId !== userId) return res.status(403).json({ error: "Немає доступу" });
+      const { name, gameSessionId, agentId, audienceIds, productIds } = req.body;
+      const updated = await storage.updateBrandChat(req.params.chatId, {
+        ...(name !== undefined && { name }),
+        ...(gameSessionId !== undefined && { gameSessionId: gameSessionId || null }),
+        ...(agentId !== undefined && { agentId: agentId || null }),
+        ...(audienceIds !== undefined && { audienceIds }),
+        ...(productIds !== undefined && { productIds }),
+      });
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/brand-chats/:chatId", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) return res.status(401).json({ error: "Не авторизовано" });
+      const chat = await storage.getBrandChat(req.params.chatId);
+      if (!chat) return res.status(404).json({ error: "Чат не знайдено" });
+      if (chat.userId !== userId) return res.status(403).json({ error: "Немає доступу" });
+      await storage.deleteBrandChat(req.params.chatId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/brand-chats/:chatId/messages", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) return res.status(401).json({ error: "Не авторизовано" });
+      const chat = await storage.getBrandChat(req.params.chatId);
+      if (!chat) return res.status(404).json({ error: "Чат не знайдено" });
+      if (chat.userId !== userId) return res.status(403).json({ error: "Немає доступу" });
+      const messages = await storage.getBrandChatMessages(req.params.chatId);
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/brand-chats/:chatId/messages", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.user?.id;
+      if (!userId) return res.status(401).json({ error: "Не авторизовано" });
+      const chat = await storage.getBrandChat(req.params.chatId);
+      if (!chat) return res.status(404).json({ error: "Чат не знайдено" });
+      if (chat.userId !== userId) return res.status(403).json({ error: "Немає доступу" });
+      await storage.clearBrandChatMessages(req.params.chatId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/brand-chats/:chatId/messages", requireAuth, async (req, res) => {
+    try {
+      const isConfigured = await isOpenAIConfigured();
+      if (!isConfigured) {
+        return res.status(400).json({ error: "AI API не налаштовано." });
+      }
+      const userId = req.session?.user?.id;
+      if (!userId) return res.status(401).json({ error: "Не авторизовано" });
+
+      const chat = await storage.getBrandChat(req.params.chatId);
+      if (!chat) return res.status(404).json({ error: "Чат не знайдено" });
+      if (chat.userId !== userId) return res.status(403).json({ error: "Немає доступу" });
+
+      const { message, imageUrls, agentId: agentIdOverride, productIds: productIdsOverride, audienceIds: audienceIdsOverride, gameSessionId: gameSessionIdOverride } = req.body;
+      if (!message?.trim()) return res.status(400).json({ error: "Повідомлення не може бути порожнім" });
+
+      const validImageUrls = Array.isArray(imageUrls) ? imageUrls.filter((u: string) => typeof u === "string" && u.startsWith("http")) : [];
+
+      // Use request body overrides or fall back to stored chat context
+      const effectiveAgentId = agentIdOverride !== undefined ? agentIdOverride : chat.agentId;
+      const effectiveProductIds = productIdsOverride !== undefined ? productIdsOverride : (chat.productIds || []);
+      const effectiveAudienceIds = audienceIdsOverride !== undefined ? audienceIdsOverride : (chat.audienceIds || []);
+      const effectiveGameSessionId = gameSessionIdOverride !== undefined ? gameSessionIdOverride : chat.gameSessionId;
+
+      // Get agent context
+      let agentContext: { name: string; context: string; personality?: string; expertise?: string[]; language?: string } | undefined;
+      let agentName: string | undefined;
+      if (effectiveAgentId) {
+        const agent = await storage.getUserAgent(effectiveAgentId);
+        if (agent && agent.userId === userId && agent.isActive) {
+          agentContext = { name: agent.name, context: agent.context, personality: agent.personality || undefined, expertise: (agent.expertise as string[]) || undefined, language: agent.language || undefined };
+          agentName = agent.name;
+        }
+      }
+
+      // Get brand info
+      const brand = await storage.getUserBrand(chat.brandId);
+      const brandName = brand?.name || "Бренд";
+      const brandDescription = brand?.description || undefined;
+
+      // Get game session context if linked
+      let formattedResponses: { level: string; cardTitle: string; question?: string; response: string }[] = [];
+      if (effectiveGameSessionId) {
+        const responses = await storage.getSessionCardResponses(effectiveGameSessionId);
+        formattedResponses = responses.map(r => ({
+          level: r.level,
+          cardTitle: r.cardTitle,
+          question: r.cardDescription || undefined,
+          response: r.response,
+        }));
+      }
+
+      // Get chat history
+      const existingMessages = await storage.getBrandChatMessages(req.params.chatId);
+      const chatHistory = existingMessages
+        .filter(m => m.role !== "image")
+        .map(m => ({ role: m.role as "user" | "assistant" | "system", content: m.content }));
+
+      // Save user message
+      await storage.addBrandChatMessage({
+        brandChatId: req.params.chatId,
+        userId,
+        role: "user",
+        content: message,
+        agentName: agentName || null,
+        metadata: validImageUrls.length > 0 ? { imageUrls: validImageUrls } : null,
+      });
+
+      // Get products context
+      let productsContext: any[] = [];
+      const productIdList = Array.isArray(effectiveProductIds) ? effectiveProductIds : [];
+      for (const pid of productIdList) {
+        const product = await storage.getBrandProduct(pid);
+        if (product && product.brandId === chat.brandId) {
+          productsContext.push({
+            name: product.name,
+            shortDescription: product.shortDescription || undefined,
+            fullDescription: product.fullDescription || undefined,
+            category: product.category || undefined,
+            price: product.price || undefined,
+            currency: product.currency || undefined,
+            features: (product.features as string[]) || undefined,
+            benefits: (product.benefits as string[]) || undefined,
+          });
+        }
+      }
+
+      // Get audiences context
+      let audiencesContext: any[] = [];
+      const audienceIdList = Array.isArray(effectiveAudienceIds) ? effectiveAudienceIds : [];
+      for (const aid of audienceIdList) {
+        const audience = await storage.getTargetAudience(aid);
+        if (audience && audience.brandId === chat.brandId) {
+          const segments = await storage.getAudienceSegments(aid);
+          audiencesContext.push({
+            name: audience.name,
+            description: audience.description || undefined,
+            ageRange: audience.ageRange || undefined,
+            gender: audience.gender || undefined,
+            values: (audience.values as string[]) || undefined,
+            interests: (audience.interests as string[]) || undefined,
+            painPoints: (audience.painPoints as string[]) || undefined,
+            goals: (audience.goals as string[]) || undefined,
+            aiPortrait: audience.aiPortrait || undefined,
+            segments: segments.map(s => ({
+              name: s.name,
+              personaName: s.personaName || undefined,
+              personaJob: s.personaJob || undefined,
+              personaStory: s.personaStory || undefined,
+            })),
+          });
+        }
+      }
+
+      const aiResponse = await sendBrandChatMessage(
+        message,
+        chatHistory,
+        {
+          brandName,
+          brandDescription,
+          responses: formattedResponses,
+          agentContext,
+          productContext: productsContext.length === 1 ? productsContext[0] : undefined,
+          productsContext: productsContext.length > 1 ? productsContext : undefined,
+          audienceContext: audiencesContext.length === 1 ? audiencesContext[0] : undefined,
+          audiencesContext: audiencesContext.length > 1 ? audiencesContext : undefined,
+        },
+        req.params.chatId,
+        validImageUrls.length > 0 ? validImageUrls : undefined
+      );
+
+      const savedMessage = await storage.addBrandChatMessage({
+        brandChatId: req.params.chatId,
+        userId,
+        role: "assistant",
+        content: aiResponse.response,
+        agentName: agentName || null,
+        metadata: aiResponse.tokensUsed ? { tokens: aiResponse.tokensUsed } : null,
+      });
+
+      // Update chat updatedAt
+      await storage.updateBrandChat(req.params.chatId, {});
+
+      res.json({ message: savedMessage, tokensUsed: aiResponse.tokensUsed });
+    } catch (error: any) {
+      console.error("Brand chat AI error:", error);
+      res.status(500).json({ error: error.message || "Помилка AI чату" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

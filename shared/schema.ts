@@ -1710,4 +1710,49 @@ export const insertQuizResultSchema = createInsertSchema(quizResultsTable).omit(
 export type QuizResult = typeof quizResultsTable.$inferSelect;
 export type InsertQuizResult = z.infer<typeof insertQuizResultSchema>;
 
+// Таблиця чат-тредів бренду (мультичати)
+export const brandChatsTable = pgTable("brand_chats", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  brandId: uuid("brand_id").notNull().references(() => userBrandsTable.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull().default("Новий чат"),
+  gameSessionId: uuid("game_session_id"),
+  agentId: uuid("agent_id"),
+  audienceIds: text("audience_ids").array().default([]),
+  productIds: text("product_ids").array().default([]),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+});
+
+export const brandChatsRelations = relations(brandChatsTable, ({ one, many }) => ({
+  brand: one(userBrandsTable, { fields: [brandChatsTable.brandId], references: [userBrandsTable.id] }),
+  user: one(usersTable, { fields: [brandChatsTable.userId], references: [usersTable.id] }),
+}));
+
+export const insertBrandChatSchema = createInsertSchema(brandChatsTable).omit({ id: true, createdAt: true, updatedAt: true });
+export type BrandChat = typeof brandChatsTable.$inferSelect;
+export type InsertBrandChat = z.infer<typeof insertBrandChatSchema>;
+
+// Таблиця повідомлень чат-тредів бренду
+export const brandChatMessagesTable = pgTable("brand_chat_messages", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  brandChatId: uuid("brand_chat_id").notNull().references(() => brandChatsTable.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 20 }).notNull(),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"),
+  agentName: varchar("agent_name", { length: 100 }),
+  metadata: json("metadata"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const brandChatMessagesRelations = relations(brandChatMessagesTable, ({ one }) => ({
+  brandChat: one(brandChatsTable, { fields: [brandChatMessagesTable.brandChatId], references: [brandChatsTable.id] }),
+  user: one(usersTable, { fields: [brandChatMessagesTable.userId], references: [usersTable.id] }),
+}));
+
+export const insertBrandChatMessageSchema = createInsertSchema(brandChatMessagesTable).omit({ id: true, createdAt: true });
+export type BrandChatMessage = typeof brandChatMessagesTable.$inferSelect;
+export type InsertBrandChatMessage = z.infer<typeof insertBrandChatMessageSchema>;
+
 export * from "./models/chat";
