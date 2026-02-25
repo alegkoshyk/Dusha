@@ -8892,15 +8892,53 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
         }
       }
 
-      // Get brand info
+      // Get brand info (full passport)
       const brand = await storage.getUserBrand(chat.brandId);
       const brandName = brand?.name || "Бренд";
-      const brandDescription = brand?.description || undefined;
+      let brandDescription = brand?.description || undefined;
+      
+      const passportParts: string[] = [];
+      if (brand?.description) passportParts.push(`Опис: ${brand.description}`);
+      if (brand?.tagline) passportParts.push(`Слоган: ${brand.tagline}`);
+      if (brand?.mission) passportParts.push(`Місія: ${brand.mission}`);
+      if (brand?.vision) passportParts.push(`Візія: ${brand.vision}`);
+      if (brand?.uniqueValue) passportParts.push(`Унікальна ціннісна пропозиція: ${brand.uniqueValue}`);
+      if (brand?.targetAudience) passportParts.push(`Цільова аудиторія: ${brand.targetAudience}`);
+      const brandValues = brand?.values as string[] | null;
+      if (brandValues && Array.isArray(brandValues) && brandValues.length > 0) passportParts.push(`Цінності: ${brandValues.join(', ')}`);
+      const voiceTone = brand?.voiceTone as any;
+      if (voiceTone && typeof voiceTone === 'object') {
+        const toneParts: string[] = [];
+        if (voiceTone.personality?.length) toneParts.push(`Характер: ${voiceTone.personality.join(', ')}`);
+        if (voiceTone.tone) toneParts.push(`Тон: ${voiceTone.tone}`);
+        if (voiceTone.style) toneParts.push(`Стиль: ${voiceTone.style}`);
+        if (toneParts.length > 0) passportParts.push(`Голос бренду: ${toneParts.join('. ')}`);
+      }
+      const competitors = brand?.competitors as any[] | null;
+      if (competitors && Array.isArray(competitors) && competitors.length > 0) {
+        const compNames = competitors.map((c: any) => typeof c === 'string' ? c : c.name).filter(Boolean);
+        if (compNames.length > 0) passportParts.push(`Конкуренти: ${compNames.join(', ')}`);
+      }
+      if (passportParts.length > 0) {
+        brandDescription = passportParts.join('\n');
+      }
+
+      // Auto-select latest completed game session if none specified
+      let resolvedGameSessionId = effectiveGameSessionId;
+      if (!resolvedGameSessionId && brand) {
+        const allSessions = await storage.getUserGameSessions(userId);
+        const completedForBrand = allSessions
+          .filter(s => s.brandId === chat.brandId && s.completed)
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        if (completedForBrand.length > 0) {
+          resolvedGameSessionId = completedForBrand[0].id;
+        }
+      }
 
       // Get game session context if linked
       let formattedResponses: { level: string; cardTitle: string; question?: string; response: string }[] = [];
-      if (effectiveGameSessionId) {
-        const responses = await storage.getSessionCardResponses(effectiveGameSessionId);
+      if (resolvedGameSessionId) {
+        const responses = await storage.getSessionCardResponses(resolvedGameSessionId);
         formattedResponses = responses.map(r => ({
           level: r.level,
           cardTitle: r.cardTitle,
