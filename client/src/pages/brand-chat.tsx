@@ -481,15 +481,19 @@ export default function BrandChat() {
   const completedBrandSessions = brandSessions.filter(s => s.completed);
   const activeBrandSession = brandSessions.find(s => !s.completed);
 
-  // Auto-select the latest completed game when entering brand mode
+  // Auto-select the latest completed game (or active game if no completed ones) when entering brand mode
   useEffect(() => {
-    if (isBrandMode && completedBrandSessions.length > 0 && !selectedGameSessionId) {
-      const sortedSessions = completedBrandSessions.sort((a, b) => 
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-      );
-      setSelectedGameSessionId(sortedSessions[0].id);
+    if (isBrandMode && !selectedGameSessionId) {
+      if (completedBrandSessions.length > 0) {
+        const sortedSessions = completedBrandSessions.sort((a, b) => 
+          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        );
+        setSelectedGameSessionId(sortedSessions[0].id);
+      } else if (activeBrandSession) {
+        setSelectedGameSessionId(activeBrandSession.id);
+      }
     }
-  }, [isBrandMode, completedBrandSessions, selectedGameSessionId]);
+  }, [isBrandMode, completedBrandSessions, activeBrandSession, selectedGameSessionId]);
 
   const { data: session, isLoading: sessionLoading } = useQuery<GameSession>({
     queryKey: ['/api/game-sessions', activeSessionId],
@@ -1147,13 +1151,18 @@ export default function BrandChat() {
               </div>
             ) : activeBrandSession ? (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-yellow-600 dark:text-yellow-400">
-                  Немає завершених ігор
+                <Badge variant="secondary" className="text-xs">
+                  <Play className="w-3 h-3 mr-1" />
+                  Активна гра
+                </Badge>
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  {Math.min(Math.round(activeBrandSession.progress || 0), 100)}% пройдено
                 </span>
                 <Button
-                  variant="default"
+                  variant="outline"
                   size="sm"
                   onClick={() => setLocation(`/game/${activeBrandSession.id}`)}
+                  className="ml-auto"
                 >
                   <Play className="w-3 h-3 mr-1" />
                   Продовжити гру
@@ -1199,11 +1208,30 @@ export default function BrandChat() {
           {(!activeSessionId && isBrandMode) ? (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400">
               <Gamepad2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium mb-2">Спочатку пройдіть гру</p>
-              <p className="text-sm max-w-md mx-auto">
-                Щоб спілкуватися з AI-консультантом, потрібно спочатку пройти гру "Душа Бренду".
-                AI використовуватиме ваші відповіді для розуміння контексту бренду.
+              <p className="text-lg font-medium mb-2">Розпочніть гру</p>
+              <p className="text-sm max-w-md mx-auto mb-4">
+                Пройдіть гру "Душа Бренду", щоб AI краще розумів контекст вашого бренду.
+                Або розпочніть гру прямо зараз.
               </p>
+              <Button
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const response = await apiRequestJson('POST', '/api/game-sessions', {
+                      brandId: brandIdFromUrl,
+                      currentLevel: 'soul',
+                      currentCard: 'soul-start',
+                      progress: 0,
+                    });
+                    setSelectedGameSessionId(response.id);
+                  } catch {
+                    toast({ title: "Помилка", description: "Не вдалося створити гру", variant: "destructive" });
+                  }
+                }}
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Почати гру
+              </Button>
             </div>
           ) : messages.length === 0 && imageMessages.length === 0 ? (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400" data-testid="text-empty-chat">

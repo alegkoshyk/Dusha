@@ -11,6 +11,7 @@ import {
   Maximize2,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { apiRequestJson } from "@/lib/queryClient";
 import { resolveMediaUrl } from "@/lib/utils";
 import type { GameSession, GenerationTemplate, MerchType } from "@shared/schema";
@@ -150,7 +151,9 @@ function UpscaleOverlay({ canvasRef, shapeId }: { canvasRef: React.RefObject<Bra
 export default function BrandCanvas() {
   const { brandId } = useParams<{ brandId: string }>();
   const { user } = useAuth();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [creatingSession, setCreatingSession] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -596,17 +599,36 @@ export default function BrandCanvas() {
 
             {!activeSessionId ? (
               <div className="flex-1 flex items-center justify-center p-4 text-center">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Sparkles className="h-8 w-8 text-muted-foreground mx-auto" />
                   <p className="text-sm text-muted-foreground">
-                    Щоб використовувати AI чат, спочатку пройдіть гру для цього
-                    бренду
+                    Розпочніть гру, щоб AI краще розумів контекст вашого бренду
                   </p>
-                  <Link href={`/brand-chat/brand/${brandId}`}>
-                    <Button variant="outline" size="sm" className="mt-2">
-                      Відкрити чат
-                    </Button>
-                  </Link>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    disabled={creatingSession}
+                    onClick={async () => {
+                      if (!brandId) return;
+                      setCreatingSession(true);
+                      try {
+                        await apiRequestJson('POST', '/api/game-sessions', {
+                          brandId,
+                          currentLevel: 'soul',
+                          currentCard: 'soul-start',
+                          progress: 0,
+                        });
+                        await queryClient.invalidateQueries({ queryKey: ["/api/user/game-sessions"] });
+                      } catch {
+                        toast({ title: "Помилка", description: "Не вдалося створити гру", variant: "destructive" });
+                      } finally {
+                        setCreatingSession(false);
+                      }
+                    }}
+                  >
+                    {creatingSession ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                    Почати гру
+                  </Button>
                 </div>
               </div>
             ) : (
