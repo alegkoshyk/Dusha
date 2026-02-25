@@ -955,7 +955,7 @@ export default function BrandChat() {
     );
   }
 
-  if (!session) {
+  if (!isBrandMode && !session) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card className="max-w-lg mx-auto text-center py-12">
@@ -1207,54 +1207,55 @@ export default function BrandChat() {
       <Card className="flex-1 flex flex-col overflow-hidden">
         <ScrollArea className="flex-1 p-4" ref={scrollRef}>
           {(!activeSessionId && isBrandMode) ? (
-            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-              <Gamepad2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium mb-2 text-gray-900 dark:text-white">
-                Для кращого розуміння вашого бренду
-              </p>
-              <p className="text-sm max-w-sm mx-auto mb-6 text-gray-500 dark:text-gray-400">
-                Рекомендуємо пройти гру «Душа Бренду» — AI використовуватиме ваші відповіді як контекст.
-                Або пропустіть і чат буде працювати без гри.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      const response = await apiRequestJson('POST', '/api/game-sessions', {
-                        brandId: brandIdFromUrl,
-                        currentLevel: 'soul',
-                        currentCard: 'soul-start',
-                        progress: 0,
-                      });
-                      setLocation(`/game/${response.id}`);
-                    } catch {
-                      toast({ title: "Помилка", description: "Не вдалося створити гру", variant: "destructive" });
-                    }
-                  }}
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Пройти гру
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      const response = await apiRequestJson('POST', '/api/game-sessions', {
-                        brandId: brandIdFromUrl,
-                        currentLevel: 'soul',
-                        currentCard: 'soul-start',
-                        progress: 0,
-                      });
-                      setSelectedGameSessionId(response.id);
-                    } catch {
-                      toast({ title: "Помилка", description: "Не вдалося підключити чат", variant: "destructive" });
-                    }
-                  }}
-                >
-                  Почати чат
-                </Button>
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center space-y-3 max-w-xs">
+                <Gamepad2 className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600" />
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  Для кращого розуміння вашого бренду
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Рекомендуємо пройти гру «Душа Бренду» — AI використовуватиме ваші відповіді як контекст. Або почніть чат без гри.
+                </p>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const response = await apiRequestJson('POST', '/api/game-sessions', {
+                          brandId: brandIdFromUrl,
+                          currentLevel: 'soul',
+                          currentCard: 'soul-start',
+                          progress: 0,
+                        });
+                        setLocation(`/game/${response.id}`);
+                      } catch {
+                        toast({ title: "Помилка", description: "Не вдалося створити гру", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Пройти гру
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const response = await apiRequestJson('POST', '/api/game-sessions', {
+                          brandId: brandIdFromUrl,
+                          currentLevel: 'soul',
+                          currentCard: 'soul-start',
+                          progress: 0,
+                        });
+                        setSelectedGameSessionId(response.id);
+                      } catch {
+                        toast({ title: "Помилка", description: "Не вдалося підключити чат", variant: "destructive" });
+                      }
+                    }}
+                  >
+                    Почати чат
+                  </Button>
+                </div>
               </div>
             </div>
           ) : messages.length === 0 && imageMessages.length === 0 ? (
