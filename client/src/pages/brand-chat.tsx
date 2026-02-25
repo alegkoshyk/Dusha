@@ -3,6 +3,7 @@ import { resolveMediaUrl } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useLocation } from 'wouter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -1208,30 +1209,53 @@ export default function BrandChat() {
           {(!activeSessionId && isBrandMode) ? (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400">
               <Gamepad2 className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium mb-2">Розпочніть гру</p>
-              <p className="text-sm max-w-md mx-auto mb-4">
-                Пройдіть гру "Душа Бренду", щоб AI краще розумів контекст вашого бренду.
-                Або розпочніть гру прямо зараз.
+              <p className="text-lg font-medium mb-2 text-gray-900 dark:text-white">
+                Для кращого розуміння вашого бренду
               </p>
-              <Button
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const response = await apiRequestJson('POST', '/api/game-sessions', {
-                      brandId: brandIdFromUrl,
-                      currentLevel: 'soul',
-                      currentCard: 'soul-start',
-                      progress: 0,
-                    });
-                    setSelectedGameSessionId(response.id);
-                  } catch {
-                    toast({ title: "Помилка", description: "Не вдалося створити гру", variant: "destructive" });
-                  }
-                }}
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Почати гру
-              </Button>
+              <p className="text-sm max-w-sm mx-auto mb-6 text-gray-500 dark:text-gray-400">
+                Рекомендуємо пройти гру «Душа Бренду» — AI використовуватиме ваші відповіді як контекст.
+                Або пропустіть і чат буде працювати без гри.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await apiRequestJson('POST', '/api/game-sessions', {
+                        brandId: brandIdFromUrl,
+                        currentLevel: 'soul',
+                        currentCard: 'soul-start',
+                        progress: 0,
+                      });
+                      setLocation(`/game/${response.id}`);
+                    } catch {
+                      toast({ title: "Помилка", description: "Не вдалося створити гру", variant: "destructive" });
+                    }
+                  }}
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Пройти гру
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const response = await apiRequestJson('POST', '/api/game-sessions', {
+                        brandId: brandIdFromUrl,
+                        currentLevel: 'soul',
+                        currentCard: 'soul-start',
+                        progress: 0,
+                      });
+                      setSelectedGameSessionId(response.id);
+                    } catch {
+                      toast({ title: "Помилка", description: "Не вдалося підключити чат", variant: "destructive" });
+                    }
+                  }}
+                >
+                  Пропустити
+                </Button>
+              </div>
             </div>
           ) : messages.length === 0 && imageMessages.length === 0 ? (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400" data-testid="text-empty-chat">

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useState, useRef, useCallback } from "react";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import {
   ArrowLeft, Loader2, MessageCircle, Send, X, Bot, User, ImagePlus,
   Image, Sparkles, Settings2, ShoppingBag, Palette, ChevronDown, ChevronUp,
-  Maximize2,
+  Maximize2, Play,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -150,6 +150,7 @@ function UpscaleOverlay({ canvasRef, shapeId }: { canvasRef: React.RefObject<Bra
 
 export default function BrandCanvas() {
   const { brandId } = useParams<{ brandId: string }>();
+  const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -601,34 +602,61 @@ export default function BrandCanvas() {
               <div className="flex-1 flex items-center justify-center p-4 text-center">
                 <div className="space-y-3">
                   <Sparkles className="h-8 w-8 text-muted-foreground mx-auto" />
-                  <p className="text-sm text-muted-foreground">
-                    Розпочніть гру, щоб AI краще розумів контекст вашого бренду
+                  <p className="text-sm font-medium">Для кращого розуміння вашого бренду</p>
+                  <p className="text-xs text-muted-foreground max-w-[200px] mx-auto">
+                    Рекомендуємо пройти гру «Душа Бренду». Або пропустіть — чат буде працювати без гри.
                   </p>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    disabled={creatingSession}
-                    onClick={async () => {
-                      if (!brandId) return;
-                      setCreatingSession(true);
-                      try {
-                        await apiRequestJson('POST', '/api/game-sessions', {
-                          brandId,
-                          currentLevel: 'soul',
-                          currentCard: 'soul-start',
-                          progress: 0,
-                        });
-                        await queryClient.invalidateQueries({ queryKey: ["/api/user/game-sessions"] });
-                      } catch {
-                        toast({ title: "Помилка", description: "Не вдалося створити гру", variant: "destructive" });
-                      } finally {
-                        setCreatingSession(false);
-                      }
-                    }}
-                  >
-                    {creatingSession ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
-                    Почати гру
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      disabled={creatingSession}
+                      onClick={async () => {
+                        if (!brandId) return;
+                        setCreatingSession(true);
+                        try {
+                          const session = await apiRequestJson('POST', '/api/game-sessions', {
+                            brandId,
+                            currentLevel: 'soul',
+                            currentCard: 'soul-start',
+                            progress: 0,
+                          });
+                          setLocation(`/game/${session.id}`);
+                        } catch {
+                          toast({ title: "Помилка", description: "Не вдалося створити гру", variant: "destructive" });
+                        } finally {
+                          setCreatingSession(false);
+                        }
+                      }}
+                    >
+                      {creatingSession ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                      Пройти гру
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={creatingSession}
+                      onClick={async () => {
+                        if (!brandId) return;
+                        setCreatingSession(true);
+                        try {
+                          await apiRequestJson('POST', '/api/game-sessions', {
+                            brandId,
+                            currentLevel: 'soul',
+                            currentCard: 'soul-start',
+                            progress: 0,
+                          });
+                          await queryClient.invalidateQueries({ queryKey: ["/api/user/game-sessions"] });
+                        } catch {
+                          toast({ title: "Помилка", description: "Не вдалося підключити чат", variant: "destructive" });
+                        } finally {
+                          setCreatingSession(false);
+                        }
+                      }}
+                    >
+                      Пропустити
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
