@@ -751,11 +751,13 @@ export interface AIAssistRequest {
 }
 
 export async function generateCardResponse(request: AIAssistRequest): Promise<{ text: string }> {
-  const { client, config } = await getAIClient();
+  const config = await getAIConfig();
 
   const contextResponses = request.previousResponses?.slice(-5).map(r => 
     `- ${r.cardTitle}: ${r.response}`
   ).join('\n') || '';
+
+  const systemMsg = "Ти - експерт з брендингу. Пиши коротко, чітко та українською мовою. Відповідай тільки текстом без коментарів.";
 
   const prompt = `Ти - експерт з брендингу. Допоможи сформулювати відповідь для картки "${request.cardTitle}".
 
@@ -775,38 +777,55 @@ ${request.currentText ? `✏️ Поточний текст користувач
 
 Напиши ТІЛЬКИ текст відповіді, без пояснень чи коментарів.`;
 
-  const response = await client.chat.completions.create({
-    model: config.model,
-    messages: [
-      {
-        role: "system",
-        content: "Ти - експерт з брендингу. Пиши коротко, чітко та українською мовою. Відповідай тільки текстом без коментарів."
-      },
-      { role: "user", content: prompt }
-    ],
-    max_tokens: 512,
-    temperature: 0.8
-  });
+  let text = "";
+  let tokensInput = 0;
+  let tokensOutput = 0;
 
-  const usage = response.usage;
-  if (usage) {
+  if (config.provider === "claude") {
+    const { client: claude } = await getClaudeClient();
+    const response = await claude.messages.create({
+      model: config.model,
+      max_tokens: 512,
+      system: systemMsg,
+      messages: [{ role: "user", content: prompt }],
+    });
+    text = response.content[0].type === "text" ? response.content[0].text : "";
+    tokensInput = response.usage?.input_tokens || 0;
+    tokensOutput = response.usage?.output_tokens || 0;
+  } else {
+    const { client } = await getOpenAIClient();
+    const response = await client.chat.completions.create({
+      model: config.model,
+      messages: [
+        { role: "system", content: systemMsg },
+        { role: "user", content: prompt }
+      ],
+      max_tokens: 512,
+      temperature: 0.8
+    });
+    text = response.choices[0].message.content || "";
+    tokensInput = response.usage?.prompt_tokens || 0;
+    tokensOutput = response.usage?.completion_tokens || 0;
+  }
+
+  if (tokensInput || tokensOutput) {
     const costRates = config.provider === "perplexity"
       ? { input: 0.000001, output: 0.000001 }
+      : config.provider === "claude"
+      ? { input: 0.000003, output: 0.000015 }
       : { input: 0.00001, output: 0.00003 };
     
-    const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
+    const estimatedCost = (tokensInput * costRates.input) + (tokensOutput * costRates.output);
     
     await storage.logAIUsage({
       provider: config.provider,
       model: config.model,
-      tokensInput: usage.prompt_tokens,
-      tokensOutput: usage.completion_tokens,
+      tokensInput,
+      tokensOutput,
       costEstimate: estimatedCost.toFixed(6),
       endpoint: "generateCardResponse",
     });
   }
-
-  let text = response.choices[0].message.content || "";
   
   // Обрізаємо до maxLength якщо потрібно
   if (text.length > request.maxLength) {
