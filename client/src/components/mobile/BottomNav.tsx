@@ -3,7 +3,7 @@ import { Home, Briefcase, Search, User } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Головна' },
-  { path: '/dashboard', icon: Briefcase, label: 'Бренди' },
+  { path: '/brands', icon: Briefcase, label: 'Бренди' },
   { path: '/brand-analysis', icon: Search, label: 'Аналіз' },
   { path: '/profile', icon: User, label: 'Профіль' },
 ];
@@ -39,7 +39,7 @@ export function BottomNav() {
           {navItems.map((item) => {
             const isActive = location === item.path || 
               (item.path === '/' && location === '/') ||
-              (item.path === '/dashboard' && location.startsWith('/brand-chat')) ||
+              (item.path === '/brands' && location.startsWith('/brand-chat')) ||
               (item.path === '/profile' && (location.startsWith('/settings') || location.startsWith('/rcadmin')));
             
             return (
