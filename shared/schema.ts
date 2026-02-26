@@ -1755,4 +1755,62 @@ export const insertBrandChatMessageSchema = createInsertSchema(brandChatMessages
 export type BrandChatMessage = typeof brandChatMessagesTable.$inferSelect;
 export type InsertBrandChatMessage = z.infer<typeof insertBrandChatMessageSchema>;
 
+// Таблиця сесій генерації назв брендів
+export const brandNameSessionsTable = pgTable("brand_name_sessions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  brandId: uuid("brand_id").references(() => userBrandsTable.id, { onDelete: "set null" }),
+  niche: text("niche").notNull(),
+  values: text("values").notNull(),
+  tone: text("tone").notNull(),
+  targetAudience: text("target_audience").notNull(),
+  keywords: text("keywords").notNull(),
+  language: varchar("language", { length: 10 }).notNull().default("uk"),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const brandNameSessionsRelations = relations(brandNameSessionsTable, ({ one, many }) => ({
+  user: one(usersTable, { fields: [brandNameSessionsTable.userId], references: [usersTable.id] }),
+  brand: one(userBrandsTable, { fields: [brandNameSessionsTable.brandId], references: [userBrandsTable.id] }),
+  results: many(brandNameResultsTable),
+}));
+
+export const insertBrandNameSessionSchema = createInsertSchema(brandNameSessionsTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type BrandNameSession = typeof brandNameSessionsTable.$inferSelect;
+export type InsertBrandNameSession = z.infer<typeof insertBrandNameSessionSchema>;
+
+// Таблиця результатів генерації назв брендів
+export const brandNameResultsTable = pgTable("brand_name_results", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: uuid("session_id").notNull().references(() => brandNameSessionsTable.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 255 }).notNull(),
+  explanation: text("explanation"),
+  domainAvailable: json("domain_available"),
+  socialAvailable: json("social_available"),
+  trademarkRisk: varchar("trademark_risk", { length: 20 }),
+  trademarkNotes: text("trademark_notes"),
+  linguisticScore: integer("linguistic_score"),
+  linguisticNotes: text("linguistic_notes"),
+  overallScore: integer("overall_score"),
+  isFavorite: boolean("is_favorite").notNull().default(false),
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
+
+export const brandNameResultsRelations = relations(brandNameResultsTable, ({ one }) => ({
+  session: one(brandNameSessionsTable, { fields: [brandNameResultsTable.sessionId], references: [brandNameSessionsTable.id] }),
+}));
+
+export const insertBrandNameResultSchema = createInsertSchema(brandNameResultsTable).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type BrandNameResult = typeof brandNameResultsTable.$inferSelect;
+export type InsertBrandNameResult = z.infer<typeof insertBrandNameResultSchema>;
+
 export * from "./models/chat";

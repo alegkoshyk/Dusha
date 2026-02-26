@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import express from "express";
-import { createServer, type Server } from "http";
+import { createServer, type Server, request as httpRequest } from "http";
 import { storage } from "./storage";
 import { 
   insertGameSessionSchema, 
@@ -24,7 +24,9 @@ import { db } from "./db";
 import { sql, eq, and, isNull, inArray } from "drizzle-orm";
 import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable, mediaAssetsTable, aiChatMessagesTable, userBrandsTable, brandProductsTable, targetAudiencesTable, generationTemplatesTable, userProfilesTable } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData, generateAgentData } from "./openai";
+import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData, generateAgentData, generateBrandNames } from "./openai";
+import dns from "dns";
+import https from "https";
 
 // Generate unique slug for briefs with collision check
 async function generateUniqueBriefSlug(): Promise<string> {
@@ -3953,6 +3955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const aiModelPerplexity = await storage.getAppSetting("AI_MODEL_PERPLEXITY");
       const aiModelClaude = await storage.getAppSetting("AI_MODEL_CLAUDE");
       const aiContext = await storage.getAppSetting("AI_CONTEXT");
+      const nameGeneratorContext = await storage.getAppSetting("BRAND_NAME_GENERATOR_CONTEXT");
       
       res.json({
         openai: {
@@ -3978,7 +3981,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           modelOpenAI: aiModelOpenAI?.value || 'gpt-4o',
           modelPerplexity: aiModelPerplexity?.value || 'sonar-pro',
           modelClaude: aiModelClaude?.value || 'claude-sonnet-4-20250514',
-          context: aiContext?.value || ''
+          context: aiContext?.value || '',
+          nameGeneratorContext: nameGeneratorContext?.value || ''
         },
         configured
       });
@@ -4050,6 +4054,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (context !== undefined) {
         await storage.setAppSetting("AI_CONTEXT", context, false, "Додатковий контекст для AI промптів");
+      }
+      if (req.body.nameGeneratorContext !== undefined) {
+        await storage.setAppSetting("BRAND_NAME_GENERATOR_CONTEXT", req.body.nameGeneratorContext, false, "Контекст для AI генератора назв брендів");
       }
       
       // Reset AI client cache when config changes
@@ -9042,6 +9049,229 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
     } catch (error: any) {
       console.error("Brand chat AI error:", error);
       res.status(500).json({ error: error.message || "Помилка AI чату" });
+    }
+  });
+
+  // ===== Brand Name Generator Routes =====
+
+  async function checkDomainAvailability(name: string): Promise<Record<string, boolean>> {
+    const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const domains = [".com", ".ua", ".io", ".net", ".store"];
+    const results: Record<string, boolean> = {};
+
+    await Promise.all(
+      domains.map(async (ext) => {
+        const domain = cleanName + ext;
+        try {
+          await new Promise<void>((resolve, reject) => {
+            dns.resolve(domain, (err) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          });
+          results[ext] = false;
+        } catch {
+          results[ext] = true;
+        }
+      })
+    );
+
+    return results;
+  }
+
+  async function checkSocialAvailability(name: string): Promise<Record<string, boolean>> {
+    const cleanName = name.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    const platforms: Record<string, string> = {
+      instagram: `https://www.instagram.com/${cleanName}/`,
+      facebook: `https://www.facebook.com/${cleanName}`,
+      telegram: `https://t.me/${cleanName}`,
+      tiktok: `https://www.tiktok.com/@${cleanName}`,
+    };
+    const results: Record<string, boolean> = {};
+
+    await Promise.all(
+      Object.entries(platforms).map(async ([platform, url]) => {
+        try {
+          const statusCode = await new Promise<number>((resolve) => {
+            const requestFn = url.startsWith("https") ? https.request : httpRequest;
+            const req = requestFn(url, { method: "HEAD", timeout: 5000 }, (res) => {
+              resolve(res.statusCode || 0);
+            });
+            req.on("error", () => resolve(0));
+            req.on("timeout", () => { req.destroy(); resolve(0); });
+            req.end();
+          });
+          results[platform] = statusCode === 404;
+        } catch {
+          results[platform] = true;
+        }
+      })
+    );
+
+    return results;
+  }
+
+  app.post("/api/name-generator/generate", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const briefSchema = z.object({
+        niche: z.string().min(1),
+        values: z.string().default(""),
+        tone: z.string().default(""),
+        targetAudience: z.string().default(""),
+        keywords: z.string().default(""),
+        language: z.string().default("uk"),
+        brandId: z.string().uuid().optional().nullable(),
+      });
+
+      const brief = briefSchema.parse(req.body);
+
+      const session = await storage.createNameSession({
+        userId: currentUser.id,
+        brandId: brief.brandId || null,
+        niche: brief.niche,
+        values: brief.values,
+        tone: brief.tone,
+        targetAudience: brief.targetAudience,
+        keywords: brief.keywords,
+        language: brief.language,
+        status: "pending",
+      });
+
+      try {
+        const adminContextSetting = await storage.getAppSetting("BRAND_NAME_GENERATOR_CONTEXT");
+        const adminContext = adminContextSetting?.value || undefined;
+
+        const aiNames = await generateBrandNames(
+          {
+            niche: brief.niche,
+            values: brief.values,
+            tone: brief.tone,
+            targetAudience: brief.targetAudience,
+            keywords: brief.keywords,
+            language: brief.language,
+          },
+          adminContext
+        );
+
+        const results = await Promise.all(
+          aiNames.map(async (aiName) => {
+            const [domainAvailable, socialAvailable] = await Promise.all([
+              checkDomainAvailability(aiName.name),
+              checkSocialAvailability(aiName.name),
+            ]);
+
+            const domainScore = Object.values(domainAvailable).filter(Boolean).length * 4;
+            const socialScore = Object.values(socialAvailable).filter(Boolean).length * 3;
+            const trademarkScore = aiName.trademarkRisk === "low" ? 20 : aiName.trademarkRisk === "medium" ? 10 : 0;
+            const lingScore = aiName.linguisticScore * 4;
+            const overallScore = Math.min(100, domainScore + socialScore + trademarkScore + lingScore);
+
+            return await storage.createNameResult({
+              sessionId: session.id,
+              name: aiName.name,
+              explanation: aiName.explanation,
+              domainAvailable,
+              socialAvailable,
+              trademarkRisk: aiName.trademarkRisk,
+              trademarkNotes: aiName.trademarkNotes,
+              linguisticScore: aiName.linguisticScore,
+              linguisticNotes: aiName.linguisticNotes,
+              overallScore,
+              isFavorite: false,
+            });
+          })
+        );
+
+        await storage.updateNameSession(session.id, { status: "completed" });
+
+        res.json({ session: { ...session, status: "completed" }, results });
+      } catch (aiError: any) {
+        await storage.updateNameSession(session.id, { status: "error" });
+        throw aiError;
+      }
+    } catch (error: any) {
+      console.error("Name generator error:", error);
+      res.status(500).json({ error: error.message || "Помилка генерації назв" });
+    }
+  });
+
+  app.get("/api/name-generator/sessions", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+      const sessions = await storage.getNameSessions(currentUser.id);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Get name sessions error:", error);
+      res.status(500).json({ error: "Помилка отримання сесій" });
+    }
+  });
+
+  app.get("/api/name-generator/sessions/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+      const session = await storage.getNameSession(req.params.id);
+      if (!session || session.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Сесію не знайдено" });
+      }
+      const results = await storage.getNameResults(session.id);
+      res.json({ session, results });
+    } catch (error) {
+      console.error("Get name session error:", error);
+      res.status(500).json({ error: "Помилка отримання сесії" });
+    }
+  });
+
+  app.patch("/api/name-generator/results/:id/favorite", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+      const result = await storage.getNameResult(req.params.id);
+      if (!result) {
+        return res.status(404).json({ error: "Результат не знайдено" });
+      }
+      const session = await storage.getNameSession(result.sessionId);
+      if (!session || session.userId !== currentUser.id) {
+        return res.status(403).json({ error: "Немає доступу" });
+      }
+      const { isFavorite } = req.body;
+      const updated = await storage.updateNameResult(req.params.id, {
+        isFavorite: !!isFavorite,
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Toggle favorite error:", error);
+      res.status(500).json({ error: "Помилка оновлення" });
+    }
+  });
+
+  app.delete("/api/name-generator/sessions/:id", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+      const session = await storage.getNameSession(req.params.id);
+      if (!session || session.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Сесію не знайдено" });
+      }
+      await storage.deleteNameSession(req.params.id);
+      res.json({ message: "Сесію видалено" });
+    } catch (error) {
+      console.error("Delete name session error:", error);
+      res.status(500).json({ error: "Помилка видалення сесії" });
     }
   });
 

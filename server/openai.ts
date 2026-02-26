@@ -1382,6 +1382,134 @@ export interface GeneratedAgentData {
   expertise?: string[];
 }
 
+export interface BrandNameBrief {
+  niche: string;
+  values: string;
+  tone: string;
+  targetAudience: string;
+  keywords: string;
+  language: string;
+}
+
+export interface GeneratedBrandName {
+  name: string;
+  explanation: string;
+  trademarkRisk: "low" | "medium" | "high";
+  trademarkNotes: string;
+  linguisticScore: number;
+  linguisticNotes: string;
+}
+
+export async function generateBrandNames(brief: BrandNameBrief, adminContext?: string): Promise<GeneratedBrandName[]> {
+  const config = await getAIConfig();
+
+  const lang = brief.language === "en" ? "English" : "Ukrainian";
+  const contextSection = adminContext ? `\n\nДодатковий контекст від адміністратора:\n${adminContext}` : "";
+  const aiContextSection = config.context ? `\n\nЗагальний AI контекст:\n${config.context}` : "";
+
+  const prompt = `You are an expert brand naming consultant. Generate 15 unique brand name ideas based on the following brief.
+${contextSection}${aiContextSection}
+
+Brief:
+- Niche/Industry: ${brief.niche}
+- Values/Characteristics: ${brief.values}
+- Tone of Voice: ${brief.tone}
+- Target Audience: ${brief.targetAudience}
+- Keywords: ${brief.keywords}
+- Language preference: ${lang}
+
+For each name, provide:
+1. The brand name itself (creative, memorable, easy to pronounce)
+2. A brief explanation of why this name works (2-3 sentences in ${lang})
+3. Trademark risk assessment: "low", "medium", or "high" with reasoning
+4. Linguistic analysis score (1-10) and notes about phonetics, memorability, international appeal
+
+Return a JSON object with a "names" array. Each element should have:
+- name: string
+- explanation: string (in ${lang})
+- trademarkRisk: "low" | "medium" | "high"
+- trademarkNotes: string (in ${lang})
+- linguisticScore: number (1-10)
+- linguisticNotes: string (in ${lang})
+
+Generate diverse name types: neologisms, compound words, metaphors, abbreviations, foreign words.
+Respond ONLY with valid JSON.`;
+
+  let result: { names: GeneratedBrandName[] };
+
+  if (config.provider === "claude") {
+    const { client } = await getClaudeClient();
+    const response = await client.messages.create({
+      model: config.model,
+      max_tokens: 4096,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const usage = response.usage;
+    if (usage) {
+      const costRates = { input: 0.000003, output: 0.000015 };
+      const estimatedCost = (usage.input_tokens * costRates.input) + (usage.output_tokens * costRates.output);
+      await storage.logAIUsage({
+        provider: "claude",
+        model: config.model,
+        tokensInput: usage.input_tokens,
+        tokensOutput: usage.output_tokens,
+        costEstimate: estimatedCost.toFixed(6),
+        endpoint: "generateBrandNames",
+      });
+    }
+
+    const textBlock = response.content.find((c: any) => c.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      throw new Error("Пуста відповідь від AI");
+    }
+    result = JSON.parse((textBlock as any).text);
+  } else {
+    const { client } = await getAIClient();
+    const response = await client.chat.completions.create({
+      model: config.model,
+      messages: [
+        { role: "system", content: "You are an expert brand naming consultant. Respond only with valid JSON." },
+        { role: "user", content: prompt },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 4096,
+      temperature: 0.9,
+    });
+
+    const usage = response.usage;
+    if (usage) {
+      const costRates = config.provider === "perplexity"
+        ? { input: 0.000001, output: 0.000001 }
+        : { input: 0.00001, output: 0.00003 };
+      const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
+      await storage.logAIUsage({
+        provider: config.provider,
+        model: config.model,
+        tokensInput: usage.prompt_tokens,
+        tokensOutput: usage.completion_tokens,
+        costEstimate: estimatedCost.toFixed(6),
+        endpoint: "generateBrandNames",
+      });
+    }
+
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error("Пуста відповідь від AI");
+    }
+    result = JSON.parse(content);
+  }
+
+  return (result.names || []).map((n: any) => ({
+    name: n.name || "",
+    explanation: n.explanation || "",
+    trademarkRisk: ["low", "medium", "high"].includes(n.trademarkRisk) ? n.trademarkRisk : "medium",
+    trademarkNotes: n.trademarkNotes || "",
+    linguisticScore: Math.min(10, Math.max(1, n.linguisticScore || 5)),
+    linguisticNotes: n.linguisticNotes || "",
+  }));
+}
+
 export async function generateAgentData(description: string): Promise<GeneratedAgentData> {
   const config = await getAIConfig();
   

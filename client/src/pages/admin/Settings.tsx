@@ -32,6 +32,7 @@ interface AISettings {
   modelPerplexity: string;
   modelClaude: string;
   context: string;
+  nameGeneratorContext: string;
 }
 
 interface AISettingsData {
@@ -196,6 +197,7 @@ export default function Settings() {
   const [selectedModelPerplexity, setSelectedModelPerplexity] = useState("sonar-pro");
   const [selectedModelClaude, setSelectedModelClaude] = useState("claude-sonnet-4-20250514");
   const [aiContext, setAiContext] = useState("");
+  const [nameGeneratorContext, setNameGeneratorContext] = useState("");
   const [geminiKeyInput, setGeminiKeyInput] = useState("");
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   
@@ -596,6 +598,7 @@ export default function Settings() {
       setSelectedModelPerplexity(aiSettings.settings.modelPerplexity || 'sonar-pro');
       setSelectedModelClaude(aiSettings.settings.modelClaude || 'claude-sonnet-4-20250514');
       setAiContext(aiSettings.settings.context || '');
+      setNameGeneratorContext(aiSettings.settings.nameGeneratorContext || '');
     }
   }, [aiSettings]);
 
@@ -633,7 +636,7 @@ export default function Settings() {
   });
 
   const saveConfigMutation = useMutation({
-    mutationFn: async (config: { provider?: string; modelOpenAI?: string; modelPerplexity?: string; modelClaude?: string; context?: string }) => {
+    mutationFn: async (config: { provider?: string; modelOpenAI?: string; modelPerplexity?: string; modelClaude?: string; context?: string; nameGeneratorContext?: string }) => {
       const response = await apiRequest("POST", "/api/admin/ai-settings/config", config);
       return response.json();
     },
@@ -738,6 +741,7 @@ export default function Settings() {
       modelPerplexity: selectedModelPerplexity,
       modelClaude: selectedModelClaude,
       context: aiContext,
+      nameGeneratorContext: nameGeneratorContext,
     });
   };
 
@@ -998,6 +1002,23 @@ export default function Settings() {
                       />
                       <p className="text-xs text-gray-500">
                         Цей контекст буде додано до кожного запиту до AI
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-amber-400" />
+                        <Label className="text-gray-300">Контекст для генератора назв брендів</Label>
+                      </div>
+                      <Textarea
+                        value={nameGeneratorContext}
+                        onChange={(e) => setNameGeneratorContext(e.target.value)}
+                        placeholder="Введіть додаткові інструкції для генерації назв брендів, наприклад: ринкові тренди, специфіка мови, стилістичні переваги, типи назв які краще працюють..."
+                        className="bg-gray-900 border-gray-600 text-white min-h-[100px]"
+                        data-testid="textarea-name-generator-context"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Цей контекст буде додано до запитів генератора назв брендів. Використовуйте для налаштування стилю, тону та підходу до створення назв.
                       </p>
                     </div>
 

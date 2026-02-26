@@ -121,6 +121,12 @@ import {
   type BrandChatMessage,
   type InsertBrandChatMessage,
   brandChatMessagesTable,
+  type BrandNameSession,
+  type InsertBrandNameSession,
+  brandNameSessionsTable,
+  type BrandNameResult,
+  type InsertBrandNameResult,
+  brandNameResultsTable,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, count, sql, and, isNotNull, or, inArray, desc, gte, lte } from "drizzle-orm";
@@ -373,6 +379,17 @@ export interface IStorage {
   getBrandChatMessages(chatId: string): Promise<BrandChatMessage[]>;
   addBrandChatMessage(message: InsertBrandChatMessage): Promise<BrandChatMessage>;
   clearBrandChatMessages(chatId: string): Promise<void>;
+
+  // Brand Name Generator operations
+  createNameSession(session: InsertBrandNameSession): Promise<BrandNameSession>;
+  getNameSessions(userId: string): Promise<BrandNameSession[]>;
+  getNameSession(id: string): Promise<BrandNameSession | undefined>;
+  updateNameSession(id: string, updates: Partial<BrandNameSession>): Promise<BrandNameSession | undefined>;
+  createNameResult(result: InsertBrandNameResult): Promise<BrandNameResult>;
+  getNameResults(sessionId: string): Promise<BrandNameResult[]>;
+  getNameResult(id: string): Promise<BrandNameResult | undefined>;
+  updateNameResult(id: string, updates: Partial<BrandNameResult>): Promise<BrandNameResult | undefined>;
+  deleteNameSession(id: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3359,6 +3376,80 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(brandChatMessagesTable)
       .where(eq(brandChatMessagesTable.brandChatId, chatId));
+  }
+
+  async createNameSession(session: InsertBrandNameSession): Promise<BrandNameSession> {
+    const [created] = await db
+      .insert(brandNameSessionsTable)
+      .values(session)
+      .returning();
+    return created;
+  }
+
+  async getNameSessions(userId: string): Promise<BrandNameSession[]> {
+    return await db
+      .select()
+      .from(brandNameSessionsTable)
+      .where(eq(brandNameSessionsTable.userId, userId))
+      .orderBy(desc(brandNameSessionsTable.createdAt));
+  }
+
+  async getNameSession(id: string): Promise<BrandNameSession | undefined> {
+    const [session] = await db
+      .select()
+      .from(brandNameSessionsTable)
+      .where(eq(brandNameSessionsTable.id, id));
+    return session;
+  }
+
+  async updateNameSession(id: string, updates: Partial<BrandNameSession>): Promise<BrandNameSession | undefined> {
+    const [updated] = await db
+      .update(brandNameSessionsTable)
+      .set(updates)
+      .where(eq(brandNameSessionsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async createNameResult(result: InsertBrandNameResult): Promise<BrandNameResult> {
+    const [created] = await db
+      .insert(brandNameResultsTable)
+      .values(result)
+      .returning();
+    return created;
+  }
+
+  async getNameResults(sessionId: string): Promise<BrandNameResult[]> {
+    return await db
+      .select()
+      .from(brandNameResultsTable)
+      .where(eq(brandNameResultsTable.sessionId, sessionId))
+      .orderBy(desc(brandNameResultsTable.overallScore));
+  }
+
+  async getNameResult(id: string): Promise<BrandNameResult | undefined> {
+    const [result] = await db
+      .select()
+      .from(brandNameResultsTable)
+      .where(eq(brandNameResultsTable.id, id));
+    return result;
+  }
+
+  async updateNameResult(id: string, updates: Partial<BrandNameResult>): Promise<BrandNameResult | undefined> {
+    const [updated] = await db
+      .update(brandNameResultsTable)
+      .set(updates)
+      .where(eq(brandNameResultsTable.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteNameSession(id: string): Promise<boolean> {
+    const result = await db
+      .delete(brandNameSessionsTable)
+      .where(eq(brandNameSessionsTable.id, id))
+      .returning({ id: brandNameSessionsTable.id });
+    return result.length > 0;
   }
 }
 

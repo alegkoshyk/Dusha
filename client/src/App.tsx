@@ -53,6 +53,7 @@ import QuizSoul from "@/pages/quiz-soul";
 import QuizConsistency from "@/pages/quiz-consistency";
 import Quizzes from "@/pages/quizzes";
 import BrandCanvas from "@/pages/brand-canvas";
+import NameGenerator from "@/pages/name-generator";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -122,6 +123,7 @@ function Router() {
           <Route path="/canvas/:brandId" component={BrandCanvas} />
           <Route path="/agents" component={Agents} />
           <Route path="/brand-analysis" component={BrandAnalysis} />
+          <Route path="/name-generator" component={NameGenerator} />
           <Route component={NotFound} />
         </Switch>
       </main>

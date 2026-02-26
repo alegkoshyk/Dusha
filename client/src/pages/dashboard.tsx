@@ -20,7 +20,8 @@ import {
   Image,
   Search,
   MessageSquare,
-  Bot
+  Bot,
+  Sparkles
 } from 'lucide-react';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { Link, useLocation } from 'wouter';
@@ -166,7 +167,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick actions — grid on all screens */}
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 mb-6">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3 mb-6">
           <Link href="/brands" className="contents">
             <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-blue-200 dark:hover:border-blue-800">
               <CardContent className="p-3">
@@ -251,6 +252,24 @@ export default function Dashboard() {
                       AI Агенти
                     </h3>
                     <p className="text-[10px] text-gray-500 dark:text-gray-400">Помічники</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/name-generator" className="contents">
+            <Card className="hover:shadow-lg transition-all cursor-pointer group border-2 border-transparent hover:border-amber-200 dark:hover:border-amber-800">
+              <CardContent className="p-3">
+                <div className="flex flex-col items-center text-center gap-2">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-xs text-gray-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors leading-tight">
+                      Назви
+                    </h3>
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Генератор</p>
                   </div>
                 </div>
               </CardContent>

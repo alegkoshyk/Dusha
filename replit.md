@@ -72,6 +72,21 @@ Preferred communication style: Simple, everyday language.
   - POST `/api/public/brief/:slug/submit` - Submit response
 - **Frontend**: `/briefs/:brandId` page with builder, `/brief/:slug` public fill page
 
+### AI Brand Name Generator
+- **Database Tables**: brand_name_sessions (brief data, status), brand_name_results (name, scores, domain/social checks, trademark risk, linguistic analysis)
+- **AI Generation**: Generates 15 brand name ideas with explanations, trademark risk analysis, linguistic scoring
+- **Automated Checks**: DNS-based domain availability (.com, .ua, .io, .net, .store), HTTP-based social media handle checks (Instagram, Facebook, Telegram, TikTok)
+- **Scoring**: Overall score (0-100) combining domain availability, social handles, trademark risk, linguistic quality
+- **Admin Context**: Configurable AI context via `BRAND_NAME_GENERATOR_CONTEXT` app setting in admin panel
+- **API Endpoints**:
+  - POST `/api/name-generator/generate` - Generate names from brief
+  - GET `/api/name-generator/sessions` - List user's generation history
+  - GET `/api/name-generator/sessions/:id` - Get session with results
+  - PATCH `/api/name-generator/results/:id/favorite` - Toggle favorite (with ownership check)
+  - DELETE `/api/name-generator/sessions/:id` - Delete session
+- **Frontend**: `/name-generator` page with brief form, results grid with scores, history sidebar
+- **Dashboard**: Quick link tile "Назви / Генератор" on home page
+
 ### Export and Sharing
 - **PDF Export**: jsPDF integration for branded PDF reports of the brand map.
 - **Brand Map Visualization**: Dynamic preview of the completed brand strategy.
