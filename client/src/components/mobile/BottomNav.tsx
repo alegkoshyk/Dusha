@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'wouter';
-import { Briefcase, Search, User } from 'lucide-react';
+import { Home, Briefcase, Search, User } from 'lucide-react';
 
 const navItems = [
+  { path: '/', icon: Home, label: 'Головна' },
   { path: '/dashboard', icon: Briefcase, label: 'Бренди' },
   { path: '/brand-analysis', icon: Search, label: 'Аналіз' },
   { path: '/profile', icon: User, label: 'Профіль' },
@@ -37,7 +38,7 @@ export function BottomNav() {
         >
           {navItems.map((item) => {
             const isActive = location === item.path || 
-              (item.path === '/dashboard' && location === '/') ||
+              (item.path === '/' && location === '/') ||
               (item.path === '/dashboard' && location.startsWith('/brand-chat')) ||
               (item.path === '/profile' && (location.startsWith('/settings') || location.startsWith('/rcadmin')));
             
