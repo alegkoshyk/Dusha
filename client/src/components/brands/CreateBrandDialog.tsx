@@ -10,7 +10,7 @@ import { useBrands } from "@/hooks/useBrands";
 import { insertUserBrandSchema, type InsertUserBrand, type UserBrand } from "@shared/schema";
 import { Building2, FileText, ImagePlus, X, Crown, Zap } from "lucide-react";
 import { z } from "zod";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Link } from "wouter";
@@ -28,9 +28,10 @@ interface CreateBrandDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onBrandCreated: (brand: UserBrand) => void;
+  defaultValues?: { name?: string; description?: string };
 }
 
-export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: CreateBrandDialogProps) {
+export function CreateBrandDialog({ open, onOpenChange, onBrandCreated, defaultValues }: CreateBrandDialogProps) {
   const { createBrand, isCreatingBrand, createBrandError } = useBrands();
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +74,20 @@ export function CreateBrandDialog({ open, onOpenChange, onBrandCreated }: Create
     reset,
   } = useForm<CreateBrandForm>({
     resolver: zodResolver(createBrandSchema),
+    defaultValues: {
+      name: defaultValues?.name || '',
+      description: defaultValues?.description || '',
+    },
   });
+
+  useEffect(() => {
+    if (open && defaultValues) {
+      reset({
+        name: defaultValues.name || '',
+        description: defaultValues.description || '',
+      });
+    }
+  }, [open, defaultValues, reset]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

@@ -28,9 +28,12 @@ import {
   Trash2,
   Plus,
   Search,
+  Building2,
 } from 'lucide-react';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
-import { Link } from 'wouter';
+import { CreateBrandDialog } from '@/components/brands/CreateBrandDialog';
+import type { UserBrand } from '@shared/schema';
+import { Link, useLocation } from 'wouter';
 import { useAuth } from '@/hooks/useAuth';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -46,6 +49,7 @@ interface SessionWithResults {
 export default function NameGenerator() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [localResults, setLocalResults] = useState<BrandNameResult[]>([]);
@@ -56,6 +60,8 @@ export default function NameGenerator() {
   const [targetAudience, setTargetAudience] = useState('');
   const [keywords, setKeywords] = useState('');
   const [language, setLanguage] = useState('uk');
+  const [createBrandOpen, setCreateBrandOpen] = useState(false);
+  const [createBrandDefaults, setCreateBrandDefaults] = useState<{ name?: string; description?: string }>({});
 
   useLayoutEffect(() => {
     window.scrollTo(0, 0);
@@ -184,6 +190,22 @@ export default function NameGenerator() {
   const handleNewGeneration = () => {
     setActiveSessionId(null);
     setLocalResults([]);
+  };
+
+  const handleCreateBrand = (result: BrandNameResult) => {
+    const sessionNiche = loadedSession?.session?.niche || niche;
+    const sessionValues = loadedSession?.session?.values || values;
+    const sessionTone = loadedSession?.session?.tone || tone;
+    const descParts: string[] = [];
+    if (result.explanation) descParts.push(result.explanation);
+    if (sessionNiche) descParts.push(`Ніша: ${sessionNiche}`);
+    if (sessionValues) descParts.push(`Цінності: ${sessionValues}`);
+    if (sessionTone) descParts.push(`Тон: ${sessionTone}`);
+    setCreateBrandDefaults({
+      name: result.name,
+      description: descParts.join('\n'),
+    });
+    setCreateBrandOpen(true);
   };
 
   const getRiskColor = (risk: string | null) => {
@@ -436,6 +458,7 @@ export default function NameGenerator() {
                               result={result}
                               isAnalyzed={isAnalyzed}
                               onToggleFavorite={() => handleToggleFavorite(result)}
+                              onCreateBrand={isAnalyzed ? () => handleCreateBrand(result) : undefined}
                               getRiskColor={getRiskColor}
                               getRiskLabel={getRiskLabel}
                             />
@@ -561,6 +584,17 @@ export default function NameGenerator() {
           )}
         </div>
       </div>
+
+      <CreateBrandDialog
+        open={createBrandOpen}
+        onOpenChange={setCreateBrandOpen}
+        defaultValues={createBrandDefaults}
+        onBrandCreated={(brand: UserBrand) => {
+          setCreateBrandOpen(false);
+          toast({ title: 'Бренд створено!', description: `"${brand.name}" додано до ваших брендів` });
+          navigate(`/brand-edit/${brand.id}`);
+        }}
+      />
     </div>
   );
 }
@@ -569,12 +603,14 @@ function NameCard({
   result,
   isAnalyzed,
   onToggleFavorite,
+  onCreateBrand,
   getRiskColor,
   getRiskLabel,
 }: {
   result: BrandNameResult;
   isAnalyzed: boolean;
   onToggleFavorite: () => void;
+  onCreateBrand?: () => void;
   getRiskColor: (risk: string | null) => string;
   getRiskLabel: (risk: string | null) => string;
 }) {
@@ -697,6 +733,17 @@ function NameCard({
             )}
             {result.linguisticNotes && (
               <p className="text-xs text-gray-500 dark:text-gray-400 italic">{result.linguisticNotes}</p>
+            )}
+
+            {onCreateBrand && result.isFavorite && (
+              <Button
+                size="sm"
+                onClick={onCreateBrand}
+                className="w-full mt-1 gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white"
+              >
+                <Building2 className="w-4 h-4" />
+                Створити бренд
+              </Button>
             )}
           </>
         )}
