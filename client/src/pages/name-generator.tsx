@@ -25,6 +25,8 @@ import {
   Languages,
   History,
   Trash2,
+  Plus,
+  Search,
 } from 'lucide-react';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
 import { Link } from 'wouter';
@@ -33,15 +35,19 @@ import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import type { BrandNameSession, BrandNameResult } from '@shared/schema';
 
-interface SessionWithResults extends BrandNameSession {
+const MAX_FAVORITES = 5;
+
+interface SessionWithResults {
+  session: BrandNameSession;
   results: BrandNameResult[];
 }
 
 export default function NameGenerator() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [localResults, setLocalResults] = useState<BrandNameResult[]>([]);
 
   const [niche, setNiche] = useState('');
   const [values, setValues] = useState('');
@@ -59,10 +65,17 @@ export default function NameGenerator() {
     enabled: !!user,
   });
 
-  const { data: activeSession, isLoading: sessionLoading } = useQuery<SessionWithResults>({
-    queryKey: ['/api/name-generator/sessions', selectedSessionId],
-    enabled: !!selectedSessionId,
+  const { data: loadedSession, isLoading: sessionLoading } = useQuery<SessionWithResults>({
+    queryKey: ['/api/name-generator/sessions', activeSessionId],
+    enabled: !!activeSessionId && localResults.length === 0,
   });
+
+  const displayResults = localResults.length > 0 ? localResults : (loadedSession?.results || []);
+  const currentSession = localResults.length > 0 
+    ? sessions.find(s => s.id === activeSessionId) || loadedSession?.session 
+    : loadedSession?.session;
+  const isAnalyzed = currentSession?.status === 'completed' || displayResults.some(r => r.overallScore != null);
+  const favoritedCount = displayResults.filter(r => r.isFavorite).length;
 
   const generateMutation = useMutation({
     mutationFn: async (brief: {
@@ -77,9 +90,9 @@ export default function NameGenerator() {
       return res.json();
     },
     onSuccess: (data: { session: BrandNameSession; results: BrandNameResult[] }) => {
-      setSelectedSessionId(data.session.id);
+      setActiveSessionId(data.session.id);
+      setLocalResults(data.results);
       queryClient.invalidateQueries({ queryKey: ['/api/name-generator/sessions'] });
-      queryClient.setQueryData(['/api/name-generator/sessions', data.session.id], data);
       toast({ title: 'Готово!', description: `Згенеровано ${data.results?.length || 0} назв` });
     },
     onError: (error: Error) => {
@@ -87,13 +100,45 @@ export default function NameGenerator() {
     },
   });
 
+  const generateMoreMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      const res = await apiRequest('POST', `/api/name-generator/generate-more/${sessionId}`);
+      return res.json();
+    },
+    onSuccess: (data: { results: BrandNameResult[] }) => {
+      setLocalResults(prev => [...prev, ...data.results]);
+      toast({ title: 'Додано!', description: `Ще ${data.results?.length || 0} назв` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Помилка', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const analyzeMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      const res = await apiRequest('POST', `/api/name-generator/analyze/${sessionId}`);
+      return res.json();
+    },
+    onSuccess: (data: { session: BrandNameSession; results: BrandNameResult[] }) => {
+      setLocalResults(data.results);
+      queryClient.invalidateQueries({ queryKey: ['/api/name-generator/sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/name-generator/sessions', activeSessionId] });
+      toast({ title: 'Аналіз завершено!', description: 'Обрані назви проаналізовано' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Помилка аналізу', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const favoriteMutation = useMutation({
     mutationFn: async ({ resultId, isFavorite }: { resultId: string; isFavorite: boolean }) => {
-      await apiRequest('PATCH', `/api/name-generator/results/${resultId}/favorite`, { isFavorite });
+      const res = await apiRequest('PATCH', `/api/name-generator/results/${resultId}/favorite`, { isFavorite });
+      return res.json();
     },
-    onSuccess: () => {
-      if (selectedSessionId) {
-        queryClient.invalidateQueries({ queryKey: ['/api/name-generator/sessions', selectedSessionId] });
+    onSuccess: (updated: BrandNameResult) => {
+      setLocalResults(prev => prev.map(r => r.id === updated.id ? { ...r, isFavorite: updated.isFavorite } : r));
+      if (activeSessionId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/name-generator/sessions', activeSessionId] });
       }
     },
   });
@@ -104,8 +149,9 @@ export default function NameGenerator() {
     },
     onSuccess: (_, deletedId) => {
       queryClient.invalidateQueries({ queryKey: ['/api/name-generator/sessions'] });
-      if (selectedSessionId === deletedId) {
-        setSelectedSessionId(null);
+      if (activeSessionId === deletedId) {
+        setActiveSessionId(null);
+        setLocalResults([]);
       }
       toast({ title: 'Видалено', description: 'Сесію генерації видалено' });
     },
@@ -116,19 +162,27 @@ export default function NameGenerator() {
       toast({ title: 'Заповніть поле', description: 'Вкажіть нішу/сферу діяльності', variant: 'destructive' });
       return;
     }
-    generateMutation.mutate({
-      niche,
-      values,
-      tone,
-      targetAudience,
-      keywords,
-      language,
-    });
+    generateMutation.mutate({ niche, values, tone, targetAudience, keywords, language });
   };
 
-  const sortedResults = activeSession?.results
-    ? [...activeSession.results].sort((a, b) => (b.overallScore || 0) - (a.overallScore || 0))
-    : [];
+  const handleToggleFavorite = (result: BrandNameResult) => {
+    if (!result.isFavorite && favoritedCount >= MAX_FAVORITES) {
+      toast({ title: 'Максимум обраних', description: `Можна обрати не більше ${MAX_FAVORITES} назв`, variant: 'destructive' });
+      return;
+    }
+    favoriteMutation.mutate({ resultId: result.id, isFavorite: !result.isFavorite });
+  };
+
+  const handleLoadSession = (sessionId: string) => {
+    setActiveSessionId(sessionId);
+    setLocalResults([]);
+    setShowHistory(false);
+  };
+
+  const handleNewGeneration = () => {
+    setActiveSessionId(null);
+    setLocalResults([]);
+  };
 
   const getRiskColor = (risk: string | null) => {
     switch (risk) {
@@ -136,15 +190,6 @@ export default function NameGenerator() {
       case 'medium': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300';
       case 'high': return 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300';
       default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-    }
-  };
-
-  const getRiskIcon = (risk: string | null) => {
-    switch (risk) {
-      case 'low': return <CheckCircle2 className="w-3.5 h-3.5" />;
-      case 'medium': return <AlertTriangle className="w-3.5 h-3.5" />;
-      case 'high': return <XCircle className="w-3.5 h-3.5" />;
-      default: return <Shield className="w-3.5 h-3.5" />;
     }
   };
 
@@ -157,9 +202,14 @@ export default function NameGenerator() {
     }
   };
 
+  const isGenerating = generateMutation.isPending || generateMoreMutation.isPending;
+  const isAnalyzing = analyzeMutation.isPending;
+  const showForm = !activeSessionId && !isGenerating;
+  const showResults = activeSessionId && displayResults.length > 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-amber-900/20 pb-24 md:pb-8">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
         <div className="flex items-center gap-3 mb-6">
           <Link href="/">
             <Button variant="ghost" size="icon" className="shrink-0">
@@ -189,9 +239,10 @@ export default function NameGenerator() {
           </Button>
         </div>
 
-        <div className="grid lg:grid-cols-[1fr_320px] gap-6">
+        <div className="grid lg:grid-cols-[1fr_300px] gap-6">
           <div className="space-y-6">
-            {!selectedSessionId && !generateMutation.isPending && (
+            {/* Brief Form */}
+            {showForm && (
               <Card>
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg">Бриф для генерації</CardTitle>
@@ -266,85 +317,115 @@ export default function NameGenerator() {
 
                   <Button
                     onClick={handleGenerate}
-                    disabled={generateMutation.isPending || !niche.trim()}
+                    disabled={!niche.trim()}
                     className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white h-12 text-base"
                   >
                     <Sparkles className="w-5 h-5 mr-2" />
-                    Згенерувати назви
+                    Згенерувати 10 назв
                   </Button>
                 </CardContent>
               </Card>
             )}
 
-            {generateMutation.isPending && (
+            {/* Loading state */}
+            {isGenerating && (
               <Card>
                 <CardContent className="py-16 text-center">
                   <BrandSoulSpinner size={64} className="mx-auto mb-6" />
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                    Генеруємо назви...
+                    {generateMoreMutation.isPending ? 'Генеруємо ще назви...' : 'Генеруємо назви...'}
                   </h3>
                   <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-                    AI аналізує ваш бриф, генерує варіанти, перевіряє домени та соціальні мережі. Це може зайняти до хвилини.
+                    AI створює варіанти на основі вашого брифу
                   </p>
                 </CardContent>
               </Card>
             )}
 
-            {selectedSessionId && activeSession && !generateMutation.isPending && (
+            {/* Analyzing state */}
+            {isAnalyzing && (
+              <Card>
+                <CardContent className="py-16 text-center">
+                  <BrandSoulSpinner size={64} className="mx-auto mb-6" />
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    Аналізуємо обрані назви...
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                    Перевіряємо домени, соцмережі, торгову марку та лінгвістичний аналіз. Це може зайняти до хвилини.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Results */}
+            {showResults && !isGenerating && !isAnalyzing && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                {/* Top bar */}
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedSessionId(null)}
-                      className="gap-1"
-                    >
+                    <Button variant="ghost" size="sm" onClick={handleNewGeneration} className="gap-1">
                       <ArrowLeft className="w-4 h-4" />
                       Нова генерація
                     </Button>
                     <span className="text-sm text-gray-500">
-                      {sortedResults.length} назв
+                      {displayResults.length} назв
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      <Clock className="w-3 h-3 mr-1" />
-                      {new Date(activeSession.createdAt).toLocaleDateString('uk')}
+                    <Badge variant="outline" className="gap-1">
+                      <Heart className="w-3 h-3 fill-red-500 text-red-500" />
+                      {favoritedCount}/{MAX_FAVORITES}
                     </Badge>
-                    {activeSession.status === 'completed' && (
+                    {isAnalyzed && (
                       <Badge className="bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 text-xs">
-                        Завершено
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
+                        Проаналізовано
                       </Badge>
                     )}
                   </div>
                 </div>
 
-                {sessionLoading ? (
-                  <div className="text-center py-12">
-                    <BrandSoulSpinner size={48} className="mx-auto mb-4" />
-                    <p className="text-gray-500">Завантаження результатів...</p>
-                  </div>
-                ) : (
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    {sortedResults.map((result) => (
-                      <NameResultCard
-                        key={result.id}
-                        result={result}
-                        onToggleFavorite={() => {
-                          favoriteMutation.mutate({ resultId: result.id, isFavorite: !result.isFavorite });
-                        }}
-                        getRiskColor={getRiskColor}
-                        getRiskIcon={getRiskIcon}
-                        getRiskLabel={getRiskLabel}
-                      />
-                    ))}
+                {/* Action buttons */}
+                {!isAnalyzed && (
+                  <div className="flex gap-3 flex-wrap">
+                    <Button
+                      variant="outline"
+                      onClick={() => activeSessionId && generateMoreMutation.mutate(activeSessionId)}
+                      disabled={generateMoreMutation.isPending}
+                      className="gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Ще 10 назв
+                    </Button>
+                    <Button
+                      onClick={() => activeSessionId && analyzeMutation.mutate(activeSessionId)}
+                      disabled={favoritedCount === 0 || analyzeMutation.isPending}
+                      className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
+                    >
+                      <Search className="w-4 h-4" />
+                      Аналізувати обрані ({favoritedCount})
+                    </Button>
                   </div>
                 )}
+
+                {/* Name cards grid */}
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {displayResults.map((result) => (
+                    <NameCard
+                      key={result.id}
+                      result={result}
+                      isAnalyzed={isAnalyzed}
+                      onToggleFavorite={() => handleToggleFavorite(result)}
+                      getRiskColor={getRiskColor}
+                      getRiskLabel={getRiskLabel}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </div>
 
+          {/* History sidebar */}
           {showHistory && (
             <div className="lg:block">
               <Card className="sticky top-20">
@@ -366,14 +447,11 @@ export default function NameGenerator() {
                       <div
                         key={session.id}
                         className={`p-3 rounded-lg cursor-pointer transition-colors group ${
-                          selectedSessionId === session.id
+                          activeSessionId === session.id
                             ? 'bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700'
                             : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
                         }`}
-                        onClick={() => {
-                          setSelectedSessionId(session.id);
-                          setShowHistory(false);
-                        }}
+                        onClick={() => handleLoadSession(session.id)}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -385,8 +463,14 @@ export default function NameGenerator() {
                             </p>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <Badge variant="outline" className="text-[10px] px-1.5">
-                              {session.status === 'completed' ? '✓' : session.status === 'error' ? '✗' : '...'}
+                            <Badge variant="outline" className={`text-[10px] px-1.5 ${
+                              session.status === 'completed'
+                                ? 'border-green-300 text-green-700 dark:border-green-700 dark:text-green-300'
+                                : session.status === 'error'
+                                ? 'border-red-300 text-red-700'
+                                : 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300'
+                            }`}>
+                              {session.status === 'completed' ? 'Аналіз' : session.status === 'error' ? 'Помилка' : 'Підбір'}
                             </Badge>
                             <Button
                               variant="ghost"
@@ -416,32 +500,37 @@ export default function NameGenerator() {
   );
 }
 
-function NameResultCard({
+function NameCard({
   result,
+  isAnalyzed,
   onToggleFavorite,
   getRiskColor,
-  getRiskIcon,
   getRiskLabel,
 }: {
   result: BrandNameResult;
+  isAnalyzed: boolean;
   onToggleFavorite: () => void;
   getRiskColor: (risk: string | null) => string;
-  getRiskIcon: (risk: string | null) => JSX.Element;
   getRiskLabel: (risk: string | null) => string;
 }) {
   const domains = result.domainAvailable as Record<string, boolean> | null;
   const socials = result.socialAvailable as Record<string, boolean> | null;
+  const hasAnalysis = result.overallScore != null;
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-all">
-      <CardContent className="p-4 space-y-3">
+    <Card className={`overflow-hidden transition-all ${
+      result.isFavorite 
+        ? 'ring-2 ring-red-300 dark:ring-red-700 shadow-md' 
+        : 'hover:shadow-md'
+    } ${isAnalyzed && !result.isFavorite ? 'opacity-50' : ''}`}>
+      <CardContent className="p-4 space-y-2.5">
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white truncate">
+          <div className="min-w-0 flex-1">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">
               {result.name}
             </h3>
-            {result.overallScore != null && (
-              <div className="flex items-center gap-1.5 mt-1">
+            {hasAnalysis && (
+              <div className="flex items-center gap-1.5 mt-0.5">
                 <Star className="w-4 h-4 text-amber-500" />
                 <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
                   {result.overallScore}/100
@@ -471,82 +560,80 @@ function NameResultCard({
           </p>
         )}
 
-        {domains && Object.keys(domains).length > 0 && (
-          <div>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5 flex items-center gap-1">
-              <Globe className="w-3.5 h-3.5" />
-              Домени
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(domains).map(([domain, available]) => (
-                <Badge
-                  key={domain}
-                  variant="outline"
-                  className={`text-[11px] px-2 py-0.5 ${
-                    available
-                      ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300'
-                      : 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300'
-                  }`}
-                >
-                  {available ? '✓' : '✗'} .{domain}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {socials && Object.keys(socials).length > 0 && (
-          <div>
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Соцмережі</p>
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(socials).map(([platform, available]) => (
-                <Badge
-                  key={platform}
-                  variant="outline"
-                  className={`text-[11px] px-2 py-0.5 ${
-                    available
-                      ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300'
-                      : 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300'
-                  }`}
-                >
-                  {available ? '✓' : '✗'} {platform}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3">
-          {result.trademarkRisk && (
-            <div className="flex items-center gap-1">
-              <Badge className={`text-[11px] px-2 py-0.5 gap-1 ${getRiskColor(result.trademarkRisk)}`}>
-                {getRiskIcon(result.trademarkRisk)}
-                ТМ: {getRiskLabel(result.trademarkRisk)}
-              </Badge>
-            </div>
-          )}
-
-          {result.linguisticScore != null && (
-            <div className="flex items-center gap-2 flex-1">
-              <BarChart3 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-              <div className="flex-1">
-                <Progress value={result.linguisticScore * 10} className="h-1.5" />
+        {/* Analysis details only show after analyze step */}
+        {hasAnalysis && (
+          <>
+            {domains && Object.keys(domains).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
+                  <Globe className="w-3.5 h-3.5" />
+                  Домени
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {Object.entries(domains).map(([domain, available]) => (
+                    <Badge
+                      key={domain}
+                      variant="outline"
+                      className={`text-[11px] px-1.5 py-0 ${
+                        available
+                          ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300'
+                          : 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300'
+                      }`}
+                    >
+                      {available ? '✓' : '✗'} {domain}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-              <span className="text-[11px] font-medium text-gray-500">{result.linguisticScore}/10</span>
+            )}
+
+            {socials && Object.keys(socials).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Соцмережі</p>
+                <div className="flex flex-wrap gap-1">
+                  {Object.entries(socials).map(([platform, available]) => (
+                    <Badge
+                      key={platform}
+                      variant="outline"
+                      className={`text-[11px] px-1.5 py-0 ${
+                        available
+                          ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300'
+                          : 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-300'
+                      }`}
+                    >
+                      {available ? '✓' : '✗'} {platform}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              {result.trademarkRisk && (
+                <Badge className={`text-[11px] px-2 py-0.5 gap-1 ${getRiskColor(result.trademarkRisk)}`}>
+                  <Shield className="w-3 h-3" />
+                  ТМ: {getRiskLabel(result.trademarkRisk)}
+                </Badge>
+              )}
+
+              {result.linguisticScore != null && (
+                <div className="flex items-center gap-2 flex-1">
+                  <BarChart3 className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  <div className="flex-1">
+                    <Progress value={result.linguisticScore * 10} className="h-1.5" />
+                  </div>
+                  <span className="text-[11px] font-medium text-gray-500">{result.linguisticScore}/10</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {result.trademarkNotes && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-            {result.trademarkNotes}
-          </p>
-        )}
-
-        {result.linguisticNotes && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-            {result.linguisticNotes}
-          </p>
+            {result.trademarkNotes && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">{result.trademarkNotes}</p>
+            )}
+            {result.linguisticNotes && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 italic">{result.linguisticNotes}</p>
+            )}
+          </>
         )}
       </CardContent>
     </Card>

@@ -24,7 +24,7 @@ import { db } from "./db";
 import { sql, eq, and, isNull, inArray } from "drizzle-orm";
 import { cardResponsesTable, personaSegmentAssignmentsTable, demographicSegmentsTable, demographicSubSegmentsTable, audienceTypeCategoriesTable, audienceTypesTable, personaAudienceTypesTable, personaCategoriesTable, productPersonasTable, mediaAssetsTable, aiChatMessagesTable, userBrandsTable, brandProductsTable, targetAudiencesTable, generationTemplatesTable, userProfilesTable } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData, generateAgentData, generateBrandNames } from "./openai";
+import { isOpenAIConfigured, generateBrandInsights, analyzeBrandLevel, sendBrandChatMessage, generateCardResponse, isAIConfigured, generateAudiencePersona, generateSegmentData, generateProductData, generateAgentData, generateBrandNames, generateQuickBrandNames, analyzeBrandName } from "./openai";
 import dns from "dns";
 import https from "https";
 
@@ -9125,28 +9125,27 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
         targetAudience: z.string().default(""),
         keywords: z.string().default(""),
         language: z.string().default("uk"),
-        brandId: z.string().uuid().optional().nullable(),
       });
 
       const brief = briefSchema.parse(req.body);
 
       const session = await storage.createNameSession({
         userId: currentUser.id,
-        brandId: brief.brandId || null,
+        brandId: null,
         niche: brief.niche,
         values: brief.values,
         tone: brief.tone,
         targetAudience: brief.targetAudience,
         keywords: brief.keywords,
         language: brief.language,
-        status: "pending",
+        status: "generating",
       });
 
       try {
         const adminContextSetting = await storage.getAppSetting("BRAND_NAME_GENERATOR_CONTEXT");
         const adminContext = adminContextSetting?.value || undefined;
 
-        const aiNames = await generateBrandNames(
+        const aiNames = await generateQuickBrandNames(
           {
             niche: brief.niche,
             values: brief.values,
@@ -9160,36 +9159,25 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
 
         const results = await Promise.all(
           aiNames.map(async (aiName) => {
-            const [domainAvailable, socialAvailable] = await Promise.all([
-              checkDomainAvailability(aiName.name),
-              checkSocialAvailability(aiName.name),
-            ]);
-
-            const domainScore = Object.values(domainAvailable).filter(Boolean).length * 4;
-            const socialScore = Object.values(socialAvailable).filter(Boolean).length * 3;
-            const trademarkScore = aiName.trademarkRisk === "low" ? 20 : aiName.trademarkRisk === "medium" ? 10 : 0;
-            const lingScore = aiName.linguisticScore * 4;
-            const overallScore = Math.min(100, domainScore + socialScore + trademarkScore + lingScore);
-
             return await storage.createNameResult({
               sessionId: session.id,
               name: aiName.name,
               explanation: aiName.explanation,
-              domainAvailable,
-              socialAvailable,
-              trademarkRisk: aiName.trademarkRisk,
-              trademarkNotes: aiName.trademarkNotes,
-              linguisticScore: aiName.linguisticScore,
-              linguisticNotes: aiName.linguisticNotes,
-              overallScore,
+              domainAvailable: null,
+              socialAvailable: null,
+              trademarkRisk: null,
+              trademarkNotes: null,
+              linguisticScore: null,
+              linguisticNotes: null,
+              overallScore: null,
               isFavorite: false,
             });
           })
         );
 
-        await storage.updateNameSession(session.id, { status: "completed" });
+        await storage.updateNameSession(session.id, { status: "generating" });
 
-        res.json({ session: { ...session, status: "completed" }, results });
+        res.json({ session: { ...session, status: "generating" }, results });
       } catch (aiError: any) {
         await storage.updateNameSession(session.id, { status: "error" });
         throw aiError;
@@ -9197,6 +9185,134 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
     } catch (error: any) {
       console.error("Name generator error:", error);
       res.status(500).json({ error: error.message || "Помилка генерації назв" });
+    }
+  });
+
+  app.post("/api/name-generator/generate-more/:sessionId", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const session = await storage.getNameSession(req.params.sessionId);
+      if (!session || session.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Сесію не знайдено" });
+      }
+
+      const existingResults = await storage.getNameResults(session.id);
+      const existingNames = existingResults.map(r => r.name);
+
+      const adminContextSetting = await storage.getAppSetting("BRAND_NAME_GENERATOR_CONTEXT");
+      const adminContext = adminContextSetting?.value || undefined;
+
+      const aiNames = await generateQuickBrandNames(
+        {
+          niche: session.niche,
+          values: session.values || "",
+          tone: session.tone || "",
+          targetAudience: session.targetAudience || "",
+          keywords: session.keywords || "",
+          language: session.language || "uk",
+        },
+        adminContext,
+        existingNames
+      );
+
+      const results = await Promise.all(
+        aiNames.map(async (aiName) => {
+          return await storage.createNameResult({
+            sessionId: session.id,
+            name: aiName.name,
+            explanation: aiName.explanation,
+            domainAvailable: null,
+            socialAvailable: null,
+            trademarkRisk: null,
+            trademarkNotes: null,
+            linguisticScore: null,
+            linguisticNotes: null,
+            overallScore: null,
+            isFavorite: false,
+          });
+        })
+      );
+
+      res.json({ results });
+    } catch (error: any) {
+      console.error("Generate more error:", error);
+      res.status(500).json({ error: error.message || "Помилка генерації" });
+    }
+  });
+
+  app.post("/api/name-generator/analyze/:sessionId", requireAuth, async (req, res) => {
+    try {
+      const currentUser = getCurrentUserUnified(req);
+      if (!currentUser) {
+        return res.status(401).json({ error: "Не авторизовано" });
+      }
+
+      const session = await storage.getNameSession(req.params.sessionId);
+      if (!session || session.userId !== currentUser.id) {
+        return res.status(404).json({ error: "Сесію не знайдено" });
+      }
+
+      const allResults = await storage.getNameResults(session.id);
+      const favorited = allResults.filter(r => r.isFavorite);
+
+      if (favorited.length === 0) {
+        return res.status(400).json({ error: "Оберіть хоча б одну назву" });
+      }
+      if (favorited.length > 5) {
+        return res.status(400).json({ error: "Максимум 5 обраних назв" });
+      }
+
+      const adminContextSetting = await storage.getAppSetting("BRAND_NAME_GENERATOR_CONTEXT");
+      const adminContext = adminContextSetting?.value || undefined;
+
+      const brief = {
+        niche: session.niche,
+        values: session.values || "",
+        tone: session.tone || "",
+        targetAudience: session.targetAudience || "",
+        keywords: session.keywords || "",
+        language: session.language || "uk",
+      };
+
+      const analyzedResults = await Promise.all(
+        favorited.map(async (result) => {
+          const [domainAvailable, socialAvailable, aiAnalysis] = await Promise.all([
+            checkDomainAvailability(result.name),
+            checkSocialAvailability(result.name),
+            analyzeBrandName(result.name, brief, adminContext),
+          ]);
+
+          const domainScore = Object.values(domainAvailable).filter(Boolean).length * 4;
+          const socialScore = Object.values(socialAvailable).filter(Boolean).length * 3;
+          const trademarkScore = aiAnalysis.trademarkRisk === "low" ? 20 : aiAnalysis.trademarkRisk === "medium" ? 10 : 0;
+          const lingScore = aiAnalysis.linguisticScore * 4;
+          const overallScore = Math.min(100, domainScore + socialScore + trademarkScore + lingScore);
+
+          const updated = await storage.updateNameResult(result.id, {
+            domainAvailable,
+            socialAvailable,
+            trademarkRisk: aiAnalysis.trademarkRisk,
+            trademarkNotes: aiAnalysis.trademarkNotes,
+            linguisticScore: aiAnalysis.linguisticScore,
+            linguisticNotes: aiAnalysis.linguisticNotes,
+            overallScore,
+          });
+
+          return updated;
+        })
+      );
+
+      await storage.updateNameSession(session.id, { status: "completed" });
+
+      const updatedResults = await storage.getNameResults(session.id);
+      res.json({ session: { ...session, status: "completed" }, results: updatedResults });
+    } catch (error: any) {
+      console.error("Analyze names error:", error);
+      res.status(500).json({ error: error.message || "Помилка аналізу" });
     }
   });
 
