@@ -47,7 +47,10 @@ import {
   Map,
   Plus,
   Check,
-  MessageSquare
+  MessageSquare,
+  Pencil,
+  Users,
+  Package
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { BrandSoulSpinner } from '@/components/BrandSoulSpinner';
@@ -538,11 +541,14 @@ export default function BrandChat() {
     }
   }, [isBrandMode, brandChats, selectedBrandChatId]);
 
-  // Sync context from selected brand chat
+  const prevChatIdRef = useRef<string | null>(null);
+
+  // Sync context from selected brand chat (DB → state) — only on chat switch
   useEffect(() => {
-    if (isBrandMode && selectedBrandChatId) {
+    if (isBrandMode && selectedBrandChatId && selectedBrandChatId !== prevChatIdRef.current) {
       const chat = brandChats.find(c => c.id === selectedBrandChatId);
       if (chat) {
+        prevChatIdRef.current = selectedBrandChatId;
         setSelectedAgentId(chat.agentId || null);
         setSelectedProductIds(chat.productIds || []);
         setSelectedAudienceIds(chat.audienceIds || []);
@@ -608,10 +614,15 @@ export default function BrandChat() {
       if (!selectedBrandChatId) return;
       return apiRequestJson('PATCH', `/api/brand-chats/${selectedBrandChatId}`, updates);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/brands', brandIdFromUrl, 'brand-chats'] });
-    },
   });
+
+  const saveChatContext = useCallback((agentId: string | null, productIds: string[], audienceIds: string[]) => {
+    if (!isBrandMode || !selectedBrandChatId) return;
+    updateBrandChatContextMutation.mutate(
+      { agentId, productIds, audienceIds },
+      { onSuccess: () => queryClient.invalidateQueries({ queryKey: ['/api/brands', brandIdFromUrl, 'brand-chats'] }) }
+    );
+  }, [isBrandMode, selectedBrandChatId, brandIdFromUrl]);
 
   const sendMessageMutation = useMutation({
     mutationFn: async ({ messageText, images }: { messageText: string; images?: { url: string }[] }) => {
@@ -1143,7 +1154,7 @@ export default function BrandChat() {
                 {brandChats.map(chat => (
                   <div
                     key={chat.id}
-                    className={`group relative flex items-center rounded-md px-2.5 py-2 cursor-pointer transition-colors ${
+                    className={`group relative flex flex-col rounded-md px-2.5 py-2 cursor-pointer transition-colors ${
                       selectedBrandChatId === chat.id
                         ? 'bg-primary/10 text-primary dark:bg-primary/20'
                         : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
@@ -1154,50 +1165,80 @@ export default function BrandChat() {
                       setImageMessages([]);
                     }}
                   >
-                    {editingChatId === chat.id ? (
-                      <input
-                        className="flex-1 text-xs bg-white dark:bg-gray-700 border rounded px-1.5 py-0.5 outline-none min-w-0"
-                        value={editingChatName}
-                        autoFocus
-                        onChange={e => setEditingChatName(e.target.value)}
-                        onBlur={() => {
-                          if (editingChatName.trim()) {
-                            renameBrandChatMutation.mutate({ chatId: chat.id, name: editingChatName.trim() });
-                          } else {
-                            setEditingChatId(null);
-                          }
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && editingChatName.trim()) {
-                            renameBrandChatMutation.mutate({ chatId: chat.id, name: editingChatName.trim() });
-                          } else if (e.key === 'Escape') {
-                            setEditingChatId(null);
-                          }
-                        }}
-                        onClick={e => e.stopPropagation()}
-                      />
-                    ) : (
-                      <span
-                        className="flex-1 text-xs truncate min-w-0"
-                        onDoubleClick={() => {
-                          setEditingChatId(chat.id);
-                          setEditingChatName(chat.name);
-                        }}
-                      >
-                        {chat.name}
-                      </span>
+                    <div className="flex items-center w-full">
+                      {editingChatId === chat.id ? (
+                        <input
+                          className="flex-1 text-xs bg-white dark:bg-gray-700 border rounded px-1.5 py-0.5 outline-none min-w-0"
+                          value={editingChatName}
+                          autoFocus
+                          onChange={e => setEditingChatName(e.target.value)}
+                          onBlur={() => {
+                            if (editingChatName.trim()) {
+                              renameBrandChatMutation.mutate({ chatId: chat.id, name: editingChatName.trim() });
+                            } else {
+                              setEditingChatId(null);
+                            }
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && editingChatName.trim()) {
+                              renameBrandChatMutation.mutate({ chatId: chat.id, name: editingChatName.trim() });
+                            } else if (e.key === 'Escape') {
+                              setEditingChatId(null);
+                            }
+                          }}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span className="flex-1 text-xs truncate min-w-0">
+                          {chat.name}
+                        </span>
+                      )}
+                      <div className="ml-1 flex items-center gap-0.5 shrink-0">
+                        <button
+                          className="p-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-500"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setEditingChatId(chat.id);
+                            setEditingChatName(chat.name);
+                          }}
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                        <button
+                          className="p-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500"
+                          onClick={e => {
+                            e.stopPropagation();
+                            if (confirm(`Видалити чат "${chat.name}"?`)) {
+                              deleteBrandChatMutation.mutate(chat.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                    {(chat.agentId || (chat.productIds && chat.productIds.length > 0) || (chat.audienceIds && chat.audienceIds.length > 0)) && (
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        {chat.agentId && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300">
+                            <Bot className="w-2.5 h-2.5" />
+                            {userAgents?.find(a => a.id === chat.agentId)?.name?.slice(0, 8) || 'Агент'}
+                          </span>
+                        )}
+                        {chat.productIds && chat.productIds.length > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300">
+                            <Package className="w-2.5 h-2.5" />
+                            {chat.productIds.length}
+                          </span>
+                        )}
+                        {chat.audienceIds && chat.audienceIds.length > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
+                            <Users className="w-2.5 h-2.5" />
+                            {chat.audienceIds.length}
+                          </span>
+                        )}
+                      </div>
                     )}
-                    <button
-                      className="ml-1 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 shrink-0"
-                      onClick={e => {
-                        e.stopPropagation();
-                        if (confirm(`Видалити чат "${chat.name}"?`)) {
-                          deleteBrandChatMutation.mutate(chat.id);
-                        }
-                      }}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
                   </div>
                 ))}
               </div>
@@ -1895,7 +1936,7 @@ export default function BrandChat() {
                   {brandChats.map(chat => (
                     <div
                       key={chat.id}
-                      className={`group relative flex items-center rounded-md px-2.5 py-2.5 cursor-pointer transition-colors ${
+                      className={`group relative flex flex-col rounded-md px-2.5 py-2.5 cursor-pointer transition-colors ${
                         selectedBrandChatId === chat.id
                           ? 'bg-primary/10 text-primary dark:bg-primary/20'
                           : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
@@ -1906,19 +1947,43 @@ export default function BrandChat() {
                         setShowMobileChatList(false);
                       }}
                     >
-                      <MessageSquare className="w-3.5 h-3.5 mr-2 shrink-0 opacity-50" />
-                      <span className="flex-1 text-xs truncate min-w-0">{chat.name}</span>
-                      <button
-                        className="ml-1 p-1 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 shrink-0"
-                        onClick={e => {
-                          e.stopPropagation();
-                          if (confirm(`Видалити чат "${chat.name}"?`)) {
-                            deleteBrandChatMutation.mutate(chat.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      <div className="flex items-center w-full">
+                        <MessageSquare className="w-3.5 h-3.5 mr-2 shrink-0 opacity-50" />
+                        <span className="flex-1 text-xs truncate min-w-0">{chat.name}</span>
+                        <button
+                          className="ml-1 p-1 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 shrink-0"
+                          onClick={e => {
+                            e.stopPropagation();
+                            if (confirm(`Видалити чат "${chat.name}"?`)) {
+                              deleteBrandChatMutation.mutate(chat.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                      {(chat.agentId || (chat.productIds && chat.productIds.length > 0) || (chat.audienceIds && chat.audienceIds.length > 0)) && (
+                        <div className="flex items-center gap-1 mt-1 ml-5.5 flex-wrap">
+                          {chat.agentId && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300">
+                              <Bot className="w-2.5 h-2.5" />
+                              {userAgents?.find(a => a.id === chat.agentId)?.name?.slice(0, 8) || 'Агент'}
+                            </span>
+                          )}
+                          {chat.productIds && chat.productIds.length > 0 && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-300">
+                              <Package className="w-2.5 h-2.5" />
+                              {chat.productIds.length}
+                            </span>
+                          )}
+                          {chat.audienceIds && chat.audienceIds.length > 0 && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.5 rounded bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300">
+                              <Users className="w-2.5 h-2.5" />
+                              {chat.audienceIds.length}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1939,6 +2004,7 @@ export default function BrandChat() {
                 type="button"
                 onClick={() => {
                   setSelectedAgentId(null);
+                  saveChatContext(null, selectedProductIds, selectedAudienceIds);
                   setShowAgentMenu(false);
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
@@ -1960,6 +2026,7 @@ export default function BrandChat() {
                   type="button"
                   onClick={() => {
                     setSelectedAgentId(agent.id);
+                    saveChatContext(agent.id, selectedProductIds, selectedAudienceIds);
                     setShowAgentMenu(false);
                   }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border-2 transition-all ${
@@ -2049,10 +2116,10 @@ export default function BrandChat() {
             <div className="flex items-center justify-between pt-2 border-t dark:border-gray-700">
               <span className="text-xs text-gray-400">Обрано: {selectedProductIds.length} з {brandProducts?.length || 0}</span>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setSelectedProductIds([]); setShowProductMenu(false); }}>
+                <Button variant="outline" size="sm" onClick={() => { setSelectedProductIds([]); saveChatContext(selectedAgentId, [], selectedAudienceIds); setShowProductMenu(false); }}>
                   Скасувати
                 </Button>
-                <Button size="sm" onClick={() => setShowProductMenu(false)}>
+                <Button size="sm" onClick={() => { saveChatContext(selectedAgentId, selectedProductIds, selectedAudienceIds); setShowProductMenu(false); }}>
                   <Check className="w-3.5 h-3.5 mr-1" />
                   Зберегти
                 </Button>
@@ -2109,10 +2176,10 @@ export default function BrandChat() {
             <div className="flex items-center justify-between pt-2 border-t dark:border-gray-700">
               <span className="text-xs text-gray-400">Обрано: {selectedAudienceIds.length} з {brandAudiences?.length || 0}</span>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setSelectedAudienceIds([]); setShowAudienceMenu(false); }}>
+                <Button variant="outline" size="sm" onClick={() => { setSelectedAudienceIds([]); saveChatContext(selectedAgentId, selectedProductIds, []); setShowAudienceMenu(false); }}>
                   Скасувати
                 </Button>
-                <Button size="sm" onClick={() => setShowAudienceMenu(false)}>
+                <Button size="sm" onClick={() => { saveChatContext(selectedAgentId, selectedProductIds, selectedAudienceIds); setShowAudienceMenu(false); }}>
                   <Check className="w-3.5 h-3.5 mr-1" />
                   Зберегти
                 </Button>
@@ -2170,7 +2237,7 @@ export default function BrandChat() {
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                   <Bot className="w-3 h-3" />
                   {selectedAgent.name}
-                  <button type="button" onClick={() => setSelectedAgentId(null)} className="ml-0.5 hover:text-purple-900 dark:hover:text-purple-100">
+                  <button type="button" onClick={() => { setSelectedAgentId(null); saveChatContext(null, selectedProductIds, selectedAudienceIds); }} className="ml-0.5 hover:text-purple-900 dark:hover:text-purple-100">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -2178,7 +2245,7 @@ export default function BrandChat() {
               {hasSelectedProducts && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                   📦 {allProductsSelected ? 'Усі продукти' : `Продукти (${selectedProductIds.length})`}
-                  <button type="button" onClick={() => setSelectedProductIds([])} className="ml-0.5 hover:text-amber-900 dark:hover:text-amber-100">
+                  <button type="button" onClick={() => { setSelectedProductIds([]); saveChatContext(selectedAgentId, [], selectedAudienceIds); }} className="ml-0.5 hover:text-amber-900 dark:hover:text-amber-100">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -2186,7 +2253,7 @@ export default function BrandChat() {
               {hasSelectedAudiences && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                   👥 {allAudiencesSelected ? 'Усі аудиторії' : `Аудиторії (${selectedAudienceIds.length})`}
-                  <button type="button" onClick={() => setSelectedAudienceIds([])} className="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100">
+                  <button type="button" onClick={() => { setSelectedAudienceIds([]); saveChatContext(selectedAgentId, selectedProductIds, []); }} className="ml-0.5 hover:text-blue-900 dark:hover:text-blue-100">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -2237,7 +2304,7 @@ export default function BrandChat() {
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
                     <Bot className="w-2.5 h-2.5" />
                     {selectedAgent.name}
-                    <button type="button" onClick={() => setSelectedAgentId(null)}>
+                    <button type="button" onClick={() => { setSelectedAgentId(null); saveChatContext(null, selectedProductIds, selectedAudienceIds); }}>
                       <X className="w-2.5 h-2.5" />
                     </button>
                   </span>
@@ -2245,7 +2312,7 @@ export default function BrandChat() {
                 {hasSelectedProducts && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                     📦 {allProductsSelected ? 'Усі' : selectedProductIds.length}
-                    <button type="button" onClick={() => setSelectedProductIds([])}>
+                    <button type="button" onClick={() => { setSelectedProductIds([]); saveChatContext(selectedAgentId, [], selectedAudienceIds); }}>
                       <X className="w-2.5 h-2.5" />
                     </button>
                   </span>
@@ -2253,7 +2320,7 @@ export default function BrandChat() {
                 {hasSelectedAudiences && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                     👥 {allAudiencesSelected ? 'Усі' : selectedAudienceIds.length}
-                    <button type="button" onClick={() => setSelectedAudienceIds([])}>
+                    <button type="button" onClick={() => { setSelectedAudienceIds([]); saveChatContext(selectedAgentId, selectedProductIds, []); }}>
                       <X className="w-2.5 h-2.5" />
                     </button>
                   </span>
