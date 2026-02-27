@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import express from "express";
 import { createServer, type Server, request as httpRequest } from "http";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { 
   insertGameSessionSchema, 
@@ -187,10 +188,46 @@ const updateProgressSchema = z.object({
   progress: z.number().min(0).max(100),
 });
 
+// Rate limiters
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  message: { error: "Забагато спроб. Спробуйте через 15 хвилин." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10,
+  message: { error: "Забагато AI запитів. Спробуйте через хвилину." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Apply session middleware
   app.use(sessionMiddleware);
-  
+
+  // Health check endpoint
+  app.get("/health", async (_req, res) => {
+    try {
+      await db.execute(sql`SELECT 1`);
+      res.json({ status: "ok", timestamp: new Date().toISOString(), db: "connected" });
+    } catch (e) {
+      res.status(503).json({ status: "error", db: "unavailable" });
+    }
+  });
+
+  // Apply rate limiting to sensitive endpoints
+  app.use("/api/auth/login", authLimiter);
+  app.use("/api/auth/register", authLimiter);
+  app.use("/api/generate-ai-image", aiLimiter);
+  app.use("/api/brands/:brandId/generate-persona", aiLimiter);
+  app.use("/api/name-generator/generate", aiLimiter);
+  app.use("/api/name-generator/analyze", aiLimiter);
+  app.use("/api/name-generator/generate-more", aiLimiter);
+
   // Setup OAuth routes (Google, Apple)
   setupOAuthRoutes(app);
 

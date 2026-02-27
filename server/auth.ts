@@ -9,6 +9,11 @@ const PgSession = connectPgSimple(session);
 // Determine if running in production
 const isProduction = process.env.NODE_ENV === 'production' || process.env.REPL_DEPLOYMENT === '1';
 
+// Warn if SESSION_SECRET is using the insecure default
+if (!process.env.SESSION_SECRET) {
+  console.warn('[SECURITY] SESSION_SECRET is not set — using insecure default. Set a strong secret in environment variables.');
+}
+
 // Configure session middleware
 export const sessionMiddleware = session({
   store: new PgSession({
@@ -23,7 +28,7 @@ export const sessionMiddleware = session({
   proxy: isProduction, // Trust proxy in production
   cookie: {
     secure: isProduction, // true for HTTPS in production
-    httpOnly: false, // Disable for iPad/Safari compatibility
+    httpOnly: true, // Prevent JavaScript access to cookies (XSS protection)
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     sameSite: isProduction ? "none" : "lax", // "none" for production, "lax" for dev
     domain: undefined, // Let browser handle domain

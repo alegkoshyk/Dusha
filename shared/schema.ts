@@ -62,7 +62,9 @@ export const userBrandsTable = pgTable("user_brands", {
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
-});
+}, (table) => [
+  index("user_brands_user_id_created_at_idx").on(table.userId, table.createdAt),
+]);
 
 // Таблиця персональної картки користувача
 export const userProfilesTable = pgTable("user_profiles", {
@@ -177,7 +179,10 @@ export const gameSessionsTable = pgTable("game_sessions", {
   completed: timestamp("completed"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
-});
+}, (table) => [
+  index("game_sessions_brand_id_idx").on(table.brandId),
+  index("game_sessions_user_id_idx").on(table.userId),
+]);
 
 // Таблиця відповідей на картки
 export const cardResponsesTable = pgTable("card_responses", {
@@ -528,7 +533,10 @@ export const aiUsageLogsTable = pgTable("ai_usage_logs", {
   userId: uuid("user_id"),
   endpoint: varchar("endpoint", { length: 100 }),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
-});
+}, (table) => [
+  index("ai_usage_logs_user_id_idx").on(table.userId),
+  index("ai_usage_logs_created_at_idx").on(table.createdAt),
+]);
 
 export const insertAiUsageLogSchema = createInsertSchema(aiUsageLogsTable).omit({
   id: true,
