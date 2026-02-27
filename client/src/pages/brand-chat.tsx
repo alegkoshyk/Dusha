@@ -1099,7 +1099,7 @@ export default function BrandChat() {
   }
 
   return (
-    <div className={isBrandMode ? "fixed inset-0 z-[60] flex bg-background dark:bg-gray-950" : "container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl h-[calc(100vh-5rem)] sm:h-[calc(100vh-6rem)] flex flex-col"}>
+    <div className={isBrandMode ? "fixed inset-0 z-40 flex bg-background dark:bg-gray-950" : "container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl h-[calc(100vh-5rem)] sm:h-[calc(100vh-6rem)] flex flex-col"}>
       {/* ======== LEFT SIDEBAR (brand mode only) ======== */}
       {isBrandMode && (
         <aside className="hidden sm:flex w-60 flex-col border-r border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-900 shrink-0">
