@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Sparkles,
   Heart,
@@ -102,6 +103,7 @@ export default function NameGenerator() {
 
   const generateMoreMutation = useMutation({
     mutationFn: async (sessionId: string) => {
+      setLocalResults(prev => prev.filter(r => r.isFavorite));
       const res = await apiRequest('POST', `/api/name-generator/generate-more/${sessionId}`);
       return res.json();
     },
@@ -202,10 +204,14 @@ export default function NameGenerator() {
     }
   };
 
-  const isGenerating = generateMutation.isPending || generateMoreMutation.isPending;
+  const isFirstGenerating = generateMutation.isPending;
+  const isGeneratingMore = generateMoreMutation.isPending;
   const isAnalyzing = analyzeMutation.isPending;
-  const showForm = !activeSessionId && !isGenerating;
+  const showForm = !activeSessionId && !isFirstGenerating;
   const showResults = activeSessionId && displayResults.length > 0;
+
+  const favoritedResults = displayResults.filter(r => r.isFavorite);
+  const nonFavoritedResults = displayResults.filter(r => !r.isFavorite);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-amber-900/20 pb-24 md:pb-8">
@@ -327,13 +333,13 @@ export default function NameGenerator() {
               </Card>
             )}
 
-            {/* Loading state */}
-            {isGenerating && (
+            {/* Initial loading state */}
+            {isFirstGenerating && (
               <Card>
                 <CardContent className="py-16 text-center">
                   <BrandSoulSpinner size={64} className="mx-auto mb-6" />
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                    {generateMoreMutation.isPending ? 'Генеруємо ще назви...' : 'Генеруємо назви...'}
+                    Генеруємо назви...
                   </h3>
                   <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
                     AI створює варіанти на основі вашого брифу
@@ -358,7 +364,7 @@ export default function NameGenerator() {
             )}
 
             {/* Results */}
-            {showResults && !isGenerating && !isAnalyzing && (
+            {(showResults || isGeneratingMore) && !isFirstGenerating && !isAnalyzing && (
               <div className="space-y-4">
                 {/* Top bar */}
                 <div className="flex items-center justify-between flex-wrap gap-2">
@@ -391,15 +397,15 @@ export default function NameGenerator() {
                     <Button
                       variant="outline"
                       onClick={() => activeSessionId && generateMoreMutation.mutate(activeSessionId)}
-                      disabled={generateMoreMutation.isPending}
+                      disabled={isGeneratingMore}
                       className="gap-2"
                     >
-                      <Plus className="w-4 h-4" />
+                      {isGeneratingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                       Ще 10 назв
                     </Button>
                     <Button
                       onClick={() => activeSessionId && analyzeMutation.mutate(activeSessionId)}
-                      disabled={favoritedCount === 0 || analyzeMutation.isPending}
+                      disabled={favoritedCount === 0 || analyzeMutation.isPending || isGeneratingMore}
                       className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
                     >
                       <Search className="w-4 h-4" />
@@ -408,19 +414,78 @@ export default function NameGenerator() {
                   </div>
                 )}
 
-                {/* Name cards grid */}
-                <div className="grid sm:grid-cols-2 gap-3">
-                  {displayResults.map((result) => (
-                    <NameCard
-                      key={result.id}
-                      result={result}
-                      isAnalyzed={isAnalyzed}
-                      onToggleFavorite={() => handleToggleFavorite(result)}
-                      getRiskColor={getRiskColor}
-                      getRiskLabel={getRiskLabel}
-                    />
-                  ))}
-                </div>
+                {/* Favorites section (pinned at top) */}
+                {favoritedResults.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-red-500 dark:text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <Heart className="w-3.5 h-3.5 fill-red-500" />
+                      Обрані ({favoritedResults.length})
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <AnimatePresence mode="popLayout">
+                        {favoritedResults.map((result) => (
+                          <motion.div
+                            key={result.id}
+                            layout
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.85, y: -10 }}
+                            transition={{ duration: 0.25 }}
+                          >
+                            <NameCard
+                              result={result}
+                              isAnalyzed={isAnalyzed}
+                              onToggleFavorite={() => handleToggleFavorite(result)}
+                              getRiskColor={getRiskColor}
+                              getRiskLabel={getRiskLabel}
+                            />
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                )}
+
+                {/* Loading more indicator */}
+                {isGeneratingMore && (
+                  <div className="flex items-center justify-center gap-3 py-8">
+                    <BrandSoulSpinner size={32} />
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">Генеруємо ще назви...</p>
+                  </div>
+                )}
+
+                {/* Non-favorited names */}
+                {nonFavoritedResults.length > 0 && (
+                  <div>
+                    {favoritedResults.length > 0 && (
+                      <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+                        Варіанти
+                      </p>
+                    )}
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <AnimatePresence mode="popLayout">
+                        {nonFavoritedResults.map((result) => (
+                          <motion.div
+                            key={result.id}
+                            layout
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.85, y: -10 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <NameCard
+                              result={result}
+                              isAnalyzed={isAnalyzed}
+                              onToggleFavorite={() => handleToggleFavorite(result)}
+                              getRiskColor={getRiskColor}
+                              getRiskLabel={getRiskLabel}
+                            />
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
