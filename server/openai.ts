@@ -124,6 +124,14 @@ async function getAIClient(): Promise<{ client: OpenAI; config: AIConfig }> {
   return getOpenAIClient();
 }
 
+function cleanJsonResponse(text: string): string {
+  let cleaned = text.trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+  }
+  return cleaned.trim();
+}
+
 export async function isAIConfigured(): Promise<boolean> {
   const config = await getAIConfig();
   return !!config.apiKey;
@@ -1465,13 +1473,13 @@ Respond ONLY with valid JSON.`;
     if (!textBlock || textBlock.type !== "text") {
       throw new Error("Пуста відповідь від AI");
     }
-    result = JSON.parse((textBlock as any).text);
+    result = JSON.parse(cleanJsonResponse((textBlock as any).text));
   } else {
     const { client } = await getAIClient();
     const response = await client.chat.completions.create({
       model: config.model,
       messages: [
-        { role: "system", content: "You are an expert brand naming consultant. Respond only with valid JSON." },
+        { role: "system", content: "You are an expert brand naming consultant. Respond only with valid JSON, no markdown fences." },
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
@@ -1499,7 +1507,7 @@ Respond ONLY with valid JSON.`;
     if (!content) {
       throw new Error("Пуста відповідь від AI");
     }
-    result = JSON.parse(content);
+    result = JSON.parse(cleanJsonResponse(content));
   }
 
   return (result.names || []).map((n: any) => ({
@@ -1549,13 +1557,13 @@ Respond ONLY with valid JSON.`;
     });
     const textBlock = response.content.find((c: any) => c.type === "text");
     if (!textBlock || textBlock.type !== "text") throw new Error("Пуста відповідь від AI");
-    parsed = JSON.parse((textBlock as any).text);
+    parsed = JSON.parse(cleanJsonResponse((textBlock as any).text));
   } else {
     const { client } = await getAIClient();
     const response = await client.chat.completions.create({
       model: config.model,
       messages: [
-        { role: "system", content: "You are an expert brand naming consultant. Respond only with valid JSON." },
+        { role: "system", content: "You are an expert brand naming consultant. Respond only with valid JSON, no markdown fences." },
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
@@ -1564,7 +1572,7 @@ Respond ONLY with valid JSON.`;
     });
     const content = response.choices[0].message.content;
     if (!content) throw new Error("Пуста відповідь від AI");
-    parsed = JSON.parse(content);
+    parsed = JSON.parse(cleanJsonResponse(content));
   }
 
   return {
@@ -1638,13 +1646,13 @@ Respond ONLY with valid JSON.`;
     if (!textBlock || textBlock.type !== "text") {
       throw new Error("Пуста відповідь від AI");
     }
-    result = JSON.parse((textBlock as any).text);
+    result = JSON.parse(cleanJsonResponse((textBlock as any).text));
   } else {
     const { client } = await getAIClient();
     const response = await client.chat.completions.create({
       model: config.model,
       messages: [
-        { role: "system", content: "You are an expert brand naming consultant. Respond only with valid JSON." },
+        { role: "system", content: "You are an expert brand naming consultant. Respond only with valid JSON, no markdown fences." },
         { role: "user", content: prompt },
       ],
       response_format: { type: "json_object" },
@@ -1672,7 +1680,7 @@ Respond ONLY with valid JSON.`;
     if (!content) {
       throw new Error("Пуста відповідь від AI");
     }
-    result = JSON.parse(content);
+    result = JSON.parse(cleanJsonResponse(content));
   }
 
   return (result.names || []).map((n: any) => ({
