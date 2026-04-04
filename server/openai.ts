@@ -124,6 +124,63 @@ async function getAIClient(): Promise<{ client: OpenAI; config: AIConfig }> {
   return getOpenAIClient();
 }
 
+async function callAIJSON(
+  systemPrompt: string,
+  userPrompt: string,
+  config: AIConfig,
+  endpoint: string,
+  maxTokens: number = 2048
+): Promise<string> {
+  if (config.provider === "claude") {
+    const { client: claude } = await getClaudeClient();
+    const response = await claude.messages.create({
+      model: config.model,
+      max_tokens: maxTokens,
+      system: systemPrompt + "\n\nВідповідай ТІЛЬКИ валідним JSON без markdown-фенсів.",
+      messages: [{ role: "user", content: userPrompt }],
+    });
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const inputRate = 0.000003;
+    const outputRate = 0.000015;
+    await storage.logAIUsage({
+      provider: "claude",
+      model: config.model,
+      tokensInput: response.usage.input_tokens,
+      tokensOutput: response.usage.output_tokens,
+      costEstimate: ((response.usage.input_tokens * inputRate) + (response.usage.output_tokens * outputRate)).toFixed(6),
+      endpoint,
+    });
+    return text;
+  } else {
+    const { client } = await getOpenAIClient();
+    const response = await client.chat.completions.create({
+      model: config.model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: maxTokens,
+    });
+    const usage = response.usage;
+    if (usage) {
+      const costRates = config.provider === "perplexity"
+        ? { input: 0.000001, output: 0.000001 }
+        : { input: 0.00001, output: 0.00003 };
+      const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
+      await storage.logAIUsage({
+        provider: config.provider,
+        model: config.model,
+        tokensInput: usage.prompt_tokens,
+        tokensOutput: usage.completion_tokens,
+        costEstimate: estimatedCost.toFixed(6),
+        endpoint,
+      });
+    }
+    return response.choices[0].message.content || "";
+  }
+}
+
 function cleanJsonResponse(text: string): string {
   let cleaned = text.trim();
   if (cleaned.startsWith('```')) {
@@ -198,7 +255,7 @@ export async function analyzeBrandLevel(
   responses: { cardTitle: string; question?: string; response: any }[],
   brandData?: BrandData
 ): Promise<LevelInsight> {
-  const { client, config } = await getAIClient();
+  const config = await getAIConfig();
 
   const levelNames = {
     soul: "Душа Бренду",
@@ -239,44 +296,15 @@ ${formatResponsesForPrompt(responses)}
 
 Відповідай ТІЛЬКИ валідним JSON об'єктом.`;
 
-  const response = await client.chat.completions.create({
-    model: config.model,
-    messages: [
-      {
-        role: "system",
-        content: "Ти - експерт з бренд-стратегії. Відповідай тільки валідним JSON без додаткового тексту."
-      },
-      { role: "user", content: prompt }
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 2048
-  });
+  const rawContent = await callAIJSON(
+    "Ти - експерт з бренд-стратегії. Відповідай тільки валідним JSON без додаткового тексту.",
+    prompt,
+    config,
+    "analyzeBrandLevel",
+    2048
+  );
 
-  // Log AI usage
-  const usage = response.usage;
-  if (usage) {
-    const costRates = config.provider === "perplexity"
-      ? { input: 0.000001, output: 0.000001 }
-      : { input: 0.00001, output: 0.00003 };
-    
-    const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
-    
-    await storage.logAIUsage({
-      provider: config.provider,
-      model: config.model,
-      tokensInput: usage.prompt_tokens,
-      tokensOutput: usage.completion_tokens,
-      costEstimate: estimatedCost.toFixed(6),
-      endpoint: "analyzeBrandLevel",
-    });
-  }
-
-  const content = response.choices[0].message.content;
-  if (!content) {
-    throw new Error("Пуста відповідь від AI");
-  }
-
-  const result = JSON.parse(content);
+  const result = JSON.parse(cleanJsonResponse(rawContent));
   
   return {
     level,
@@ -293,7 +321,7 @@ export async function generateBrandInsights(
   allResponses: { level: string; cardTitle: string; question?: string; response: any }[],
   brandData?: BrandData
 ): Promise<BrandInsights> {
-  const { client, config } = await getAIClient();
+  const config = await getAIConfig();
 
   const soulResponses = allResponses.filter(r => r.level === "soul");
   const mindResponses = allResponses.filter(r => r.level === "mind");
@@ -344,44 +372,15 @@ ${levelInsights.map(l => `
 
 Відповідай ТІЛЬКИ валідним JSON.`;
 
-  const overallResponse = await client.chat.completions.create({
-    model: config.model,
-    messages: [
-      {
-        role: "system",
-        content: "Ти - експерт з бренд-стратегії. Відповідай тільки валідним JSON без додаткового тексту."
-      },
-      { role: "user", content: overallPrompt }
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 4096
-  });
+  const rawOverall = await callAIJSON(
+    "Ти - експерт з бренд-стратегії. Відповідай тільки валідним JSON без додаткового тексту.",
+    overallPrompt,
+    config,
+    "generateBrandInsights",
+    4096
+  );
 
-  // Log AI usage
-  const overallUsage = overallResponse.usage;
-  if (overallUsage) {
-    const costRates = config.provider === "perplexity"
-      ? { input: 0.000001, output: 0.000001 }
-      : { input: 0.00001, output: 0.00003 };
-    
-    const estimatedCost = (overallUsage.prompt_tokens * costRates.input) + (overallUsage.completion_tokens * costRates.output);
-    
-    await storage.logAIUsage({
-      provider: config.provider,
-      model: config.model,
-      tokensInput: overallUsage.prompt_tokens,
-      tokensOutput: overallUsage.completion_tokens,
-      costEstimate: estimatedCost.toFixed(6),
-      endpoint: "generateBrandInsights",
-    });
-  }
-
-  const overallContent = overallResponse.choices[0].message.content;
-  if (!overallContent) {
-    throw new Error("Пуста відповідь від AI");
-  }
-
-  const overallResult = JSON.parse(overallContent);
+  const overallResult = JSON.parse(cleanJsonResponse(rawOverall));
 
   return {
     overallScore: Math.min(100, Math.max(0, overallResult.overallScore || 50)),
@@ -945,7 +944,7 @@ export async function generateAudiencePersona(
   selectedSegments?: { name: string; description?: string; ageRange?: string; gender?: string; location?: string; income?: string; education?: string; occupation?: string; contextDescription?: string; targetBehavior?: string }[],
   selectedSubSegments?: { name: string; description?: string; contextDescription?: string; specificNeeds?: string; differentiators?: string }[]
 ): Promise<GeneratedPersona> {
-  const { client, config } = await getAIClient();
+  const config = await getAIConfig();
 
   const segmentsContext = existingSegments?.length 
     ? `\nІснуючі сегменти аудиторії: ${existingSegments.map(s => s.name).join(", ")}`
@@ -1034,43 +1033,19 @@ ${segmentsContext}${segmentContext}${customDirection}${nameInstruction}
 
 Відповідай ТІЛЬКИ валідним JSON українською мовою.`;
 
-  const response = await client.chat.completions.create({
-    model: config.model,
-    messages: [
-      {
-        role: "system",
-        content: "Ти - експерт з маркетингу. Відповідай тільки валідним JSON без додаткового тексту."
-      },
-      { role: "user", content: prompt }
-    ],
-    response_format: { type: "json_object" },
-    max_tokens: 2000
-  });
+  const rawContent = await callAIJSON(
+    "Ти - експерт з маркетингу. Відповідай тільки валідним JSON без додаткового тексту.",
+    prompt,
+    config,
+    "generateAudiencePersona",
+    2000
+  );
 
-  const usage = response.usage;
-  if (usage) {
-    const costRates = config.provider === "perplexity"
-      ? { input: 0.000001, output: 0.000001 }
-      : { input: 0.00001, output: 0.00003 };
-    
-    const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
-    
-    await storage.logAIUsage({
-      provider: config.provider,
-      model: config.model,
-      tokensInput: usage.prompt_tokens,
-      tokensOutput: usage.completion_tokens,
-      costEstimate: estimatedCost.toFixed(6),
-      endpoint: "generateAudiencePersona",
-    });
-  }
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
+  if (!rawContent) {
     throw new Error("Не вдалося згенерувати персону");
   }
 
-  return JSON.parse(content) as GeneratedPersona;
+  return JSON.parse(cleanJsonResponse(rawContent)) as GeneratedPersona;
 }
 
 // Generated Segment Data interface
@@ -1147,7 +1122,7 @@ export async function generateSegmentData(
   segmentDescription: string,
   tier: "standard" | "pro" = "standard"
 ): Promise<GeneratedSegmentData> {
-  const { client, config } = await getAIClient();
+  const config = await getAIConfig();
 
   const standardFields = `{
   "name": "назва сегменту (коротка, описова)",
@@ -1244,41 +1219,19 @@ ${fieldsTemplate}
 - Відповідай ТІЛЬКИ валідним JSON без markdown
 - Для B2B полів заповнюй тільки якщо це бізнес-сегмент`;
 
-  const response = await client.chat.completions.create({
-    model: config.model,
-    messages: [
-      { role: "system", content: "Ти - експерт з маркетингу та сегментації. Відповідаєш ТІЛЬКИ валідним JSON." },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.7,
-    max_tokens: 2000,
-    response_format: { type: "json_object" },
-  });
+  const rawContent = await callAIJSON(
+    "Ти - експерт з маркетингу та сегментації. Відповідаєш ТІЛЬКИ валідним JSON.",
+    prompt,
+    config,
+    "generateSegmentData",
+    2000
+  );
 
-  const usage = response.usage;
-  if (usage) {
-    const costRates = {
-      input: config.provider === "perplexity" ? 0.001 : 0.0025,
-      output: config.provider === "perplexity" ? 0.001 : 0.01,
-    };
-    const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
-
-    await storage.logAIUsage({
-      provider: config.provider,
-      model: config.model,
-      tokensInput: usage.prompt_tokens,
-      tokensOutput: usage.completion_tokens,
-      costEstimate: estimatedCost.toFixed(6),
-      endpoint: "generateSegmentData",
-    });
-  }
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
+  if (!rawContent) {
     throw new Error("Не вдалося згенерувати дані сегменту");
   }
 
-  return JSON.parse(content) as GeneratedSegmentData;
+  return JSON.parse(cleanJsonResponse(rawContent)) as GeneratedSegmentData;
 }
 
 // Types for generated product data
@@ -1308,7 +1261,7 @@ export async function generateProductData(
   },
   productDescription: string
 ): Promise<GeneratedProductData> {
-  const { client, config } = await getAIClient();
+  const config = await getAIConfig();
 
   const prompt = `Ти - експерт з продуктового маркетингу та брендингу. На основі опису продукту створи детальну структуру для картки продукту.
 
@@ -1344,41 +1297,19 @@ ${productDescription}
 - Якщо якийсь параметр неможливо визначити з опису, залиш null
 - Відповідай ТІЛЬКИ валідним JSON без markdown`;
 
-  const response = await client.chat.completions.create({
-    model: config.model,
-    messages: [
-      { role: "system", content: "Ти - експерт з продуктового маркетингу. Відповідаєш ТІЛЬКИ валідним JSON." },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.7,
-    max_tokens: 2000,
-    response_format: { type: "json_object" },
-  });
+  const rawContent = await callAIJSON(
+    "Ти - експерт з продуктового маркетингу. Відповідаєш ТІЛЬКИ валідним JSON.",
+    prompt,
+    config,
+    "generateProductData",
+    2000
+  );
 
-  const usage = response.usage;
-  if (usage) {
-    const costRates = {
-      input: config.provider === "perplexity" ? 0.001 : 0.0025,
-      output: config.provider === "perplexity" ? 0.001 : 0.01,
-    };
-    const estimatedCost = (usage.prompt_tokens * costRates.input) + (usage.completion_tokens * costRates.output);
-
-    await storage.logAIUsage({
-      provider: config.provider,
-      model: config.model,
-      tokensInput: usage.prompt_tokens,
-      tokensOutput: usage.completion_tokens,
-      costEstimate: estimatedCost.toFixed(6),
-      endpoint: "generateProductData",
-    });
-  }
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
+  if (!rawContent) {
     throw new Error("Не вдалося згенерувати дані продукту");
   }
 
-  return JSON.parse(content) as GeneratedProductData;
+  return JSON.parse(cleanJsonResponse(rawContent)) as GeneratedProductData;
 }
 
 export interface GeneratedAgentData {

@@ -8708,15 +8708,35 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
         }
       }
       
-      const openaiKeySetting = await storage.getAppSetting("OPENAI_API_KEY");
-      const openaiModelSetting = await storage.getAppSetting("AI_MODEL_OPENAI");
-      const apiKey = openaiKeySetting?.value || process.env.OPENAI_API_KEY || "";
-      const model = openaiModelSetting?.value || "gpt-4o-mini";
-      
+      const [providerSetting, openaiKeySetting, perplexityKeySetting, claudeKeySetting,
+             modelOpenAISetting, modelPerplexitySetting, modelClaudeSetting] = await Promise.all([
+        storage.getAppSetting("AI_PROVIDER"),
+        storage.getAppSetting("OPENAI_API_KEY"),
+        storage.getAppSetting("PERPLEXITY_API_KEY"),
+        storage.getAppSetting("ANTHROPIC_API_KEY"),
+        storage.getAppSetting("AI_MODEL_OPENAI"),
+        storage.getAppSetting("AI_MODEL_PERPLEXITY"),
+        storage.getAppSetting("AI_MODEL_CLAUDE"),
+      ]);
+
+      const provider = (providerSetting?.value as "openai" | "perplexity" | "claude") || "openai";
+      let model: string;
+      let apiKey: string;
+      if (provider === "perplexity") {
+        model = modelPerplexitySetting?.value || "sonar-pro";
+        apiKey = perplexityKeySetting?.value || process.env.PERPLEXITY_API_KEY || "";
+      } else if (provider === "claude") {
+        model = modelClaudeSetting?.value || "claude-sonnet-4-20250514";
+        apiKey = claudeKeySetting?.value || process.env.ANTHROPIC_API_KEY || "";
+      } else {
+        model = modelOpenAISetting?.value || "gpt-4o-mini";
+        apiKey = openaiKeySetting?.value || process.env.OPENAI_API_KEY || "";
+      }
+
       if (!apiKey) {
         return res.status(500).json({ error: "AI не налаштований. Зверніться до адміністратора." });
       }
-      
+
       const systemPrompt = `Ти — експерт з брендингу та маркетингу. Створи структуру брифу для клієнта на основі контексту.
 Відповідай ВИКЛЮЧНО валідним JSON масивом полів брифу. Кожне поле має мати:
 - type: "short_text" | "long_text" | "multiple_choice" | "dropdown"
@@ -8738,21 +8758,34 @@ ${includeRecommendations ? '- Рекомендації (список)' : ''}
 
       const userPrompt = `Контекст: ${context}${brandContext}`;
 
-      const OpenAI = (await import("openai")).default;
-      const openai = new OpenAI({ apiKey });
-      
-      const completion = await openai.chat.completions.create({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 4000,
-      });
-      
-      const responseText = completion.choices[0]?.message?.content || "[]";
-      
+      let responseText: string;
+      if (provider === "claude") {
+        const Anthropic = (await import("@anthropic-ai/sdk")).default;
+        const claude = new Anthropic({ apiKey });
+        const claudeResp = await claude.messages.create({
+          model,
+          max_tokens: 4000,
+          system: systemPrompt + "\n\nВідповідай ТІЛЬКИ валідним JSON масивом без markdown-фенсів.",
+          messages: [{ role: "user", content: userPrompt }],
+        });
+        const textBlock = claudeResp.content.find(b => b.type === "text");
+        responseText = textBlock?.type === "text" ? textBlock.text : "[]";
+      } else {
+        const OpenAI = (await import("openai")).default;
+        const baseURL = provider === "perplexity" ? "https://api.perplexity.ai" : undefined;
+        const openai = new OpenAI({ apiKey, baseURL });
+        const completion = await openai.chat.completions.create({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 4000,
+        });
+        responseText = completion.choices[0]?.message?.content || "[]";
+      }
+
       let fields;
       try {
         const cleaned = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
