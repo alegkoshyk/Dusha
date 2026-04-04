@@ -636,6 +636,9 @@ export default function BrandChat() {
           gameSessionId: selectedGameSessionId || null,
         });
       }
+      if (!activeSessionId) {
+        throw new Error("Немає активної сесії. Перейдіть у чат бренду або почніть гру.");
+      }
       return apiRequestJson('POST', `/api/game-sessions/${activeSessionId}/chat`, { 
         message: messageText,
         agentId: selectedAgentId || undefined,
@@ -1346,66 +1349,14 @@ export default function BrandChat() {
                 </Button>
               </div>
             </div>
-          ) : (!activeSessionId && !isBrandMode) ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center space-y-3 max-w-xs">
-                <Gamepad2 className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600" />
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
-                  Для кращого розуміння вашого бренду
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Рекомендуємо пройти гру «Душа Бренду» — AI використовуватиме ваші відповіді як контекст. Або почніть чат без гри.
-                </p>
-                <div className="flex flex-col gap-2">
-                  <Button
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        const response = await apiRequestJson('POST', '/api/game-sessions', {
-                          brandId: brandIdFromUrl,
-                          currentLevel: 'soul',
-                          currentCard: 'soul-start',
-                          progress: 0,
-                        });
-                        setLocation(`/game/${response.id}`);
-                      } catch {
-                        toast({ title: "Помилка", description: "Не вдалося створити гру", variant: "destructive" });
-                      }
-                    }}
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Пройти гру
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        const response = await apiRequestJson('POST', '/api/game-sessions', {
-                          brandId: brandIdFromUrl,
-                          currentLevel: 'soul',
-                          currentCard: 'soul-start',
-                          progress: 0,
-                        });
-                        setSelectedGameSessionId(response.id);
-                      } catch {
-                        toast({ title: "Помилка", description: "Не вдалося підключити чат", variant: "destructive" });
-                      }
-                    }}
-                  >
-                    Почати чат
-                  </Button>
-                </div>
-              </div>
-            </div>
           ) : displayMessages.length === 0 && imageMessages.length === 0 ? (
             <div className="text-center py-12 text-gray-500 dark:text-gray-400" data-testid="text-empty-chat">
               <Bot className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium mb-2">Привіт! Я ваш AI-консультант</p>
               <p className="text-sm max-w-md mx-auto">
-                {isBrandMode 
-                  ? "Напишіть своє перше повідомлення щоб почати розмову про ваш бренд."
-                  : "Я знаю всі відповіді з вашої гри \"Душа Бренду\" і готовий допомогти з питаннями про ваш бренд, стратегію, позиціонування та розвиток."}
+                {selectedGameSessionId
+                  ? "Контекст гри підключено — AI враховуватиме ваші відповіді. Задавайте питання про бренд, стратегію або позиціонування."
+                  : "Напишіть перше повідомлення. Якщо пройдете гру «Душа Бренду», AI отримає додатковий контекст про ваш бренд."}
               </p>
             </div>
           ) : (
